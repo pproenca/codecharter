@@ -5,6 +5,7 @@ export const MAP_LEVELS = Object.freeze({
   file: 7,
   code: 10,
   lineRange: 12,
+  tokenRange: 12,
 });
 
 export const FULL_GEOHASH_PRECISION = MAP_LEVELS.lineRange;

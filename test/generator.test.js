@@ -31,6 +31,9 @@ test("generates a path-keyed map sidecar from gitignore-filtered code files", as
   assert.ok(codemap.folders.src);
   assert.ok(codemap.files["src/app.ts"]);
   assert.equal(codemap.files["src/app.ts"].lineCount, 2);
+  assert.equal(codemap.files["src/app.ts"].maxLineLength, 12);
+  assert.equal(codemap.files["src/app.ts"].tokenCount, 10);
+  assert.equal(codemap.files["src/app.ts"].wordCount, 6);
   assert.equal(codemap.files["src/image.png"], undefined);
   assert.equal(codemap.files["dist/generated.ts"], undefined);
   assert.equal(codemap.files["codemap.json"], undefined);

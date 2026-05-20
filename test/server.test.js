@@ -4,6 +4,7 @@ import { mkdtemp, writeFile, mkdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
+import { createServer } from "node:http";
 import { startServer } from "../src/server.js";
 
 test("serves map, tiles, selections, named places, and activity APIs", async () => {
@@ -60,16 +61,19 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
       path: "src/app.ts",
       lineStart: 1,
       lineEnd: 2,
+      columnStart: 7,
+      columnEnd: 10,
     });
     assert.equal(accepted.accepted, true);
 
     const activityStream = await waitForActivityEvent(baseUrl);
     const activity = activityStream.events.at(-1);
     assert.equal(activity.agentId, "codex");
-    assert.equal(activity.address.targetType, "lineRange");
+    assert.equal(activity.address.targetType, "tokenRange");
+    assert.deepEqual(activity.address.tokenRange, { start: 7, end: 10 });
     const archivedActivity = await waitForActivityArchive(root);
     assert.equal(archivedActivity.at(-1).agentId, "codex");
-    assert.equal(archivedActivity.at(-1).address.targetType, "lineRange");
+    assert.equal(archivedActivity.at(-1).address.targetType, "tokenRange");
 
     const badActivity = await postJson(`${baseUrl}/api/activity`, {
       agentId: "codex",
@@ -129,6 +133,32 @@ test("accepts pre-resolved activity without reading the map sidecar", async () =
   } finally {
     server.close();
     await once(server, "close");
+  }
+});
+
+test("uses the next available port when the requested port is occupied", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-port-fallback-"));
+  await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
+  const blocker = await listenOnFreePort();
+  const requestedPort = blocker.address().port;
+  const server = await startServer({
+    root,
+    mapPath: join(root, "codemap.json"),
+    port: requestedPort,
+    portSearchLimit: 2,
+  });
+
+  try {
+    const actualPort = server.address().port;
+    assert.notEqual(actualPort, requestedPort);
+    const map = await getJson(`http://127.0.0.1:${actualPort}/api/map`);
+    assert.ok(map.files["src/app.ts"]);
+  } finally {
+    const serverClosed = once(server, "close");
+    const blockerClosed = once(blocker, "close");
+    server.close();
+    blocker.close();
+    await Promise.all([serverClosed, blockerClosed]);
   }
 });
 
@@ -192,10 +222,19 @@ function sampleActivityAddress() {
   };
 }
 
+async function listenOnFreePort() {
+  const server = createServer();
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  return server;
+}
+
 function sampleCodemap({ includeExtraFile = false } = {}) {
   return {
     version: 1,
-    mapLevels: { world: 1, region: 2, folder: 4, file: 7, code: 10, lineRange: 12 },
+    mapLevels: { world: 1, region: 2, folder: 4, file: 7, code: 10, lineRange: 12, tokenRange: 12 },
     folders: {
       "": {
         path: "",
@@ -203,6 +242,7 @@ function sampleCodemap({ includeExtraFile = false } = {}) {
         bounds: { x: 0, y: 0, width: 1, height: 1 },
         geo: { lat: 0, lon: 0, geohash: "s00000000000" },
         lineCount: 2,
+        maxLineLength: 19,
         weight: 2,
       },
       src: {
@@ -211,6 +251,7 @@ function sampleCodemap({ includeExtraFile = false } = {}) {
         bounds: { x: 0, y: 0, width: 1, height: 1 },
         geo: { lat: 0, lon: 0, geohash: "s00000000000" },
         lineCount: 2,
+        maxLineLength: 19,
         weight: 2,
       },
     },
@@ -223,6 +264,7 @@ function sampleCodemap({ includeExtraFile = false } = {}) {
         bounds: { x: 0, y: 0, width: 1, height: 1 },
         geo: { lat: 0, lon: 0, geohash: "s00000000000" },
         lineCount: 2,
+        maxLineLength: 19,
         weight: 2,
       },
       ...(includeExtraFile ? {
@@ -234,6 +276,7 @@ function sampleCodemap({ includeExtraFile = false } = {}) {
           bounds: { x: 0.2, y: 0.2, width: 0.3, height: 0.3 },
           geo: { lat: 0, lon: 0, geohash: "s11111111111" },
           lineCount: 1,
+          maxLineLength: 24,
           weight: 1,
         },
       } : {}),

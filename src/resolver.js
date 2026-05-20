@@ -29,8 +29,13 @@ function resolveFolderAddress(codemap, folder) {
 }
 
 function resolveFileAddress(codemap, file, request) {
-  if (request.lineStart !== undefined || request.lineEnd !== undefined) {
-    return resolveLineRangeAddress(file, request);
+  if (
+    request.lineStart !== undefined
+    || request.lineEnd !== undefined
+    || request.columnStart !== undefined
+    || request.columnEnd !== undefined
+  ) {
+    return resolveCodeRangeAddress(file, request);
   }
 
   const level = "file";
@@ -46,36 +51,63 @@ function resolveFileAddress(codemap, file, request) {
   };
 }
 
-function resolveLineRangeAddress(file, request) {
+function resolveCodeRangeAddress(file, request) {
   const lineStart = normalizeLine(request.lineStart ?? request.lineEnd, file.lineCount);
   const lineEnd = normalizeLine(request.lineEnd ?? request.lineStart, file.lineCount);
   const start = Math.min(lineStart, lineEnd);
   const end = Math.max(lineStart, lineEnd);
   const startRatio = (start - 1) / file.lineCount;
   const endRatio = end / file.lineCount;
-  const bounds = {
+  const lineBounds = {
     x: file.bounds.x,
     y: round(file.bounds.y + file.bounds.height * startRatio),
     width: file.bounds.width,
     height: round(file.bounds.height * Math.max(endRatio - startRatio, 1 / file.lineCount)),
   };
+  const tokenRange = resolveTokenRange(file, request);
+  const bounds = tokenRange ? tokenBounds(file, lineBounds, tokenRange) : lineBounds;
   const center = {
     x: bounds.x + bounds.width / 2,
     y: bounds.y + bounds.height / 2,
   };
   const geo = codePointToGeo(center);
-  const level = "lineRange";
+  const level = tokenRange ? "tokenRange" : "lineRange";
   const geohash = encodeGeohash(geo.lat, geo.lon, precisionForLevel(level));
+  const lines = `${start}-${end}`;
 
   return {
     level,
-    targetType: "lineRange",
+    targetType: level,
     geohash,
-    deepLink: deepLink(level, geohash, { path: file.path, lines: `${start}-${end}` }),
-    breadcrumb: `${breadcrumbForPath(file.path)}:${start}-${end}`,
+    deepLink: deepLink(level, geohash, { path: file.path, lines, columns: tokenRange ? `${tokenRange.start}-${tokenRange.end}` : undefined }),
+    breadcrumb: `${breadcrumbForPath(file.path)}:${lines}${tokenRange ? `@${tokenRange.start}-${tokenRange.end}` : ""}`,
     bounds,
     geo: { ...geo, geohash },
     lineRange: { start, end },
+    ...(tokenRange ? { tokenRange } : {}),
+  };
+}
+
+function resolveTokenRange(file, request) {
+  if (request.columnStart === undefined && request.columnEnd === undefined) return null;
+  const width = Math.max(1, file.maxLineLength ?? 1);
+  const columnStart = normalizeColumn(request.columnStart ?? request.columnEnd, width);
+  const columnEnd = normalizeColumn(request.columnEnd ?? request.columnStart, width);
+  return {
+    start: Math.min(columnStart, columnEnd),
+    end: Math.max(columnStart, columnEnd),
+  };
+}
+
+function tokenBounds(file, lineBounds, tokenRange) {
+  const width = Math.max(1, file.maxLineLength ?? 1);
+  const startRatio = (tokenRange.start - 1) / width;
+  const endRatio = tokenRange.end / width;
+  return {
+    x: round(file.bounds.x + file.bounds.width * startRatio),
+    y: lineBounds.y,
+    width: round(file.bounds.width * Math.max(endRatio - startRatio, 1 / width)),
+    height: lineBounds.height,
   };
 }
 
@@ -87,6 +119,12 @@ function normalizeLine(value, lineCount) {
   const line = Number(value);
   if (!Number.isInteger(line)) throw new Error(`Line must be an integer: ${value}`);
   return Math.min(lineCount, Math.max(1, line));
+}
+
+function normalizeColumn(value, maxLineLength) {
+  const column = Number(value);
+  if (!Number.isInteger(column)) throw new Error(`Column must be an integer: ${value}`);
+  return Math.min(maxLineLength, Math.max(1, column));
 }
 
 function breadcrumbForPath(path) {

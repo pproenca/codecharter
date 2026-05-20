@@ -53,8 +53,8 @@
         "lat": 0,
         "geohash": "s00000000000"
       },
-      "lineCount": 14862,
-      "weight": 14862,
+      "lineCount": 15206,
+      "weight": 15206,
       "children": {
         "folders": [
           ".agents",
@@ -967,8 +967,8 @@
         "lat": -18.082052019359992,
         "geohash": "qsc94k786v4y"
       },
-      "lineCount": 195,
-      "weight": 195,
+      "lineCount": 204,
+      "weight": 204,
       "children": {
         "folders": [],
         "files": [
@@ -1090,8 +1090,8 @@
         "lat": -26.75340322820999,
         "geohash": "3gppf3dn5khm"
       },
-      "lineCount": 1847,
-      "weight": 1847,
+      "lineCount": 1887,
+      "weight": 1887,
       "children": {
         "folders": [],
         "files": [
@@ -1122,8 +1122,8 @@
         "lat": 42.131251412370005,
         "geohash": "wpqz8mz2qfe8"
       },
-      "lineCount": 1642,
-      "weight": 1642,
+      "lineCount": 1784,
+      "weight": 1784,
       "children": {
         "folders": [],
         "files": [
@@ -1171,8 +1171,8 @@
         "lat": -68.88465464058001,
         "geohash": "1gz047fjg3sm"
       },
-      "lineCount": 1362,
-      "weight": 1362,
+      "lineCount": 1514,
+      "weight": 1514,
       "children": {
         "folders": [],
         "files": [
@@ -4561,8 +4561,8 @@
         "lat": -18.082052019359992,
         "geohash": "qsb1nu60mjpn"
       },
-      "lineCount": 195,
-      "weight": 195
+      "lineCount": 204,
+      "weight": 204
     },
     "docs/adr/0001-stable-code-map-addresses.md": {
       "path": "docs/adr/0001-stable-code-map-addresses.md",
@@ -4732,8 +4732,8 @@
         "lat": -26.753403228299987,
         "geohash": "35hrf1en0spm"
       },
-      "lineCount": 1202,
-      "weight": 1202
+      "lineCount": 1229,
+      "weight": 1229
     },
     "public/index.html": {
       "path": "public/index.html",
@@ -4770,8 +4770,8 @@
         "lat": -22.174844702399994,
         "geohash": "7s13f5nw0t3f"
       },
-      "lineCount": 418,
-      "weight": 418
+      "lineCount": 431,
+      "weight": 431
     },
     "public/style.css": {
       "path": "public/style.css",
@@ -4827,8 +4827,8 @@
         "lat": 3.495019426109991,
         "geohash": "w085zsnzfyc6"
       },
-      "lineCount": 171,
-      "weight": 171
+      "lineCount": 215,
+      "weight": 215
     },
     "src/activity.js": {
       "path": "src/activity.js",
@@ -4903,8 +4903,8 @@
         "lat": 37.86629947128,
         "geohash": "tw8x6j2e1vzd"
       },
-      "lineCount": 79,
-      "weight": 79
+      "lineCount": 82,
+      "weight": 82
     },
     "src/geohash.js": {
       "path": "src/geohash.js",
@@ -4960,8 +4960,8 @@
         "lat": 11.480687708849999,
         "geohash": "wd0179uzg521"
       },
-      "lineCount": 16,
-      "weight": 16
+      "lineCount": 17,
+      "weight": 17
     },
     "src/local-git-exclude.js": {
       "path": "src/local-git-exclude.js",
@@ -5017,8 +5017,8 @@
         "lat": 72.56059615971,
         "geohash": "ykgku17bpg3x"
       },
-      "lineCount": 107,
-      "weight": 107
+      "lineCount": 145,
+      "weight": 145
     },
     "src/scan.js": {
       "path": "src/scan.js",
@@ -5036,8 +5036,8 @@
         "lat": 23.713297526069994,
         "geohash": "tujwysb7zpn3"
       },
-      "lineCount": 51,
-      "weight": 51
+      "lineCount": 61,
+      "weight": 61
     },
     "src/selections.js": {
       "path": "src/selections.js",
@@ -5074,8 +5074,8 @@
         "lat": 54.918755498159996,
         "geohash": "v9v2kjxhfqp9"
       },
-      "lineCount": 235,
-      "weight": 235
+      "lineCount": 278,
+      "weight": 278
     },
     "src/source.js": {
       "path": "src/source.js",
@@ -5169,8 +5169,8 @@
         "lat": 72.56059615971,
         "geohash": "yuuub3k2h5mx"
       },
-      "lineCount": 91,
-      "weight": 91
+      "lineCount": 94,
+      "weight": 94
     },
     "src/treemap.js": {
       "path": "src/treemap.js",
@@ -5226,8 +5226,8 @@
         "lat": -80.24670874044,
         "geohash": "59dp7z8cn1q8"
       },
-      "lineCount": 194,
-      "weight": 194
+      "lineCount": 211,
+      "weight": 211
     },
     "test/activity.test.js": {
       "path": "test/activity.test.js",
@@ -5245,8 +5245,8 @@
         "lat": -76.87281871025999,
         "geohash": "4dr6stdpk7gy"
       },
-      "lineCount": 91,
-      "weight": 91
+      "lineCount": 141,
+      "weight": 141
     },
     "test/dev-cli.test.js": {
       "path": "test/dev-cli.test.js",
@@ -5283,8 +5283,8 @@
         "lat": -68.88465464058001,
         "geohash": "0eg2neyvv3wj"
       },
-      "lineCount": 119,
-      "weight": 119
+      "lineCount": 122,
+      "weight": 122
     },
     "test/geohash.test.js": {
       "path": "test/geohash.test.js",
@@ -5359,8 +5359,8 @@
         "lat": -65.89464040359002,
         "geohash": "5s615u0zyhwx"
       },
-      "lineCount": 292,
-      "weight": 292
+      "lineCount": 305,
+      "weight": 305
     },
     "test/resolver.test.js": {
       "path": "test/resolver.test.js",
@@ -5378,8 +5378,8 @@
         "lat": -62.13751292754,
         "geohash": "4huwwbpncbpc"
       },
-      "lineCount": 45,
-      "weight": 45
+      "lineCount": 71,
+      "weight": 71
     },
     "test/selections.test.js": {
       "path": "test/selections.test.js",
@@ -5416,8 +5416,8 @@
         "lat": -63.40938527844,
         "geohash": "1kepq0tt83u7"
       },
-      "lineCount": 242,
-      "weight": 242
+      "lineCount": 285,
+      "weight": 285
     },
     "test/source.test.js": {
       "path": "test/source.test.js",
@@ -5530,8 +5530,8 @@
         "lat": 17.567999999999998,
         "geohash": "xej7vy4tn286"
       },
-      "lineCount": 37,
-      "weight": 37
+      "lineCount": 38,
+      "weight": 38
     },
     "skills-lock.json": {
       "path": "skills-lock.json",

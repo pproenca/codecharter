@@ -7,7 +7,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { lineRangeFromUnifiedDiff, parseGitStatusPorcelain, startActivityWatcher } from "../src/activity-watcher.js";
+import { changedRangeFromUnifiedDiff, lineRangeFromUnifiedDiff, parseGitStatusPorcelain, startActivityWatcher } from "../src/activity-watcher.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -44,6 +44,22 @@ test("resolves changed line range across unified diff hunks", () => {
   ].join("\n");
 
   assert.deepEqual(lineRangeFromUnifiedDiff(diff), { lineStart: 5, lineEnd: 24 });
+});
+
+test("resolves touched token columns across unified diff hunks", () => {
+  const diff = [
+    "diff --git a/src/app.js b/src/app.js",
+    "@@ -20 +24 @@",
+    "-old();",
+    "+  const newCall = run(value);",
+  ].join("\n");
+
+  assert.deepEqual(changedRangeFromUnifiedDiff(diff), {
+    lineStart: 24,
+    lineEnd: 24,
+    columnStart: 3,
+    columnEnd: 29,
+  });
 });
 
 test("returns an empty line range when a diff has no hunks", () => {
@@ -85,6 +101,7 @@ test("watcher prepares changed map state before posting each new diff signature"
     await waitFor(() => posted.length === 1);
     assert.equal(posted[0].path, "src/app.js");
     assert.deepEqual({ lineStart: posted[0].lineStart, lineEnd: posted[0].lineEnd }, { lineStart: 1, lineEnd: 1 });
+    assert.deepEqual({ columnStart: posted[0].columnStart, columnEnd: posted[0].columnEnd }, { columnStart: 1, columnEnd: 17 });
     await new Promise((resolve) => setTimeout(resolve, 80));
     assert.equal(posted.length, 1);
   } finally {

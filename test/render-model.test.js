@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   MAP_MAX_SCALE,
   activityStateStyle,
+  activityTissueBox,
   activityVisualEncoding,
   canRenderSourceText,
   detailBand,
@@ -241,6 +242,18 @@ test("encodes activity as recency-faded biological markers", () => {
   assert.equal(fresh.alpha > older.alpha, true);
   assert.equal(selected.haloRadius > fresh.haloRadius, true);
   assert.equal(fresh.coreRadius > older.coreRadius, true);
+});
+
+test("expands precise token activity into a visible tissue patch", () => {
+  const box = activityTissueBox({ x: 20, y: 40, width: 2, height: 3 }, {});
+  assert.equal(box.width, 18);
+  assert.equal(box.height, 10);
+  assert.equal(box.x, 12);
+  assert.equal(box.y, 36.5);
+
+  const selected = activityTissueBox({ x: 20, y: 40, width: 2, height: 3 }, { selected: true });
+  assert.equal(selected.width, 30);
+  assert.equal(selected.height, 18);
 });
 
 function codeFile(overrides = {}) {

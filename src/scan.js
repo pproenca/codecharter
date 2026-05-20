@@ -28,10 +28,11 @@ export async function scanCodeFiles(root, options = {}) {
 
   for (const path of paths) {
     const content = await readFile(join(root, path), "utf8");
+    const metrics = contentMetrics(content);
     files.push({
       path,
       extension: extname(path).toLowerCase(),
-      lineCount: countLines(content),
+      ...metrics,
     });
   }
 
@@ -44,8 +45,17 @@ export function normalizeRepoPath(root, path) {
   return relative(root, path).replaceAll("\\", "/");
 }
 
-function countLines(content) {
-  if (content.length === 0) return 1;
-  const matches = content.match(/\n/g);
-  return (matches?.length ?? 0) + (content.endsWith("\n") ? 0 : 1);
+function contentMetrics(content) {
+  const lines = content.length === 0 ? [""] : content.split("\n");
+  if (content.endsWith("\n")) lines.pop();
+  return {
+    lineCount: Math.max(1, lines.length),
+    maxLineLength: Math.max(1, ...lines.map((line) => line.length)),
+    tokenCount: countMatches(content, /[A-Za-z_$][A-Za-z0-9_$]*|\d+(?:\.\d+)?|[^\s]/g),
+    wordCount: countMatches(content, /[A-Za-z0-9_]+/g),
+  };
+}
+
+function countMatches(content, pattern) {
+  return content.match(pattern)?.length ?? 0;
 }

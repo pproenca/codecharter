@@ -74,6 +74,9 @@ function serializeFile(file) {
     bounds: file.bounds,
     geo: file.geo,
     lineCount: file.lineCount,
+    maxLineLength: file.maxLineLength,
+    tokenCount: file.tokenCount,
+    wordCount: file.wordCount,
     weight: file.weight,
   };
 }

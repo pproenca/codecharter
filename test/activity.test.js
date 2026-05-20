@@ -57,6 +57,55 @@ test("CLI appends Codex activity events to the JSONL activity archive", async ()
   assert.deepEqual(event.address.lineRange, { start: 2, end: 4 });
 });
 
+test("CLI activity can report a deterministic token-range map address", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-token-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
+
+  await execFileAsync("node", [
+    join(process.cwd(), "bin/codemap.mjs"),
+    "activity",
+    "src/app.ts",
+    "2",
+    "2",
+    "--column-start",
+    "3",
+    "--column-end",
+    "8",
+    "--agent",
+    "codex",
+  ], { cwd: root });
+
+  const lines = (await readFile(join(root, ".scratch/activity-stream.jsonl"), "utf8")).trim().split("\n");
+  const event = JSON.parse(lines[0]);
+
+  assert.equal(event.address.targetType, "tokenRange");
+  assert.deepEqual(event.address.lineRange, { start: 2, end: 2 });
+  assert.deepEqual(event.address.tokenRange, { start: 3, end: 8 });
+  assert.match(event.address.deepLink, /columns=3-8/);
+});
+
+test("CLI resolve prints token-range map addresses", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-resolve-token-"));
+  await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
+
+  const { stdout } = await execFileAsync("node", [
+    join(process.cwd(), "bin/codemap.mjs"),
+    "resolve",
+    "src/app.ts",
+    "2",
+    "2",
+    "--column-start",
+    "3",
+    "--column-end",
+    "8",
+  ], { cwd: root });
+  const address = JSON.parse(stdout);
+
+  assert.equal(address.targetType, "tokenRange");
+  assert.deepEqual(address.tokenRange, { start: 3, end: 8 });
+});
+
 test("CLI activity telemetry never exits non-zero for an unmapped path", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-activity-missing-"));
   await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
@@ -77,7 +126,7 @@ test("CLI activity telemetry never exits non-zero for an unmapped path", async (
 function sampleCodemap() {
   return {
     version: 1,
-    mapLevels: { world: 1, region: 2, folder: 4, file: 7, code: 10, lineRange: 12 },
+    mapLevels: { world: 1, region: 2, folder: 4, file: 7, code: 10, lineRange: 12, tokenRange: 12 },
     folders: {},
     files: {
       "src/app.ts": {
@@ -85,6 +134,7 @@ function sampleCodemap() {
         bounds: { x: 0, y: 0, width: 1, height: 1 },
         geo: { lat: 0, lon: 0, geohash: "s00000000000" },
         lineCount: 10,
+        maxLineLength: 20,
       },
     },
   };

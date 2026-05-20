@@ -87,6 +87,15 @@ export function parseGitStatusPorcelain(raw) {
 }
 
 export function lineRangeFromUnifiedDiff(diff) {
+  const range = changedRangeFromUnifiedDiff(diff);
+  if (range.lineStart === undefined) return {};
+  return {
+    lineStart: range.lineStart,
+    lineEnd: range.lineEnd,
+  };
+}
+
+export function changedRangeFromUnifiedDiff(diff) {
   const ranges = [...diff.matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)]
     .map((match) => {
       const start = Number(match[1]);
@@ -98,9 +107,14 @@ export function lineRangeFromUnifiedDiff(diff) {
     });
 
   if (ranges.length === 0) return {};
+  const tokenSpan = tokenColumnSpanFromUnifiedDiff(diff);
   return {
     lineStart: Math.min(...ranges.map((range) => range.start)),
     lineEnd: Math.max(...ranges.map((range) => range.end)),
+    ...(tokenSpan ? {
+      columnStart: tokenSpan.start,
+      columnEnd: tokenSpan.end,
+    } : {}),
   };
 }
 
@@ -116,7 +130,7 @@ async function changedLineRange(root, path) {
   ]);
   const diff = diffs.join("\n");
   return {
-    ...lineRangeFromUnifiedDiff(diff),
+    ...changedRangeFromUnifiedDiff(diff),
     signature: diff ? hashString(diff) : "file",
   };
 }
@@ -137,6 +151,8 @@ function defaultActivityPayload(change, { agentId, activityState }) {
     path: change.path,
     lineStart: change.lineStart,
     lineEnd: change.lineEnd,
+    columnStart: change.columnStart,
+    columnEnd: change.columnEnd,
     note: "codemap dev watcher",
   };
 }
@@ -160,6 +176,34 @@ function isActivityWatchablePath(path) {
     && !path.startsWith(".git/")
     && !path.startsWith(".scratch/")
     && isCodeFile(path);
+}
+
+function tokenColumnSpanFromUnifiedDiff(diff) {
+  let minColumn = Infinity;
+  let maxColumn = 0;
+  for (const line of diff.split("\n")) {
+    if (!line.startsWith("+") || line.startsWith("+++")) continue;
+    const span = tokenColumnSpan(line.slice(1));
+    if (!span) continue;
+    minColumn = Math.min(minColumn, span.start);
+    maxColumn = Math.max(maxColumn, span.end);
+  }
+  if (!Number.isFinite(minColumn) || maxColumn <= 0) return null;
+  return { start: minColumn, end: maxColumn };
+}
+
+function tokenColumnSpan(line) {
+  if (line.length === 0) return null;
+  const pattern = /[A-Za-z_$][A-Za-z0-9_$]*|\d+(?:\.\d+)?|[^\s]/g;
+  let match;
+  let minColumn = Infinity;
+  let maxColumn = 0;
+  while ((match = pattern.exec(line))) {
+    minColumn = Math.min(minColumn, match.index + 1);
+    maxColumn = Math.max(maxColumn, match.index + match[0].length);
+  }
+  if (Number.isFinite(minColumn)) return { start: minColumn, end: maxColumn };
+  return { start: 1, end: line.length };
 }
 
 function hashString(value) {

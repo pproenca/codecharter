@@ -21,6 +21,9 @@ export function buildFileTree(files) {
       path: file.path,
       extension: file.extension,
       lineCount: file.lineCount,
+      maxLineLength: file.maxLineLength,
+      tokenCount: file.tokenCount,
+      wordCount: file.wordCount,
       weight: Math.max(file.lineCount, MIN_VISIBLE_WEIGHT),
     });
   }

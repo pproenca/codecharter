@@ -3,6 +3,7 @@ import {
   SOURCE_TEXT_MAX_LINES_PER_FRAME,
   SOURCE_TEXT_PREFETCH_LINES,
   activityStateStyle,
+  activityTissueBox,
   activityVisualEncoding,
   boundsCenter as modelBoundsCenter,
   canRenderSourceText,
@@ -585,9 +586,14 @@ function drawActivityMembranes(events, latestByAgent) {
     const encoding = activityVisualEncoding(event, { latest, selected });
     if (encoding.membraneAlpha <= 0.08 && !selected) continue;
 
-    const p = worldToScreen(boundsCenter(event.address.bounds));
+    const tissueBox = activityTissueBox(screenBounds(event.address.bounds), encoding);
+    const p = {
+      x: tissueBox.x + tissueBox.width / 2,
+      y: tissueBox.y + tissueBox.height / 2,
+    };
+    const radius = Math.max(tissueBox.width, tissueBox.height) * 0.82;
     const style = activityStateStyle(encoding.activityState);
-    const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, encoding.haloRadius);
+    const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
     gradient.addColorStop(0, hexToRgba(style.fill, encoding.membraneAlpha));
     gradient.addColorStop(0.58, hexToRgba(style.fill, encoding.membraneAlpha * 0.45));
     gradient.addColorStop(1, hexToRgba(style.fill, 0));
@@ -595,7 +601,7 @@ function drawActivityMembranes(events, latestByAgent) {
     ctx.save();
     ctx.fillStyle = gradient;
     ctx.beginPath();
-    drawActivityCell(p, encoding.haloRadius, event.id ?? event.agentId);
+    drawActivityTissue(tissueBox, event.id ?? event.agentId);
     ctx.fill();
     ctx.restore();
   }
@@ -661,6 +667,26 @@ function drawActivityCell(center, radius, key) {
     const wobble = 0.82 + hashUnit(`${key}:cell:${index}`) * 0.26;
     const r = radius * wobble;
     ctx.lineTo(center.x + Math.cos(angle) * r, center.y + Math.sin(angle) * r);
+  }
+  ctx.closePath();
+}
+
+function drawActivityTissue(box, key) {
+  const center = {
+    x: box.x + box.width / 2,
+    y: box.y + box.height / 2,
+  };
+  const radiusX = box.width / 2;
+  const radiusY = box.height / 2;
+  const points = 14;
+  ctx.moveTo(center.x + radiusX, center.y);
+  for (let index = 1; index <= points; index += 1) {
+    const angle = (index / points) * Math.PI * 2;
+    const wobble = 0.86 + hashUnit(`${key}:tissue:${index}`) * 0.22;
+    ctx.lineTo(
+      center.x + Math.cos(angle) * radiusX * wobble,
+      center.y + Math.sin(angle) * radiusY * wobble,
+    );
   }
   ctx.closePath();
 }
@@ -1123,7 +1149,8 @@ function hoverLabel(hit) {
 function activityPathLabel(event) {
   const path = pathFromActivity(event);
   const lines = event.address.lineRange ? `:${event.address.lineRange.start}-${event.address.lineRange.end}` : "";
-  return `${path || event.address.deepLink}${lines}`;
+  const columns = event.address.tokenRange ? `@${event.address.tokenRange.start}-${event.address.tokenRange.end}` : "";
+  return `${path || event.address.deepLink}${lines}${columns}`;
 }
 
 function pathFromActivity(event) {

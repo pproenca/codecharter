@@ -19,8 +19,16 @@ const MIME_TYPES = {
 };
 
 const BUNDLED_PUBLIC_ROOT = fileURLToPath(new URL("../public", import.meta.url));
+const DEFAULT_PORT_SEARCH_LIMIT = 20;
 
-export async function startServer({ root, mapPath, port, activityFlushIntervalMs, publicRoot = BUNDLED_PUBLIC_ROOT }) {
+export async function startServer({
+  root,
+  mapPath,
+  port,
+  activityFlushIntervalMs,
+  publicRoot = BUNDLED_PUBLIC_ROOT,
+  portSearchLimit = DEFAULT_PORT_SEARCH_LIMIT,
+}) {
   const state = {
     root,
     mapPath,
@@ -38,10 +46,7 @@ export async function startServer({ root, mapPath, port, activityFlushIntervalMs
     });
   });
 
-  await new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", resolve);
-  });
+  const actualPort = await listenOnAvailablePort(server, { port, portSearchLimit });
 
   server.on("close", () => {
     state.activityStore.close().catch((error) => {
@@ -49,8 +54,44 @@ export async function startServer({ root, mapPath, port, activityFlushIntervalMs
     });
   });
 
-  console.log(`Codemap running at http://127.0.0.1:${port}`);
+  console.log(`Codemap running at http://127.0.0.1:${actualPort}`);
   return server;
+}
+
+async function listenOnAvailablePort(server, { port, portSearchLimit }) {
+  if (port === 0) {
+    await listenOnce(server, port);
+    return server.address().port;
+  }
+
+  const lastPort = port + Math.max(0, portSearchLimit);
+  for (let candidate = port; candidate <= lastPort; candidate += 1) {
+    try {
+      await listenOnce(server, candidate);
+      return candidate;
+    } catch (error) {
+      if (error.code !== "EADDRINUSE" || candidate === lastPort) throw error;
+    }
+  }
+
+  throw new Error(`No available port found from ${port} to ${lastPort}`);
+}
+
+async function listenOnce(server, port) {
+  await new Promise((resolve, reject) => {
+    function cleanup() {
+      server.off("error", onError);
+    }
+    function onError(error) {
+      cleanup();
+      reject(error);
+    }
+    server.once("error", onError);
+    server.listen(port, "127.0.0.1", () => {
+      cleanup();
+      resolve();
+    });
+  });
 }
 
 async function handleRequest(state, request, response) {
@@ -95,7 +136,9 @@ async function handleApi(state, request, response, url) {
     const path = requiredParam(url, "path");
     const lineStart = optionalNumber(url.searchParams.get("lineStart"));
     const lineEnd = optionalNumber(url.searchParams.get("lineEnd"));
-    sendJson(response, 200, resolveAddress(codemap, { path, lineStart, lineEnd }));
+    const columnStart = optionalNumber(url.searchParams.get("columnStart"));
+    const columnEnd = optionalNumber(url.searchParams.get("columnEnd"));
+    sendJson(response, 200, resolveAddress(codemap, { path, lineStart, lineEnd, columnStart, columnEnd }));
     return;
   }
 

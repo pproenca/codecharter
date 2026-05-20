@@ -15,8 +15,8 @@ function usage() {
   codemap generate [--root <dir>] [--out <file>]
   codemap setup [--root <dir>] [--out <file>] [--fresh]
   codemap dev [--root <dir>] [--map <file>] [--port <port>] [--agent <id>] [--no-watch] [--fresh]
-  codemap resolve <path> [lineStart] [lineEnd] [--map <file>]
-  codemap activity <path> [lineStart] [lineEnd] [--agent <id>] [--state <state>] [--note <text>] [--map <file>] [--out <file.jsonl>]
+  codemap resolve <path> [lineStart] [lineEnd] [--column-start <n>] [--column-end <n>] [--map <file>]
+  codemap activity <path> [lineStart] [lineEnd] [--column-start <n>] [--column-end <n>] [--agent <id>] [--state <state>] [--note <text>] [--map <file>] [--out <file.jsonl>]
   codemap serve [--root <dir>] [--map <file>] [--port <port>]
 `;
 }
@@ -78,12 +78,13 @@ async function main() {
     await ensureLocalGitExcludes(root);
     let currentCodemap = await writeCodemap({ root, out: mapPath, fresh });
     await ensureActivityStream(root);
-    await startServer({ root, mapPath, port });
+    const server = await startServer({ root, mapPath, port });
+    const actualPort = server.address().port;
     if (watch) {
       let lastRefreshSignature = "";
       startActivityWatcher({
         root,
-        endpoint: `http://127.0.0.1:${port}/api/activity`,
+        endpoint: `http://127.0.0.1:${actualPort}/api/activity`,
         agentId,
         activityState: "editing",
         prepareChanges: async (changes) => {
@@ -112,13 +113,15 @@ async function main() {
 
   if (command === "resolve") {
     const mapPath = resolvePath(takeOption(args, "--map", "codemap.json"));
+    const columnStart = optionalNumber(takeOption(args, "--column-start", undefined));
+    const columnEnd = optionalNumber(takeOption(args, "--column-end", undefined));
     const [path, lineStartRaw, lineEndRaw] = args;
     if (!path) throw new Error("resolve requires a path");
 
     const codemap = JSON.parse(await readFile(mapPath, "utf8"));
-    const lineStart = lineStartRaw === undefined ? undefined : Number(lineStartRaw);
-    const lineEnd = lineEndRaw === undefined ? lineStart : Number(lineEndRaw);
-    const address = resolveAddress(codemap, { path, lineStart, lineEnd });
+    const lineStart = optionalNumber(lineStartRaw);
+    const lineEnd = lineEndRaw === undefined ? lineStart : optionalNumber(lineEndRaw);
+    const address = resolveAddress(codemap, { path, lineStart, lineEnd, columnStart, columnEnd });
     console.log(JSON.stringify(address, null, 2));
     return;
   }
@@ -130,13 +133,15 @@ async function main() {
       const agentId = takeOption(args, "--agent", "codex");
       const activityState = takeOption(args, "--state", "editing");
       const note = takeOption(args, "--note", "");
+      const columnStart = optionalNumber(takeOption(args, "--column-start", undefined));
+      const columnEnd = optionalNumber(takeOption(args, "--column-end", undefined));
       const [path, lineStartRaw, lineEndRaw] = args;
       if (!path) throw new Error("activity requires a path");
 
       const codemap = JSON.parse(await readFile(mapPath, "utf8"));
-      const lineStart = lineStartRaw === undefined ? undefined : Number(lineStartRaw);
-      const lineEnd = lineEndRaw === undefined ? lineStart : Number(lineEndRaw);
-      const address = resolveAddress(codemap, { path, lineStart, lineEnd });
+      const lineStart = optionalNumber(lineStartRaw);
+      const lineEnd = lineEndRaw === undefined ? lineStart : optionalNumber(lineEndRaw);
+      const address = resolveAddress(codemap, { path, lineStart, lineEnd, columnStart, columnEnd });
       const event = createActivityEvent(address, { agentId, activityState, note });
       await appendActivityEvents(outPath, [event]);
       console.log(JSON.stringify({ accepted: true, event }, null, 2));
@@ -187,6 +192,10 @@ async function ensureActivityStream(root) {
 
 function resolveMapPath(root, path) {
   return isAbsolute(path) ? path : resolvePath(root, path);
+}
+
+function optionalNumber(value) {
+  return value === undefined ? undefined : Number(value);
 }
 
 main().catch((error) => {

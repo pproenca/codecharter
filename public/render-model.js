@@ -373,6 +373,19 @@ export function activityVisualEncoding(event, { latest = false, selected = false
   };
 }
 
+export function activityTissueBox(screenBox, encoding = {}) {
+  const minWidth = encoding.selected ? 30 : 18;
+  const minHeight = encoding.selected ? 18 : 10;
+  const width = Math.max(screenBox.width, minWidth);
+  const height = Math.max(screenBox.height, minHeight);
+  return {
+    x: screenBox.x + screenBox.width / 2 - width / 2,
+    y: screenBox.y + screenBox.height / 2 - height / 2,
+    width,
+    height,
+  };
+}
+
 export function sortedActivityEvents(events, limit = 80) {
   return [...events]
     .filter((event) => event?.address?.bounds)

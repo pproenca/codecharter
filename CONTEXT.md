@@ -13,7 +13,7 @@ A **Code Map** whose existing places remain fixed as the codebase changes. A Sta
 _Avoid_: Auto-reflowing map, disposable layout
 
 **Map Sidecar**:
-A persisted description of the stable base geography of the **Code Map**. The Map Sidecar stores enough information to resolve Map Addresses, including the Code Plane transform, without storing volatile overlays such as live Agent Positions.
+A persisted description of the stable base geography of the **Code Map**. The Map Sidecar stores path-keyed Folders and Files, enough information to resolve Map Addresses, and the Code Plane transform, without storing volatile overlays such as live Agent Positions.
 _Avoid_: Cache file, activity log
 
 **Tile Cache**:

@@ -1,0 +1,2961 @@
+{
+  "version": 1,
+  "projection": {
+    "type": "filesystem-treemap",
+    "mapOrder": "lexical-folders-first",
+    "inclusion": "gitignore-known-code-extensions",
+    "areaWeight": "line-count",
+    "tileAddressing": "geohash-prefix"
+  },
+  "mapLevels": {
+    "world": 1,
+    "region": 2,
+    "folder": 4,
+    "file": 7,
+    "code": 10,
+    "lineRange": 12
+  },
+  "codePlane": {
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 1,
+      "height": 1
+    },
+    "internalGeoDomain": {
+      "lat": {
+        "min": -90,
+        "max": 90
+      },
+      "lon": {
+        "min": -180,
+        "max": 180
+      }
+    },
+    "transform": {
+      "xToLon": "x * 360 - 180",
+      "yToLat": "90 - y * 180"
+    }
+  },
+  "folders": {
+    "": {
+      "path": "",
+      "name": "",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "geo": {
+        "lon": 0,
+        "lat": 0,
+        "geohash": "s00000000000"
+      },
+      "lineCount": 6522,
+      "weight": 6522,
+      "children": {
+        "folders": [
+          ".agents",
+          "bin",
+          "docs",
+          "public",
+          "src",
+          "test"
+        ],
+        "files": [
+          "AGENTS.md",
+          "CONTEXT.md",
+          "package.json",
+          "skills-lock.json"
+        ]
+      },
+      "growthArea": {
+        "x": 0.95,
+        "y": 0,
+        "width": 0.05,
+        "height": 1
+      }
+    },
+    ".agents": {
+      "path": ".agents",
+      "name": ".agents",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0.95,
+        "height": 0.586399474376
+      },
+      "geo": {
+        "lon": -9,
+        "lat": 37.224047306159996,
+        "geohash": "ey9eg0qmuc3e"
+      },
+      "lineCount": 3570,
+      "weight": 3570,
+      "children": {
+        "folders": [
+          ".agents/skills"
+        ],
+        "files": []
+      },
+      "growthArea": {
+        "x": 0.9025,
+        "y": 0,
+        "width": 0.0475,
+        "height": 0.586399474376
+      }
+    },
+    ".agents/skills": {
+      "path": ".agents/skills",
+      "name": "skills",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0.9025,
+        "height": 0.586399474376
+      },
+      "geo": {
+        "lon": -17.55000000000001,
+        "lat": 37.224047306159996,
+        "geohash": "eweeb8kmz37e"
+      },
+      "lineCount": 3570,
+      "weight": 3570,
+      "children": {
+        "folders": [
+          ".agents/skills/geohash-spatial-code-maps",
+          ".agents/skills/grill-me",
+          ".agents/skills/grill-with-docs",
+          ".agents/skills/handoff",
+          ".agents/skills/improve-codebase-architecture",
+          ".agents/skills/prototype",
+          ".agents/skills/tdd",
+          ".agents/skills/to-issues",
+          ".agents/skills/to-prd",
+          ".agents/skills/triage",
+          ".agents/skills/zoom-out"
+        ],
+        "files": []
+      },
+      "growthArea": {
+        "x": 0.857375,
+        "y": 0,
+        "width": 0.045125,
+        "height": 0.586399474376
+      }
+    },
+    ".agents/skills/geohash-spatial-code-maps": {
+      "path": ".agents/skills/geohash-spatial-code-maps",
+      "name": "geohash-spatial-code-maps",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0.499535014006,
+        "height": 0.586399474376
+      },
+      "geo": {
+        "lon": -90.08369747892,
+        "lat": 37.224047306159996,
+        "geohash": "9yxgy07jc9qe"
+      },
+      "lineCount": 2080,
+      "weight": 2080,
+      "children": {
+        "folders": [
+          ".agents/skills/geohash-spatial-code-maps/assets",
+          ".agents/skills/geohash-spatial-code-maps/references"
+        ],
+        "files": [
+          ".agents/skills/geohash-spatial-code-maps/AGENTS.md",
+          ".agents/skills/geohash-spatial-code-maps/SKILL.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0,
+        "y": 0.557079500657,
+        "width": 0.499535014006,
+        "height": 0.029319973719
+      }
+    },
+    ".agents/skills/geohash-spatial-code-maps/assets": {
+      "path": ".agents/skills/geohash-spatial-code-maps/assets",
+      "name": "assets",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0.499535014006,
+        "height": 0.008302627173
+      },
+      "geo": {
+        "lon": -90.08369747892,
+        "lat": 89.25276355443,
+        "geohash": "czzgwpgp19n8"
+      },
+      "lineCount": 31,
+      "weight": 31,
+      "children": {
+        "folders": [
+          ".agents/skills/geohash-spatial-code-maps/assets/templates"
+        ],
+        "files": []
+      },
+      "growthArea": {
+        "x": 0.474558263305,
+        "y": 0,
+        "width": 0.0249767507,
+        "height": 0.008302627173
+      }
+    },
+    ".agents/skills/geohash-spatial-code-maps/assets/templates": {
+      "path": ".agents/skills/geohash-spatial-code-maps/assets/templates",
+      "name": "templates",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0.474558263305,
+        "height": 0.008302627173
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 89.25276355443,
+        "geohash": "czuexzcr195b"
+      },
+      "lineCount": 31,
+      "weight": 31,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/geohash-spatial-code-maps/assets/templates/_template.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.45083035014,
+        "y": 0,
+        "width": 0.023727913165,
+        "height": 0.008302627173
+      }
+    },
+    ".agents/skills/geohash-spatial-code-maps/references": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references",
+      "name": "references",
+      "bounds": {
+        "x": 0,
+        "y": 0.008302627173,
+        "width": 0.499535014006,
+        "height": 0.490122829905
+      },
+      "geo": {
+        "lon": -90.08369747892,
+        "lat": 44.39447241741,
+        "geohash": "9zzuw1g099qx"
+      },
+      "lineCount": 1830,
+      "weight": 1830,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/geohash-spatial-code-maps/references/_sections.md",
+          ".agents/skills/geohash-spatial-code-maps/references/dec-avoid-roundtrip-reencode.md",
+          ".agents/skills/geohash-spatial-code-maps/references/dec-decode-to-bbox.md",
+          ".agents/skills/geohash-spatial-code-maps/references/dec-precompute-reverse-alphabet.md",
+          ".agents/skills/geohash-spatial-code-maps/references/dec-symmetric-interval-reconstruction.md",
+          ".agents/skills/geohash-spatial-code-maps/references/enc-base32-alphabet.md",
+          ".agents/skills/geohash-spatial-code-maps/references/enc-binary-chop-no-float-drift.md",
+          ".agents/skills/geohash-spatial-code-maps/references/enc-five-bit-char-boundary.md",
+          ".agents/skills/geohash-spatial-code-maps/references/enc-integer-morton-encode.md",
+          ".agents/skills/geohash-spatial-code-maps/references/enc-interleave-longitude-first.md",
+          ".agents/skills/geohash-spatial-code-maps/references/enc-normalize-input-domain.md",
+          ".agents/skills/geohash-spatial-code-maps/references/idx-db-prefix-index.md",
+          ".agents/skills/geohash-spatial-code-maps/references/idx-integer-sortable-key.md",
+          ".agents/skills/geohash-spatial-code-maps/references/idx-range-query-from-covering-set.md",
+          ".agents/skills/geohash-spatial-code-maps/references/idx-sorted-string-range-scan.md",
+          ".agents/skills/geohash-spatial-code-maps/references/idx-trie-hierarchical-bucketing.md",
+          ".agents/skills/geohash-spatial-code-maps/references/map-coupling-implies-proximity.md",
+          ".agents/skills/geohash-spatial-code-maps/references/map-deterministic-projection.md",
+          ".agents/skills/geohash-spatial-code-maps/references/map-normalize-to-geohash-domain.md",
+          ".agents/skills/geohash-spatial-code-maps/references/map-persist-coordinate-sidecar.md",
+          ".agents/skills/geohash-spatial-code-maps/references/map-precision-as-architectural-level.md",
+          ".agents/skills/geohash-spatial-code-maps/references/map-prefix-as-domain-region.md",
+          ".agents/skills/geohash-spatial-code-maps/references/map-stable-coordinates.md",
+          ".agents/skills/geohash-spatial-code-maps/references/nav-breadcrumb-prefix-path.md",
+          ".agents/skills/geohash-spatial-code-maps/references/nav-cluster-by-prefix.md",
+          ".agents/skills/geohash-spatial-code-maps/references/nav-level-of-detail-aggregation.md",
+          ".agents/skills/geohash-spatial-code-maps/references/nav-precision-to-zoom-levels.md",
+          ".agents/skills/geohash-spatial-code-maps/references/nav-tile-lazy-loading.md",
+          ".agents/skills/geohash-spatial-code-maps/references/nbr-antimeridian-wrap.md",
+          ".agents/skills/geohash-spatial-code-maps/references/nbr-canonical-lookup-tables.md",
+          ".agents/skills/geohash-spatial-code-maps/references/nbr-eight-neighbor-set.md",
+          ".agents/skills/geohash-spatial-code-maps/references/nbr-integer-level-neighbors.md",
+          ".agents/skills/geohash-spatial-code-maps/references/nbr-pole-handling.md",
+          ".agents/skills/geohash-spatial-code-maps/references/prec-avoid-mixed-precision.md",
+          ".agents/skills/geohash-spatial-code-maps/references/prec-cells-are-not-square.md",
+          ".agents/skills/geohash-spatial-code-maps/references/prec-cells-shrink-toward-poles.md",
+          ".agents/skills/geohash-spatial-code-maps/references/prec-choose-from-error-radius.md",
+          ".agents/skills/geohash-spatial-code-maps/references/prec-error-is-half-cell.md",
+          ".agents/skills/geohash-spatial-code-maps/references/qry-bbox-range-decomposition.md",
+          ".agents/skills/geohash-spatial-code-maps/references/qry-expand-precision-when-sparse.md",
+          ".agents/skills/geohash-spatial-code-maps/references/qry-precision-from-radius.md",
+          ".agents/skills/geohash-spatial-code-maps/references/qry-refine-with-haversine.md",
+          ".agents/skills/geohash-spatial-code-maps/references/qry-search-cell-plus-neighbors.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.474558263305,
+        "y": 0.008302627173,
+        "width": 0.0249767507,
+        "height": 0.490122829905
+      }
+    },
+    ".agents/skills/grill-me": {
+      "path": ".agents/skills/grill-me",
+      "name": "grill-me",
+      "bounds": {
+        "x": 0.499535014006,
+        "y": 0,
+        "width": 0.002401610644,
+        "height": 0.586399474376
+      },
+      "geo": {
+        "lon": 0.26489495807996377,
+        "lat": 37.224047306159996,
+        "geohash": "sn85y02vu3rg"
+      },
+      "lineCount": 10,
+      "weight": 10,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/grill-me/SKILL.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.499535014006,
+        "y": 0.557079500657,
+        "width": 0.002401610644,
+        "height": 0.029319973719
+      }
+    },
+    ".agents/skills/grill-with-docs": {
+      "path": ".agents/skills/grill-with-docs",
+      "name": "grill-with-docs",
+      "bounds": {
+        "x": 0.50193662465,
+        "y": 0,
+        "width": 0.047551890756,
+        "height": 0.586399474376
+      },
+      "geo": {
+        "lon": 9.256525210079985,
+        "lat": 37.224047306159996,
+        "geohash": "snwef8kmu9m7"
+      },
+      "lineCount": 198,
+      "weight": 198,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/grill-with-docs/ADR-FORMAT.md",
+          ".agents/skills/grill-with-docs/CONTEXT-FORMAT.md",
+          ".agents/skills/grill-with-docs/SKILL.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.50193662465,
+        "y": 0.557079500657,
+        "width": 0.047551890756,
+        "height": 0.029319973719
+      }
+    },
+    ".agents/skills/handoff": {
+      "path": ".agents/skills/handoff",
+      "name": "handoff",
+      "bounds": {
+        "x": 0.549488515406,
+        "y": 0,
+        "width": 0.003602415966,
+        "height": 0.586399474376
+      },
+      "geo": {
+        "lon": 18.46430042003999,
+        "lat": 37.224047306159996,
+        "geohash": "sqt5u0mmc3k7"
+      },
+      "lineCount": 15,
+      "weight": 15,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/handoff/SKILL.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.549488515406,
+        "y": 0.557079500657,
+        "width": 0.003602415966,
+        "height": 0.029319973719
+      }
+    },
+    ".agents/skills/improve-codebase-architecture": {
+      "path": ".agents/skills/improve-codebase-architecture",
+      "name": "improve-codebase-architecture",
+      "bounds": {
+        "x": 0.553090931373,
+        "y": 0,
+        "width": 0.049233018207,
+        "height": 0.586399474376
+      },
+      "geo": {
+        "lon": 27.97467857154001,
+        "lat": 37.224047306159996,
+        "geohash": "swegu86tc325"
+      },
+      "lineCount": 205,
+      "weight": 205,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/improve-codebase-architecture/DEEPENING.md",
+          ".agents/skills/improve-codebase-architecture/INTERFACE-DESIGN.md",
+          ".agents/skills/improve-codebase-architecture/LANGUAGE.md",
+          ".agents/skills/improve-codebase-architecture/SKILL.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.553090931373,
+        "y": 0.557079500657,
+        "width": 0.049233018207,
+        "height": 0.029319973719
+      }
+    },
+    ".agents/skills/prototype": {
+      "path": ".agents/skills/prototype",
+      "name": "prototype",
+      "bounds": {
+        "x": 0.60232394958,
+        "y": 0,
+        "width": 0.053075595238,
+        "height": 0.586399474376
+      },
+      "geo": {
+        "lon": 46.390228991640015,
+        "lat": 37.224047306159996,
+        "geohash": "tn8gz8kmf9mg"
+      },
+      "lineCount": 221,
+      "weight": 221,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/prototype/LOGIC.md",
+          ".agents/skills/prototype/SKILL.md",
+          ".agents/skills/prototype/UI.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.60232394958,
+        "y": 0.557079500657,
+        "width": 0.053075595238,
+        "height": 0.029319973719
+      }
+    },
+    ".agents/skills/tdd": {
+      "path": ".agents/skills/tdd",
+      "name": "tdd",
+      "bounds": {
+        "x": 0.655399544818,
+        "y": 0,
+        "width": 0.072768802521,
+        "height": 0.586399474376
+      },
+      "geo": {
+        "lon": 69.04222058826002,
+        "lat": 37.224047306159996,
+        "geohash": "tw95g07jb375"
+      },
+      "lineCount": 303,
+      "weight": 303,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/tdd/deep-modules.md",
+          ".agents/skills/tdd/interface-design.md",
+          ".agents/skills/tdd/mocking.md",
+          ".agents/skills/tdd/refactoring.md",
+          ".agents/skills/tdd/SKILL.md",
+          ".agents/skills/tdd/tests.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.655399544818,
+        "y": 0.557079500657,
+        "width": 0.072768802521,
+        "height": 0.029319973719
+      }
+    },
+    ".agents/skills/to-issues": {
+      "path": ".agents/skills/to-issues",
+      "name": "to-issues",
+      "bounds": {
+        "x": 0.728168347339,
+        "y": 0,
+        "width": 0.019933368347,
+        "height": 0.586399474376
+      },
+      "geo": {
+        "lon": 85.7286113445,
+        "lat": 37.224047306159996,
+        "geohash": "tysgyb3tv3mg"
+      },
+      "lineCount": 83,
+      "weight": 83,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/to-issues/SKILL.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.728168347339,
+        "y": 0.557079500657,
+        "width": 0.019933368347,
+        "height": 0.029319973719
+      }
+    },
+    ".agents/skills/to-prd": {
+      "path": ".agents/skills/to-prd",
+      "name": "to-prd",
+      "bounds": {
+        "x": 0.748101715686,
+        "y": 0,
+        "width": 0.018252240896,
+        "height": 0.586399474376
+      },
+      "geo": {
+        "lon": 92.60202100824,
+        "lat": 37.224047306159996,
+        "geohash": "wn9gg0qtz3r7"
+      },
+      "lineCount": 76,
+      "weight": 76,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/to-prd/SKILL.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.748101715686,
+        "y": 0.557079500657,
+        "width": 0.018252240896,
+        "height": 0.029319973719
+      }
+    },
+    ".agents/skills/triage": {
+      "path": ".agents/skills/triage",
+      "name": "triage",
+      "bounds": {
+        "x": 0.766353956583,
+        "y": 0,
+        "width": 0.089339915966,
+        "height": 0.586399474376
+      },
+      "geo": {
+        "lon": 111.96860924376,
+        "lat": 37.224047306159996,
+        "geohash": "wqxegbmjc9q7"
+      },
+      "lineCount": 372,
+      "weight": 372,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/triage/AGENT-BRIEF.md",
+          ".agents/skills/triage/OUT-OF-SCOPE.md",
+          ".agents/skills/triage/SKILL.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.766353956583,
+        "y": 0.557079500657,
+        "width": 0.089339915966,
+        "height": 0.029319973719
+      }
+    },
+    ".agents/skills/zoom-out": {
+      "path": ".agents/skills/zoom-out",
+      "name": "zoom-out",
+      "bounds": {
+        "x": 0.855693872549,
+        "y": 0,
+        "width": 0.001681127451,
+        "height": 0.586399474376
+      },
+      "geo": {
+        "lon": 128.35239705881997,
+        "lat": 37.224047306159996,
+        "geohash": "wye7b8rmg97g"
+      },
+      "lineCount": 7,
+      "weight": 7,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/zoom-out/SKILL.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.855693872549,
+        "y": 0.557079500657,
+        "width": 0.001681127451,
+        "height": 0.029319973719
+      }
+    },
+    "bin": {
+      "path": "bin",
+      "name": "bin",
+      "bounds": {
+        "x": 0,
+        "y": 0.586399474376,
+        "width": 0.95,
+        "height": 0.011826544021
+      },
+      "geo": {
+        "lon": -9,
+        "lat": -16.616294349569998,
+        "geohash": "7v197pn7hf1x"
+      },
+      "lineCount": 84,
+      "weight": 84,
+      "children": {
+        "folders": [],
+        "files": [
+          "bin/codemap.mjs"
+        ]
+      },
+      "growthArea": {
+        "x": 0.9025,
+        "y": 0.586399474376,
+        "width": 0.0475,
+        "height": 0.011826544021
+      }
+    },
+    "docs": {
+      "path": "docs",
+      "name": "docs",
+      "bounds": {
+        "x": 0,
+        "y": 0.598226018397,
+        "width": 0.95,
+        "height": 0.022339027595
+      },
+      "geo": {
+        "lon": -9,
+        "lat": -19.69119579500999,
+        "geohash": "7u3xgpq6kz19"
+      },
+      "lineCount": 136,
+      "weight": 136,
+      "children": {
+        "folders": [
+          "docs/adr",
+          "docs/agents"
+        ],
+        "files": []
+      },
+      "growthArea": {
+        "x": 0.9025,
+        "y": 0.598226018397,
+        "width": 0.0475,
+        "height": 0.022339027595
+      }
+    },
+    "docs/adr": {
+      "path": "docs/adr",
+      "name": "adr",
+      "bounds": {
+        "x": 0,
+        "y": 0.598226018397,
+        "width": 0.3384375,
+        "height": 0.022339027595
+      },
+      "geo": {
+        "lon": -119.08125,
+        "lat": -19.69119579500999,
+        "geohash": "3k7rfprdmz03"
+      },
+      "lineCount": 51,
+      "weight": 51,
+      "children": {
+        "folders": [],
+        "files": [
+          "docs/adr/0001-stable-code-map-addresses.md",
+          "docs/adr/0002-json-map-sidecar.md",
+          "docs/adr/0003-geohash-map-levels.md",
+          "docs/adr/0004-codemap-deep-links.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.321515625,
+        "y": 0.598226018397,
+        "width": 0.016921875,
+        "height": 0.022339027595
+      }
+    },
+    "docs/agents": {
+      "path": "docs/agents",
+      "name": "agents",
+      "bounds": {
+        "x": 0.3384375,
+        "y": 0.598226018397,
+        "width": 0.5640625,
+        "height": 0.022339027595
+      },
+      "geo": {
+        "lon": 43.368750000000006,
+        "lat": -19.69119579500999,
+        "geohash": "kuqzfzk4mp5c"
+      },
+      "lineCount": 85,
+      "weight": 85,
+      "children": {
+        "folders": [],
+        "files": [
+          "docs/agents/domain.md",
+          "docs/agents/issue-tracker.md",
+          "docs/agents/triage-labels.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.874296875,
+        "y": 0.598226018397,
+        "width": 0.028203125,
+        "height": 0.022339027595
+      }
+    },
+    "public": {
+      "path": "public",
+      "name": "public",
+      "bounds": {
+        "x": 0,
+        "y": 0.620565045992,
+        "width": 0.95,
+        "height": 0.103975032852
+      },
+      "geo": {
+        "lon": -9,
+        "lat": -31.059461235239993,
+        "geohash": "7f3x71y3sbc8"
+      },
+      "lineCount": 731,
+      "weight": 731,
+      "children": {
+        "folders": [],
+        "files": [
+          "public/app.js",
+          "public/index.html",
+          "public/style.css"
+        ]
+      },
+      "growthArea": {
+        "x": 0.9025,
+        "y": 0.620565045992,
+        "width": 0.0475,
+        "height": 0.103975032852
+      }
+    },
+    "src": {
+      "path": "src",
+      "name": "src",
+      "bounds": {
+        "x": 0,
+        "y": 0.724540078844,
+        "width": 0.95,
+        "height": 0.152759526938
+      },
+      "geo": {
+        "lon": -9,
+        "lat": -54.16557161634,
+        "geohash": "5y3eg5qqsv9e"
+      },
+      "lineCount": 1170,
+      "weight": 1170,
+      "children": {
+        "folders": [],
+        "files": [
+          "src/activity.js",
+          "src/extensions.js",
+          "src/generator.js",
+          "src/geohash.js",
+          "src/geometry.js",
+          "src/levels.js",
+          "src/overlaps.js",
+          "src/resolver.js",
+          "src/scan.js",
+          "src/selections.js",
+          "src/server.js",
+          "src/source.js",
+          "src/stability.js",
+          "src/store.js",
+          "src/tiles.js",
+          "src/tree.js",
+          "src/treemap.js"
+        ]
+      },
+      "growthArea": {
+        "x": 0.9405,
+        "y": 0.871189224704,
+        "width": 0.0095,
+        "height": 0.006110381078
+      }
+    },
+    "test": {
+      "path": "test",
+      "name": "test",
+      "bounds": {
+        "x": 0,
+        "y": 0.877299605782,
+        "width": 0.95,
+        "height": 0.048948751643
+      },
+      "geo": {
+        "lon": -9,
+        "lat": -72.31931668862998,
+        "geohash": "5g1se4wmky38"
+      },
+      "lineCount": 382,
+      "weight": 382,
+      "children": {
+        "folders": [],
+        "files": [
+          "test/activity.test.js",
+          "test/generator.test.js",
+          "test/geohash.test.js",
+          "test/overlaps.test.js",
+          "test/resolver.test.js",
+          "test/selections.test.js",
+          "test/server.test.js",
+          "test/source.test.js",
+          "test/tiles.test.js"
+        ]
+      },
+      "growthArea": {
+        "x": 0.9405,
+        "y": 0.916458607096,
+        "width": 0.0095,
+        "height": 0.009789750329
+      }
+    }
+  },
+  "files": {
+    ".agents/skills/geohash-spatial-code-maps/assets/templates/_template.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/assets/templates/_template.md",
+      "name": "_template.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0.45083035014,
+        "height": 0.008302627173
+      },
+      "geo": {
+        "lon": -98.8505369748,
+        "lat": 89.25276355443,
+        "geohash": "czcewxgpp912"
+      },
+      "lineCount": 31,
+      "weight": 31
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/_sections.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/_sections.md",
+      "name": "_sections.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.008302627173,
+        "width": 0.474558263305,
+        "height": 0.012320027418
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 87.39672464124,
+        "geohash": "czs9py16cd7c"
+      },
+      "lineCount": 46,
+      "weight": 46
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/dec-avoid-roundtrip-reencode.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/dec-avoid-roundtrip-reencode.md",
+      "name": "dec-avoid-roundtrip-reencode.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.020622654592,
+        "width": 0.474558263305,
+        "height": 0.008838280539
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 85.49247692493,
+        "geohash": "czhwrg3mc8gc"
+      },
+      "lineCount": 33,
+      "weight": 33
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/dec-decode-to-bbox.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/dec-decode-to-bbox.md",
+      "name": "dec-decode-to-bbox.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.029460935131,
+        "width": 0.474558263305,
+        "height": 0.012052200735
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 83.61233361027,
+        "geohash": "cyuexv1m1sev"
+      },
+      "lineCount": 45,
+      "weight": 45
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/dec-precompute-reverse-alphabet.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/dec-precompute-reverse-alphabet.md",
+      "name": "dec-precompute-reverse-alphabet.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.041513135866,
+        "width": 0.474558263305,
+        "height": 0.009641760588
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 81.6598770912,
+        "geohash": "cys8xc9r387u"
+      },
+      "lineCount": 36,
+      "weight": 36
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/dec-symmetric-interval-reconstruction.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/dec-symmetric-interval-reconstruction.md",
+      "name": "dec-symmetric-interval-reconstruction.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.051154896455,
+        "width": 0.474558263305,
+        "height": 0.012052200735
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 79.70742057195,
+        "geohash": "cyhtry333s5u"
+      },
+      "lineCount": 45,
+      "weight": 45
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/enc-base32-alphabet.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/enc-base32-alphabet.md",
+      "name": "enc-base32-alphabet.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.06320709719,
+        "width": 0.474558263305,
+        "height": 0.011516547369
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 77.58623324259,
+        "geohash": "cvu9ru1k9d5u"
+      },
+      "lineCount": 43,
+      "weight": 43
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/enc-binary-chop-no-float-drift.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/enc-binary-chop-no-float-drift.md",
+      "name": "enc-binary-chop-no-float-drift.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.074723644559,
+        "width": 0.474558263305,
+        "height": 0.012052200735
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 75.46504591323,
+        "geohash": "cvktrccrc85v"
+      },
+      "lineCount": 45,
+      "weight": 45
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/enc-five-bit-char-boundary.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/enc-five-bit-char-boundary.md",
+      "name": "enc-five-bit-char-boundary.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.086775845295,
+        "width": 0.474558263305,
+        "height": 0.012587854101
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 73.24744097781,
+        "geohash": "cvh8xy3338eu"
+      },
+      "lineCount": 47,
+      "weight": 47
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/enc-integer-morton-encode.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/enc-integer-morton-encode.md",
+      "name": "enc-integer-morton-encode.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.099363699396,
+        "width": 0.474558263305,
+        "height": 0.015533947614
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 70.71647882346,
+        "geohash": "cusdrc933e5g"
+      },
+      "lineCount": 58,
+      "weight": 58
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/enc-interleave-longitude-first.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/enc-interleave-longitude-first.md",
+      "name": "enc-interleave-longitude-first.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.114897647011,
+        "width": 0.474558263305,
+        "height": 0.020622654592
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 67.46238462474,
+        "geohash": "cguxzc1kcegz"
+      },
+      "lineCount": 77,
+      "weight": 77
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/enc-normalize-input-domain.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/enc-normalize-input-domain.md",
+      "name": "enc-normalize-input-domain.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.135520301602,
+        "width": 0.474558263305,
+        "height": 0.012320027418
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 64.49754324402001,
+        "geohash": "cgkwzv3m3t7z"
+      },
+      "lineCount": 46,
+      "weight": 46
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/idx-db-prefix-index.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/idx-db-prefix-index.md",
+      "name": "idx-db-prefix-index.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.147840329021,
+        "width": 0.474558263305,
+        "height": 0.011516547369
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 62.35225151301,
+        "geohash": "cghdxyck1w5u"
+      },
+      "lineCount": 43,
+      "weight": 43
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/idx-integer-sortable-key.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/idx-integer-sortable-key.md",
+      "name": "idx-integer-sortable-key.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.15935687639,
+        "width": 0.474558263305,
+        "height": 0.010177413954
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 60.39979499393999,
+        "geohash": "cfsxxg3q39gg"
+      },
+      "lineCount": 38,
+      "weight": 38
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/idx-range-query-from-covering-set.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/idx-range-query-from-covering-set.md",
+      "name": "idx-range-query-from-covering-set.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.169534290344,
+        "width": 0.474558263305,
+        "height": 0.010445240637
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 58.54375608075,
+        "geohash": "cfktpc961e5g"
+      },
+      "lineCount": 39,
+      "weight": 39
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/idx-sorted-string-range-scan.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/idx-sorted-string-range-scan.md",
+      "name": "idx-sorted-string-range-scan.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.179979530982,
+        "width": 0.474558263305,
+        "height": 0.012320027418
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 56.49488195562,
+        "geohash": "cfh9ru96997c"
+      },
+      "lineCount": 46,
+      "weight": 46
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/idx-trie-hierarchical-bucketing.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/idx-trie-hierarchical-bucketing.md",
+      "name": "idx-trie-hierarchical-bucketing.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.1922995584,
+        "width": 0.474558263305,
+        "height": 0.014462640882
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 54.08444180862,
+        "geohash": "ccsexvc29wey"
+      },
+      "lineCount": 54,
+      "weight": 54
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/map-coupling-implies-proximity.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/map-coupling-implies-proximity.md",
+      "name": "map-coupling-implies-proximity.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.206762199282,
+        "width": 0.474558263305,
+        "height": 0.01071306732
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 51.818628070440006,
+        "geohash": "cchwzc333s7u"
+      },
+      "lineCount": 40,
+      "weight": 40
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/map-deterministic-projection.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/map-deterministic-projection.md",
+      "name": "map-deterministic-projection.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.217475266603,
+        "width": 0.474558263305,
+        "height": 0.011248720686
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 49.842067149719995,
+        "geohash": "cbuexc3r1dez"
+      },
+      "lineCount": 42,
+      "weight": 42
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/map-normalize-to-geohash-domain.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/map-normalize-to-geohash-domain.md",
+      "name": "map-normalize-to-geohash-domain.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.228723987289,
+        "width": 0.474558263305,
+        "height": 0.01071306732
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 47.86550622918,
+        "geohash": "cbs8rc9kc95f"
+      },
+      "lineCount": 40,
+      "weight": 40
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/map-persist-coordinate-sidecar.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/map-persist-coordinate-sidecar.md",
+      "name": "map-persist-coordinate-sidecar.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.239437054609,
+        "width": 0.474558263305,
+        "height": 0.012320027418
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 45.792527702760005,
+        "geohash": "cbhsxb32c9gg"
+      },
+      "lineCount": 46,
+      "weight": 46
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/map-precision-as-architectural-level.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/map-precision-as-architectural-level.md",
+      "name": "map-precision-as-architectural-level.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.251757082028,
+        "width": 0.474558263305,
+        "height": 0.010177413954
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 43.767757979100004,
+        "geohash": "9zu8zz9m9t7y"
+      },
+      "lineCount": 38,
+      "weight": 38
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/map-prefix-as-domain-region.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/map-prefix-as-domain-region.md",
+      "name": "map-prefix-as-domain-region.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.261934495982,
+        "width": 0.474558263305,
+        "height": 0.011516547369
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 41.81530146003,
+        "geohash": "9zktzu1rc95v"
+      },
+      "lineCount": 43,
+      "weight": 43
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/map-stable-coordinates.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/map-stable-coordinates.md",
+      "name": "map-stable-coordinates.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.273451043351,
+        "width": 0.474558263305,
+        "height": 0.010445240637
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 39.83874053949,
+        "geohash": "9zhdxu3m3xeb"
+      },
+      "lineCount": 39,
+      "weight": 39
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/nav-breadcrumb-prefix-path.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/nav-breadcrumb-prefix-path.md",
+      "name": "nav-breadcrumb-prefix-path.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.283896283989,
+        "width": 0.474558263305,
+        "height": 0.010445240637
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 37.95859722464999,
+        "geohash": "9ysxzy1kce7u"
+      },
+      "lineCount": 39,
+      "weight": 39
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/nav-cluster-by-prefix.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/nav-cluster-by-prefix.md",
+      "name": "nav-cluster-by-prefix.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.294341524626,
+        "width": 0.474558263305,
+        "height": 0.011248720686
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 36.00614070558,
+        "geohash": "9ykszf9qcx5g"
+      },
+      "lineCount": 42,
+      "weight": 42
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/nav-level-of-detail-aggregation.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/nav-level-of-detail-aggregation.md",
+      "name": "nav-level-of-detail-aggregation.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.305590245312,
+        "width": 0.474558263305,
+        "height": 0.009909587271
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 34.10189298944999,
+        "geohash": "9yhdpb13cteg"
+      },
+      "lineCount": 37,
+      "weight": 37
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/nav-precision-to-zoom-levels.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/nav-precision-to-zoom-levels.md",
+      "name": "nav-precision-to-zoom-levels.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.315499832584,
+        "width": 0.474558263305,
+        "height": 0.009909587271
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 32.31816728049,
+        "geohash": "9vsxzg36cx5c"
+      },
+      "lineCount": 37,
+      "weight": 37
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/nav-tile-lazy-loading.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/nav-tile-lazy-loading.md",
+      "name": "nav-tile-lazy-loading.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.325409419855,
+        "width": 0.474558263305,
+        "height": 0.009909587271
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 30.534441571710005,
+        "geohash": "9vktxy9k187y"
+      },
+      "lineCount": 37,
+      "weight": 37
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/nbr-antimeridian-wrap.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/nbr-antimeridian-wrap.md",
+      "name": "nbr-antimeridian-wrap.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.335319007126,
+        "width": 0.474558263305,
+        "height": 0.009641760588
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 28.7748202644,
+        "geohash": "9vhexy333x7b"
+      },
+      "lineCount": 36,
+      "weight": 36
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/nbr-canonical-lookup-tables.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/nbr-canonical-lookup-tables.md",
+      "name": "nbr-canonical-lookup-tables.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.344960767715,
+        "width": 0.474558263305,
+        "height": 0.013926987516
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 26.65363293486,
+        "geohash": "9usxxu1k9t7c"
+      },
+      "lineCount": 52,
+      "weight": 52
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/nbr-eight-neighbor-set.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/nbr-eight-neighbor-set.md",
+      "name": "nbr-eight-neighbor-set.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.358887755231,
+        "width": 0.474558263305,
+        "height": 0.011516547369
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 24.36371479521,
+        "geohash": "9ukdxg32cteg"
+      },
+      "lineCount": 43,
+      "weight": 43
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/nbr-integer-level-neighbors.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/nbr-integer-level-neighbors.md",
+      "name": "nbr-integer-level-neighbors.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.3704043026,
+        "width": 0.474558263305,
+        "height": 0.010177413954
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 22.411258276140003,
+        "geohash": "9guxrzc7197f"
+      },
+      "lineCount": 38,
+      "weight": 38
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/nbr-pole-handling.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/nbr-pole-handling.md",
+      "name": "nbr-pole-handling.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.380581716555,
+        "width": 0.474558263305,
+        "height": 0.009909587271
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 20.60342816571,
+        "geohash": "9gstpy9r9t7u"
+      },
+      "lineCount": 37,
+      "weight": 37
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/prec-avoid-mixed-precision.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/prec-avoid-mixed-precision.md",
+      "name": "prec-avoid-mixed-precision.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.390491303826,
+        "width": 0.474558263305,
+        "height": 0.009909587271
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 18.819702456930003,
+        "geohash": "9gkepf129wgf"
+      },
+      "lineCount": 37,
+      "weight": 37
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/prec-cells-are-not-square.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/prec-cells-are-not-square.md",
+      "name": "prec-cells-are-not-square.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.400400891097,
+        "width": 0.474558263305,
+        "height": 0.011784374052
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 16.867245937860005,
+        "geohash": "9fuxzy96cdec"
+      },
+      "lineCount": 44,
+      "weight": 44
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/prec-cells-shrink-toward-poles.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/prec-cells-shrink-toward-poles.md",
+      "name": "prec-cells-shrink-toward-poles.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.41218526515,
+        "width": 0.474558263305,
+        "height": 0.01071306732
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 14.842476214200005,
+        "geohash": "9fssrvcr9w5g"
+      },
+      "lineCount": 40,
+      "weight": 40
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/prec-choose-from-error-radius.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/prec-choose-from-error-radius.md",
+      "name": "prec-choose-from-error-radius.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.42289833247,
+        "width": 0.474558263305,
+        "height": 0.01071306732
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 12.914124096599991,
+        "geohash": "9fk9rycq1x5y"
+      },
+      "lineCount": 40,
+      "weight": 40
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/prec-error-is-half-cell.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/prec-error-is-half-cell.md",
+      "name": "prec-error-is-half-cell.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.43361139979,
+        "width": 0.474558263305,
+        "height": 0.010980894003
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 10.961667577529994,
+        "geohash": "9cuwrg923dgy"
+      },
+      "lineCount": 41,
+      "weight": 41
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/qry-bbox-range-decomposition.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/qry-bbox-range-decomposition.md",
+      "name": "qry-bbox-range-decomposition.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.444592293794,
+        "width": 0.474558263305,
+        "height": 0.011516547369
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 8.936897853869993,
+        "geohash": "9csdzfcm1web"
+      },
+      "lineCount": 43,
+      "weight": 43
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/qry-expand-precision-when-sparse.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/qry-expand-precision-when-sparse.md",
+      "name": "qry-expand-precision-when-sparse.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.456108841163,
+        "width": 0.474558263305,
+        "height": 0.010980894003
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 6.912128130390002,
+        "geohash": "9chxrf361d5f"
+      },
+      "lineCount": 41,
+      "weight": 41
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/qry-precision-from-radius.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/qry-precision-from-radius.md",
+      "name": "qry-precision-from-radius.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.467089735166,
+        "width": 0.474558263305,
+        "height": 0.009106107222
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 5.104298020140007,
+        "geohash": "9butpc1q9w5g"
+      },
+      "lineCount": 34,
+      "weight": 34
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/qry-refine-with-haversine.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/qry-refine-with-haversine.md",
+      "name": "qry-refine-with-haversine.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.476195842389,
+        "width": 0.474558263305,
+        "height": 0.012052200735
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 3.200050303829997,
+        "geohash": "9bsdpy939seg"
+      },
+      "lineCount": 45,
+      "weight": 45
+    },
+    ".agents/skills/geohash-spatial-code-maps/references/qry-search-cell-plus-neighbors.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/references/qry-search-cell-plus-neighbors.md",
+      "name": "qry-search-cell-plus-neighbors.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.488248043124,
+        "width": 0.474558263305,
+        "height": 0.010177413954
+      },
+      "geo": {
+        "lon": -94.57951260509999,
+        "lat": 1.1993849818200033,
+        "geohash": "9bhwzf36ctef"
+      },
+      "lineCount": 38,
+      "weight": 38
+    },
+    ".agents/skills/geohash-spatial-code-maps/AGENTS.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/AGENTS.md",
+      "name": "AGENTS.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.498425457078,
+        "width": 0.499535014006,
+        "height": 0.026514841618
+      },
+      "geo": {
+        "lon": -90.08369747892,
+        "lat": -2.1029180196600095,
+        "geohash": "3zxun15j9ewt"
+      },
+      "lineCount": 99,
+      "weight": 99
+    },
+    ".agents/skills/geohash-spatial-code-maps/SKILL.md": {
+      "path": ".agents/skills/geohash-spatial-code-maps/SKILL.md",
+      "name": "SKILL.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.524940298696,
+        "width": 0.499535014006,
+        "height": 0.032139201961
+      },
+      "geo": {
+        "lon": -90.08369747892,
+        "lat": -7.381781941770001,
+        "geohash": "3yxyn05n18ne"
+      },
+      "lineCount": 120,
+      "weight": 120
+    },
+    ".agents/skills/grill-me/SKILL.md": {
+      "path": ".agents/skills/grill-me/SKILL.md",
+      "name": "SKILL.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.499535014006,
+        "y": 0,
+        "width": 0.002401610644,
+        "height": 0.557079500657
+      },
+      "geo": {
+        "lon": 0.26489495807996377,
+        "lat": 39.862844940870005,
+        "geohash": "sp04y0bcukzu"
+      },
+      "lineCount": 10,
+      "weight": 10
+    },
+    ".agents/skills/grill-with-docs/ADR-FORMAT.md": {
+      "path": ".agents/skills/grill-with-docs/ADR-FORMAT.md",
+      "name": "ADR-FORMAT.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.50193662465,
+        "y": 0,
+        "width": 0.047551890756,
+        "height": 0.132236043085
+      },
+      "geo": {
+        "lon": 9.256525210079985,
+        "lat": 78.09875612235,
+        "geohash": "ujys69kqhxm6"
+      },
+      "lineCount": 47,
+      "weight": 47
+    },
+    ".agents/skills/grill-with-docs/CONTEXT-FORMAT.md": {
+      "path": ".agents/skills/grill-with-docs/CONTEXT-FORMAT.md",
+      "name": "CONTEXT-FORMAT.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.50193662465,
+        "y": 0.132236043085,
+        "width": 0.047551890756,
+        "height": 0.177252568391
+      },
+      "geo": {
+        "lon": 9.256525210079985,
+        "lat": 50.24478108951,
+        "geohash": "u0ytfdu3hdj3"
+      },
+      "lineCount": 63,
+      "weight": 63
+    },
+    ".agents/skills/grill-with-docs/SKILL.md": {
+      "path": ".agents/skills/grill-with-docs/SKILL.md",
+      "name": "SKILL.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.50193662465,
+        "y": 0.309488611476,
+        "width": 0.047551890756,
+        "height": 0.247590889181
+      },
+      "geo": {
+        "lon": 9.256525210079985,
+        "lat": 12.008869908029993,
+        "geohash": "s4ns6dhksxt7"
+      },
+      "lineCount": 88,
+      "weight": 88
+    },
+    ".agents/skills/handoff/SKILL.md": {
+      "path": ".agents/skills/handoff/SKILL.md",
+      "name": "SKILL.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.549488515406,
+        "y": 0,
+        "width": 0.003602415966,
+        "height": 0.557079500657
+      },
+      "geo": {
+        "lon": 18.46430042003999,
+        "lat": 39.862844940870005,
+        "geohash": "srj4u0v3ckuk"
+      },
+      "lineCount": 15,
+      "weight": 15
+    },
+    ".agents/skills/improve-codebase-architecture/DEEPENING.md": {
+      "path": ".agents/skills/improve-codebase-architecture/DEEPENING.md",
+      "name": "DEEPENING.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.553090931373,
+        "y": 0,
+        "width": 0.049233018207,
+        "height": 0.100546056216
+      },
+      "geo": {
+        "lon": 27.97467857154001,
+        "lat": 80.95085494055999,
+        "geohash": "uw7us8dscm05"
+      },
+      "lineCount": 37,
+      "weight": 37
+    },
+    ".agents/skills/improve-codebase-architecture/INTERFACE-DESIGN.md": {
+      "path": ".agents/skills/improve-codebase-architecture/INTERFACE-DESIGN.md",
+      "name": "INTERFACE-DESIGN.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.553090931373,
+        "y": 0.100546056216,
+        "width": 0.049233018207,
+        "height": 0.119568283068
+      },
+      "geo": {
+        "lon": 27.97467857154001,
+        "lat": 61.140564405,
+        "geohash": "udggud699721"
+      },
+      "lineCount": 44,
+      "weight": 44
+    },
+    ".agents/skills/improve-codebase-architecture/LANGUAGE.md": {
+      "path": ".agents/skills/improve-codebase-architecture/LANGUAGE.md",
+      "name": "LANGUAGE.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.553090931373,
+        "y": 0.220114339284,
+        "width": 0.049233018207,
+        "height": 0.144025431877
+      },
+      "geo": {
+        "lon": 27.97467857154001,
+        "lat": 37.41713005994999,
+        "geohash": "sweuuedd9684"
+      },
+      "lineCount": 53,
+      "weight": 53
+    },
+    ".agents/skills/improve-codebase-architecture/SKILL.md": {
+      "path": ".agents/skills/improve-codebase-architecture/SKILL.md",
+      "name": "SKILL.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.553090931373,
+        "y": 0.364139771161,
+        "width": 0.049233018207,
+        "height": 0.192939729496
+      },
+      "geo": {
+        "lon": 27.97467857154001,
+        "lat": 7.090265536380002,
+        "geohash": "s97bkddxc321"
+      },
+      "lineCount": 71,
+      "weight": 71
+    },
+    ".agents/skills/prototype/LOGIC.md": {
+      "path": ".agents/skills/prototype/LOGIC.md",
+      "name": "LOGIC.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.60232394958,
+        "y": 0,
+        "width": 0.053075595238,
+        "height": 0.199137016072
+      },
+      "geo": {
+        "lon": 46.390228991640015,
+        "lat": 72.07766855352,
+        "geohash": "vhbfp9k6femb"
+      },
+      "lineCount": 79,
+      "weight": 79
+    },
+    ".agents/skills/prototype/SKILL.md": {
+      "path": ".agents/skills/prototype/SKILL.md",
+      "name": "SKILL.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.60232394958,
+        "y": 0.199137016072,
+        "width": 0.053075595238,
+        "height": 0.075621651673
+      },
+      "geo": {
+        "lon": 46.390228991640015,
+        "lat": 47.34938845647,
+        "geohash": "v02vresq4tvb"
+      },
+      "lineCount": 30,
+      "weight": 30
+    },
+    ".agents/skills/prototype/UI.md": {
+      "path": ".agents/skills/prototype/UI.md",
+      "name": "UI.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.60232394958,
+        "y": 0.274758667745,
+        "width": 0.053075595238,
+        "height": 0.282320832912
+      },
+      "geo": {
+        "lon": 46.390228991640015,
+        "lat": 15.134564843820002,
+        "geohash": "t48ypehm4xmg"
+      },
+      "lineCount": 112,
+      "weight": 112
+    },
+    ".agents/skills/tdd/deep-modules.md": {
+      "path": ".agents/skills/tdd/deep-modules.md",
+      "name": "deep-modules.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.655399544818,
+        "y": 0,
+        "width": 0.072768802521,
+        "height": 0.060672024824
+      },
+      "geo": {
+        "lon": 69.04222058826002,
+        "lat": 84.53951776584,
+        "geohash": "vx10gjgn2k74"
+      },
+      "lineCount": 33,
+      "weight": 33
+    },
+    ".agents/skills/tdd/interface-design.md": {
+      "path": ".agents/skills/tdd/interface-design.md",
+      "name": "interface-design.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.655399544818,
+        "y": 0.060672024824,
+        "width": 0.072768802521,
+        "height": 0.05699493241
+      },
+      "geo": {
+        "lon": 69.04222058826002,
+        "lat": 73.94949161478,
+        "geohash": "vt1hen55027h"
+      },
+      "lineCount": 31,
+      "weight": 31
+    },
+    ".agents/skills/tdd/mocking.md": {
+      "path": ".agents/skills/tdd/mocking.md",
+      "name": "mocking.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.655399544818,
+        "y": 0.117666957234,
+        "width": 0.072768802521,
+        "height": 0.108474226201
+      },
+      "geo": {
+        "lon": 69.04222058826002,
+        "lat": 59.05726733979,
+        "geohash": "vd3pgp5182e1"
+      },
+      "lineCount": 59,
+      "weight": 59
+    },
+    ".agents/skills/tdd/refactoring.md": {
+      "path": ".agents/skills/tdd/refactoring.md",
+      "name": "refactoring.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.655399544818,
+        "y": 0.226141183435,
+        "width": 0.072768802521,
+        "height": 0.018385462068
+      },
+      "geo": {
+        "lon": 69.04222058826002,
+        "lat": 47.63989539558,
+        "geohash": "v83p50e4825j"
+      },
+      "lineCount": 10,
+      "weight": 10
+    },
+    ".agents/skills/tdd/SKILL.md": {
+      "path": ".agents/skills/tdd/SKILL.md",
+      "name": "SKILL.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.655399544818,
+        "y": 0.244526645503,
+        "width": 0.072768802521,
+        "height": 0.20040153654
+      },
+      "geo": {
+        "lon": 69.04222058826002,
+        "lat": 27.949065520860003,
+        "geohash": "tscngpgp077j"
+      },
+      "lineCount": 109,
+      "weight": 109
+    },
+    ".agents/skills/tdd/tests.md": {
+      "path": ".agents/skills/tdd/tests.md",
+      "name": "tests.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.655399544818,
+        "y": 0.444928182043,
+        "width": 0.072768802521,
+        "height": 0.112151318614
+      },
+      "geo": {
+        "lon": 69.04222058826002,
+        "lat": -0.18069144300000062,
+        "geohash": "mxcngp552kej"
+      },
+      "lineCount": 61,
+      "weight": 61
+    },
+    ".agents/skills/to-issues/SKILL.md": {
+      "path": ".agents/skills/to-issues/SKILL.md",
+      "name": "SKILL.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.728168347339,
+        "y": 0,
+        "width": 0.019933368347,
+        "height": 0.557079500657
+      },
+      "geo": {
+        "lon": 85.7286113445,
+        "lat": 39.862844940870005,
+        "geohash": "tzhfybc9vkvu"
+      },
+      "lineCount": 83,
+      "weight": 83
+    },
+    ".agents/skills/to-prd/SKILL.md": {
+      "path": ".agents/skills/to-prd/SKILL.md",
+      "name": "SKILL.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.748101715686,
+        "y": 0,
+        "width": 0.018252240896,
+        "height": 0.557079500657
+      },
+      "geo": {
+        "lon": 92.60202100824,
+        "lat": 39.862844940870005,
+        "geohash": "wp1fg0y9zkzk"
+      },
+      "lineCount": 76,
+      "weight": 76
+    },
+    ".agents/skills/triage/AGENT-BRIEF.md": {
+      "path": ".agents/skills/triage/AGENT-BRIEF.md",
+      "name": "AGENT-BRIEF.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.766353956583,
+        "y": 0,
+        "width": 0.089339915966,
+        "height": 0.251584290619
+      },
+      "geo": {
+        "lon": 111.96860924376,
+        "lat": 67.35741384429,
+        "geohash": "y7zx5yj13sn2"
+      },
+      "lineCount": 168,
+      "weight": 168
+    },
+    ".agents/skills/triage/OUT-OF-SCOPE.md": {
+      "path": ".agents/skills/triage/OUT-OF-SCOPE.md",
+      "name": "OUT-OF-SCOPE.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.766353956583,
+        "y": 0.251584290619,
+        "width": 0.089339915966,
+        "height": 0.151250079479
+      },
+      "geo": {
+        "lon": 111.96860924376,
+        "lat": 31.102320535470007,
+        "geohash": "wmx8gyj01sy2"
+      },
+      "lineCount": 101,
+      "weight": 101
+    },
+    ".agents/skills/triage/SKILL.md": {
+      "path": ".agents/skills/triage/SKILL.md",
+      "name": "SKILL.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.766353956583,
+        "y": 0.402834370099,
+        "width": 0.089339915966,
+        "height": 0.154245130558
+      },
+      "geo": {
+        "lon": 111.96860924376,
+        "lat": 3.6077516319599994,
+        "geohash": "w2xsebv09twk"
+      },
+      "lineCount": 103,
+      "weight": 103
+    },
+    ".agents/skills/zoom-out/SKILL.md": {
+      "path": ".agents/skills/zoom-out/SKILL.md",
+      "name": "SKILL.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.855693872549,
+        "y": 0,
+        "width": 0.001681127451,
+        "height": 0.557079500657
+      },
+      "geo": {
+        "lon": 128.35239705881997,
+        "lat": 39.862844940870005,
+        "geohash": "wz56b8z3gsgu"
+      },
+      "lineCount": 7,
+      "weight": 7
+    },
+    "bin/codemap.mjs": {
+      "path": "bin/codemap.mjs",
+      "name": "codemap.mjs",
+      "extension": ".mjs",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.586399474376,
+        "width": 0.9025,
+        "height": 0.011826544021
+      },
+      "geo": {
+        "lon": -17.55000000000001,
+        "lat": -16.616294349569998,
+        "geohash": "7t592xh7p65x"
+      },
+      "lineCount": 84,
+      "weight": 84
+    },
+    "docs/adr/0001-stable-code-map-addresses.md": {
+      "path": "docs/adr/0001-stable-code-map-addresses.md",
+      "name": "0001-stable-code-map-addresses.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.598226018397,
+        "width": 0.075650735294,
+        "height": 0.022339027595
+      },
+      "geo": {
+        "lon": -166.38286764708,
+        "lat": -19.69119579500999,
+        "geohash": "2k3xvz7dqpjc"
+      },
+      "lineCount": 12,
+      "weight": 12
+    },
+    "docs/adr/0002-json-map-sidecar.md": {
+      "path": "docs/adr/0002-json-map-sidecar.md",
+      "name": "0002-json-map-sidecar.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.075650735294,
+        "y": 0.598226018397,
+        "width": 0.081954963235,
+        "height": 0.022339027595
+      },
+      "geo": {
+        "lon": -138.01384191186,
+        "lat": -19.69119579500999,
+        "geohash": "2umzgrm6krh9"
+      },
+      "lineCount": 13,
+      "weight": 13
+    },
+    "docs/adr/0003-geohash-map-levels.md": {
+      "path": "docs/adr/0003-geohash-map-levels.md",
+      "name": "0003-geohash-map-levels.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.157605698529,
+        "y": 0.598226018397,
+        "width": 0.081954963235,
+        "height": 0.022339027595
+      },
+      "geo": {
+        "lon": -108.51005514726,
+        "lat": -19.69119579500999,
+        "geohash": "3s6zfz36krn9"
+      },
+      "lineCount": 13,
+      "weight": 13
+    },
+    "docs/adr/0004-codemap-deep-links.md": {
+      "path": "docs/adr/0004-codemap-deep-links.md",
+      "name": "0004-codemap-deep-links.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.239560661765,
+        "y": 0.598226018397,
+        "width": 0.081954963235,
+        "height": 0.022339027595
+      },
+      "geo": {
+        "lon": -79.00626838230001,
+        "lat": -19.69119579500999,
+        "geohash": "6hrzfpm6kx03"
+      },
+      "lineCount": 13,
+      "weight": 13
+    },
+    "docs/agents/domain.md": {
+      "path": "docs/agents/domain.md",
+      "name": "domain.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.3384375,
+        "y": 0.598226018397,
+        "width": 0.321515625,
+        "height": 0.022339027595
+      },
+      "geo": {
+        "lon": -0.2896874999999852,
+        "lat": -19.69119579500999,
+        "geohash": "7urzcrm43z13"
+      },
+      "lineCount": 51,
+      "weight": 51
+    },
+    "docs/agents/issue-tracker.md": {
+      "path": "docs/agents/issue-tracker.md",
+      "name": "issue-tracker.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.659953125,
+        "y": 0.598226018397,
+        "width": 0.119780330882,
+        "height": 0.022339027595
+      },
+      "geo": {
+        "lon": 79.14358455876004,
+        "lat": -19.69119579500999,
+        "geohash": "mu2rbzqd7pjc"
+      },
+      "lineCount": 19,
+      "weight": 19
+    },
+    "docs/agents/triage-labels.md": {
+      "path": "docs/agents/triage-labels.md",
+      "name": "triage-labels.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.779733455882,
+        "y": 0.598226018397,
+        "width": 0.094563419118,
+        "height": 0.022339027595
+      },
+      "geo": {
+        "lon": 117.72545955876001,
+        "lat": -19.69119579500999,
+        "geohash": "qs7xyzm46p11"
+      },
+      "lineCount": 15,
+      "weight": 15
+    },
+    "public/app.js": {
+      "path": "public/app.js",
+      "name": "app.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.620565045992,
+        "width": 0.543210900474,
+        "height": 0.103975032852
+      },
+      "geo": {
+        "lon": -82.22203791468,
+        "lat": -31.059461235239993,
+        "geohash": "64mx2cz9x8ub"
+      },
+      "lineCount": 464,
+      "weight": 464
+    },
+    "public/index.html": {
+      "path": "public/index.html",
+      "name": "index.html",
+      "extension": ".html",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.543210900474,
+        "y": 0.620565045992,
+        "width": 0.112634281201,
+        "height": 0.103975032852
+      },
+      "geo": {
+        "lon": 35.830094786819984,
+        "lat": -31.059461235239993,
+        "geohash": "kf3rr3f9t8z0"
+      },
+      "lineCount": 85,
+      "weight": 85
+    },
+    "public/style.css": {
+      "path": "public/style.css",
+      "name": "style.css",
+      "extension": ".css",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.655845181675,
+        "y": 0.620565045992,
+        "width": 0.246654818325,
+        "height": 0.103975032852
+      },
+      "geo": {
+        "lon": 100.50213270149999,
+        "lat": -31.059461235239993,
+        "geohash": "q4rrqcz3t2v8"
+      },
+      "lineCount": 182,
+      "weight": 182
+    },
+    "src/activity.js": {
+      "path": "src/activity.js",
+      "name": "activity.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.724540078844,
+        "width": 0.01164516129,
+        "height": 0.152759526938
+      },
+      "geo": {
+        "lon": -177.9038709678,
+        "lat": -54.16557161634,
+        "geohash": "0n37zeqqeme5"
+      },
+      "lineCount": 12,
+      "weight": 12
+    },
+    "src/extensions.js": {
+      "path": "src/extensions.js",
+      "name": "extensions.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.01164516129,
+        "y": 0.724540078844,
+        "width": 0.042698924731,
+        "height": 0.152759526938
+      },
+      "geo": {
+        "lon": -168.12193548402,
+        "lat": -54.16557161634,
+        "geohash": "0q27y73qdvwg"
+      },
+      "lineCount": 44,
+      "weight": 44
+    },
+    "src/generator.js": {
+      "path": "src/generator.js",
+      "name": "generator.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.054344086022,
+        "y": 0.724540078844,
+        "width": 0.065989247312,
+        "height": 0.152759526938
+      },
+      "geo": {
+        "lon": -148.55806451592,
+        "lat": -54.16557161634,
+        "geohash": "0wq7g7rqdjw7"
+      },
+      "lineCount": 69,
+      "weight": 69
+    },
+    "src/geohash.js": {
+      "path": "src/geohash.js",
+      "name": "geohash.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.120333333333,
+        "y": 0.724540078844,
+        "width": 0.083456989247,
+        "height": 0.152759526938
+      },
+      "geo": {
+        "lon": -121.65774193566,
+        "lat": -54.16557161634,
+        "geohash": "1q37ze7w9jse"
+      },
+      "lineCount": 86,
+      "weight": 86
+    },
+    "src/geometry.js": {
+      "path": "src/geometry.js",
+      "name": "geometry.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.203790322581,
+        "y": 0.724540078844,
+        "width": 0.044639784946,
+        "height": 0.152759526938
+      },
+      "geo": {
+        "lon": -98.60032258056,
+        "lat": -54.16557161634,
+        "geohash": "1y3gu73qtvwe"
+      },
+      "lineCount": 46,
+      "weight": 46
+    },
+    "src/levels.js": {
+      "path": "src/levels.js",
+      "name": "levels.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.248430107527,
+        "y": 0.724540078844,
+        "width": 0.01552688172,
+        "height": 0.152759526938
+      },
+      "geo": {
+        "lon": -87.77032258067999,
+        "lat": -54.16557161634,
+        "geohash": "4n3eferwejxg"
+      },
+      "lineCount": 16,
+      "weight": 16
+    },
+    "src/overlaps.js": {
+      "path": "src/overlaps.js",
+      "name": "overlaps.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.9405,
+        "y": 0.846747700394,
+        "width": 0.0095,
+        "height": 0.02444152431
+      },
+      "geo": {
+        "lon": 160.29000000000002,
+        "lat": -64.61432325882001,
+        "geohash": "ps9brmrd79nu"
+      },
+      "lineCount": 29,
+      "weight": 29
+    },
+    "src/resolver.js": {
+      "path": "src/resolver.js",
+      "name": "resolver.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.263956989247,
+        "y": 0.724540078844,
+        "width": 0.103836021505,
+        "height": 0.152759526938
+      },
+      "geo": {
+        "lon": -66.28500000017999,
+        "lat": -54.16557161634,
+        "geohash": "4w2ggekwxt9e"
+      },
+      "lineCount": 107,
+      "weight": 107
+    },
+    "src/scan.js": {
+      "path": "src/scan.js",
+      "name": "scan.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.367793010753,
+        "y": 0.724540078844,
+        "width": 0.049491935484,
+        "height": 0.152759526938
+      },
+      "geo": {
+        "lon": -38.6859677418,
+        "lat": -54.16557161634,
+        "geohash": "5nk7zemwxtee"
+      },
+      "lineCount": 51,
+      "weight": 51
+    },
+    "src/selections.js": {
+      "path": "src/selections.js",
+      "name": "selections.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.417284946237,
+        "y": 0.724540078844,
+        "width": 0.084427419355,
+        "height": 0.152759526938
+      },
+      "geo": {
+        "lon": -14.58048387078,
+        "lat": -54.16557161634,
+        "geohash": "5wmeu5qydje5"
+      },
+      "lineCount": 87,
+      "weight": 87
+    },
+    "src/server.js": {
+      "path": "src/server.js",
+      "name": "server.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.501712365591,
+        "y": 0.724540078844,
+        "width": 0.162061827957,
+        "height": 0.152759526938
+      },
+      "geo": {
+        "lon": 29.78758064502,
+        "lat": -54.16557161634,
+        "geohash": "hwm5vg6wsvtg"
+      },
+      "lineCount": 188,
+      "weight": 188
+    },
+    "src/source.js": {
+      "path": "src/source.js",
+      "name": "source.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.9025,
+        "y": 0.846747700394,
+        "width": 0.038,
+        "height": 0.030551905388
+      },
+      "geo": {
+        "lon": 151.74,
+        "lat": -65.16425755584001,
+        "geohash": "pk7vkcjwwmbw"
+      },
+      "lineCount": 27,
+      "weight": 27
+    },
+    "src/stability.js": {
+      "path": "src/stability.js",
+      "name": "stability.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.9025,
+        "y": 0.724540078844,
+        "width": 0.0475,
+        "height": 0.12220762155
+      },
+      "geo": {
+        "lon": 153.45,
+        "lat": -51.41590013141999,
+        "geohash": "pqv5eb4bsjt0"
+      },
+      "lineCount": 162,
+      "weight": 162
+    },
+    "src/store.js": {
+      "path": "src/store.js",
+      "name": "store.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.663774193548,
+        "y": 0.724540078844,
+        "width": 0.01552688172,
+        "height": 0.152759526938
+      },
+      "geo": {
+        "lon": 61.75354838688003,
+        "lat": -54.16557161634,
+        "geohash": "jq7gv5rw9vx5"
+      },
+      "lineCount": 16,
+      "weight": 16
+    },
+    "src/tiles.js": {
+      "path": "src/tiles.js",
+      "name": "tiles.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.679301075269,
+        "y": 0.724540078844,
+        "width": 0.054344086022,
+        "height": 0.152759526938
+      },
+      "geo": {
+        "lon": 74.33032258079999,
+        "lat": -54.16557161634,
+        "geohash": "jwkgg7mwwj9e"
+      },
+      "lineCount": 56,
+      "weight": 56
+    },
+    "src/tree.js": {
+      "path": "src/tree.js",
+      "name": "tree.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.73364516129,
+        "y": 0.724540078844,
+        "width": 0.088309139785,
+        "height": 0.152759526938
+      },
+      "geo": {
+        "lon": 100.00790322569998,
+        "lat": -54.16557161634,
+        "geohash": "nnr5gerw9j9e"
+      },
+      "lineCount": 91,
+      "weight": 91
+    },
+    "src/treemap.js": {
+      "path": "src/treemap.js",
+      "name": "treemap.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.821954301075,
+        "y": 0.724540078844,
+        "width": 0.080545698925,
+        "height": 0.152759526938
+      },
+      "geo": {
+        "lon": 130.4017741935,
+        "lat": -54.16557161634,
+        "geohash": "nykez77wttd7"
+      },
+      "lineCount": 83,
+      "weight": 83
+    },
+    "test/activity.test.js": {
+      "path": "test/activity.test.js",
+      "name": "activity.test.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.877299605782,
+        "width": 0.045427852349,
+        "height": 0.048948751643
+      },
+      "geo": {
+        "lon": -171.82298657718,
+        "lat": -72.31931668862998,
+        "geohash": "05jud4dm6nr0"
+      },
+      "lineCount": 15,
+      "weight": 15
+    },
+    "test/generator.test.js": {
+      "path": "test/generator.test.js",
+      "name": "generator.test.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.045427852349,
+        "y": 0.877299605782,
+        "width": 0.109026845638,
+        "height": 0.048948751643
+      },
+      "geo": {
+        "lon": -144.02114093952,
+        "lat": -72.31931668862998,
+        "geohash": "0g1sddxj2nmb"
+      },
+      "lineCount": 63,
+      "weight": 63
+    },
+    "test/geohash.test.js": {
+      "path": "test/geohash.test.js",
+      "name": "geohash.test.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.154454697987,
+        "y": 0.877299605782,
+        "width": 0.039370805369,
+        "height": 0.048948751643
+      },
+      "geo": {
+        "lon": -117.30956375826,
+        "lat": -72.31931668862998,
+        "geohash": "17hsdd9v3n32"
+      },
+      "lineCount": 13,
+      "weight": 13
+    },
+    "test/overlaps.test.js": {
+      "path": "test/overlaps.test.js",
+      "name": "overlaps.test.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.9025,
+        "y": 0.916458607096,
+        "width": 0.038,
+        "height": 0.009789750329
+      },
+      "geo": {
+        "lon": 151.74,
+        "lat": -75.84362680689,
+        "geohash": "p6ebscjdy70x"
+      },
+      "lineCount": 25,
+      "weight": 25
+    },
+    "test/resolver.test.js": {
+      "path": "test/resolver.test.js",
+      "name": "resolver.test.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.193825503356,
+        "y": 0.877299605782,
+        "width": 0.136283557047,
+        "height": 0.048948751643
+      },
+      "geo": {
+        "lon": -85.69177852338001,
+        "lat": -72.31931668862998,
+        "geohash": "455hd49jky6b"
+      },
+      "lineCount": 45,
+      "weight": 45
+    },
+    "test/selections.test.js": {
+      "path": "test/selections.test.js",
+      "name": "selections.test.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.330109060403,
+        "y": 0.877299605782,
+        "width": 0.139312080537,
+        "height": 0.048948751643
+      },
+      "geo": {
+        "lon": -36.08456375826,
+        "lat": -72.31931668862998,
+        "geohash": "55nkdfsj2wr0"
+      },
+      "lineCount": 46,
+      "weight": 46
+    },
+    "test/server.test.js": {
+      "path": "test/server.test.js",
+      "name": "server.test.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.46942114094,
+        "y": 0.877299605782,
+        "width": 0.311937919463,
+        "height": 0.048948751643
+      },
+      "geo": {
+        "lon": 45.14043624173996,
+        "lat": -72.31931668862998,
+        "geohash": "j50he4wm2qkb"
+      },
+      "lineCount": 109,
+      "weight": 109
+    },
+    "test/source.test.js": {
+      "path": "test/source.test.js",
+      "name": "source.test.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.9025,
+        "y": 0.877299605782,
+        "width": 0.0475,
+        "height": 0.039159001314
+      },
+      "geo": {
+        "lon": 153.45,
+        "lat": -71.43823915901999,
+        "geohash": "p7m1eg4fh5j0"
+      },
+      "lineCount": 26,
+      "weight": 26
+    },
+    "test/tiles.test.js": {
+      "path": "test/tiles.test.js",
+      "name": "tiles.test.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.781359060403,
+        "y": 0.877299605782,
+        "width": 0.121140939597,
+        "height": 0.048948751643
+      },
+      "geo": {
+        "lon": 123.09463087254,
+        "lat": -72.31931668862998,
+        "geohash": "neps94dv2y32"
+      },
+      "lineCount": 40,
+      "weight": 40
+    },
+    "AGENTS.md": {
+      "path": "AGENTS.md",
+      "name": "AGENTS.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.926248357424,
+        "width": 0.95,
+        "height": 0.006570302234
+      },
+      "geo": {
+        "lon": -9,
+        "lat": -77.31603153738001,
+        "geohash": "5f385jn3kz1e"
+      },
+      "lineCount": 40,
+      "weight": 40
+    },
+    "CONTEXT.md": {
+      "path": "CONTEXT.md",
+      "name": "CONTEXT.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.932818659658,
+        "width": 0.95,
+        "height": 0.051741130092
+      },
+      "geo": {
+        "lon": -9,
+        "lat": -82.56406044672002,
+        "geohash": "5c3d71wmkz9e"
+      },
+      "lineCount": 315,
+      "weight": 315
+    },
+    "package.json": {
+      "path": "package.json",
+      "name": "package.json",
+      "extension": ".json",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.98455978975,
+        "width": 0.95,
+        "height": 0.002792378449
+      },
+      "geo": {
+        "lon": -9,
+        "lat": -87.47207621541,
+        "geohash": "5b3w7hnqhz1s"
+      },
+      "lineCount": 17,
+      "weight": 17
+    },
+    "skills-lock.json": {
+      "path": "skills-lock.json",
+      "name": "skills-lock.json",
+      "extension": ".json",
+      "contentType": "code",
+      "bounds": {
+        "x": 0,
+        "y": 0.9873521682,
+        "width": 0.95,
+        "height": 0.0126478318
+      },
+      "geo": {
+        "lon": -9,
+        "lat": -88.86169513800002,
+        "geohash": "5b1w7pnrhg3s"
+      },
+      "lineCount": 77,
+      "weight": 77
+    }
+  }
+}

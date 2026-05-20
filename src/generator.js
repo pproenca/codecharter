@@ -1,0 +1,69 @@
+import { MAP_LEVELS } from "./levels.js";
+import { scanCodeFiles } from "./scan.js";
+import { stabilizeTreeLayout } from "./stability.js";
+import { buildFileTree, flattenTree, sortedFiles, sortedFolders } from "./tree.js";
+import { layoutTree } from "./treemap.js";
+
+export async function generateCodemap({ root, excludePaths = ["codemap.json"], previousCodemap } = {}) {
+  const scannedFiles = await scanCodeFiles(root, { excludePaths });
+  const tree = stabilizeTreeLayout(layoutTree(buildFileTree(scannedFiles)), previousCodemap);
+  const { folders, files } = flattenTree(tree);
+
+  return {
+    version: 1,
+    projection: {
+      type: "filesystem-treemap",
+      mapOrder: "lexical-folders-first",
+      inclusion: "gitignore-known-code-extensions",
+      areaWeight: "line-count",
+      tileAddressing: "geohash-prefix",
+    },
+    mapLevels: MAP_LEVELS,
+    codePlane: {
+      bounds: { x: 0, y: 0, width: 1, height: 1 },
+      internalGeoDomain: {
+        lat: { min: -90, max: 90 },
+        lon: { min: -180, max: 180 },
+      },
+      transform: {
+        xToLon: "x * 360 - 180",
+        yToLat: "90 - y * 180",
+      },
+    },
+    folders: Object.fromEntries(
+      Object.entries(folders).map(([path, folder]) => [path, serializeFolder(folder)]),
+    ),
+    files: Object.fromEntries(
+      Object.entries(files).map(([path, file]) => [path, serializeFile(file)]),
+    ),
+  };
+}
+
+function serializeFolder(folder) {
+  return {
+    path: folder.path,
+    name: folder.name,
+    bounds: folder.bounds,
+    geo: folder.geo,
+    lineCount: folder.lineCount,
+    weight: folder.weight,
+    children: {
+      folders: sortedFolders(folder).map((child) => child.path),
+      files: sortedFiles(folder).map((child) => child.path),
+    },
+    growthArea: folder.growthArea,
+  };
+}
+
+function serializeFile(file) {
+  return {
+    path: file.path,
+    name: file.name,
+    extension: file.extension,
+    contentType: "code",
+    bounds: file.bounds,
+    geo: file.geo,
+    lineCount: file.lineCount,
+    weight: file.weight,
+  };
+}

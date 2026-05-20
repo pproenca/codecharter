@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Codemaps</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar">
+        <header class="brand">
+          <h1>Codemaps</h1>
+          <p id="mapSummary">Loading map...</p>
+        </header>
+
+        <section class="panel">
+          <h2>Layers</h2>
+          <label><input id="showFolders" type="checkbox" checked> Folders</label>
+          <label><input id="showFiles" type="checkbox" checked> Files</label>
+          <label><input id="showNames" type="checkbox" checked> Named places</label>
+          <label><input id="showActivity" type="checkbox" checked> Activity</label>
+        </section>
+
+        <section class="panel">
+          <h2>Map Level</h2>
+          <select id="mapLevel">
+            <option value="world">World</option>
+            <option value="region">Region</option>
+            <option value="folder">Folder</option>
+            <option value="file" selected>File</option>
+            <option value="code">Code</option>
+          </select>
+        </section>
+
+        <section class="panel">
+          <h2>Tools</h2>
+          <button id="drawTool" type="button">Draw selection</button>
+          <button id="resetView" type="button">Reset view</button>
+        </section>
+
+        <section class="panel selection-panel">
+          <h2>Selection</h2>
+          <input id="selectionName" type="text" placeholder="Name this area">
+          <button id="saveSelection" type="button" disabled>Save named place</button>
+          <pre id="selectionOutput">Draw an area to resolve files.</pre>
+        </section>
+
+        <section class="panel source-panel">
+          <h2>Source</h2>
+          <div id="sourceTitle">Click a file tile</div>
+          <pre id="sourceOutput"></pre>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Activity</h2>
+          <form id="activityForm">
+            <input name="agentId" type="text" value="codex" aria-label="Agent">
+            <select name="activityState" aria-label="Activity state">
+              <option value="reading">reading</option>
+              <option value="editing">editing</option>
+              <option value="testing">testing</option>
+              <option value="blocked">blocked</option>
+            </select>
+            <input name="path" type="text" value="src/resolver.js" aria-label="Path">
+            <div class="line-inputs">
+              <input name="lineStart" type="number" min="1" value="1" aria-label="Line start">
+              <input name="lineEnd" type="number" min="1" value="20" aria-label="Line end">
+            </div>
+            <button type="submit">Add event</button>
+          </form>
+        </section>
+      </aside>
+
+      <section class="map-area">
+        <div class="topbar">
+          <div id="hoverReadout">Move over the map</div>
+          <div id="viewportReadout"></div>
+        </div>
+        <canvas id="mapCanvas"></canvas>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

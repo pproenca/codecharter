@@ -1,0 +1,17 @@
+{
+  "name": "codemaps",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "codemap": "./bin/codemap.mjs"
+  },
+  "scripts": {
+    "codemap": "node ./bin/codemap.mjs",
+    "serve": "node ./bin/codemap.mjs serve",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

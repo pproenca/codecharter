@@ -53,8 +53,8 @@
         "lat": 0,
         "geohash": "s00000000000"
       },
-      "lineCount": 14626,
-      "weight": 14626,
+      "lineCount": 14598,
+      "weight": 14598,
       "children": {
         "folders": [
           ".agents",
@@ -1090,8 +1090,8 @@
         "lat": -26.75340322820999,
         "geohash": "3gppf3dn5khm"
       },
-      "lineCount": 2033,
-      "weight": 2033,
+      "lineCount": 1962,
+      "weight": 1962,
       "children": {
         "folders": [],
         "files": [
@@ -1170,8 +1170,8 @@
         "lat": -68.88465464058001,
         "geohash": "1gz047fjg3sm"
       },
-      "lineCount": 1032,
-      "weight": 1032,
+      "lineCount": 1061,
+      "weight": 1061,
       "children": {
         "folders": [],
         "files": [
@@ -4729,8 +4729,8 @@
         "lat": -26.753403228299987,
         "geohash": "35hrf1en0spm"
       },
-      "lineCount": 1194,
-      "weight": 1194
+      "lineCount": 1188,
+      "weight": 1188
     },
     "public/index.html": {
       "path": "public/index.html",
@@ -4748,8 +4748,8 @@
         "lat": -40.39346645523,
         "geohash": "68u61n9eh0n6"
       },
-      "lineCount": 85,
-      "weight": 85
+      "lineCount": 66,
+      "weight": 66
     },
     "public/render-model.js": {
       "path": "public/render-model.js",
@@ -4786,8 +4786,8 @@
         "lat": -19.103169310019993,
         "geohash": "6ss7343eupnk"
       },
-      "lineCount": 336,
-      "weight": 336
+      "lineCount": 290,
+      "weight": 290
     },
     "src/activity-store.js": {
       "path": "src/activity-store.js",
@@ -5356,8 +5356,8 @@
         "lat": -63.40938527844,
         "geohash": "1kepq0tt83u7"
       },
-      "lineCount": 177,
-      "weight": 177
+      "lineCount": 206,
+      "weight": 206
     },
     "test/source.test.js": {
       "path": "test/source.test.js",
@@ -5451,8 +5451,8 @@
         "lat": -72.07604636246998,
         "geohash": "ngnvzqvye5hu"
       },
-      "lineCount": 19,
-      "weight": 19
+      "lineCount": 25,
+      "weight": 25
     },
     "README.md": {
       "path": "README.md",
@@ -5470,8 +5470,8 @@
         "lat": 17.567999999999998,
         "geohash": "xej7vy4tn286"
       },
-      "lineCount": 28,
-      "weight": 28
+      "lineCount": 36,
+      "weight": 36
     },
     "skills-lock.json": {
       "path": "skills-lock.json",

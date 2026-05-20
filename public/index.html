@@ -11,28 +11,9 @@
       <section class="map-area">
         <canvas id="mapCanvas"></canvas>
 
-        <nav class="map-toolbar" aria-label="Map controls">
-          <button id="zoomIn" type="button" title="Zoom in">+</button>
-          <button id="zoomOut" type="button" title="Zoom out">-</button>
-          <button id="resetView" type="button">Reset</button>
-          <button id="drawTool" type="button">Draw</button>
-          <select id="mapLevel" aria-label="Map level">
-            <option value="world">World</option>
-            <option value="region">Region</option>
-            <option value="folder">Folder</option>
-            <option value="file" selected>File</option>
-            <option value="code">Code</option>
-          </select>
-          <details class="layer-menu">
-            <summary>Layers</summary>
-            <label><input id="showFolders" type="checkbox" checked> Districts</label>
-            <label><input id="showOrganicRegions" type="checkbox" checked> Region contours</label>
-            <label><input id="showFiles" type="checkbox" checked> Parcels</label>
-            <label><input id="showNames" type="checkbox" checked> Named places</label>
-            <label><input id="showActivity" type="checkbox" checked> Activity</label>
-            <label><input id="showGrid" type="checkbox"> Geohash grid</label>
-          </details>
-        </nav>
+        <div class="map-tool-palette" aria-label="Map tools">
+          <button id="drawTool" class="icon-tool square-tool" type="button" title="Draw geohash selection" aria-label="Draw geohash selection" aria-pressed="false"></button>
+        </div>
 
         <aside id="inspector" class="inspector">
           <section class="inspector-section selected-place">

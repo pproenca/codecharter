@@ -14,7 +14,13 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
   await writeFile(join(root, "src", "app.ts"), "const app = true;\nexport default app;\n");
   await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
 
-  const server = await startServer({ root, mapPath: join(root, "codemap.json"), port: 0, activityFlushIntervalMs: 20 });
+  const server = await startServer({
+    root,
+    mapPath: join(root, "codemap.json"),
+    port: 0,
+    activityFlushIntervalMs: 20,
+    publicRoot: join(root, "public"),
+  });
   const address = server.address();
   const baseUrl = `http://127.0.0.1:${address.port}`;
 
@@ -73,6 +79,29 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
       lineEnd: 2,
     });
     assert.equal(badActivity.accepted, true);
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
+test("serves bundled UI assets when mapping a repo without its own public directory", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-bundled-ui-"));
+  await mkdir(join(root, "src"));
+  await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
+  await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
+
+  const server = await startServer({ root, mapPath: join(root, "codemap.json"), port: 0 });
+  const address = server.address();
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+
+  try {
+    const response = await fetch(`${baseUrl}/`);
+    assert.equal(response.status, 200);
+    assert.match(await response.text(), /<canvas id="mapCanvas"/);
+
+    const map = await getJson(`${baseUrl}/api/map`);
+    assert.ok(map.files["src/app.ts"]);
   } finally {
     server.close();
     await once(server, "close");

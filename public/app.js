@@ -42,6 +42,7 @@ import {
 const canvas = document.querySelector("#mapCanvas");
 const ctx = canvas.getContext("2d");
 const mapArea = document.querySelector(".map-area");
+const DEFAULT_MAP_LEVEL = "file";
 
 let frameLabels = [];
 let activityPollTimer = null;
@@ -74,11 +75,7 @@ const controls = {
   searchForm: document.querySelector("#searchForm"),
   searchInput: document.querySelector("#searchInput"),
   searchResult: document.querySelector("#searchResult"),
-  mapLevel: document.querySelector("#mapLevel"),
-  zoomIn: document.querySelector("#zoomIn"),
-  zoomOut: document.querySelector("#zoomOut"),
   drawTool: document.querySelector("#drawTool"),
-  resetView: document.querySelector("#resetView"),
   saveSelection: document.querySelector("#saveSelection"),
   selectionName: document.querySelector("#selectionName"),
   selectionOutput: document.querySelector("#selectionOutput"),
@@ -121,7 +118,9 @@ function applyMap(map, version) {
   state.mapVersion = version ?? state.mapVersion;
   state.sourceCache.clear();
   state.pendingSourceRequests.clear();
-  controls.summary.textContent = `${Object.keys(map.files).length} files, ${Object.keys(map.folders).length} folders`;
+  if (controls.summary) {
+    controls.summary.textContent = `${Object.keys(map.files).length} files, ${Object.keys(map.folders).length} folders`;
+  }
   reconcileSelectedTarget(previousSelection);
 }
 
@@ -143,36 +142,22 @@ function bindEvents() {
   });
 
   for (const control of [
-    controls.mapLevel,
     controls.showFolders,
     controls.showOrganicRegions,
     controls.showFiles,
     controls.showNames,
     controls.showActivity,
     controls.showGrid,
-  ]) {
+  ].filter(Boolean)) {
     control.addEventListener("change", render);
   }
 
-  controls.drawTool.addEventListener("click", () => {
+  controls.drawTool?.addEventListener("click", () => {
     setDrawMode(!state.drawing);
     render();
   });
 
-  controls.resetView.addEventListener("click", () => {
-    state.view = { x: 0, y: 0, scale: 1 };
-    render();
-  });
-  controls.zoomIn.addEventListener("click", () => {
-    zoomAt({ x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 }, 1.6);
-    render();
-  });
-  controls.zoomOut.addEventListener("click", () => {
-    zoomAt({ x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 }, 1 / 1.6);
-    render();
-  });
-
-  controls.searchForm.addEventListener("submit", searchMap);
+  controls.searchForm?.addEventListener("submit", searchMap);
   controls.saveSelection.addEventListener("click", saveSelection);
   controls.activityForm.addEventListener("submit", addActivity);
 
@@ -234,7 +219,8 @@ function activitySignature(events) {
 
 function setDrawMode(enabled) {
   state.drawing = enabled;
-  controls.drawTool.classList.toggle("active", enabled);
+  controls.drawTool?.classList.toggle("active", enabled);
+  controls.drawTool?.setAttribute("aria-pressed", String(enabled));
   if (!enabled) clearDraftSelection();
 }
 
@@ -258,19 +244,23 @@ function render() {
   const rect = canvas.getBoundingClientRect();
   frameLabels = [];
   ctx.clearRect(0, 0, rect.width, rect.height);
-  controls.viewport.textContent = `scale ${state.view.scale.toFixed(2)} | level ${controls.mapLevel.value}`;
+  controls.viewport.textContent = `scale ${state.view.scale.toFixed(2)} | level ${DEFAULT_MAP_LEVEL}`;
 
   drawCompassRose();
-  if (controls.showGrid.checked) drawGrid();
-  if (controls.showFolders.checked) drawFolders();
-  if (controls.showOrganicRegions.checked) drawOrganicRegions();
-  if (controls.showFiles.checked) drawFiles();
+  if (layerEnabled("showGrid", false)) drawGrid();
+  if (layerEnabled("showFolders")) drawFolders();
+  if (layerEnabled("showOrganicRegions")) drawOrganicRegions();
+  if (layerEnabled("showFiles")) drawFiles();
   drawQueuedLabels();
-  if (controls.showNames.checked) drawNamedPlaces();
-  if (controls.showNames.checked) drawOverlaps();
+  if (layerEnabled("showNames")) drawNamedPlaces();
+  if (layerEnabled("showNames")) drawOverlaps();
   if (state.draftSelection) drawSelection(state.draftSelection.bounds, "rgba(245, 158, 11, 0.18)", "#f59e0b", [6, 4]);
-  if (controls.showActivity.checked) drawActivity();
+  if (layerEnabled("showActivity")) drawActivity();
   renderActivityFeed();
+}
+
+function layerEnabled(name, fallback = true) {
+  return controls[name]?.checked ?? fallback;
 }
 
 function drawGrid() {
@@ -987,13 +977,13 @@ function sourcePanelLineRange(file, focusLine, box) {
 
 async function searchMap(event) {
   event.preventDefault();
-  const query = controls.searchInput.value.trim().toLowerCase();
+  const query = controls.searchInput?.value.trim().toLowerCase();
   if (!query) return;
 
   const namedPlace = state.namedPlaces.find((place) => place.name.toLowerCase().includes(query));
   if (namedPlace?.geometry?.bounds) {
     zoomToBounds(namedPlace.geometry.bounds, 1.35);
-    controls.searchResult.textContent = `Named place: ${namedPlace.name}`;
+    setSearchResult(`Named place: ${namedPlace.name}`);
     state.selectedTarget = null;
     render();
     return;
@@ -1005,7 +995,7 @@ async function searchMap(event) {
   if (file) {
     zoomToReadableFile(file);
     await selectMapTarget(boundsCenter(file.bounds));
-    controls.searchResult.textContent = `File: ${file.path}`;
+    setSearchResult(`File: ${file.path}`);
     return;
   }
 
@@ -1017,12 +1007,16 @@ async function searchMap(event) {
     state.selectedTarget = { ...folder, targetType: "folder" };
     controls.inspectorTitle.textContent = labelForFolder(folder);
     controls.inspectorSubtitle.textContent = `folder: ${folder.path || "."} | ${folder.geo.geohash}`;
-    controls.searchResult.textContent = `Folder: ${folder.path || "."}`;
+    setSearchResult(`Folder: ${folder.path || "."}`);
     render();
     return;
   }
 
-  controls.searchResult.textContent = "No matching place found.";
+  setSearchResult("No matching place found.");
+}
+
+function setSearchResult(message) {
+  if (controls.searchResult) controls.searchResult.textContent = message;
 }
 
 async function previewSelection() {
@@ -1030,7 +1024,7 @@ async function previewSelection() {
   if (!draftSelection) return;
   const body = {
     name: controls.selectionName.value || "Preview",
-    level: controls.mapLevel.value,
+    level: DEFAULT_MAP_LEVEL,
     geometry: draftSelection,
   };
   const resolvedSelection = await postJson("/api/selections/resolve", body);
@@ -1049,7 +1043,7 @@ async function saveSelection() {
   if (!state.resolvedSelection) return;
   const saved = await postJson("/api/named-places", {
     name: controls.selectionName.value || "Named Area",
-    level: controls.mapLevel.value,
+    level: DEFAULT_MAP_LEVEL,
     geometry: state.resolvedSelection.geometry,
   });
   state.namedPlaces.push(saved.place);
@@ -1081,7 +1075,7 @@ function hitTest(point) {
 }
 
 function hitTestActivity(point) {
-  if (!controls.showActivity.checked) return null;
+  if (!layerEnabled("showActivity")) return null;
   const radiusX = 13 / (canvas.clientWidth * state.view.scale);
   const radiusY = 13 / (canvas.clientHeight * state.view.scale);
   const events = [...sortedActivityEvents(state.activity)].reverse();

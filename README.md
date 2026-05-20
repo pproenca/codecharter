@@ -11,7 +11,7 @@ npm run dev
 That command:
 
 - regenerates `codemap.json` from gitignore-filtered code files while preserving existing stable coordinates when possible
-- serves the map at `http://127.0.0.1:4173`
+- serves the bundled Codemaps web app at `http://127.0.0.1:4173`
 - starts a best-effort Activity Producer that watches local git changes and streams file or line-range positions to the in-memory `/api/activity` feed
 
 Activity telemetry is deliberately non-blocking. If the server cannot resolve an activity event, code work continues and the event is dropped. Accepted real-time events live in memory first and are periodically appended to `.scratch/activity-stream.jsonl` as a JSONL archive, without a hard file-size check.
@@ -26,3 +26,11 @@ node ./bin/codemap.mjs resolve public/app.js 1 20
 ```
 
 `npm run setup` prepares the Map Sidecar and local Activity Archive without serving the app. `resolve` is the stable interface for turning paths and line ranges into geohash-backed Map Addresses.
+
+To map another repository from this checkout:
+
+```sh
+node ./bin/codemap.mjs dev --root /path/to/project
+```
+
+The target project does not need its own `public/` directory; Codemaps serves its bundled UI while reading source, sidecar, names, and activity archive from the target root.

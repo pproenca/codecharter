@@ -29,3 +29,35 @@ test("keeps activity hot path in memory until an explicit or timed JSONL flush",
     await store.close();
   }
 });
+
+test("caps the archive queue in memory without checking JSONL file size", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-store-"));
+  const archivePath = join(root, ".scratch", "activity-stream.jsonl");
+  const store = createActivityStore({
+    archivePath,
+    flushIntervalMs: 60_000,
+    maxArchiveQueueEvents: 2,
+  });
+
+  try {
+    store.add(activityEvent("event-1"));
+    store.add(activityEvent("event-2"));
+    store.add(activityEvent("event-3"));
+
+    await store.flush();
+    const lines = (await readFile(archivePath, "utf8")).trim().split("\n");
+    assert.deepEqual(lines.map((line) => JSON.parse(line).id), ["event-2", "event-3"]);
+  } finally {
+    await store.close();
+  }
+});
+
+function activityEvent(id) {
+  return {
+    id,
+    agentId: "codex",
+    activityState: "editing",
+    address: { targetType: "file", deepLink: `codemap://file/${id}?path=src%2Fapp.ts`, bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    timestamp: "2026-05-20T00:00:00.000Z",
+  };
+}

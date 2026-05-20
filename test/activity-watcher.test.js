@@ -94,6 +94,37 @@ test("watcher prepares changed map state before posting each new diff signature"
   }
 });
 
+test("watcher polling does not wait for activity delivery", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-watcher-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.js"), "const app = true;\n");
+  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileAsync("git", ["add", "src/app.js"], { cwd: root });
+
+  let sendStarted = false;
+  const watcher = startActivityWatcher({
+    root,
+    endpoint: "http://127.0.0.1:1/api/activity",
+    intervalMs: 60_000,
+    throttleMs: 0,
+    postActivity: async () => {
+      sendStarted = true;
+      await new Promise(() => {});
+    },
+  });
+
+  try {
+    watcher.close();
+    await Promise.race([
+      watcher.poll(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("watcher poll waited for activity delivery")), 100)),
+    ]);
+    assert.equal(sendStarted, true);
+  } finally {
+    watcher.close();
+  }
+});
+
 async function readBody(request) {
   let raw = "";
   for await (const chunk of request) raw += chunk;

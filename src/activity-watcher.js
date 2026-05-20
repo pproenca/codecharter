@@ -14,6 +14,7 @@ export function startActivityWatcher({
   intervalMs = DEFAULT_INTERVAL_MS,
   throttleMs = DEFAULT_THROTTLE_MS,
   prepareChanges = async () => {},
+  postActivity = sendActivityDatagram,
 } = {}) {
   const recent = new Map();
 
@@ -31,13 +32,13 @@ export function startActivityWatcher({
     })));
     await prepareChanges(changes);
 
-    await Promise.all(changes.map(async (change) => {
+    for (const change of changes) {
       const { path } = change;
       const previous = recent.get(path);
-      if (previous?.signature === change.signature) return;
-      if (previous && now - previous.timestamp < throttleMs) return;
+      if (previous?.signature === change.signature) continue;
+      if (previous && now - previous.timestamp < throttleMs) continue;
       recent.set(path, { signature: change.signature, timestamp: now });
-      await postActivity(endpoint, {
+      void postActivity(endpoint, {
         agentId,
         activityState,
         path,
@@ -45,7 +46,7 @@ export function startActivityWatcher({
         lineEnd: change.lineEnd,
         note: "codemap dev watcher",
       });
-    }));
+    }
   }
 
   const initialPoll = setTimeout(() => {
@@ -127,7 +128,7 @@ async function gitDiff(root, args) {
   }
 }
 
-async function postActivity(endpoint, body) {
+async function sendActivityDatagram(endpoint, body) {
   try {
     await fetch(endpoint, {
       method: "POST",

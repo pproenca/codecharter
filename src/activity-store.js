@@ -3,11 +3,13 @@ import { dirname } from "node:path";
 
 const DEFAULT_FLUSH_INTERVAL_MS = 5000;
 const DEFAULT_MAX_MEMORY_EVENTS = 2000;
+const DEFAULT_MAX_ARCHIVE_QUEUE_EVENTS = 2000;
 
 export function createActivityStore({
   archivePath,
   flushIntervalMs = DEFAULT_FLUSH_INTERVAL_MS,
   maxMemoryEvents = DEFAULT_MAX_MEMORY_EVENTS,
+  maxArchiveQueueEvents = DEFAULT_MAX_ARCHIVE_QUEUE_EVENTS,
 } = {}) {
   const events = [];
   const pending = [];
@@ -25,6 +27,7 @@ export function createActivityStore({
     events.push(event);
     pending.push(event);
     while (events.length > maxMemoryEvents) events.shift();
+    trimPending();
     return event;
   }
 
@@ -44,6 +47,7 @@ export function createActivityStore({
       })
       .catch((error) => {
         pending.unshift(...batch);
+        trimPending();
         throw error;
       });
 
@@ -64,6 +68,10 @@ export function createActivityStore({
     flush,
     close,
   };
+
+  function trimPending() {
+    while (pending.length > maxArchiveQueueEvents) pending.shift();
+  }
 }
 
 export async function appendActivityEvents(archivePath, events) {

@@ -14,7 +14,7 @@ That command:
 - serves the bundled Codemaps web app at `http://127.0.0.1:4173`
 - starts a best-effort Activity Producer that watches local git changes and streams file or line-range positions to the in-memory `/api/activity` feed
 
-Activity telemetry is deliberately non-blocking. If the server cannot resolve an activity event, code work continues and the event is dropped. Accepted real-time events live in memory first and are periodically appended to `.scratch/activity-stream.jsonl` as a JSONL archive, without a hard file-size check.
+Activity telemetry is deliberately non-blocking. If the server cannot resolve an activity event, code work continues and the event is dropped. Accepted real-time events live in memory first and are periodically appended to `.scratch/activity-stream.jsonl` as a JSONL archive, without a hard file-size check. The archive backlog is bounded in memory, so slow disk can drop old archive candidates without blocking live work.
 While `npm run dev` is running, changed code files refresh `codemap.json` before activity is posted, so newly created files can receive stable Map Addresses without restarting the server.
 `setup` and `dev` add Codemaps scratch files to the target repo's local `.git/info/exclude`, so telemetry does not show up as untracked work.
 

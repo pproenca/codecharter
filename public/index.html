@@ -7,77 +7,87 @@
     <link rel="stylesheet" href="/style.css">
   </head>
   <body>
-    <main class="app-shell">
-      <aside class="sidebar">
-        <header class="brand">
-          <h1>Codemaps</h1>
-          <p id="mapSummary">Loading map...</p>
+    <main class="map-shell">
+      <section class="map-area">
+        <canvas id="mapCanvas"></canvas>
+
+        <header class="map-search">
+          <div class="brand">
+            <h1>Codemaps</h1>
+            <p id="mapSummary">Loading map...</p>
+          </div>
+          <form id="searchForm" class="search-form">
+            <input id="searchInput" type="search" placeholder="Search file, folder, geohash, named place">
+            <button type="submit" aria-label="Search">Go</button>
+          </form>
+          <div id="searchResult" class="search-result"></div>
         </header>
 
-        <section class="panel">
-          <h2>Layers</h2>
-          <label><input id="showFolders" type="checkbox" checked> Folders</label>
-          <label><input id="showFiles" type="checkbox" checked> Files</label>
-          <label><input id="showNames" type="checkbox" checked> Named places</label>
-          <label><input id="showActivity" type="checkbox" checked> Activity</label>
-        </section>
-
-        <section class="panel">
-          <h2>Map Level</h2>
-          <select id="mapLevel">
+        <nav class="map-toolbar" aria-label="Map controls">
+          <button id="zoomIn" type="button" title="Zoom in">+</button>
+          <button id="zoomOut" type="button" title="Zoom out">-</button>
+          <button id="resetView" type="button">Reset</button>
+          <button id="drawTool" type="button">Draw</button>
+          <select id="mapLevel" aria-label="Map level">
             <option value="world">World</option>
             <option value="region">Region</option>
             <option value="folder">Folder</option>
             <option value="file" selected>File</option>
             <option value="code">Code</option>
           </select>
-        </section>
+          <details class="layer-menu">
+            <summary>Layers</summary>
+            <label><input id="showFolders" type="checkbox" checked> Districts</label>
+            <label><input id="showFiles" type="checkbox" checked> Parcels</label>
+            <label><input id="showNames" type="checkbox" checked> Named places</label>
+            <label><input id="showActivity" type="checkbox" checked> Activity</label>
+            <label><input id="showGrid" type="checkbox"> Geohash grid</label>
+          </details>
+        </nav>
 
-        <section class="panel">
-          <h2>Tools</h2>
-          <button id="drawTool" type="button">Draw selection</button>
-          <button id="resetView" type="button">Reset view</button>
-        </section>
+        <aside id="inspector" class="inspector">
+          <section class="inspector-section selected-place">
+            <h2 id="inspectorTitle">Select a place</h2>
+            <p id="inspectorSubtitle">Click a file, folder, named place, or agent marker.</p>
+          </section>
 
-        <section class="panel selection-panel">
-          <h2>Selection</h2>
-          <input id="selectionName" type="text" placeholder="Name this area">
-          <button id="saveSelection" type="button" disabled>Save named place</button>
-          <pre id="selectionOutput">Draw an area to resolve files.</pre>
-        </section>
+          <section class="inspector-section selection-panel">
+            <h3>Drawn Selection</h3>
+            <input id="selectionName" type="text" placeholder="Name this area">
+            <button id="saveSelection" type="button" disabled>Save named place</button>
+            <pre id="selectionOutput">Draw an area to resolve files.</pre>
+          </section>
 
-        <section class="panel source-panel">
-          <h2>Source</h2>
-          <div id="sourceTitle">Click a file tile</div>
-          <pre id="sourceOutput"></pre>
-        </section>
+          <section class="inspector-section source-panel">
+            <h3>Source</h3>
+            <div id="sourceTitle">Click a file tile</div>
+            <pre id="sourceOutput"></pre>
+          </section>
 
-        <section class="panel">
-          <h2>Agent Activity</h2>
-          <form id="activityForm">
-            <input name="agentId" type="text" value="codex" aria-label="Agent">
-            <select name="activityState" aria-label="Activity state">
-              <option value="reading">reading</option>
-              <option value="editing">editing</option>
-              <option value="testing">testing</option>
-              <option value="blocked">blocked</option>
-            </select>
-            <input name="path" type="text" value="src/resolver.js" aria-label="Path">
-            <div class="line-inputs">
-              <input name="lineStart" type="number" min="1" value="1" aria-label="Line start">
-              <input name="lineEnd" type="number" min="1" value="20" aria-label="Line end">
-            </div>
-            <button type="submit">Add event</button>
-          </form>
-        </section>
-      </aside>
+          <section class="inspector-section">
+            <h3>Agent Activity</h3>
+            <form id="activityForm">
+              <input name="agentId" type="text" value="codex" aria-label="Agent">
+              <select name="activityState" aria-label="Activity state">
+                <option value="reading">reading</option>
+                <option value="editing">editing</option>
+                <option value="testing">testing</option>
+                <option value="blocked">blocked</option>
+              </select>
+              <input name="path" type="text" value="src/resolver.js" aria-label="Path">
+              <div class="line-inputs">
+                <input name="lineStart" type="number" min="1" value="1" aria-label="Line start">
+                <input name="lineEnd" type="number" min="1" value="20" aria-label="Line end">
+              </div>
+              <button type="submit">Add event</button>
+            </form>
+          </section>
+        </aside>
 
-      <section class="map-area">
-        <div class="topbar">
+        <footer class="map-status">
           <div id="hoverReadout">Move over the map</div>
           <div id="viewportReadout"></div>
-        </div>
-        <canvas id="mapCanvas"></canvas>
+        </footer>
       </section>
     </main>
     <script type="module" src="/app.js"></script>

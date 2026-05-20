@@ -13,13 +13,21 @@ const state = {
   drawing: false,
   draftSelection: null,
   resolvedSelection: null,
+  selectedTarget: null,
 };
 
 const controls = {
   summary: document.querySelector("#mapSummary"),
   hover: document.querySelector("#hoverReadout"),
   viewport: document.querySelector("#viewportReadout"),
+  inspectorTitle: document.querySelector("#inspectorTitle"),
+  inspectorSubtitle: document.querySelector("#inspectorSubtitle"),
+  searchForm: document.querySelector("#searchForm"),
+  searchInput: document.querySelector("#searchInput"),
+  searchResult: document.querySelector("#searchResult"),
   mapLevel: document.querySelector("#mapLevel"),
+  zoomIn: document.querySelector("#zoomIn"),
+  zoomOut: document.querySelector("#zoomOut"),
   drawTool: document.querySelector("#drawTool"),
   resetView: document.querySelector("#resetView"),
   saveSelection: document.querySelector("#saveSelection"),
@@ -31,6 +39,7 @@ const controls = {
   showFiles: document.querySelector("#showFiles"),
   showNames: document.querySelector("#showNames"),
   showActivity: document.querySelector("#showActivity"),
+  showGrid: document.querySelector("#showGrid"),
   activityForm: document.querySelector("#activityForm"),
 };
 
@@ -58,7 +67,7 @@ function bindEvents() {
     render();
   });
 
-  for (const control of [controls.mapLevel, controls.showFolders, controls.showFiles, controls.showNames, controls.showActivity]) {
+  for (const control of [controls.mapLevel, controls.showFolders, controls.showFiles, controls.showNames, controls.showActivity, controls.showGrid]) {
     control.addEventListener("change", render);
   }
 
@@ -71,7 +80,16 @@ function bindEvents() {
     state.view = { x: 0, y: 0, scale: 1 };
     render();
   });
+  controls.zoomIn.addEventListener("click", () => {
+    zoomAt({ x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 }, 1.6);
+    render();
+  });
+  controls.zoomOut.addEventListener("click", () => {
+    zoomAt({ x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 }, 1 / 1.6);
+    render();
+  });
 
+  controls.searchForm.addEventListener("submit", searchMap);
   controls.saveSelection.addEventListener("click", saveSelection);
   controls.activityForm.addEventListener("submit", addActivity);
 
@@ -95,7 +113,8 @@ function render() {
   ctx.clearRect(0, 0, rect.width, rect.height);
   controls.viewport.textContent = `scale ${state.view.scale.toFixed(2)} | level ${controls.mapLevel.value}`;
 
-  drawGrid();
+  drawCompassRose();
+  if (controls.showGrid.checked) drawGrid();
   if (controls.showFolders.checked) drawFolders();
   if (controls.showFiles.checked) drawFiles();
   if (controls.showNames.checked) drawNamedPlaces();
@@ -123,16 +142,31 @@ function drawGrid() {
   ctx.restore();
 }
 
+function drawCompassRose() {
+  ctx.save();
+  ctx.fillStyle = "rgba(18, 61, 53, 0.08)";
+  ctx.strokeStyle = "rgba(18, 61, 53, 0.16)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(canvas.clientWidth - 44, canvas.clientHeight - 44, 22, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.font = "11px Inter, system-ui, sans-serif";
+  ctx.fillText("N", canvas.clientWidth - 48, canvas.clientHeight - 50);
+  ctx.fillText("Code Plane", canvas.clientWidth - 96, canvas.clientHeight - 16);
+  ctx.restore();
+}
+
 function drawFolders() {
   for (const folder of Object.values(state.map.folders)) {
     if (!folder.path) continue;
     const box = screenBounds(folder.bounds);
     if (!visible(box)) continue;
-    ctx.fillStyle = "rgba(219, 234, 254, 0.22)";
-    ctx.strokeStyle = "#3b82f6";
-    ctx.lineWidth = 1;
+    const depth = folder.path.split("/").length;
+    ctx.fillStyle = depth <= 2 ? "rgba(132, 178, 156, 0.16)" : "rgba(132, 178, 156, 0.08)";
+    ctx.strokeStyle = depth <= 2 ? "rgba(49, 101, 69, 0.46)" : "rgba(49, 101, 69, 0.22)";
+    ctx.lineWidth = depth <= 2 ? 1.6 : 1;
     drawRect(box);
-    if (box.width > 58 && box.height > 18) drawLabel(folder.path, box.x + 5, box.y + 14, "#1d4ed8");
+    if (box.width > 90 && box.height > 28) drawLabel(labelForFolder(folder), box.x + 8, box.y + 18, "rgba(33, 79, 57, 0.76)", 13, "600");
   }
 }
 
@@ -140,12 +174,19 @@ function drawFiles() {
   for (const file of Object.values(state.map.files)) {
     const box = screenBounds(file.bounds);
     if (!visible(box)) continue;
-    ctx.fillStyle = "rgba(236, 253, 245, 0.72)";
-    ctx.strokeStyle = "#10b981";
-    ctx.lineWidth = 1;
+    const selected = state.selectedTarget?.path === file.path;
+    const landmark = box.width > 110 && box.height > 34;
+    const visibleParcel = selected || landmark || state.view.scale > 1.8 || (box.width > 42 && box.height > 18);
+    if (!visibleParcel) continue;
+
+    ctx.fillStyle = selected ? "rgba(255, 255, 255, 0.82)" : "rgba(235, 248, 241, 0.48)";
+    ctx.strokeStyle = selected ? "rgba(180, 84, 24, 0.95)" : "rgba(18, 128, 98, 0.34)";
+    ctx.lineWidth = selected ? 2.6 : state.view.scale > 2.2 ? 1 : 0.65;
     drawRect(box);
-    if (box.width > 46 && box.height > 16) drawLabel(file.name, box.x + 4, box.y + 13, "#047857");
-    if (state.view.scale > 8 && box.height > 30) drawLineBands(file, box);
+    if (selected || landmark || (state.view.scale > 2.2 && box.width > 78 && box.height > 24)) {
+      drawLabel(file.name, box.x + 6, box.y + 16, "rgba(3, 87, 67, 0.84)", 12, "500");
+    }
+    if (state.view.scale > 6 && box.height > 34) drawLineBands(file, box);
   }
 }
 
@@ -221,9 +262,9 @@ function drawRect(box) {
   ctx.stroke();
 }
 
-function drawLabel(text, x, y, color) {
+function drawLabel(text, x, y, color, size = 12, weight = "400") {
   ctx.save();
-  ctx.font = "12px Inter, system-ui, sans-serif";
+  ctx.font = `${weight} ${size}px Inter, system-ui, sans-serif`;
   ctx.fillStyle = color;
   ctx.textBaseline = "alphabetic";
   ctx.fillText(text, x, y);
@@ -317,14 +358,23 @@ async function onPointerUp(event) {
 async function selectMapTarget(worldPoint) {
   const hit = hitTest(worldPoint);
   if (!hit) {
+    state.selectedTarget = null;
+    controls.inspectorTitle.textContent = "No place selected";
+    controls.inspectorSubtitle.textContent = "Click a district, parcel, or activity marker.";
     controls.sourceTitle.textContent = "No file selected";
     controls.sourceOutput.textContent = "";
+    render();
     return;
   }
+
+  state.selectedTarget = hit;
+  controls.inspectorTitle.textContent = hit.targetType === "file" ? hit.name : labelForFolder(hit);
+  controls.inspectorSubtitle.textContent = `${hit.targetType}: ${hit.path || "."} | ${hit.geo.geohash}`;
 
   if (hit.targetType !== "file") {
     controls.sourceTitle.textContent = hit.path || ".";
     controls.sourceOutput.textContent = "Folder selected.";
+    render();
     return;
   }
 
@@ -342,6 +392,47 @@ async function selectMapTarget(worldPoint) {
   controls.sourceOutput.textContent = source.lines
     .map((item) => `${String(item.number).padStart(4, " ")}  ${item.text}`)
     .join("\n");
+  render();
+}
+
+async function searchMap(event) {
+  event.preventDefault();
+  const query = controls.searchInput.value.trim().toLowerCase();
+  if (!query) return;
+
+  const namedPlace = state.namedPlaces.find((place) => place.name.toLowerCase().includes(query));
+  if (namedPlace?.geometry?.bounds) {
+    zoomToBounds(namedPlace.geometry.bounds, 1.35);
+    controls.searchResult.textContent = `Named place: ${namedPlace.name}`;
+    state.selectedTarget = null;
+    render();
+    return;
+  }
+
+  const file = Object.values(state.map.files).find((candidate) =>
+    candidate.path.toLowerCase().includes(query) || candidate.geo.geohash.startsWith(query)
+  );
+  if (file) {
+    zoomToBounds(file.bounds, 3.2);
+    await selectMapTarget(boundsCenter(file.bounds));
+    controls.searchResult.textContent = `File: ${file.path}`;
+    return;
+  }
+
+  const folder = Object.values(state.map.folders).find((candidate) =>
+    candidate.path.toLowerCase().includes(query) || candidate.geo.geohash.startsWith(query)
+  );
+  if (folder) {
+    zoomToBounds(folder.bounds, 1.6);
+    state.selectedTarget = { ...folder, targetType: "folder" };
+    controls.inspectorTitle.textContent = labelForFolder(folder);
+    controls.inspectorSubtitle.textContent = `folder: ${folder.path || "."} | ${folder.geo.geohash}`;
+    controls.searchResult.textContent = `Folder: ${folder.path || "."}`;
+    render();
+    return;
+  }
+
+  controls.searchResult.textContent = "No matching place found.";
 }
 
 async function previewSelection() {
@@ -393,6 +484,20 @@ function hitTest(point) {
   const folders = Object.values(state.map.folders).filter((folder) => folder.path && contains(folder.bounds, point));
   if (folders.length > 0) return { ...folders.sort(smallerArea)[0], targetType: "folder" };
   return null;
+}
+
+function zoomToBounds(bounds, paddingFactor = 1.2) {
+  const scaleX = 1 / Math.max(bounds.width * paddingFactor, 0.001);
+  const scaleY = 1 / Math.max(bounds.height * paddingFactor, 0.001);
+  const scale = clamp(Math.min(scaleX, scaleY), 0.65, 80);
+  state.view.scale = scale;
+  state.view.x = bounds.x + bounds.width / 2 - 0.5 / scale;
+  state.view.y = bounds.y + bounds.height / 2 - 0.5 / scale;
+}
+
+function labelForFolder(folder) {
+  if (!folder.path) return "Codebase";
+  return folder.path.split("/").at(-1);
 }
 
 function worldToScreen(point) {

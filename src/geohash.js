@@ -1,4 +1,5 @@
 const BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz";
+const GEOHASH_EAST_EDGE_EPSILON = 1e-12;
 
 export function encodeGeohash(lat, lon, precision = 12) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
@@ -52,10 +53,15 @@ export function encodeGeohash(lat, lon, precision = 12) {
 }
 
 export function codePointToGeo(point) {
+  if (!Number.isFinite(point?.x) || !Number.isFinite(point?.y)) {
+    throw new Error("Code-plane point coordinates must be finite numbers");
+  }
+
   const x = clamp(point.x, 0, 1);
   const y = clamp(point.y, 0, 1);
+  const lon = x >= 1 ? 180 - GEOHASH_EAST_EDGE_EPSILON : x * 360 - 180;
   return {
-    lon: x * 360 - 180,
+    lon,
     lat: 90 - y * 180,
   };
 }

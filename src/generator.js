@@ -29,7 +29,7 @@ export async function generateCodemap({ root, excludePaths = ["codemap.json"], p
         lon: { min: -180, max: 180 },
       },
       transform: {
-        xToLon: "x * 360 - 180",
+        xToLon: "x >= 1 ? 179.999999999999 : x * 360 - 180",
         yToLat: "90 - y * 180",
       },
     },

@@ -81,6 +81,11 @@ button:disabled {
   width: 100%;
 }
 
+#mapCanvas:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.72);
+  outline-offset: -3px;
+}
+
 .map-search,
 .map-toolbar,
 .inspector,
@@ -236,6 +241,35 @@ button:disabled {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+.activity-feed {
+  display: grid;
+  gap: 6px;
+}
+
+.activity-feed:empty {
+  display: none;
+}
+
+.activity-item {
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 2px;
+  padding: 7px 8px;
+}
+
+.activity-item strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.activity-item span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .selection-panel pre,

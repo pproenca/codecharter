@@ -34,7 +34,7 @@
       }
     },
     "transform": {
-      "xToLon": "x * 360 - 180",
+      "xToLon": "x >= 1 ? 179.999999999999 : x * 360 - 180",
       "yToLat": "90 - y * 180"
     }
   },
@@ -53,8 +53,8 @@
         "lat": 0,
         "geohash": "s00000000000"
       },
-      "lineCount": 10865,
-      "weight": 10865,
+      "lineCount": 13809,
+      "weight": 13809,
       "children": {
         "folders": [
           ".agents",
@@ -92,8 +92,8 @@
         "lat": 42.131251412370005,
         "geohash": "dxkrsvy2rfs8"
       },
-      "lineCount": 7284,
-      "weight": 7284,
+      "lineCount": 9147,
+      "weight": 9147,
       "children": {
         "folders": [
           ".agents/skills"
@@ -121,10 +121,11 @@
         "lat": 42.131251412370005,
         "geohash": "drrzwtcb6480"
       },
-      "lineCount": 7284,
-      "weight": 7284,
+      "lineCount": 9147,
+      "weight": 9147,
       "children": {
         "folders": [
+          ".agents/skills/code-map-visualization",
           ".agents/skills/computer-science-algorithms",
           ".agents/skills/geohash-spatial-code-maps",
           ".agents/skills/grill-me",
@@ -142,9 +143,176 @@
       },
       "growthArea": {
         "x": 0.530848761001,
-        "y": 0.064,
+        "y": 0.387099987446,
         "width": 0.029798857085,
-        "height": 0.403874984307
+        "height": 0.080774996861
+      }
+    },
+    ".agents/skills/code-map-visualization": {
+      "path": ".agents/skills/code-map-visualization",
+      "name": "code-map-visualization",
+      "bounds": {
+        "x": 0.531891720999,
+        "y": 0.065042959998,
+        "width": 0.027712937089,
+        "height": 0.32101406745
+      },
+      "geo": {
+        "lon": 16.469348235659965,
+        "lat": 49.40100112986,
+        "geohash": "u2g9nc0tewh4"
+      },
+      "lineCount": 1863,
+      "weight": 1863,
+      "children": {
+        "folders": [
+          ".agents/skills/code-map-visualization/assets",
+          ".agents/skills/code-map-visualization/references"
+        ],
+        "files": [
+          ".agents/skills/code-map-visualization/AGENTS.md",
+          ".agents/skills/code-map-visualization/SKILL.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.532861673797,
+        "y": 0.365942624939,
+        "width": 0.025773031493,
+        "height": 0.019144449711
+      }
+    },
+    ".agents/skills/code-map-visualization/assets": {
+      "path": ".agents/skills/code-map-visualization/assets",
+      "name": "assets",
+      "bounds": {
+        "x": 0.533979450173,
+        "y": 0.246769643317,
+        "width": 0.023537478741,
+        "height": 0.028275166576
+      },
+      "geo": {
+        "lon": 16.469348235659993,
+        "lat": 43.0366992111,
+        "geohash": "sresyf8dgwhn"
+      },
+      "lineCount": 32,
+      "weight": 32,
+      "children": {
+        "folders": [
+          ".agents/skills/code-map-visualization/assets/templates"
+        ],
+        "files": []
+      },
+      "growthArea": {
+        "x": 0.534803261929,
+        "y": 0.272623345553,
+        "width": 0.021889855229,
+        "height": 0.001597652584
+      }
+    },
+    ".agents/skills/code-map-visualization/assets/templates": {
+      "path": ".agents/skills/code-map-visualization/assets/templates",
+      "name": "templates",
+      "bounds": {
+        "x": 0.535569406862,
+        "y": 0.248359600006,
+        "width": 0.020357565363,
+        "height": 0.023497600614
+      },
+      "geo": {
+        "lon": 16.469348235659993,
+        "lat": 43.180487943660005,
+        "geohash": "sretwub8edk5"
+      },
+      "lineCount": 32,
+      "weight": 32,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/code-map-visualization/assets/templates/_template.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.53628192165,
+        "y": 0.26982033157,
+        "width": 0.018932535788,
+        "height": 0.001324354262
+      }
+    },
+    ".agents/skills/code-map-visualization/references": {
+      "path": ".agents/skills/code-map-visualization/references",
+      "name": "references",
+      "bounds": {
+        "x": 0.533979450173,
+        "y": 0.067130689172,
+        "width": 0.023537478741,
+        "height": 0.179207513598
+      },
+      "geo": {
+        "lon": 16.469348235659993,
+        "lat": 61.78779972522,
+        "geohash": "u6gxwb0s58sn"
+      },
+      "lineCount": 1574,
+      "weight": 1574,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/code-map-visualization/references/_sections.md",
+          ".agents/skills/code-map-visualization/references/access-encode-redundantly-never-color-alone.md",
+          ".agents/skills/code-map-visualization/references/access-honor-prefers-reduced-motion.md",
+          ".agents/skills/code-map-visualization/references/access-make-the-map-keyboard-operable.md",
+          ".agents/skills/code-map-visualization/references/access-provide-a-text-alternative-for-the-canvas.md",
+          ".agents/skills/code-map-visualization/references/anim-crossfade-between-lod-levels.md",
+          ".agents/skills/code-map-visualization/references/anim-ease-camera-transitions-not-jumps.md",
+          ".agents/skills/code-map-visualization/references/anim-keep-transitions-interruptible-and-budgeted.md",
+          ".agents/skills/code-map-visualization/references/anim-preserve-object-constancy-on-data-update.md",
+          ".agents/skills/code-map-visualization/references/bio-circle-packing-for-nested-counts.md",
+          ".agents/skills/code-map-visualization/references/bio-edge-bundling-for-dependency-overlays.md",
+          ".agents/skills/code-map-visualization/references/bio-flow-fields-for-animated-dependency-load.md",
+          ".agents/skills/code-map-visualization/references/bio-metaball-hulls-for-region-membranes.md",
+          ".agents/skills/code-map-visualization/references/bio-phyllotaxis-packing-for-even-point-spread.md",
+          ".agents/skills/code-map-visualization/references/bio-relax-weights-for-even-cell-areas.md",
+          ".agents/skills/code-map-visualization/references/bio-voronoi-regions-for-space-filling-tessellation.md",
+          ".agents/skills/code-map-visualization/references/color-control-contrast-against-basemap.md",
+          ".agents/skills/code-map-visualization/references/color-design-for-color-vision-deficiency.md",
+          ".agents/skills/code-map-visualization/references/color-limit-categorical-hues.md",
+          ".agents/skills/code-map-visualization/references/color-match-scale-type-to-data.md",
+          ".agents/skills/code-map-visualization/references/color-perceptually-uniform-sequential-ramp.md",
+          ".agents/skills/code-map-visualization/references/encode-let-projection-own-position.md",
+          ".agents/skills/code-map-visualization/references/encode-maximize-data-ink-drop-chartjunk.md",
+          ".agents/skills/code-map-visualization/references/encode-rank-channels-by-perceptual-accuracy.md",
+          ".agents/skills/code-map-visualization/references/encode-redundant-encoding-for-key-signals.md",
+          ".agents/skills/code-map-visualization/references/encode-separate-categorical-from-quantitative.md",
+          ".agents/skills/code-map-visualization/references/encode-size-by-area-not-radius.md",
+          ".agents/skills/code-map-visualization/references/gpu-atlas-tiles-and-glyphs.md",
+          ".agents/skills/code-map-visualization/references/gpu-batch-to-cut-draw-calls-and-state-changes.md",
+          ".agents/skills/code-map-visualization/references/gpu-instance-cells-not-per-quad-draw.md",
+          ".agents/skills/code-map-visualization/references/gpu-layer-canvas2d-over-webgl.md",
+          ".agents/skills/code-map-visualization/references/gpu-pack-attributes-into-typed-arrays.md",
+          ".agents/skills/code-map-visualization/references/gpu-size-canvas-to-devicepixelratio.md",
+          ".agents/skills/code-map-visualization/references/interact-keep-hover-feedback-under-one-frame.md",
+          ".agents/skills/code-map-visualization/references/interact-model-the-camera-not-the-dom.md",
+          ".agents/skills/code-map-visualization/references/interact-pick-with-gpu-color-id-or-spatial-index.md",
+          ".agents/skills/code-map-visualization/references/interact-support-keyboard-pan-zoom-and-focus.md",
+          ".agents/skills/code-map-visualization/references/interact-sync-view-state-to-the-url.md",
+          ".agents/skills/code-map-visualization/references/perf-bound-the-tile-cache.md",
+          ".agents/skills/code-map-visualization/references/perf-debounce-viewport-recompute.md",
+          ".agents/skills/code-map-visualization/references/perf-offload-to-worker-and-offscreencanvas.md",
+          ".agents/skills/code-map-visualization/references/perf-redraw-only-dirty-regions.md",
+          ".agents/skills/code-map-visualization/references/perf-render-in-a-single-raf-loop.md",
+          ".agents/skills/code-map-visualization/references/text-add-halo-for-legibility.md",
+          ".agents/skills/code-map-visualization/references/text-anchor-region-labels-at-centroid.md",
+          ".agents/skills/code-map-visualization/references/text-place-and-declutter-labels-greedily.md",
+          ".agents/skills/code-map-visualization/references/text-render-glyphs-on-canvas2d-not-per-glyph-textures.md",
+          ".agents/skills/code-map-visualization/references/text-show-labels-by-level-of-detail.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.534803261929,
+        "y": 0.234860797609,
+        "width": 0.021889855229,
+        "height": 0.010653593405
       }
     },
     ".agents/skills/computer-science-algorithms": {
@@ -798,8 +966,8 @@
         "lat": -18.082052019359992,
         "geohash": "qsc94k786v4y"
       },
-      "lineCount": 84,
-      "weight": 84,
+      "lineCount": 108,
+      "weight": 108,
       "children": {
         "folders": [],
         "files": [
@@ -920,21 +1088,22 @@
         "lat": -26.75340322820999,
         "geohash": "3gppf3dn5khm"
       },
-      "lineCount": 1188,
-      "weight": 1188,
+      "lineCount": 1889,
+      "weight": 1889,
       "children": {
         "folders": [],
         "files": [
           "public/app.js",
           "public/index.html",
+          "public/render-model.js",
           "public/style.css"
         ]
       },
       "growthArea": {
         "x": 0.430123600207,
-        "y": 0.521447836661,
+        "y": 0.724939326699,
         "width": 0.025056430714,
-        "height": 0.254364362547
+        "height": 0.050872872509
       }
     },
     "src": {
@@ -951,8 +1120,8 @@
         "lat": 42.131251412370005,
         "geohash": "wpqz8mz2qfe8"
       },
-      "lineCount": 1280,
-      "weight": 1280,
+      "lineCount": 1286,
+      "weight": 1286,
       "children": {
         "folders": [],
         "files": [
@@ -997,8 +1166,8 @@
         "lat": -68.88465464058001,
         "geohash": "1gz047fjg3sm"
       },
-      "lineCount": 438,
-      "weight": 438,
+      "lineCount": 782,
+      "weight": 782,
       "children": {
         "folders": [],
         "files": [
@@ -1006,6 +1175,7 @@
           "test/generator.test.js",
           "test/geohash.test.js",
           "test/overlaps.test.js",
+          "test/render-model.test.js",
           "test/resolver.test.js",
           "test/selections.test.js",
           "test/server.test.js",
@@ -1015,13 +1185,982 @@
       },
       "growthArea": {
         "x": 0.433046369867,
-        "y": 0.799636574757,
+        "y": 0.932526096395,
         "width": 0.025454990213,
-        "height": 0.166111902047
+        "height": 0.033222380409
       }
     }
   },
   "files": {
+    ".agents/skills/code-map-visualization/assets/templates/_template.md": {
+      "path": ".agents/skills/code-map-visualization/assets/templates/_template.md",
+      "name": "_template.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.536944560402,
+        "y": 0.249734753546,
+        "width": 0.017607258282,
+        "height": 0.019422939271
+      },
+      "geo": {
+        "lon": 16.46934823548,
+        "lat": 43.299679827329996,
+        "geohash": "srewqf2wgtk5"
+      },
+      "lineCount": 32,
+      "weight": 32
+    },
+    ".agents/skills/code-map-visualization/references/_sections.md": {
+      "path": ".agents/skills/code-map-visualization/references/_sections.md",
+      "name": "_sections.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.068903863949,
+        "width": 0.008300373722,
+        "height": 0.009739856909
+      },
+      "geo": {
+        "lon": 14.365012251959996,
+        "lat": 76.72071736737,
+        "geohash": "umdhqys69433"
+      },
+      "lineCount": 51,
+      "weight": 51
+    },
+    ".agents/skills/code-map-visualization/references/access-encode-redundantly-never-color-alone.md": {
+      "path": ".agents/skills/code-map-visualization/references/access-encode-redundantly-never-color-alone.md",
+      "name": "access-encode-redundantly-never-color-alone.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.1303217406,
+        "width": 0.006419418944,
+        "height": 0.01001645873
+      },
+      "geo": {
+        "lon": 14.026440391920005,
+        "lat": 65.6406054063,
+        "geohash": "u79vrjt8pz8p"
+      },
+      "lineCount": 33,
+      "weight": 33
+    },
+    ".agents/skills/code-map-visualization/references/access-honor-prefers-reduced-motion.md": {
+      "path": ".agents/skills/code-map-visualization/references/access-honor-prefers-reduced-motion.md",
+      "name": "access-honor-prefers-reduced-motion.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.178334430691,
+        "width": 0.00983941945,
+        "height": 0.006324663474
+      },
+      "geo": {
+        "lon": 14.642040482999988,
+        "lat": 57.33058276296,
+        "geohash": "u64qjhwnb70x"
+      },
+      "lineCount": 31,
+      "weight": 31
+    },
+    ".agents/skills/code-map-visualization/references/access-make-the-map-keyboard-operable.md": {
+      "path": ".agents/skills/code-map-visualization/references/access-make-the-map-keyboard-operable.md",
+      "name": "access-make-the-map-keyboard-operable.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.542538480071,
+        "y": 0.1303217406,
+        "width": 0.006419418944,
+        "height": 0.01001645873
+      },
+      "geo": {
+        "lon": 16.469348235480027,
+        "lat": 65.6406054063,
+        "geohash": "u7etqv885xsp"
+      },
+      "lineCount": 33,
+      "weight": 33
+    },
+    ".agents/skills/code-map-visualization/references/access-provide-a-text-alternative-for-the-canvas.md": {
+      "path": ".agents/skills/code-map-visualization/references/access-provide-a-text-alternative-for-the-canvas.md",
+      "name": "access-provide-a-text-alternative-for-the-canvas.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.549324335192,
+        "y": 0.1303217406,
+        "width": 0.006419418944,
+        "height": 0.01001645873
+      },
+      "geo": {
+        "lon": 18.91225607904002,
+        "lat": 65.6406054063,
+        "geohash": "u7tmqme2px8p"
+      },
+      "lineCount": 33,
+      "weight": 33
+    },
+    ".agents/skills/code-map-visualization/references/anim-crossfade-between-lod-levels.md": {
+      "path": ".agents/skills/code-map-visualization/references/anim-crossfade-between-lod-levels.md",
+      "name": "anim-crossfade-between-lod-levels.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.546014845883,
+        "y": 0.191716629993,
+        "width": 0.009728908254,
+        "height": 0.006287912572
+      },
+      "geo": {
+        "lon": 18.31654800359999,
+        "lat": 54.92509446978,
+        "geohash": "u3v02yc9ye8n"
+      },
+      "lineCount": 30,
+      "weight": 30
+    },
+    ".agents/skills/code-map-visualization/references/anim-ease-camera-transitions-not-jumps.md": {
+      "path": ".agents/skills/code-map-visualization/references/anim-ease-camera-transitions-not-jumps.md",
+      "name": "anim-ease-camera-transitions-not-jumps.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.544419434849,
+        "y": 0.075371049079,
+        "width": 0.011324319288,
+        "height": 0.005928259599
+      },
+      "geo": {
+        "lon": 18.029374017479995,
+        "lat": 75.89966780187,
+        "geohash": "umkzf30edged"
+      },
+      "lineCount": 36,
+      "weight": 36
+    },
+    ".agents/skills/code-map-visualization/references/anim-keep-transitions-interruptible-and-budgeted.md": {
+      "path": ".agents/skills/code-map-visualization/references/anim-keep-transitions-interruptible-and-budgeted.md",
+      "name": "anim-keep-transitions-interruptible-and-budgeted.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.544419434849,
+        "y": 0.068903863949,
+        "width": 0.011324319288,
+        "height": 0.006100748954
+      },
+      "geo": {
+        "lon": 18.029374017479995,
+        "lat": 77.04823708332,
+        "geohash": "umsy660wdb7s"
+      },
+      "lineCount": 38,
+      "weight": 38
+    },
+    ".agents/skills/code-map-visualization/references/anim-preserve-object-constancy-on-data-update.md": {
+      "path": ".agents/skills/code-map-visualization/references/anim-preserve-object-constancy-on-data-update.md",
+      "name": "anim-preserve-object-constancy-on-data-update.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.544419434849,
+        "y": 0.081665744854,
+        "width": 0.011324319288,
+        "height": 0.005928259599
+      },
+      "geo": {
+        "lon": 18.029374017479995,
+        "lat": 74.76662256237,
+        "geohash": "umkc66be4ues"
+      },
+      "lineCount": 36,
+      "weight": 36
+    },
+    ".agents/skills/code-map-visualization/references/bio-circle-packing-for-nested-counts.md": {
+      "path": ".agents/skills/code-map-visualization/references/bio-circle-packing-for-nested-counts.md",
+      "name": "bio-circle-packing-for-nested-counts.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.211679676237,
+        "width": 0.006419418944,
+        "height": 0.00936687229
+      },
+      "geo": {
+        "lon": 14.026440391920005,
+        "lat": 51.054639771240005,
+        "geohash": "u31frnjwzf8j"
+      },
+      "lineCount": 29,
+      "weight": 29
+    },
+    ".agents/skills/code-map-visualization/references/bio-edge-bundling-for-dependency-overlays.md": {
+      "path": ".agents/skills/code-map-visualization/references/bio-edge-bundling-for-dependency-overlays.md",
+      "name": "bio-edge-bundling-for-dependency-overlays.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.546020702071,
+        "y": 0.221412984704,
+        "width": 0.009723052066,
+        "height": 0.006066006853
+      },
+      "geo": {
+        "lon": 18.317602117440003,
+        "lat": 49.599722136509996,
+        "geohash": "u2v40v67r465"
+      },
+      "lineCount": 28,
+      "weight": 28
+    },
+    ".agents/skills/code-map-visualization/references/bio-flow-fields-for-animated-dependency-load.md": {
+      "path": ".agents/skills/code-map-visualization/references/bio-flow-fields-for-animated-dependency-load.md",
+      "name": "bio-flow-fields-for-animated-dependency-load.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.546020702071,
+        "y": 0.227845427734,
+        "width": 0.009723052066,
+        "height": 0.006066006853
+      },
+      "geo": {
+        "lon": 18.317602117440003,
+        "lat": 48.44188239111,
+        "geohash": "u2t58fd6rj6h"
+      },
+      "lineCount": 28,
+      "weight": 28
+    },
+    ".agents/skills/code-map-visualization/references/bio-metaball-hulls-for-region-membranes.md": {
+      "path": ".agents/skills/code-map-visualization/references/bio-metaball-hulls-for-region-membranes.md",
+      "name": "bio-metaball-hulls-for-region-membranes.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.546014845883,
+        "y": 0.198370978741,
+        "width": 0.009728908254,
+        "height": 0.006287912572
+      },
+      "geo": {
+        "lon": 18.31654800359999,
+        "lat": 53.72731169514,
+        "geohash": "u3t18uc8q8b4"
+      },
+      "lineCount": 30,
+      "weight": 30
+    },
+    ".agents/skills/code-map-visualization/references/bio-phyllotaxis-packing-for-even-point-spread.md": {
+      "path": ".agents/skills/code-map-visualization/references/bio-phyllotaxis-packing-for-even-point-spread.md",
+      "name": "bio-phyllotaxis-packing-for-even-point-spread.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.542604206099,
+        "y": 0.098653340755,
+        "width": 0.006386555931,
+        "height": 0.010223888816
+      },
+      "geo": {
+        "lon": 16.487094263219973,
+        "lat": 71.32224867066,
+        "geohash": "uketxpvd1nu9"
+      },
+      "lineCount": 34,
+      "weight": 34
+    },
+    ".agents/skills/code-map-visualization/references/bio-relax-weights-for-even-cell-areas.md": {
+      "path": ".agents/skills/code-map-visualization/references/bio-relax-weights-for-even-cell-areas.md",
+      "name": "bio-relax-weights-for-even-cell-areas.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.549357198206,
+        "y": 0.098653340755,
+        "width": 0.006386555931,
+        "height": 0.010223888816
+      },
+      "geo": {
+        "lon": 18.91817142174,
+        "lat": 71.32224867066,
+        "geohash": "uktmwrzf1qg1"
+      },
+      "lineCount": 34,
+      "weight": 34
+    },
+    ".agents/skills/code-map-visualization/references/bio-voronoi-regions-for-space-filling-tessellation.md": {
+      "path": ".agents/skills/code-map-visualization/references/bio-voronoi-regions-for-space-filling-tessellation.md",
+      "name": "bio-voronoi-regions-for-space-filling-tessellation.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.542538480071,
+        "y": 0.211679676237,
+        "width": 0.006419418944,
+        "height": 0.00936687229
+      },
+      "geo": {
+        "lon": 16.469348235480027,
+        "lat": 51.054639771240005,
+        "geohash": "u35dqy0wgdsj"
+      },
+      "lineCount": 29,
+      "weight": 29
+    },
+    ".agents/skills/code-map-visualization/references/color-control-contrast-against-basemap.md": {
+      "path": ".agents/skills/code-map-visualization/references/color-control-contrast-against-basemap.md",
+      "name": "color-control-contrast-against-basemap.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.546014845883,
+        "y": 0.205025327489,
+        "width": 0.009728908254,
+        "height": 0.006287912572
+      },
+      "geo": {
+        "lon": 18.31654800359999,
+        "lat": 52.5295289205,
+        "geohash": "u3m4bf9wwtbj"
+      },
+      "lineCount": 30,
+      "weight": 30
+    },
+    ".agents/skills/code-map-visualization/references/color-design-for-color-vision-deficiency.md": {
+      "path": ".agents/skills/code-map-visualization/references/color-design-for-color-vision-deficiency.md",
+      "name": "color-design-for-color-vision-deficiency.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.109243665748,
+        "width": 0.006419418944,
+        "height": 0.01017260125
+      },
+      "geo": {
+        "lon": 14.026440391920005,
+        "lat": 69.42060605286,
+        "geohash": "uk3fzjtsrfbj"
+      },
+      "lineCount": 34,
+      "weight": 34
+    },
+    ".agents/skills/code-map-visualization/references/color-limit-categorical-hues.md": {
+      "path": ".agents/skills/code-map-visualization/references/color-limit-categorical-hues.md",
+      "name": "color-limit-categorical-hues.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.140704635507,
+        "width": 0.006419418944,
+        "height": 0.01001645873
+      },
+      "geo": {
+        "lon": 14.026440391920005,
+        "lat": 63.77168432304,
+        "geohash": "u73fz1m8zz84"
+      },
+      "lineCount": 33,
+      "weight": 33
+    },
+    ".agents/skills/code-map-visualization/references/color-match-scale-type-to-data.md": {
+      "path": ".agents/skills/code-map-visualization/references/color-match-scale-type-to-data.md",
+      "name": "color-match-scale-type-to-data.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.549324335192,
+        "y": 0.211679676237,
+        "width": 0.006419418944,
+        "height": 0.00936687229
+      },
+      "geo": {
+        "lon": 18.91225607904002,
+        "lat": 51.054639771240005,
+        "geohash": "u3j6qq5qzd8j"
+      },
+      "lineCount": 29,
+      "weight": 29
+    },
+    ".agents/skills/code-map-visualization/references/color-perceptually-uniform-sequential-ramp.md": {
+      "path": ".agents/skills/code-map-visualization/references/color-perceptually-uniform-sequential-ramp.md",
+      "name": "color-perceptually-uniform-sequential-ramp.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.185025530342,
+        "width": 0.00983941945,
+        "height": 0.006324663474
+      },
+      "geo": {
+        "lon": 14.642040482999988,
+        "lat": 56.12618482578,
+        "geohash": "u3frm1qn8r0t"
+      },
+      "lineCount": 31,
+      "weight": 31
+    },
+    ".agents/skills/code-map-visualization/references/encode-let-projection-own-position.md": {
+      "path": ".agents/skills/code-map-visualization/references/encode-let-projection-own-position.md",
+      "name": "encode-let-projection-own-position.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.087960440629,
+        "width": 0.006419418944,
+        "height": 0.010326463949
+      },
+      "geo": {
+        "lon": 14.026440391920005,
+        "lat": 73.23773893137,
+        "geohash": "um1bxht8zb01"
+      },
+      "lineCount": 35,
+      "weight": 35
+    },
+    ".agents/skills/code-map-visualization/references/encode-maximize-data-ink-drop-chartjunk.md": {
+      "path": ".agents/skills/code-map-visualization/references/encode-maximize-data-ink-drop-chartjunk.md",
+      "name": "encode-maximize-data-ink-drop-chartjunk.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.151087530413,
+        "width": 0.006419418944,
+        "height": 0.009857931941
+      },
+      "geo": {
+        "lon": 14.026440391920005,
+        "lat": 61.917030650970005,
+        "geohash": "u71bpptszg04"
+      },
+      "lineCount": 32,
+      "weight": 32
+    },
+    ".agents/skills/code-map-visualization/references/encode-rank-channels-by-perceptual-accuracy.md": {
+      "path": ".agents/skills/code-map-visualization/references/encode-rank-channels-by-perceptual-accuracy.md",
+      "name": "encode-rank-channels-by-perceptual-accuracy.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.079010157035,
+        "width": 0.008300373722,
+        "height": 0.008583847418
+      },
+      "geo": {
+        "lon": 14.365012251959996,
+        "lat": 75.00562546608,
+        "geohash": "um64wyk73jcr"
+      },
+      "lineCount": 40,
+      "weight": 40
+    },
+    ".agents/skills/code-map-visualization/references/encode-redundant-encoding-for-key-signals.md": {
+      "path": ".agents/skills/code-map-visualization/references/encode-redundant-encoding-for-key-signals.md",
+      "name": "encode-redundant-encoding-for-key-signals.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.542538480071,
+        "y": 0.109243665748,
+        "width": 0.006419418944,
+        "height": 0.01017260125
+      },
+      "geo": {
+        "lon": 16.469348235480027,
+        "lat": 69.42060605286,
+        "geohash": "uk7dyv8s7duj"
+      },
+      "lineCount": 34,
+      "weight": 34
+    },
+    ".agents/skills/code-map-visualization/references/encode-separate-categorical-from-quantitative.md": {
+      "path": ".agents/skills/code-map-visualization/references/encode-separate-categorical-from-quantitative.md",
+      "name": "encode-separate-categorical-from-quantitative.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.542538480071,
+        "y": 0.151087530413,
+        "width": 0.006419418944,
+        "height": 0.009857931941
+      },
+      "geo": {
+        "lon": 16.469348235480027,
+        "lat": 61.917030650970005,
+        "geohash": "u758nz8sgeh4"
+      },
+      "lineCount": 32,
+      "weight": 32
+    },
+    ".agents/skills/code-map-visualization/references/encode-size-by-area-not-radius.md": {
+      "path": ".agents/skills/code-map-visualization/references/encode-size-by-area-not-radius.md",
+      "name": "encode-size-by-area-not-radius.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.221412984704,
+        "width": 0.009901640944,
+        "height": 0.006066006853
+      },
+      "geo": {
+        "lon": 14.653240351920005,
+        "lat": 49.599722136509996,
+        "geohash": "u2f6jmq5m4rg"
+      },
+      "lineCount": 29,
+      "weight": 29
+    },
+    ".agents/skills/code-map-visualization/references/gpu-atlas-tiles-and-glyphs.md": {
+      "path": ".agents/skills/code-map-visualization/references/gpu-atlas-tiles-and-glyphs.md",
+      "name": "gpu-atlas-tiles-and-glyphs.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.549324335192,
+        "y": 0.151087530413,
+        "width": 0.006419418944,
+        "height": 0.009857931941
+      },
+      "geo": {
+        "lon": 18.91225607904002,
+        "lat": 61.917030650970005,
+        "geohash": "u7j2nrekze04"
+      },
+      "lineCount": 32,
+      "weight": 32
+    },
+    ".agents/skills/code-map-visualization/references/gpu-batch-to-cut-draw-calls-and-state-changes.md": {
+      "path": ".agents/skills/code-map-visualization/references/gpu-batch-to-cut-draw-calls-and-state-changes.md",
+      "name": "gpu-batch-to-cut-draw-calls-and-state-changes.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.542538480071,
+        "y": 0.087960440629,
+        "width": 0.006419418944,
+        "height": 0.010326463949
+      },
+      "geo": {
+        "lon": 16.469348235480027,
+        "lat": 73.23773893137,
+        "geohash": "um58wu88g8h1"
+      },
+      "lineCount": 35,
+      "weight": 35
+    },
+    ".agents/skills/code-map-visualization/references/gpu-instance-cells-not-per-quad-draw.md": {
+      "path": ".agents/skills/code-map-visualization/references/gpu-instance-cells-not-per-quad-draw.md",
+      "name": "gpu-instance-cells-not-per-quad-draw.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.549324335192,
+        "y": 0.109243665748,
+        "width": 0.006419418944,
+        "height": 0.01017260125
+      },
+      "geo": {
+        "lon": 18.91225607904002,
+        "lat": 69.42060605286,
+        "geohash": "ukm6ymekrdbj"
+      },
+      "lineCount": 34,
+      "weight": 34
+    },
+    ".agents/skills/code-map-visualization/references/gpu-layer-canvas2d-over-webgl.md": {
+      "path": ".agents/skills/code-map-visualization/references/gpu-layer-canvas2d-over-webgl.md",
+      "name": "gpu-layer-canvas2d-over-webgl.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.545958480577,
+        "y": 0.171536266648,
+        "width": 0.00978527356,
+        "height": 0.006360351605
+      },
+      "geo": {
+        "lon": 18.306402248519987,
+        "lat": 58.55104035891,
+        "geohash": "u6mj0dfkd14b"
+      },
+      "lineCount": 31,
+      "weight": 31
+    },
+    ".agents/skills/code-map-visualization/references/gpu-pack-attributes-into-typed-arrays.md": {
+      "path": ".agents/skills/code-map-visualization/references/gpu-pack-attributes-into-typed-arrays.md",
+      "name": "gpu-pack-attributes-into-typed-arrays.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.119782703174,
+        "width": 0.006419418944,
+        "height": 0.01017260125
+      },
+      "geo": {
+        "lon": 14.026440391920005,
+        "lat": 67.52357931618,
+        "geohash": "uk1bphm9rg80"
+      },
+      "lineCount": 34,
+      "weight": 34
+    },
+    ".agents/skills/code-map-visualization/references/gpu-size-canvas-to-devicepixelratio.md": {
+      "path": ".agents/skills/code-map-visualization/references/gpu-size-canvas-to-devicepixelratio.md",
+      "name": "gpu-size-canvas-to-devicepixelratio.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.161311898531,
+        "width": 0.006419418944,
+        "height": 0.009857931941
+      },
+      "geo": {
+        "lon": 14.026440391920005,
+        "lat": 60.07664438973,
+        "geohash": "u69vz0tezf0n"
+      },
+      "lineCount": 32,
+      "weight": 32
+    },
+    ".agents/skills/code-map-visualization/references/interact-keep-hover-feedback-under-one-frame.md": {
+      "path": ".agents/skills/code-map-visualization/references/interact-keep-hover-feedback-under-one-frame.md",
+      "name": "interact-keep-hover-feedback-under-one-frame.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.542538480071,
+        "y": 0.140704635507,
+        "width": 0.006419418944,
+        "height": 0.01001645873
+      },
+      "geo": {
+        "lon": 16.469348235480027,
+        "lat": 63.77168432304,
+        "geohash": "u77dyc28gxs4"
+      },
+      "lineCount": 33,
+      "weight": 33
+    },
+    ".agents/skills/code-map-visualization/references/interact-model-the-camera-not-the-dom.md": {
+      "path": ".agents/skills/code-map-visualization/references/interact-model-the-camera-not-the-dom.md",
+      "name": "interact-model-the-camera-not-the-dom.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.545958480577,
+        "y": 0.17826305443,
+        "width": 0.00978527356,
+        "height": 0.006360351605
+      },
+      "geo": {
+        "lon": 18.306402248519987,
+        "lat": 57.34021855815,
+        "geohash": "u6jn0w6qfp6z"
+      },
+      "lineCount": 31,
+      "weight": 31
+    },
+    ".agents/skills/code-map-visualization/references/interact-pick-with-gpu-color-id-or-spatial-index.md": {
+      "path": ".agents/skills/code-map-visualization/references/interact-pick-with-gpu-color-id-or-spatial-index.md",
+      "name": "interact-pick-with-gpu-color-id-or-spatial-index.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.549324335192,
+        "y": 0.140704635507,
+        "width": 0.006419418944,
+        "height": 0.01001645873
+      },
+      "geo": {
+        "lon": 18.91225607904002,
+        "lat": 63.77168432304,
+        "geohash": "u7m6y372zx84"
+      },
+      "lineCount": 33,
+      "weight": 33
+    },
+    ".agents/skills/code-map-visualization/references/interact-support-keyboard-pan-zoom-and-focus.md": {
+      "path": ".agents/skills/code-map-visualization/references/interact-support-keyboard-pan-zoom-and-focus.md",
+      "name": "interact-support-keyboard-pan-zoom-and-focus.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.549324335192,
+        "y": 0.087960440629,
+        "width": 0.006419418944,
+        "height": 0.010326463949
+      },
+      "geo": {
+        "lon": 18.91225607904002,
+        "lat": 73.23773893137,
+        "geohash": "umj2wke2z801"
+      },
+      "lineCount": 35,
+      "weight": 35
+    },
+    ".agents/skills/code-map-visualization/references/interact-sync-view-state-to-the-url.md": {
+      "path": ".agents/skills/code-map-visualization/references/interact-sync-view-state-to-the-url.md",
+      "name": "interact-sync-view-state-to-the-url.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.545958480577,
+        "y": 0.184989842211,
+        "width": 0.00978527356,
+        "height": 0.006360351605
+      },
+      "geo": {
+        "lon": 18.306402248519987,
+        "lat": 56.12939675757,
+        "geohash": "u3vp2d436jfv"
+      },
+      "lineCount": 31,
+      "weight": 31
+    },
+    ".agents/skills/code-map-visualization/references/perf-bound-the-tile-cache.md": {
+      "path": ".agents/skills/code-map-visualization/references/perf-bound-the-tile-cache.md",
+      "name": "perf-bound-the-tile-cache.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.542538480071,
+        "y": 0.161311898531,
+        "width": 0.006419418944,
+        "height": 0.009857931941
+      },
+      "geo": {
+        "lon": 16.469348235480027,
+        "lat": 60.07664438973,
+        "geohash": "u6etyb8egdhn"
+      },
+      "lineCount": 32,
+      "weight": 32
+    },
+    ".agents/skills/code-map-visualization/references/perf-debounce-viewport-recompute.md": {
+      "path": ".agents/skills/code-map-visualization/references/perf-debounce-viewport-recompute.md",
+      "name": "perf-debounce-viewport-recompute.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.542538480071,
+        "y": 0.119782703174,
+        "width": 0.006419418944,
+        "height": 0.01017260125
+      },
+      "geo": {
+        "lon": 16.469348235480027,
+        "lat": 67.52357931618,
+        "geohash": "uk58nu297es0"
+      },
+      "lineCount": 34,
+      "weight": 34
+    },
+    ".agents/skills/code-map-visualization/references/perf-offload-to-worker-and-offscreencanvas.md": {
+      "path": ".agents/skills/code-map-visualization/references/perf-offload-to-worker-and-offscreencanvas.md",
+      "name": "perf-offload-to-worker-and-offscreencanvas.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.549324335192,
+        "y": 0.161311898531,
+        "width": 0.006419418944,
+        "height": 0.009857931941
+      },
+      "geo": {
+        "lon": 18.91225607904002,
+        "lat": 60.07664438973,
+        "geohash": "u6tmy2e7zd0n"
+      },
+      "lineCount": 32,
+      "weight": 32
+    },
+    ".agents/skills/code-map-visualization/references/perf-redraw-only-dirty-regions.md": {
+      "path": ".agents/skills/code-map-visualization/references/perf-redraw-only-dirty-regions.md",
+      "name": "perf-redraw-only-dirty-regions.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.549324335192,
+        "y": 0.119782703174,
+        "width": 0.006419418944,
+        "height": 0.01017260125
+      },
+      "geo": {
+        "lon": 18.91225607904002,
+        "lat": 67.52357931618,
+        "geohash": "ukj2nk73re80"
+      },
+      "lineCount": 34,
+      "weight": 34
+    },
+    ".agents/skills/code-map-visualization/references/perf-render-in-a-single-raf-loop.md": {
+      "path": ".agents/skills/code-map-visualization/references/perf-render-in-a-single-raf-loop.md",
+      "name": "perf-render-in-a-single-raf-loop.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.191716629993,
+        "width": 0.009895784756,
+        "height": 0.006287912572
+      },
+      "geo": {
+        "lon": 14.652186238079992,
+        "lat": 54.92509446978,
+        "geohash": "u3f2mqv3uety"
+      },
+      "lineCount": 31,
+      "weight": 31
+    },
+    ".agents/skills/code-map-visualization/references/text-add-halo-for-legibility.md": {
+      "path": ".agents/skills/code-map-visualization/references/text-add-halo-for-legibility.md",
+      "name": "text-add-halo-for-legibility.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.171536266648,
+        "width": 0.00983941945,
+        "height": 0.006431727867
+      },
+      "geo": {
+        "lon": 14.642040482999988,
+        "lat": 58.54461649533,
+        "geohash": "u66mj1wp0788"
+      },
+      "lineCount": 32,
+      "weight": 32
+    },
+    ".agents/skills/code-map-visualization/references/text-anchor-region-labels-at-centroid.md": {
+      "path": ".agents/skills/code-map-visualization/references/text-anchor-region-labels-at-centroid.md",
+      "name": "text-anchor-region-labels-at-centroid.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.227845427734,
+        "width": 0.009901640944,
+        "height": 0.006066006853
+      },
+      "geo": {
+        "lon": 14.653240351920005,
+        "lat": 48.44188239111,
+        "geohash": "u2d7t6w4mjru"
+      },
+      "lineCount": 29,
+      "weight": 29
+    },
+    ".agents/skills/code-map-visualization/references/text-place-and-declutter-labels-greedily.md": {
+      "path": ".agents/skills/code-map-visualization/references/text-place-and-declutter-labels-greedily.md",
+      "name": "text-place-and-declutter-labels-greedily.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.098653340755,
+        "width": 0.006485144972,
+        "height": 0.010223888816
+      },
+      "geo": {
+        "lon": 14.038271076960001,
+        "lat": 71.32224867066,
+        "geohash": "uk9vxry65qv9"
+      },
+      "lineCount": 35,
+      "weight": 35
+    },
+    ".agents/skills/code-map-visualization/references/text-render-glyphs-on-canvas2d-not-per-glyph-textures.md": {
+      "path": ".agents/skills/code-map-visualization/references/text-render-glyphs-on-canvas2d-not-per-glyph-textures.md",
+      "name": "text-render-glyphs-on-canvas2d-not-per-glyph-textures.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.198370978741,
+        "width": 0.009895784756,
+        "height": 0.006287912572
+      },
+      "geo": {
+        "lon": 14.652186238079992,
+        "lat": 53.72731169514,
+        "geohash": "u3d3tkv2k8vf"
+      },
+      "lineCount": 31,
+      "weight": 31
+    },
+    ".agents/skills/code-map-visualization/references/text-show-labels-by-level-of-detail.md": {
+      "path": ".agents/skills/code-map-visualization/references/text-show-labels-by-level-of-detail.md",
+      "name": "text-show-labels-by-level-of-detail.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.53575262495,
+        "y": 0.205025327489,
+        "width": 0.009895784756,
+        "height": 0.006287912572
+      },
+      "geo": {
+        "lon": 14.652186238079992,
+        "lat": 52.5295289205,
+        "geohash": "u366v6tqstvv"
+      },
+      "lineCount": 31,
+      "weight": 31
+    },
+    ".agents/skills/code-map-visualization/AGENTS.md": {
+      "path": ".agents/skills/code-map-visualization/AGENTS.md",
+      "name": "AGENTS.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.533979450173,
+        "y": 0.322379005343,
+        "width": 0.023537478741,
+        "height": 0.042445843219
+      },
+      "geo": {
+        "lon": 16.469348235659993,
+        "lat": 28.151653148549997,
+        "geohash": "sm58nube78s0"
+      },
+      "lineCount": 117,
+      "weight": 117
+    },
+    ".agents/skills/code-map-visualization/SKILL.md": {
+      "path": ".agents/skills/code-map-visualization/SKILL.md",
+      "name": "SKILL.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.533979450173,
+        "y": 0.27547625044,
+        "width": 0.023537478741,
+        "height": 0.046471314356
+      },
+      "geo": {
+        "lon": 16.469348235659993,
+        "lat": 36.23185662875999,
+        "geohash": "sq7wngb9ges5"
+      },
+      "lineCount": 140,
+      "weight": 140
+    },
     ".agents/skills/computer-science-algorithms/assets/templates/_template.md": {
       "path": ".agents/skills/computer-science-algorithms/assets/templates/_template.md",
       "name": "_template.md",
@@ -3413,8 +4552,8 @@
         "lat": -18.082052019359992,
         "geohash": "qsb1nu60mjpn"
       },
-      "lineCount": 84,
-      "weight": 84
+      "lineCount": 108,
+      "weight": 108
     },
     "docs/adr/0001-stable-code-map-addresses.md": {
       "path": "docs/adr/0001-stable-code-map-addresses.md",
@@ -3565,8 +4704,8 @@
         "lat": -26.753403228299987,
         "geohash": "35hrf1en0spm"
       },
-      "lineCount": 791,
-      "weight": 791
+      "lineCount": 1064,
+      "weight": 1064
     },
     "public/index.html": {
       "path": "public/index.html",
@@ -3584,8 +4723,27 @@
         "lat": -40.39346645523,
         "geohash": "68u61n9eh0n6"
       },
-      "lineCount": 95,
-      "weight": 95
+      "lineCount": 97,
+      "weight": 97
+    },
+    "public/render-model.js": {
+      "path": "public/render-model.js",
+      "name": "render-model.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.431000575282,
+        "y": 0.522324811736,
+        "width": 0.023302480564,
+        "height": 0.201737539888
+      },
+      "geo": {
+        "lon": -20.645346396960008,
+        "lat": -22.174844702399994,
+        "geohash": "7s13f5nw0t3f"
+      },
+      "lineCount": 392,
+      "weight": 392
     },
     "public/style.css": {
       "path": "public/style.css",
@@ -3603,8 +4761,8 @@
         "lat": -19.103169310019993,
         "geohash": "6ss7343eupnk"
       },
-      "lineCount": 302,
-      "weight": 302
+      "lineCount": 336,
+      "weight": 336
     },
     "src/activity.js": {
       "path": "src/activity.js",
@@ -3698,8 +4856,8 @@
         "lat": 55.01044236231,
         "geohash": "ycu2vymgj1tn"
       },
-      "lineCount": 86,
-      "weight": 86
+      "lineCount": 92,
+      "weight": 92
     },
     "src/geometry.js": {
       "path": "src/geometry.js",
@@ -3964,8 +5122,8 @@
         "lat": -76.87281871025999,
         "geohash": "4dr6stdpk7gy"
       },
-      "lineCount": 15,
-      "weight": 15
+      "lineCount": 64,
+      "weight": 64
     },
     "test/generator.test.js": {
       "path": "test/generator.test.js",
@@ -4002,8 +5160,8 @@
         "lat": -76.87281871025999,
         "geohash": "54q4xjer6ezy"
       },
-      "lineCount": 13,
-      "weight": 13
+      "lineCount": 31,
+      "weight": 31
     },
     "test/overlaps.test.js": {
       "path": "test/overlaps.test.js",
@@ -4023,6 +5181,25 @@
       },
       "lineCount": 25,
       "weight": 25
+    },
+    "test/render-model.test.js": {
+      "path": "test/render-model.test.js",
+      "name": "render-model.test.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.433937294524,
+        "y": 0.800527499414,
+        "width": 0.023673140898,
+        "height": 0.131107672323
+      },
+      "geo": {
+        "lon": -19.521408609719998,
+        "lat": -65.89464040359002,
+        "geohash": "5s615u0zyhwx"
+      },
+      "lineCount": 277,
+      "weight": 277
     },
     "test/resolver.test.js": {
       "path": "test/resolver.test.js",
@@ -4192,8 +5369,8 @@
         "lat": -46.60934979410999,
         "geohash": "nrsyb5j8y56q"
       },
-      "lineCount": 83,
-      "weight": 83
+      "lineCount": 89,
+      "weight": 89
     }
   }
 }

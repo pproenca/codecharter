@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
 import { relative, resolve as resolvePath } from "node:path";
+import { createActivityEvent } from "../src/activity.js";
 import { generateCodemap } from "../src/generator.js";
 import { resolveAddress } from "../src/resolver.js";
 import { startServer } from "../src/server.js";
+import { readJson, writeJson } from "../src/store.js";
 
 function usage() {
   return `Usage:
   codemap generate [--root <dir>] [--out <file>]
   codemap resolve <path> [lineStart] [lineEnd] [--map <file>]
+  codemap activity <path> [lineStart] [lineEnd] [--agent <id>] [--state <state>] [--note <text>] [--map <file>] [--out <file>]
   codemap serve [--root <dir>] [--map <file>] [--port <port>]
 `;
 }
@@ -51,6 +54,27 @@ async function main() {
     const lineEnd = lineEndRaw === undefined ? lineStart : Number(lineEndRaw);
     const address = resolveAddress(codemap, { path, lineStart, lineEnd });
     console.log(JSON.stringify(address, null, 2));
+    return;
+  }
+
+  if (command === "activity") {
+    const mapPath = resolvePath(takeOption(args, "--map", "codemap.json"));
+    const outPath = resolvePath(takeOption(args, "--out", ".scratch/activity-stream.json"));
+    const agentId = takeOption(args, "--agent", "codex");
+    const activityState = takeOption(args, "--state", "editing");
+    const note = takeOption(args, "--note", "");
+    const [path, lineStartRaw, lineEndRaw] = args;
+    if (!path) throw new Error("activity requires a path");
+
+    const codemap = JSON.parse(await readFile(mapPath, "utf8"));
+    const lineStart = lineStartRaw === undefined ? undefined : Number(lineStartRaw);
+    const lineEnd = lineEndRaw === undefined ? lineStart : Number(lineEndRaw);
+    const address = resolveAddress(codemap, { path, lineStart, lineEnd });
+    const event = createActivityEvent(address, { agentId, activityState, note });
+    const stream = await readJson(outPath, { events: [] });
+    stream.events.push(event);
+    await writeJson(outPath, stream);
+    console.log(JSON.stringify(event, null, 2));
     return;
   }
 

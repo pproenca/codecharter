@@ -1,29 +1,39 @@
 import {
   SOURCE_CACHE_LIMIT,
-  SOURCE_PANEL_CONTEXT_AFTER,
-  SOURCE_PANEL_CONTEXT_BEFORE,
-  SOURCE_PANEL_MAX_LINES,
   SOURCE_TEXT_MAX_LINES_PER_FRAME,
-  SOURCE_TEXT_MIN_LINE_HEIGHT,
-  SOURCE_TEXT_MIN_WIDTH,
   SOURCE_TEXT_PREFETCH_LINES,
-  SOURCE_TEXT_ZOOM_HEADROOM,
-  MAP_MAX_SCALE,
-  MAP_MIN_SCALE,
+  activityStateStyle,
+  boundsCenter as modelBoundsCenter,
   canRenderSourceText,
   fileLabelPriority,
   fileVisualState,
   folderDepth,
   folderLabelPriority,
   folderStyle,
+  hitTestTargets,
+  isScreenBoxVisible,
+  KEYBOARD_PAN_PIXELS,
+  KEYBOARD_ZOOM_FACTOR,
   labelBoxesOverlap,
   lineHeightForFile,
+  lineAtWorldPoint,
+  latestActivityByAgent,
   organicRegionPoints,
   organicRegionStyle,
+  panViewByScreenDelta,
+  screenBoundsForView,
+  screenToWorldPoint,
   shouldDrawFolder,
   shouldDrawOrganicRegion,
   shouldLabelFile,
   shouldLabelFolder,
+  sourcePanelLineRangeForBox,
+  sortedActivityEvents,
+  viewForBounds,
+  viewForReadableFile,
+  visibleLineRangeForBox,
+  worldToScreenPoint,
+  zoomViewAt,
 } from "./render-model.js";
 
 const canvas = document.querySelector("#mapCanvas");
@@ -31,6 +41,7 @@ const ctx = canvas.getContext("2d");
 const mapArea = document.querySelector(".map-area");
 
 let frameLabels = [];
+let activityPollTimer = null;
 
 const state = {
   map: null,
@@ -39,6 +50,7 @@ const state = {
   activity: [],
   sourceCache: new Map(),
   pendingSourceRequests: new Set(),
+  activitySignature: "",
   view: { x: 0, y: 0, scale: 1 },
   dragging: null,
   lastPointerDown: null,
@@ -73,6 +85,7 @@ const controls = {
   showNames: document.querySelector("#showNames"),
   showActivity: document.querySelector("#showActivity"),
   showGrid: document.querySelector("#showGrid"),
+  activityFeed: document.querySelector("#activityFeed"),
   activityForm: document.querySelector("#activityForm"),
 };
 
@@ -88,8 +101,10 @@ async function boot() {
   state.namedPlaces = names.places;
   state.overlaps = names.overlaps ?? [];
   state.activity = activity.events;
+  state.activitySignature = activitySignature(state.activity);
   controls.summary.textContent = `${Object.keys(map.files).length} files, ${Object.keys(map.folders).length} folders`;
   bindEvents();
+  startActivityPolling();
   resize();
   render();
 }
@@ -139,6 +154,33 @@ function bindEvents() {
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointerleave", onPointerUp);
+  canvas.tabIndex = 0;
+  canvas.setAttribute("role", "application");
+  canvas.setAttribute("aria-label", "Codemap canvas. Use arrow keys to pan, plus and minus to zoom, and Enter to select the center.");
+  canvas.addEventListener("keydown", onCanvasKeyDown);
+}
+
+function startActivityPolling() {
+  if (activityPollTimer) clearInterval(activityPollTimer);
+  activityPollTimer = setInterval(refreshActivity, 1800);
+}
+
+async function refreshActivity() {
+  try {
+    const activity = await fetchJson("/api/activity");
+    const nextSignature = activitySignature(activity.events ?? []);
+    if (nextSignature === state.activitySignature) return;
+    state.activity = activity.events ?? [];
+    state.activitySignature = nextSignature;
+    render();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function activitySignature(events) {
+  const latest = events.at(-1);
+  return `${events.length}:${latest?.id ?? ""}:${latest?.timestamp ?? ""}`;
 }
 
 function setDrawMode(enabled) {
@@ -179,6 +221,7 @@ function render() {
   if (controls.showNames.checked) drawOverlaps();
   if (state.draftSelection) drawSelection(state.draftSelection.bounds, "rgba(245, 158, 11, 0.18)", "#f59e0b", [6, 4]);
   if (controls.showActivity.checked) drawActivity();
+  renderActivityFeed();
 }
 
 function drawGrid() {
@@ -366,18 +409,7 @@ function drawSourcePlaceholder(box) {
 }
 
 function visibleLineRange(file, box) {
-  const viewportTop = 0;
-  const viewportBottom = canvas.clientHeight;
-  const top = Math.max(box.y, viewportTop);
-  const bottom = Math.min(box.y + box.height, viewportBottom);
-  if (bottom <= top) return null;
-
-  const startRatio = clamp((top - box.y) / box.height, 0, 1);
-  const endRatio = clamp((bottom - box.y) / box.height, 0, 1);
-  return {
-    start: Math.max(1, Math.floor(startRatio * file.lineCount) + 1),
-    end: Math.min(file.lineCount, Math.ceil(endRatio * file.lineCount)),
-  };
+  return visibleLineRangeForBox(file, box, canvas.clientHeight);
 }
 
 function requestSourceRange(path, lineStart, lineEnd, cacheKey) {
@@ -461,19 +493,86 @@ function drawOverlaps() {
 }
 
 function drawActivity() {
-  const latestByAgent = new Map();
-  for (const event of state.activity) latestByAgent.set(event.agentId, event);
-  for (const event of latestByAgent.values()) {
+  const events = sortedActivityEvents(state.activity);
+  const latestByAgent = latestActivityByAgent(events);
+  drawActivityTrails(events, latestByAgent);
+
+  for (const event of events) {
+    const latest = latestByAgent.get(event.agentId) === event;
     const center = boundsCenter(event.address.bounds);
     const p = worldToScreen(center);
-    ctx.fillStyle = "#e11d48";
-    ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 2;
+    const style = activityStateStyle(event.activityState);
+    const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.id === event.id;
+    ctx.save();
+    ctx.globalAlpha = latest ? 1 : 0.28;
+    ctx.fillStyle = style.fill;
+    ctx.strokeStyle = selected ? "#111827" : style.stroke;
+    ctx.lineWidth = selected ? 3 : latest ? 2.5 : 1.5;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, latest ? 7 : 4, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    drawLabel(`${event.agentId}: ${event.activityState}`, p.x + 10, p.y - 8, "#9f1239");
+    if (latest) {
+      ctx.globalAlpha = 0.16;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      drawLabel(`${event.agentId}: ${event.activityState}`, p.x + 10, p.y - 8, style.label, 12, "700");
+    }
+    ctx.restore();
+  }
+}
+
+function drawActivityTrails(events, latestByAgent) {
+  const byAgent = new Map();
+  for (const event of events) {
+    if (!byAgent.has(event.agentId)) byAgent.set(event.agentId, []);
+    byAgent.get(event.agentId).push(event);
+  }
+
+  for (const agentEvents of byAgent.values()) {
+    if (agentEvents.length < 2) continue;
+    const latest = latestByAgent.get(agentEvents[0].agentId);
+    const style = activityStateStyle(latest?.activityState);
+    ctx.save();
+    ctx.strokeStyle = style.fill;
+    ctx.globalAlpha = 0.34;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    agentEvents.forEach((event, index) => {
+      const p = worldToScreen(boundsCenter(event.address.bounds));
+      if (index === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function renderActivityFeed() {
+  if (!controls.activityFeed) return;
+  const latest = [...latestActivityByAgent(state.activity).values()]
+    .sort((a, b) => Date.parse(b.timestamp ?? 0) - Date.parse(a.timestamp ?? 0));
+
+  controls.activityFeed.replaceChildren();
+  if (latest.length === 0) {
+    controls.activityFeed.textContent = "No activity yet.";
+    return;
+  }
+
+  for (const event of latest.slice(0, 5)) {
+    const item = document.createElement("button");
+    item.className = "activity-item";
+    item.type = "button";
+    item.addEventListener("click", () => selectActivityEvent(event));
+
+    const title = document.createElement("strong");
+    title.textContent = `${event.agentId}: ${event.activityState}`;
+    const detail = document.createElement("span");
+    detail.textContent = activityPathLabel(event);
+    item.append(title, detail);
+    controls.activityFeed.append(item);
   }
 }
 
@@ -563,18 +662,13 @@ function onWheel(event) {
 }
 
 function zoomAt(screenAnchor, factor) {
-  const before = screenToWorld(screenAnchor);
-  state.view.scale = clamp(state.view.scale * factor, MAP_MIN_SCALE, MAP_MAX_SCALE);
-  const after = screenToWorld(screenAnchor);
-  state.view.x += before.x - after.x;
-  state.view.y += before.y - after.y;
+  state.view = zoomViewAt(state.view, screenAnchor, factor, viewportSize());
 }
 
 function panByWheel(event) {
   const deltaX = normalizeWheelDelta(event.deltaX, event.deltaMode);
   const deltaY = normalizeWheelDelta(event.deltaY, event.deltaMode);
-  state.view.x += deltaX / (canvas.clientWidth * state.view.scale);
-  state.view.y += deltaY / (canvas.clientHeight * state.view.scale);
+  state.view = panViewByScreenDelta(state.view, { x: deltaX, y: deltaY }, viewportSize());
 }
 
 function normalizeWheelDelta(delta, deltaMode) {
@@ -582,6 +676,48 @@ function normalizeWheelDelta(delta, deltaMode) {
   if (deltaMode === WheelEvent.DOM_DELTA_LINE) return delta * 16;
   if (deltaMode === WheelEvent.DOM_DELTA_PAGE) return delta * canvas.clientHeight;
   return delta;
+}
+
+function onCanvasKeyDown(event) {
+  const keyDeltas = {
+    ArrowRight: { x: KEYBOARD_PAN_PIXELS, y: 0 },
+    ArrowLeft: { x: -KEYBOARD_PAN_PIXELS, y: 0 },
+    ArrowDown: { x: 0, y: KEYBOARD_PAN_PIXELS },
+    ArrowUp: { x: 0, y: -KEYBOARD_PAN_PIXELS },
+  };
+  const delta = keyDeltas[event.key];
+  if (delta) {
+    event.preventDefault();
+    state.view = panViewByScreenDelta(state.view, delta, viewportSize());
+    render();
+    return;
+  }
+
+  if (event.key === "+" || event.key === "=") {
+    event.preventDefault();
+    zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR);
+    render();
+    return;
+  }
+
+  if (event.key === "-" || event.key === "_") {
+    event.preventDefault();
+    zoomAt(viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR);
+    render();
+    return;
+  }
+
+  if (event.key === "0") {
+    event.preventDefault();
+    state.view = { x: 0, y: 0, scale: 1 };
+    render();
+    return;
+  }
+
+  if (event.key === "Enter") {
+    event.preventDefault();
+    selectMapTarget(screenToWorld(viewportCenter()));
+  }
 }
 
 function onPointerDown(event) {
@@ -601,7 +737,7 @@ function onPointerMove(event) {
   const screen = screenPoint(event);
   const world = screenToWorld(screen);
   const hit = hitTest(world);
-  controls.hover.textContent = hit ? `${hit.targetType}: ${hit.path} | ${hit.geo.geohash}` : `x ${world.x.toFixed(4)}, y ${world.y.toFixed(4)}`;
+  controls.hover.textContent = hit ? hoverLabel(hit) : `x ${world.x.toFixed(4)}, y ${world.y.toFixed(4)}`;
 
   if (!state.dragging) return;
   if (state.dragging.type === "pan") {
@@ -648,6 +784,11 @@ async function selectMapTarget(worldPoint) {
   }
 
   state.selectedTarget = hit;
+  if (hit.targetType === "activity") {
+    await selectActivityEvent(hit);
+    return;
+  }
+
   controls.inspectorTitle.textContent = hit.targetType === "file" ? hit.name : labelForFolder(hit);
   controls.inspectorSubtitle.textContent = `${hit.targetType}: ${hit.path || "."} | ${hit.geo.geohash}`;
 
@@ -680,30 +821,36 @@ async function selectMapTarget(worldPoint) {
   render();
 }
 
+async function selectActivityEvent(event) {
+  state.selectedTarget = { ...event, targetType: "activity" };
+  controls.inspectorTitle.textContent = `${event.agentId}: ${event.activityState}`;
+  controls.inspectorSubtitle.textContent = `activity: ${activityPathLabel(event)} | ${event.address.geohash}`;
+
+  const path = pathFromActivity(event);
+  if (!path) {
+    controls.sourceTitle.textContent = event.address.deepLink;
+    controls.sourceOutput.textContent = event.note || "Activity selected.";
+    render();
+    return;
+  }
+
+  const lineRange = event.address.lineRange ?? { start: 1, end: undefined };
+  const query = `path=${encodeURIComponent(path)}&lineStart=${lineRange.start}&lineEnd=${lineRange.end ?? lineRange.start}`;
+  const source = await fetchJson(`/api/source?${query}`);
+  controls.sourceTitle.textContent = `${path} · ${event.address.deepLink}`;
+  controls.sourceOutput.textContent = source.lines
+    .map((item) => `${String(item.number).padStart(4, " ")}  ${item.text}`)
+    .join("\n");
+  controls.sourceOutput.scrollTop = 0;
+  render();
+}
+
 function lineAtPoint(file, worldPoint) {
-  const rawLine = ((worldPoint.y - file.bounds.y) / file.bounds.height) * file.lineCount;
-  return Math.max(1, Math.min(file.lineCount, Math.floor(rawLine) + 1));
+  return lineAtWorldPoint(file, worldPoint);
 }
 
 function sourcePanelLineRange(file, focusLine, box) {
-  const visibleRange = canRenderSourceText(file, box) ? visibleLineRange(file, box) : null;
-  if (visibleRange) return capLineRange(file, visibleRange.start, visibleRange.end, focusLine);
-  return capLineRange(
-    file,
-    Math.max(1, focusLine - SOURCE_PANEL_CONTEXT_BEFORE),
-    Math.min(file.lineCount, focusLine + SOURCE_PANEL_CONTEXT_AFTER),
-    focusLine,
-  );
-}
-
-function capLineRange(file, start, end, focusLine) {
-  if (end - start + 1 <= SOURCE_PANEL_MAX_LINES) return { start, end };
-  const before = Math.floor(SOURCE_PANEL_MAX_LINES / 2);
-  const cappedStart = Math.max(1, Math.min(focusLine - before, file.lineCount - SOURCE_PANEL_MAX_LINES + 1));
-  return {
-    start: cappedStart,
-    end: Math.min(file.lineCount, cappedStart + SOURCE_PANEL_MAX_LINES - 1),
-  };
+  return sourcePanelLineRangeForBox(file, focusLine, box, canvas.clientHeight);
 }
 
 async function searchMap(event) {
@@ -793,38 +940,34 @@ async function addActivity(event) {
     lineEnd: Number(data.lineEnd),
   });
   state.activity.push(created);
+  state.activitySignature = activitySignature(state.activity);
   render();
 }
 
 function hitTest(point) {
-  const files = Object.values(state.map.files).filter((file) => contains(file.bounds, point));
-  if (files.length > 0) return { ...files.sort(smallerArea)[0], targetType: "file" };
-  const folders = Object.values(state.map.folders).filter((folder) => folder.path && contains(folder.bounds, point));
-  if (folders.length > 0) return { ...folders.sort(smallerArea)[0], targetType: "folder" };
-  return null;
+  const activity = hitTestActivity(point);
+  if (activity) return activity;
+  return hitTestTargets(state.map, point);
+}
+
+function hitTestActivity(point) {
+  if (!controls.showActivity.checked) return null;
+  const radiusX = 13 / (canvas.clientWidth * state.view.scale);
+  const radiusY = 13 / (canvas.clientHeight * state.view.scale);
+  const events = [...sortedActivityEvents(state.activity)].reverse();
+  const event = events.find((candidate) => {
+    const center = boundsCenter(candidate.address.bounds);
+    return Math.abs(point.x - center.x) <= radiusX && Math.abs(point.y - center.y) <= radiusY;
+  });
+  return event ? { ...event, targetType: "activity" } : null;
 }
 
 function zoomToBounds(bounds, paddingFactor = 1.2) {
-  const scaleX = 1 / Math.max(bounds.width * paddingFactor, 0.001);
-  const scaleY = 1 / Math.max(bounds.height * paddingFactor, 0.001);
-  const scale = clamp(Math.min(scaleX, scaleY), MAP_MIN_SCALE, MAP_MAX_SCALE);
-  state.view.scale = scale;
-  state.view.x = bounds.x + bounds.width / 2 - 0.5 / scale;
-  state.view.y = bounds.y + bounds.height / 2 - 0.5 / scale;
+  state.view = viewForBounds(bounds, viewportSize(), paddingFactor);
 }
 
 function zoomToReadableFile(file, lineRatio = 0.5) {
-  const widthScale = SOURCE_TEXT_MIN_WIDTH / Math.max(file.bounds.width * canvas.clientWidth, 0.001);
-  const lineScale = (SOURCE_TEXT_MIN_LINE_HEIGHT * Math.max(1, file.lineCount)) / Math.max(file.bounds.height * canvas.clientHeight, 0.001);
-  const scale = clamp(Math.max(widthScale, lineScale) * SOURCE_TEXT_ZOOM_HEADROOM, MAP_MIN_SCALE, MAP_MAX_SCALE);
-  const screenWidth = file.bounds.width * canvas.clientWidth * scale;
-  const focusX = file.bounds.x + file.bounds.width / 2;
-  const focusY = file.bounds.y + file.bounds.height * clamp(lineRatio, 0, 1);
-  state.view.scale = scale;
-  state.view.x = screenWidth > canvas.clientWidth * 0.9
-    ? file.bounds.x - 24 / (canvas.clientWidth * scale)
-    : focusX - 0.5 / scale;
-  state.view.y = focusY - 0.5 / scale;
+  state.view = viewForReadableFile(file, viewportSize(), lineRatio);
 }
 
 function labelForFolder(folder) {
@@ -832,28 +975,39 @@ function labelForFolder(folder) {
   return folder.path.split("/").at(-1);
 }
 
+function hoverLabel(hit) {
+  if (hit.targetType === "activity") {
+    return `activity: ${hit.agentId} ${hit.activityState} | ${hit.address.geohash}`;
+  }
+  return `${hit.targetType}: ${hit.path} | ${hit.geo.geohash}`;
+}
+
+function activityPathLabel(event) {
+  const path = pathFromActivity(event);
+  const lines = event.address.lineRange ? `:${event.address.lineRange.start}-${event.address.lineRange.end}` : "";
+  return `${path || event.address.deepLink}${lines}`;
+}
+
+function pathFromActivity(event) {
+  const deepLink = event.address?.deepLink;
+  if (!deepLink) return "";
+  try {
+    return new URL(deepLink).searchParams.get("path") ?? "";
+  } catch {
+    return "";
+  }
+}
+
 function worldToScreen(point) {
-  return {
-    x: (point.x - state.view.x) * canvas.clientWidth * state.view.scale,
-    y: (point.y - state.view.y) * canvas.clientHeight * state.view.scale,
-  };
+  return worldToScreenPoint(point, state.view, viewportSize());
 }
 
 function screenToWorld(point) {
-  return {
-    x: point.x / (canvas.clientWidth * state.view.scale) + state.view.x,
-    y: point.y / (canvas.clientHeight * state.view.scale) + state.view.y,
-  };
+  return screenToWorldPoint(point, state.view, viewportSize());
 }
 
 function screenBounds(bounds) {
-  const p = worldToScreen({ x: bounds.x, y: bounds.y });
-  return {
-    x: p.x,
-    y: p.y,
-    width: bounds.width * canvas.clientWidth * state.view.scale,
-    height: bounds.height * canvas.clientHeight * state.view.scale,
-  };
+  return screenBoundsForView(bounds, state.view, viewportSize());
 }
 
 function screenPoint(event) {
@@ -865,7 +1019,7 @@ function screenPoint(event) {
 }
 
 function visible(box) {
-  return box.x + box.width >= 0 && box.y + box.height >= 0 && box.x <= canvas.clientWidth && box.y <= canvas.clientHeight;
+  return isScreenBoxVisible(box, viewportSize());
 }
 
 function screenIntersection(box) {
@@ -878,15 +1032,15 @@ function screenIntersection(box) {
 }
 
 function boundsCenter(bounds) {
-  return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+  return modelBoundsCenter(bounds);
 }
 
-function contains(bounds, point) {
-  return point.x >= bounds.x && point.x <= bounds.x + bounds.width && point.y >= bounds.y && point.y <= bounds.y + bounds.height;
+function viewportSize() {
+  return { width: canvas.clientWidth, height: canvas.clientHeight };
 }
 
-function smallerArea(a, b) {
-  return a.bounds.width * a.bounds.height - b.bounds.width * b.bounds.height;
+function viewportCenter() {
+  return { x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 };
 }
 
 function clamp(value, min, max) {

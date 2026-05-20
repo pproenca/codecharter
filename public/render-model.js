@@ -10,6 +10,8 @@ export const SOURCE_PANEL_MAX_LINES = 140;
 export const MAP_MIN_SCALE = 0.65;
 export const MAP_MAX_SCALE = 160;
 export const ORGANIC_REGION_EDGE_POSITIONS = [0.08, 0.24, 0.42, 0.6, 0.78, 0.92];
+export const KEYBOARD_PAN_PIXELS = 72;
+export const KEYBOARD_ZOOM_FACTOR = 1.25;
 
 export const DISTRICT_PALETTE = [
   { fill: [126, 176, 156], stroke: [41, 98, 73], label: "#24513d" },
@@ -28,6 +30,13 @@ const LANDMARK_NAMES = new Set([
   "index.html",
   "server.js",
 ]);
+
+const ACTIVITY_STATE_STYLES = {
+  reading: { fill: "#2563eb", stroke: "#dbeafe", label: "#1e3a8a" },
+  editing: { fill: "#e11d48", stroke: "#ffe4e6", label: "#9f1239" },
+  testing: { fill: "#7c3aed", stroke: "#ede9fe", label: "#4c1d95" },
+  blocked: { fill: "#f59e0b", stroke: "#fef3c7", label: "#92400e" },
+};
 
 export function detailBand(scale) {
   if (scale < 1.35) return "district";
@@ -191,6 +200,137 @@ export function labelBoxesOverlap(a, b) {
     && a.y + a.height > b.y;
 }
 
+export function worldToScreenPoint(point, view, viewport) {
+  return {
+    x: (point.x - view.x) * viewport.width * view.scale,
+    y: (point.y - view.y) * viewport.height * view.scale,
+  };
+}
+
+export function screenToWorldPoint(point, view, viewport) {
+  return {
+    x: point.x / (viewport.width * view.scale) + view.x,
+    y: point.y / (viewport.height * view.scale) + view.y,
+  };
+}
+
+export function screenBoundsForView(bounds, view, viewport) {
+  const point = worldToScreenPoint({ x: bounds.x, y: bounds.y }, view, viewport);
+  return {
+    x: point.x,
+    y: point.y,
+    width: bounds.width * viewport.width * view.scale,
+    height: bounds.height * viewport.height * view.scale,
+  };
+}
+
+export function isScreenBoxVisible(box, viewport) {
+  return box.x + box.width >= 0
+    && box.y + box.height >= 0
+    && box.x <= viewport.width
+    && box.y <= viewport.height;
+}
+
+export function zoomViewAt(view, screenAnchor, factor, viewport, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE) {
+  const before = screenToWorldPoint(screenAnchor, view, viewport);
+  const scale = clamp(view.scale * factor, minScale, maxScale);
+  const after = screenToWorldPoint(screenAnchor, { ...view, scale }, viewport);
+  return {
+    x: view.x + before.x - after.x,
+    y: view.y + before.y - after.y,
+    scale,
+  };
+}
+
+export function panViewByScreenDelta(view, delta, viewport) {
+  return {
+    ...view,
+    x: view.x + delta.x / (viewport.width * view.scale),
+    y: view.y + delta.y / (viewport.height * view.scale),
+  };
+}
+
+export function viewForBounds(bounds, viewport, paddingFactor = 1.2, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE) {
+  const scaleX = 1 / Math.max(bounds.width * paddingFactor, 0.001);
+  const scaleY = 1 / Math.max(bounds.height * paddingFactor, 0.001);
+  const scale = clamp(Math.min(scaleX, scaleY), minScale, maxScale);
+  return {
+    scale,
+    x: bounds.x + bounds.width / 2 - 0.5 / scale,
+    y: bounds.y + bounds.height / 2 - 0.5 / scale,
+  };
+}
+
+export function viewForReadableFile(file, viewport, lineRatio = 0.5, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE) {
+  const widthScale = SOURCE_TEXT_MIN_WIDTH / Math.max(file.bounds.width * viewport.width, 0.001);
+  const lineScale = (SOURCE_TEXT_MIN_LINE_HEIGHT * Math.max(1, file.lineCount)) / Math.max(file.bounds.height * viewport.height, 0.001);
+  const scale = clamp(Math.max(widthScale, lineScale) * SOURCE_TEXT_ZOOM_HEADROOM, minScale, maxScale);
+  const screenWidth = file.bounds.width * viewport.width * scale;
+  const focusX = file.bounds.x + file.bounds.width / 2;
+  const focusY = file.bounds.y + file.bounds.height * clamp(lineRatio, 0, 1);
+  return {
+    scale,
+    x: screenWidth > viewport.width * 0.9
+      ? file.bounds.x - 24 / (viewport.width * scale)
+      : focusX - 0.5 / scale,
+    y: focusY - 0.5 / scale,
+  };
+}
+
+export function visibleLineRangeForBox(file, box, viewportHeight) {
+  const top = Math.max(box.y, 0);
+  const bottom = Math.min(box.y + box.height, viewportHeight);
+  if (bottom <= top) return null;
+
+  const startRatio = clamp((top - box.y) / box.height, 0, 1);
+  const endRatio = clamp((bottom - box.y) / box.height, 0, 1);
+  return {
+    start: Math.max(1, Math.floor(startRatio * file.lineCount) + 1),
+    end: Math.min(file.lineCount, Math.ceil(endRatio * file.lineCount)),
+  };
+}
+
+export function lineAtWorldPoint(file, worldPoint) {
+  const rawLine = ((worldPoint.y - file.bounds.y) / file.bounds.height) * file.lineCount;
+  return Math.max(1, Math.min(file.lineCount, Math.floor(rawLine) + 1));
+}
+
+export function sourcePanelLineRangeForBox(file, focusLine, box, viewportHeight) {
+  const visibleRange = canRenderSourceText(file, box) ? visibleLineRangeForBox(file, box, viewportHeight) : null;
+  if (visibleRange) return capLineRange(file, visibleRange.start, visibleRange.end, focusLine);
+  return capLineRange(
+    file,
+    Math.max(1, focusLine - SOURCE_PANEL_CONTEXT_BEFORE),
+    Math.min(file.lineCount, focusLine + SOURCE_PANEL_CONTEXT_AFTER),
+    focusLine,
+  );
+}
+
+export function boundsCenter(bounds) {
+  return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+}
+
+export function containsBoundsPoint(bounds, point) {
+  return point.x >= bounds.x
+    && point.x <= bounds.x + bounds.width
+    && point.y >= bounds.y
+    && point.y <= bounds.y + bounds.height;
+}
+
+export function hitTestTargets(codemap, point) {
+  const files = Object.values(codemap.files)
+    .filter((file) => containsBoundsPoint(file.bounds, point))
+    .sort(compareTargetAreaThenPath);
+  if (files.length > 0) return { ...files[0], targetType: "file" };
+
+  const folders = Object.values(codemap.folders)
+    .filter((folder) => folder.path && containsBoundsPoint(folder.bounds, point))
+    .sort(compareTargetAreaThenPath);
+  if (folders.length > 0) return { ...folders[0], targetType: "folder" };
+
+  return null;
+}
+
 export function rgba(rgb, alpha) {
   return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
 }
@@ -203,9 +343,44 @@ export function hashString(value) {
   return hash;
 }
 
+export function activityStateStyle(activityState) {
+  return ACTIVITY_STATE_STYLES[activityState] ?? ACTIVITY_STATE_STYLES.reading;
+}
+
+export function sortedActivityEvents(events, limit = 80) {
+  return [...events]
+    .filter((event) => event?.address?.bounds)
+    .sort((a, b) => Date.parse(a.timestamp ?? 0) - Date.parse(b.timestamp ?? 0))
+    .slice(-limit);
+}
+
+export function latestActivityByAgent(events) {
+  const latest = new Map();
+  for (const event of sortedActivityEvents(events, Number.POSITIVE_INFINITY)) {
+    latest.set(event.agentId, event);
+  }
+  return latest;
+}
+
 function edgeInset(key, edge, index, baseInset, wobble) {
   const unit = hashUnit(`${key}:${edge}:${index}`);
   return clamp(baseInset + (unit - 0.5) * wobble, 0.012, 0.08);
+}
+
+function capLineRange(file, start, end, focusLine) {
+  if (end - start + 1 <= SOURCE_PANEL_MAX_LINES) return { start, end };
+  const before = Math.floor(SOURCE_PANEL_MAX_LINES / 2);
+  const cappedStart = Math.max(1, Math.min(focusLine - before, file.lineCount - SOURCE_PANEL_MAX_LINES + 1));
+  return {
+    start: cappedStart,
+    end: Math.min(file.lineCount, cappedStart + SOURCE_PANEL_MAX_LINES - 1),
+  };
+}
+
+function compareTargetAreaThenPath(a, b) {
+  const areaDelta = a.bounds.width * a.bounds.height - b.bounds.width * b.bounds.height;
+  if (Math.abs(areaDelta) > 1e-12) return areaDelta;
+  return a.path.localeCompare(b.path);
 }
 
 function hashUnit(value) {

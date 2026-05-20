@@ -53,11 +53,13 @@ const canvas = document.querySelector("#mapCanvas");
 const ctx = canvas.getContext("2d");
 const mapArea = document.querySelector(".map-area");
 const DEFAULT_MAP_LEVEL = "file";
+const SAVE_AND_COPY_LABEL = "Save and copy deep link";
 
 let frameLabels = [];
 let activityPollTimer = null;
 let mapPollTimer = null;
 let applyingRoute = false;
+let routeSequence = 0;
 
 const state = {
   map: null,
@@ -89,7 +91,6 @@ const controls = {
   searchResult: document.querySelector("#searchResult"),
   drawTool: document.querySelector("#drawTool"),
   saveSelection: document.querySelector("#saveSelection"),
-  selectionName: document.querySelector("#selectionName"),
   selectionComment: document.querySelector("#selectionComment"),
   selectionOutput: document.querySelector("#selectionOutput"),
   sourceTitle: document.querySelector("#sourceTitle"),
@@ -235,28 +236,29 @@ function activitySignature(events) {
 }
 
 async function applyHashRoute() {
+  const routeToken = ++routeSequence;
   const route = parseHashRoute(window.location.hash);
   if (!route || !state.map) return;
 
   applyingRoute = true;
   try {
     if (route.type === "annotation") {
-      await focusAnnotationRoute(route.id);
+      await focusAnnotationRoute(route.id, routeToken);
       return;
     }
     if (route.type === "selection") {
-      await focusSelectionRoute(route.params);
+      await focusSelectionRoute(route.params, routeToken);
       return;
     }
     if (route.type === "map") {
-      await focusMapRoute(route);
+      await focusMapRoute(route, routeToken);
     }
   } finally {
-    applyingRoute = false;
+    if (routeToken === routeSequence) applyingRoute = false;
   }
 }
 
-async function focusAnnotationRoute(id) {
+async function focusAnnotationRoute(id, routeToken) {
   let annotation = state.namedPlaces.find((place) => place.kind === "mapAnnotation" && place.id === id);
   if (!annotation) {
     try {
@@ -265,33 +267,40 @@ async function focusAnnotationRoute(id) {
       return;
     }
   }
+  if (!isCurrentRoute(routeToken)) return;
   if (!annotation?.geometry?.bounds) return;
+  upsertNamedPlace(annotation);
+  resetSelectionOverlay();
   zoomToBounds(annotation.geometry.bounds, 1.35);
   selectAnnotation(annotation);
 }
 
-async function focusSelectionRoute(params) {
+async function focusSelectionRoute(params, routeToken) {
   const bounds = boundsFromRouteParams(params);
   if (!bounds) return;
+  resetSelectionOverlay();
   state.drawing = true;
   controls.drawTool?.classList.add("active");
   controls.drawTool?.setAttribute("aria-pressed", "true");
   state.selectedTarget = null;
+  setText(controls.sourceTitle, "");
+  setText(controls.sourceOutput, "");
   state.draftSelection = { type: "rect", bounds };
   zoomToBounds(bounds, 1.35);
-  await previewSelection();
+  await previewSelection({ routeToken });
 }
 
-async function focusMapRoute(route) {
+async function focusMapRoute(route, routeToken) {
   const path = route.params.get("path");
   const target = path ? targetForPath(path) : targetForGeohash(route.locator, route.kind);
   if (!target) return;
 
+  resetSelectionOverlay();
   zoomToBounds(target.bounds, target.targetType === "folder" ? 1.6 : 1.35);
   state.selectedTarget = target;
 
   if (target.targetType === "file") {
-    await showFileForRoute(target, route.params);
+    await showFileForRoute(target, route.params, routeToken);
     return;
   }
 
@@ -301,7 +310,7 @@ async function focusMapRoute(route) {
   render();
 }
 
-async function showFileForRoute(file, params) {
+async function showFileForRoute(file, params, routeToken) {
   clearAnnotationForm();
   setText(controls.inspectorTitle, file.name);
   setText(controls.inspectorSubtitle, `file: ${file.path} | ${file.geo.geohash}`);
@@ -319,6 +328,7 @@ async function showFileForRoute(file, params) {
     fetchJson(`/api/resolve?${query}`),
     fetchJson(`/api/source?${query}`),
   ]);
+  if (!isCurrentRoute(routeToken)) return;
   setText(controls.sourceTitle, `${file.path} · ${address.deepLink}`);
   setText(controls.sourceOutput, source.lines
     .map((item) => `${String(item.number).padStart(4, " ")}  ${item.text}`)
@@ -330,6 +340,10 @@ async function showFileForRoute(file, params) {
 function syncHashRoute(hash) {
   if (applyingRoute || !hash || window.location.hash === hash) return;
   window.history.replaceState(null, "", hash);
+}
+
+function isCurrentRoute(routeToken) {
+  return routeToken === routeSequence;
 }
 
 function setDrawMode(enabled) {
@@ -346,10 +360,34 @@ function clearDraftSelection() {
   state.draftSelection = null;
   state.resolvedSelection = null;
   if (controls.saveSelection) controls.saveSelection.disabled = true;
+  setSaveButtonLabel();
   if (state.selectedTarget?.targetType !== "annotation") {
     if (controls.selectionOutput) controls.selectionOutput.textContent = "";
   }
   updateSelectionPopover();
+}
+
+function resetSelectionOverlay() {
+  state.dragging = null;
+  state.drawing = false;
+  controls.drawTool?.classList.remove("active");
+  controls.drawTool?.setAttribute("aria-pressed", "false");
+  state.draftSelection = null;
+  state.resolvedSelection = null;
+  if (controls.selectionComment) controls.selectionComment.value = "";
+  if (controls.selectionOutput) controls.selectionOutput.textContent = "";
+  if (controls.saveSelection) controls.saveSelection.disabled = true;
+  setSaveButtonLabel();
+  updateSelectionPopover();
+}
+
+function upsertNamedPlace(place) {
+  const index = state.namedPlaces.findIndex((candidate) => candidate.id === place.id);
+  if (index === -1) {
+    state.namedPlaces.push(place);
+  } else {
+    state.namedPlaces[index] = place;
+  }
 }
 
 function updateSelectionPopover() {
@@ -1184,9 +1222,9 @@ function selectAnnotation(annotation) {
   state.draftSelection = null;
   state.resolvedSelection = null;
   syncHashRoute(createAnnotationHashRoute(annotation.id));
-  if (controls.selectionName) controls.selectionName.value = annotation.name ?? "";
   if (controls.selectionComment) controls.selectionComment.value = annotation.comment ?? "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
+  setSaveButtonLabel();
   setText(controls.selectionOutput, annotationSummary(annotation));
   updateSelectionPopover();
   render();
@@ -1275,19 +1313,20 @@ function parseLineRange(value) {
   };
 }
 
-async function previewSelection() {
+async function previewSelection({ routeToken = null } = {}) {
   const draftSelection = state.draftSelection;
   if (!draftSelection) return;
   const body = {
-    name: controls.selectionName?.value || "Preview",
     level: DEFAULT_MAP_LEVEL,
     geometry: draftSelection,
   };
   const resolvedSelection = await postJson("/api/selections/resolve", body);
+  if (routeToken && !isCurrentRoute(routeToken)) return;
   if (state.draftSelection !== draftSelection) return;
   state.resolvedSelection = resolvedSelection;
   syncHashRoute(createSelectionHashRoute({ level: DEFAULT_MAP_LEVEL, bounds: resolvedSelection.geometry.bounds }));
   if (controls.saveSelection) controls.saveSelection.disabled = false;
+  setSaveButtonLabel();
   setText(controls.selectionOutput, selectionSummary(state.resolvedSelection));
   updateSelectionPopover();
   render();
@@ -1295,29 +1334,32 @@ async function previewSelection() {
 
 async function saveSelection() {
   if (!state.resolvedSelection) return;
+  const comment = controls.selectionComment?.value.trim() ?? "";
+  if (controls.saveSelection) controls.saveSelection.disabled = true;
   const saved = await postJson("/api/annotations", {
-    name: controls.selectionName?.value || "Annotation",
-    comment: controls.selectionComment?.value || "",
+    comment,
     level: DEFAULT_MAP_LEVEL,
     geometry: state.resolvedSelection.geometry,
   });
   state.namedPlaces.push(saved.annotation);
-  setText(controls.selectionOutput, annotationSummary(saved.annotation));
+  const shareLink = annotationShareLink(saved.annotation);
+  const copied = await copyToClipboard(shareLink);
+  setText(controls.selectionOutput, annotationSummary(saved.annotation, { shareLink, copied }));
   state.selectedTarget = { ...saved.annotation, targetType: "annotation" };
   syncHashRoute(createAnnotationHashRoute(saved.annotation.id));
   state.draftSelection = null;
   state.resolvedSelection = null;
-  if (controls.saveSelection) controls.saveSelection.disabled = true;
+  setSaveButtonLabel(copied ? "Deep link copied" : "Saved. Copy failed");
   updateSelectionPopover();
   render();
 }
 
 function clearAnnotationForm() {
   if (state.draftSelection || state.resolvedSelection) return;
-  if (controls.selectionName) controls.selectionName.value = "";
   if (controls.selectionComment) controls.selectionComment.value = "";
   if (controls.selectionOutput) controls.selectionOutput.textContent = "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
+  setSaveButtonLabel();
   updateSelectionPopover();
 }
 
@@ -1329,14 +1371,53 @@ function selectionSummary(selection) {
   }, null, 2);
 }
 
-function annotationSummary(annotation) {
+function annotationSummary(annotation, copyState = {}) {
   return JSON.stringify({
     id: annotation.id,
+    deepLink: annotation.deepLink,
+    browserHash: annotation.browserHash,
+    ...(copyState.shareLink ? { copiedDeepLink: copyState.shareLink, copied: copyState.copied } : {}),
     coveringSet: annotation.coveringSet,
     resolvedTargets: annotation.resolvedTargets.map(targetLabel).slice(0, 20),
     totalTargets: annotation.resolvedTargets.length,
     codexPrompt: annotation.codexPrompt,
   }, null, 2);
+}
+
+function annotationShareLink(annotation) {
+  const url = new URL(window.location.href);
+  url.hash = annotation.browserHash;
+  return url.toString();
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return copyToClipboardFallback(text);
+  }
+}
+
+function copyToClipboardFallback(text) {
+  const element = document.createElement("textarea");
+  element.value = text;
+  element.setAttribute("readonly", "");
+  element.style.position = "fixed";
+  element.style.left = "-9999px";
+  document.body.append(element);
+  element.select();
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    element.remove();
+  }
+}
+
+function setSaveButtonLabel(label = SAVE_AND_COPY_LABEL) {
+  if (controls.saveSelection) controls.saveSelection.textContent = label;
 }
 
 async function addActivity(event) {

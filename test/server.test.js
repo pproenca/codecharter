@@ -50,12 +50,12 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.deepEqual(namedPlaceResponse.overlaps, []);
 
     const annotationResponse = await postJson(`${baseUrl}/api/annotations`, {
-      name: "Explore app",
       comment: "hey explore this area",
       level: "file",
       geometry: { type: "rect", bounds: { x: 0, y: 0, width: 1, height: 1 } },
     });
     assert.equal(annotationResponse.annotation.kind, "mapAnnotation");
+    assert.equal(annotationResponse.annotation.name, "hey explore this area");
     assert.equal(annotationResponse.annotation.comment, "hey explore this area");
     assert.equal(annotationResponse.annotation.deepLink, `codemap://annotation/${annotationResponse.annotation.id}`);
     assert.equal(annotationResponse.annotation.browserHash, `#/annotation/${annotationResponse.annotation.id}`);

@@ -47,11 +47,23 @@ test("creates map annotations with a Codex-ready spatial prompt", () => {
   assert.equal(annotation.deepLink, `codemap://annotation/${annotation.id}`);
   assert.equal(annotation.browserHash, `#/annotation/${annotation.id}`);
   assert.equal(annotation.resolvedTargets.length, 1);
-  assert.match(annotation.codexPrompt, /Explore codemap annotation "Search review"/);
+  assert.match(annotation.codexPrompt, /Explore codemap annotation \(codemap:\/\/annotation\//);
   assert.match(annotation.codexPrompt, /codemap:\/\/annotation\//);
   assert.match(annotation.codexPrompt, /#\/annotation\//);
   assert.match(annotation.codexPrompt, /src\/a\.ts/);
   assert.match(annotation.codexPrompt, /hey explore this area/);
+});
+
+test("derives map annotation labels from comments when no title is provided", () => {
+  const annotation = createMapAnnotation(codemap, {
+    comment: "Review the spatial picker\nIt should copy a link.",
+    level: "file",
+    geometry: { type: "rect", bounds: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } },
+  });
+
+  assert.equal(annotation.name, "Review the spatial picker");
+  assert.equal(annotation.comment, "Review the spatial picker\nIt should copy a link.");
+  assert.match(annotation.codexPrompt, /User note: Review the spatial picker/);
 });
 
 test("refreshes map annotations against current geometry without changing identity", () => {

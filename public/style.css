@@ -158,7 +158,6 @@ button:disabled {
   display: none;
 }
 
-.selection-popover input[type="text"],
 .selection-popover textarea {
   padding: 0 8px;
   width: 100%;

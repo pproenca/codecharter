@@ -5,6 +5,8 @@ import { precisionForLevel } from "./levels.js";
 import { resolveAddress } from "./resolver.js";
 
 const SELECTION_EDGE_EPSILON = 1e-12;
+const DEFAULT_ANNOTATION_NAME = "Map annotation";
+const ANNOTATION_NAME_MAX_LENGTH = 72;
 
 export function resolveSelection(codemap, selection) {
   const level = selection.level ?? "file";
@@ -64,7 +66,7 @@ export function createMapAnnotation(codemap, input) {
   const now = new Date().toISOString();
   return withAnnotationPrompt({
     id: input.id ?? randomUUID(),
-    name: input.name ?? "Untitled Annotation",
+    name: annotationName(input),
     kind: "mapAnnotation",
     comment: input.comment ?? "",
     level: input.level ?? "file",
@@ -199,7 +201,19 @@ function codexPromptForAnnotation(annotation) {
     : "no resolved targets";
   const coveringSet = annotation.coveringSet.length ? annotation.coveringSet.join(", ") : "no geohash coverage";
   const comment = annotation.comment ? ` User note: ${annotation.comment}` : "";
-  return `Explore codemap annotation "${annotation.name}" (${annotation.deepLink}) at ${coveringSet}. Browser route: ${annotation.browserHash}. Targets: ${targetSummary}.${comment}`;
+  return `Explore codemap annotation (${annotation.deepLink}) at ${coveringSet}. Browser route: ${annotation.browserHash}. Targets: ${targetSummary}.${comment}`;
+}
+
+function annotationName(input) {
+  const explicit = input.name?.trim();
+  if (explicit) return explicit;
+  const comment = input.comment?.trim();
+  if (!comment) return DEFAULT_ANNOTATION_NAME;
+  const firstLine = comment.split(/\r?\n/).find((line) => line.trim())?.trim();
+  if (!firstLine) return DEFAULT_ANNOTATION_NAME;
+  return firstLine.length > ANNOTATION_NAME_MAX_LENGTH
+    ? `${firstLine.slice(0, ANNOTATION_NAME_MAX_LENGTH - 3)}...`
+    : firstLine;
 }
 
 function targetReference(target) {

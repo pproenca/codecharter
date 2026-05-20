@@ -107,7 +107,8 @@ export function changedRangeFromUnifiedDiff(diff) {
     });
 
   if (ranges.length === 0) return {};
-  const tokenSpan = tokenColumnSpanFromUnifiedDiff(diff);
+  const fragments = tokenFragmentsFromUnifiedDiff(diff);
+  const tokenSpan = columnSpanFromFragments(fragments);
   return {
     lineStart: Math.min(...ranges.map((range) => range.start)),
     lineEnd: Math.max(...ranges.map((range) => range.end)),
@@ -115,6 +116,7 @@ export function changedRangeFromUnifiedDiff(diff) {
       columnStart: tokenSpan.start,
       columnEnd: tokenSpan.end,
     } : {}),
+    ...(fragments.length ? { fragments } : {}),
   };
 }
 
@@ -153,6 +155,7 @@ function defaultActivityPayload(change, { agentId, activityState }) {
     lineEnd: change.lineEnd,
     columnStart: change.columnStart,
     columnEnd: change.columnEnd,
+    fragments: change.fragments,
     note: "codemap dev watcher",
   };
 }
@@ -178,18 +181,42 @@ function isActivityWatchablePath(path) {
     && isCodeFile(path);
 }
 
-function tokenColumnSpanFromUnifiedDiff(diff) {
-  let minColumn = Infinity;
-  let maxColumn = 0;
-  for (const line of diff.split("\n")) {
-    if (!line.startsWith("+") || line.startsWith("+++")) continue;
-    const span = tokenColumnSpan(line.slice(1));
-    if (!span) continue;
-    minColumn = Math.min(minColumn, span.start);
-    maxColumn = Math.max(maxColumn, span.end);
+function tokenFragmentsFromUnifiedDiff(diff) {
+  const fragments = [];
+  let nextLine = null;
+
+  for (const rawLine of diff.split("\n")) {
+    const hunk = rawLine.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);
+    if (hunk) {
+      nextLine = Number(hunk[1]);
+      continue;
+    }
+    if (nextLine === null) continue;
+    if (rawLine.startsWith("+") && !rawLine.startsWith("+++")) {
+      const span = tokenColumnSpan(rawLine.slice(1));
+      if (span) {
+        fragments.push({
+          lineStart: nextLine,
+          lineEnd: nextLine,
+          columnStart: span.start,
+          columnEnd: span.end,
+        });
+      }
+      nextLine += 1;
+    } else if (!rawLine.startsWith("-")) {
+      nextLine += 1;
+    }
   }
-  if (!Number.isFinite(minColumn) || maxColumn <= 0) return null;
-  return { start: minColumn, end: maxColumn };
+
+  return fragments;
+}
+
+function columnSpanFromFragments(fragments) {
+  if (!fragments.length) return null;
+  return {
+    start: Math.min(...fragments.map((fragment) => fragment.columnStart)),
+    end: Math.max(...fragments.map((fragment) => fragment.columnEnd)),
+  };
 }
 
 function tokenColumnSpan(line) {

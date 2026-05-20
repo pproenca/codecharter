@@ -56,16 +56,12 @@ function resolveCodeRangeAddress(file, request) {
   const lineEnd = normalizeLine(request.lineEnd ?? request.lineStart, file.lineCount);
   const start = Math.min(lineStart, lineEnd);
   const end = Math.max(lineStart, lineEnd);
-  const startRatio = (start - 1) / file.lineCount;
-  const endRatio = end / file.lineCount;
-  const lineBounds = {
-    x: file.bounds.x,
-    y: round(file.bounds.y + file.bounds.height * startRatio),
-    width: file.bounds.width,
-    height: round(file.bounds.height * Math.max(endRatio - startRatio, 1 / file.lineCount)),
-  };
+  const lineBounds = lineRangeBounds(file, start, end);
   const tokenRange = resolveTokenRange(file, request);
-  const bounds = tokenRange ? tokenBounds(file, lineBounds, tokenRange) : lineBounds;
+  const fragments = resolveFragments(file, request.fragments);
+  const bounds = fragments.length
+    ? unionBounds(fragments.map((fragment) => fragment.bounds))
+    : tokenRange ? tokenBounds(file, lineBounds, tokenRange) : lineBounds;
   const center = {
     x: bounds.x + bounds.width / 2,
     y: bounds.y + bounds.height / 2,
@@ -85,6 +81,18 @@ function resolveCodeRangeAddress(file, request) {
     geo: { ...geo, geohash },
     lineRange: { start, end },
     ...(tokenRange ? { tokenRange } : {}),
+    ...(fragments.length ? { fragments } : {}),
+  };
+}
+
+function lineRangeBounds(file, start, end) {
+  const startRatio = (start - 1) / file.lineCount;
+  const endRatio = end / file.lineCount;
+  return {
+    x: file.bounds.x,
+    y: round(file.bounds.y + file.bounds.height * startRatio),
+    width: file.bounds.width,
+    height: round(file.bounds.height * Math.max(endRatio - startRatio, 1 / file.lineCount)),
   };
 }
 
@@ -108,6 +116,42 @@ function tokenBounds(file, lineBounds, tokenRange) {
     y: lineBounds.y,
     width: round(file.bounds.width * Math.max(endRatio - startRatio, 1 / width)),
     height: lineBounds.height,
+  };
+}
+
+function resolveFragments(file, fragments) {
+  if (!Array.isArray(fragments)) return [];
+  return fragments
+    .map((fragment) => resolveFragment(file, fragment))
+    .filter(Boolean);
+}
+
+function resolveFragment(file, fragment) {
+  if (fragment?.lineStart === undefined && fragment?.lineEnd === undefined) return null;
+  const lineStart = normalizeLine(fragment.lineStart ?? fragment.lineEnd, file.lineCount);
+  const lineEnd = normalizeLine(fragment.lineEnd ?? fragment.lineStart, file.lineCount);
+  const start = Math.min(lineStart, lineEnd);
+  const end = Math.max(lineStart, lineEnd);
+  const tokenRange = resolveTokenRange(file, fragment);
+  const lineBounds = lineRangeBounds(file, start, end);
+  const bounds = tokenRange ? tokenBounds(file, lineBounds, tokenRange) : lineBounds;
+  return {
+    lineRange: { start, end },
+    ...(tokenRange ? { tokenRange } : {}),
+    bounds,
+  };
+}
+
+function unionBounds(boundsList) {
+  const x1 = Math.min(...boundsList.map((bounds) => bounds.x));
+  const y1 = Math.min(...boundsList.map((bounds) => bounds.y));
+  const x2 = Math.max(...boundsList.map((bounds) => bounds.x + bounds.width));
+  const y2 = Math.max(...boundsList.map((bounds) => bounds.y + bounds.height));
+  return {
+    x: round(x1),
+    y: round(y1),
+    width: round(x2 - x1),
+    height: round(y2 - y1),
   };
 }
 

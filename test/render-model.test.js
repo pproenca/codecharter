@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   MAP_MAX_SCALE,
+  activityFragmentBounds,
+  activityPrimaryBounds,
   activityStateStyle,
   activityTissueBox,
   activityVisualEncoding,
@@ -267,6 +269,18 @@ test("expands precise token activity into a visible tissue patch", () => {
   const selected = activityTissueBox({ x: 20, y: 40, width: 2, height: 3 }, { selected: true });
   assert.equal(selected.width, 30);
   assert.equal(selected.height, 18);
+});
+
+test("anchors activity to text-bearing fragments instead of the aggregate bounds", () => {
+  const event = activity("codex", "editing", "2026-05-20T12:00:00.000Z");
+  event.address.bounds = { x: 0.2, y: 0.2, width: 0.6, height: 0.4 };
+  event.address.fragments = [
+    { bounds: { x: 0.21, y: 0.22, width: 0.05, height: 0.01 } },
+    { bounds: { x: 0.62, y: 0.58, width: 0.08, height: 0.01 } },
+  ];
+
+  assert.deepEqual(activityPrimaryBounds(event), event.address.fragments[0].bounds);
+  assert.deepEqual(activityFragmentBounds(event), event.address.fragments.map((fragment) => fragment.bounds));
 });
 
 function codeFile(overrides = {}) {

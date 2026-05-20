@@ -2,6 +2,8 @@ import {
   SOURCE_CACHE_LIMIT,
   SOURCE_TEXT_MAX_LINES_PER_FRAME,
   SOURCE_TEXT_PREFETCH_LINES,
+  activityFragmentBounds,
+  activityPrimaryBounds,
   activityStateStyle,
   activityTissueBox,
   activityVisualEncoding,
@@ -547,7 +549,9 @@ function drawActivity() {
 
   for (const event of events) {
     const latest = latestByAgent.get(event.agentId) === event;
-    const center = boundsCenter(event.address.bounds);
+    const primaryBounds = activityPrimaryBounds(event);
+    if (!primaryBounds) continue;
+    const center = boundsCenter(primaryBounds);
     const p = worldToScreen(center);
     const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.id === event.id;
     const encoding = activityVisualEncoding(event, { latest, selected });
@@ -586,24 +590,27 @@ function drawActivityMembranes(events, latestByAgent) {
     const encoding = activityVisualEncoding(event, { latest, selected });
     if (encoding.membraneAlpha <= 0.08 && !selected) continue;
 
-    const tissueBox = activityTissueBox(screenBounds(event.address.bounds), encoding);
-    const p = {
-      x: tissueBox.x + tissueBox.width / 2,
-      y: tissueBox.y + tissueBox.height / 2,
-    };
-    const radius = Math.max(tissueBox.width, tissueBox.height) * 0.82;
     const style = activityStateStyle(encoding.activityState);
-    const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
-    gradient.addColorStop(0, hexToRgba(style.fill, encoding.membraneAlpha));
-    gradient.addColorStop(0.58, hexToRgba(style.fill, encoding.membraneAlpha * 0.45));
-    gradient.addColorStop(1, hexToRgba(style.fill, 0));
 
-    ctx.save();
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    drawActivityTissue(tissueBox, event.id ?? event.agentId);
-    ctx.fill();
-    ctx.restore();
+    for (const bounds of activityFragmentBounds(event)) {
+      const tissueBox = activityTissueBox(screenBounds(bounds), encoding);
+      const p = {
+        x: tissueBox.x + tissueBox.width / 2,
+        y: tissueBox.y + tissueBox.height / 2,
+      };
+      const radius = Math.max(tissueBox.width, tissueBox.height) * 0.82;
+      const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
+      gradient.addColorStop(0, hexToRgba(style.fill, encoding.membraneAlpha));
+      gradient.addColorStop(0.58, hexToRgba(style.fill, encoding.membraneAlpha * 0.45));
+      gradient.addColorStop(1, hexToRgba(style.fill, 0));
+
+      ctx.save();
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      drawActivityTissue(tissueBox, `${event.id ?? event.agentId}:${bounds.x}:${bounds.y}`);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 }
 
@@ -634,7 +641,10 @@ function drawActivityTrails(events, latestByAgent) {
 }
 
 function drawMyceliumPath(events) {
-  const points = events.map((event) => worldToScreen(boundsCenter(event.address.bounds)));
+  const points = events
+    .map((event) => activityPrimaryBounds(event))
+    .filter(Boolean)
+    .map((bounds) => worldToScreen(boundsCenter(bounds)));
   if (points.length < 2) return;
 
   ctx.moveTo(points[0].x, points[0].y);
@@ -1120,8 +1130,10 @@ function hitTestActivity(point) {
   const radiusY = 13 / (canvas.clientHeight * state.view.scale);
   const events = [...sortedActivityEvents(state.activity)].reverse();
   const event = events.find((candidate) => {
-    const center = boundsCenter(candidate.address.bounds);
-    return Math.abs(point.x - center.x) <= radiusX && Math.abs(point.y - center.y) <= radiusY;
+    return activityFragmentBounds(candidate).some((bounds) => {
+      const center = boundsCenter(bounds);
+      return Math.abs(point.x - center.x) <= radiusX && Math.abs(point.y - center.y) <= radiusY;
+    });
   });
   return event ? { ...event, targetType: "activity" } : null;
 }

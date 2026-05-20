@@ -388,8 +388,19 @@ export function activityTissueBox(screenBox, encoding = {}) {
   };
 }
 
+export function activityFragmentBounds(event) {
+  const fragments = event?.address?.fragments
+    ?.map((fragment) => fragment.bounds)
+    .filter(Boolean) ?? [];
+  return fragments.length ? fragments : event?.address?.bounds ? [event.address.bounds] : [];
+}
+
+export function activityPrimaryBounds(event) {
+  return activityFragmentBounds(event)[0] ?? event?.address?.bounds ?? null;
+}
+
 export function isLiveActivityEvent(event, { now = Date.now(), maxAgeMinutes = ACTIVITY_LIVE_WINDOW_MINUTES } = {}) {
-  return event?.address?.bounds && activityAgeMinutes(event, now) <= maxAgeMinutes;
+  return activityPrimaryBounds(event) && activityAgeMinutes(event, now) <= maxAgeMinutes;
 }
 
 export function sortedActivityEvents(events, limit = 80, options = {}) {

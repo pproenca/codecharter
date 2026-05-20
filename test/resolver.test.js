@@ -63,6 +63,31 @@ test("resolves changed token columns into a narrower code tissue address", () =>
   assert.equal(address.bounds.width, 0.1);
 });
 
+test("resolves token fragments without placing the anchor in whitespace between lines", () => {
+  const address = resolveAddress(codemap, {
+    path: "src/app.ts",
+    lineStart: 10,
+    lineEnd: 20,
+    columnStart: 1,
+    columnEnd: 40,
+    fragments: [
+      { lineStart: 10, lineEnd: 10, columnStart: 1, columnEnd: 8 },
+      { lineStart: 20, lineEnd: 20, columnStart: 32, columnEnd: 40 },
+    ],
+  });
+
+  assert.equal(address.targetType, "tokenRange");
+  assert.equal(address.fragments.length, 2);
+  assert.deepEqual(address.fragments[0].lineRange, { start: 10, end: 10 });
+  assert.deepEqual(address.fragments[0].tokenRange, { start: 1, end: 8 });
+  assert.equal(address.fragments[0].bounds.x, 0.25);
+  assert.equal(address.fragments[0].bounds.width, 0.05);
+  assert.deepEqual(address.fragments[1].lineRange, { start: 20, end: 20 });
+  assert.deepEqual(address.fragments[1].tokenRange, { start: 32, end: 40 });
+  assert.equal(address.fragments[1].bounds.x, 0.44375);
+  assert.equal(address.fragments[1].bounds.width, 0.05625);
+});
+
 test("rejects column ranges without a line range", () => {
   assert.throws(
     () => resolveAddress(codemap, { path: "src/app.ts", columnStart: 3, columnEnd: 8 }),

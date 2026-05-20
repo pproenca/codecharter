@@ -59,7 +59,24 @@ test("resolves touched token columns across unified diff hunks", () => {
     lineEnd: 24,
     columnStart: 3,
     columnEnd: 29,
+    fragments: [
+      { lineStart: 24, lineEnd: 24, columnStart: 3, columnEnd: 29 },
+    ],
   });
+});
+
+test("keeps token fragments on their changed text-bearing lines", () => {
+  const diff = [
+    "diff --git a/src/app.js b/src/app.js",
+    "@@ -4,0 +5,2 @@",
+    "+short();",
+    "+        longerCall(value);",
+  ].join("\n");
+
+  assert.deepEqual(changedRangeFromUnifiedDiff(diff).fragments, [
+    { lineStart: 5, lineEnd: 5, columnStart: 1, columnEnd: 8 },
+    { lineStart: 6, lineEnd: 6, columnStart: 9, columnEnd: 26 },
+  ]);
 });
 
 test("returns an empty line range when a diff has no hunks", () => {

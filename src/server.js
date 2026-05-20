@@ -6,7 +6,7 @@ import { createActivityEvent } from "./activity.js";
 import { createActivityStore } from "./activity-store.js";
 import { findNamedPlaceOverlaps } from "./overlaps.js";
 import { resolveAddress } from "./resolver.js";
-import { createNamedAddress, createNamedSelection, resolveSelection } from "./selections.js";
+import { createMapAnnotation, createNamedAddress, createNamedSelection, refreshPlaceResolution, resolveSelection } from "./selections.js";
 import { readSourceRange } from "./source.js";
 import { readJson, writeJson } from "./store.js";
 import { buildTileIndex, getTile, visiblePrefixes } from "./tiles.js";
@@ -171,6 +171,24 @@ async function handleApi(state, request, response, url) {
     return;
   }
 
+  if (request.method === "GET" && url.pathname === "/api/annotations") {
+    const codemap = await loadCodemap(state);
+    const store = refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }));
+    sendJson(response, 200, { annotations: store.places.filter((place) => place.kind === "mapAnnotation") });
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/annotations") {
+    const codemap = await loadCodemap(state);
+    const body = await readBody(request);
+    const store = await readJson(state.namedPlacesPath, { places: [] });
+    const annotation = createMapAnnotation(codemap, body);
+    store.places.push(annotation);
+    await writeJson(state.namedPlacesPath, store);
+    sendJson(response, 201, { annotation });
+    return;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/selections/resolve") {
     const codemap = await loadCodemap(state);
     const body = await readBody(request);
@@ -248,16 +266,7 @@ function withOverlaps(store) {
 function refreshNamedPlaces(codemap, store) {
   return {
     ...store,
-    places: (store.places ?? []).map((place) => {
-      if (place.kind !== "drawnSelection") return place;
-      return {
-        ...place,
-        ...resolveSelection(codemap, {
-          level: place.level,
-          geometry: place.geometry,
-        }),
-      };
-    }),
+    places: (store.places ?? []).map((place) => refreshPlaceResolution(codemap, place)),
   };
 }
 

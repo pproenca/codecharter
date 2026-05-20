@@ -49,11 +49,25 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.equal(namedPlaceResponse.place.resolvedTargets.length, 1);
     assert.deepEqual(namedPlaceResponse.overlaps, []);
 
+    const annotationResponse = await postJson(`${baseUrl}/api/annotations`, {
+      name: "Explore app",
+      comment: "hey explore this area",
+      level: "file",
+      geometry: { type: "rect", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    });
+    assert.equal(annotationResponse.annotation.kind, "mapAnnotation");
+    assert.equal(annotationResponse.annotation.comment, "hey explore this area");
+    assert.match(annotationResponse.annotation.codexPrompt, /src\/app\.ts/);
+    const annotations = await getJson(`${baseUrl}/api/annotations`);
+    assert.equal(annotations.annotations.length, 1);
+    assert.equal(annotations.annotations[0].resolvedTargets.length, 1);
+
     await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap({ includeExtraFile: true })));
     const nextMapVersion = await waitForMapVersion(baseUrl, mapVersion.version);
     assert.notEqual(nextMapVersion.version, mapVersion.version);
     const refreshedPlaces = await getJson(`${baseUrl}/api/named-places`);
     assert.equal(refreshedPlaces.places[0].resolvedTargets.length, 2);
+    assert.equal(refreshedPlaces.places[1].resolvedTargets.length, 2);
 
     const accepted = await postJson(`${baseUrl}/api/activity`, {
       agentId: "codex",

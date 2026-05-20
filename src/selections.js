@@ -58,6 +58,21 @@ export function createNamedSelection(codemap, input) {
   };
 }
 
+export function createMapAnnotation(codemap, input) {
+  const resolved = resolveSelection(codemap, input);
+  const now = new Date().toISOString();
+  return withAnnotationPrompt({
+    id: input.id ?? randomUUID(),
+    name: input.name ?? "Untitled Annotation",
+    kind: "mapAnnotation",
+    comment: input.comment ?? "",
+    level: input.level ?? "file",
+    createdAt: now,
+    updatedAt: now,
+    ...resolved,
+  });
+}
+
 export function createNamedAddress(input) {
   const now = new Date().toISOString();
   return {
@@ -68,6 +83,18 @@ export function createNamedAddress(input) {
     updatedAt: now,
     address: input.address,
   };
+}
+
+export function refreshPlaceResolution(codemap, place) {
+  if (place?.kind !== "drawnSelection" && place?.kind !== "mapAnnotation") return place;
+  const refreshed = {
+    ...place,
+    ...resolveSelection(codemap, {
+      level: place.level,
+      geometry: place.geometry,
+    }),
+  };
+  return refreshed.kind === "mapAnnotation" ? withAnnotationPrompt(refreshed) : refreshed;
 }
 
 function normalizeSelectionGeometry(geometry) {
@@ -148,4 +175,32 @@ function targetModeForLevel(level) {
 function clampRatio(value) {
   if (!Number.isFinite(value)) return 0;
   return Math.min(1, Math.max(0, value));
+}
+
+function withAnnotationPrompt(annotation) {
+  return {
+    ...annotation,
+    codexPrompt: codexPromptForAnnotation(annotation),
+  };
+}
+
+function codexPromptForAnnotation(annotation) {
+  const targets = annotation.resolvedTargets.map(targetReference).filter(Boolean);
+  const shownTargets = targets.slice(0, 20).join(", ");
+  const hiddenCount = Math.max(0, targets.length - 20);
+  const targetSummary = shownTargets
+    ? `${shownTargets}${hiddenCount ? `, and ${hiddenCount} more` : ""}`
+    : "no resolved targets";
+  const coveringSet = annotation.coveringSet.length ? annotation.coveringSet.join(", ") : "no geohash coverage";
+  const comment = annotation.comment ? ` User note: ${annotation.comment}` : "";
+  return `Explore codemap annotation "${annotation.name}" at ${coveringSet}. Targets: ${targetSummary}.${comment}`;
+}
+
+function targetReference(target) {
+  if (!target.path) return "";
+  if (target.tokenRange) {
+    return `${target.path}:${target.lineRange.start}-${target.lineRange.end}@${target.tokenRange.start}-${target.tokenRange.end}`;
+  }
+  if (target.lineRange) return `${target.path}:${target.lineRange.start}-${target.lineRange.end}`;
+  return target.path;
 }

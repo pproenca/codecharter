@@ -82,6 +82,7 @@ const controls = {
   drawTool: document.querySelector("#drawTool"),
   saveSelection: document.querySelector("#saveSelection"),
   selectionName: document.querySelector("#selectionName"),
+  selectionComment: document.querySelector("#selectionComment"),
   selectionOutput: document.querySelector("#selectionOutput"),
   sourceTitle: document.querySelector("#sourceTitle"),
   sourceOutput: document.querySelector("#sourceOutput"),
@@ -225,7 +226,9 @@ function setDrawMode(enabled) {
   state.drawing = enabled;
   controls.drawTool?.classList.toggle("active", enabled);
   controls.drawTool?.setAttribute("aria-pressed", String(enabled));
+  if (enabled) state.selectedTarget = null;
   if (!enabled) clearDraftSelection();
+  updateSelectionPopover();
 }
 
 function clearDraftSelection() {
@@ -233,13 +236,15 @@ function clearDraftSelection() {
   state.draftSelection = null;
   state.resolvedSelection = null;
   if (controls.saveSelection) controls.saveSelection.disabled = true;
-  if (controls.selectionOutput) controls.selectionOutput.textContent = "";
+  if (state.selectedTarget?.targetType !== "annotation") {
+    if (controls.selectionOutput) controls.selectionOutput.textContent = "";
+  }
   updateSelectionPopover();
 }
 
 function updateSelectionPopover() {
   if (!controls.selectionPopover) return;
-  controls.selectionPopover.hidden = !(state.draftSelection || state.resolvedSelection);
+  controls.selectionPopover.hidden = !(state.draftSelection || state.resolvedSelection || state.selectedTarget?.targetType === "annotation");
 }
 
 function resize() {
@@ -518,12 +523,56 @@ function drawLineBands(file, box) {
 }
 
 function drawNamedPlaces() {
+  const annotations = [];
   for (const place of state.namedPlaces) {
+    if (place.kind === "mapAnnotation") {
+      annotations.push(place);
+      continue;
+    }
     if (place.kind !== "drawnSelection") continue;
     drawSelection(place.geometry.bounds, "rgba(245, 158, 11, 0.08)", "#f59e0b", []);
     const box = screenBounds(place.geometry.bounds);
     drawLabel(place.name, box.x + 6, box.y + 16, "#92400e");
   }
+
+  annotations.forEach((annotation, index) => {
+    const selected = state.selectedTarget?.targetType === "annotation" && state.selectedTarget.id === annotation.id;
+    drawAnnotation(annotation, index + 1, selected);
+  });
+}
+
+function drawAnnotation(annotation, markerNumber, selected) {
+  drawSelection(
+    annotation.geometry.bounds,
+    selected ? "rgba(37, 99, 235, 0.13)" : "rgba(37, 99, 235, 0.07)",
+    selected ? "#1d4ed8" : "rgba(37, 99, 235, 0.8)",
+    selected ? [] : [4, 4],
+  );
+
+  const box = screenBounds(annotation.geometry.bounds);
+  if (box.width > 68 && box.height > 22) {
+    drawLabel(annotation.name, box.x + 8, box.y + 18, "#1e3a8a", 12, "700");
+  }
+  drawAnnotationMarker(annotation, markerNumber, selected);
+}
+
+function drawAnnotationMarker(annotation, markerNumber, selected) {
+  const center = worldToScreen(boundsCenter(annotation.geometry.bounds));
+  const radius = selected ? 13 : 11;
+  ctx.save();
+  ctx.fillStyle = selected ? "#1d4ed8" : "#2563eb";
+  ctx.strokeStyle = "#eff6ff";
+  ctx.lineWidth = selected ? 3 : 2.4;
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#fff";
+  ctx.font = "700 11px Inter, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(markerNumber), center.x, center.y + 0.5);
+  ctx.restore();
 }
 
 function drawOverlaps() {
@@ -891,6 +940,7 @@ function onPointerDown(event) {
   const point = screenToWorld(screen);
   state.lastPointerDown = { screen, world: point };
   if (state.drawing) {
+    state.selectedTarget = null;
     state.dragging = { type: "draw", start: point, current: point };
     state.draftSelection = { type: "rect", bounds: { x: point.x, y: point.y, width: 0, height: 0 } };
   } else {
@@ -944,15 +994,21 @@ async function selectMapTarget(worldPoint) {
     setText(controls.inspectorSubtitle, "Click a district, parcel, or activity marker.");
     setText(controls.sourceTitle, "No file selected");
     setText(controls.sourceOutput, "");
+    updateSelectionPopover();
     render();
     return;
   }
 
   state.selectedTarget = hit;
+  if (hit.targetType === "annotation") {
+    selectAnnotation(hit);
+    return;
+  }
   if (hit.targetType === "activity") {
     await selectActivityEvent(hit);
     return;
   }
+  clearAnnotationForm();
 
   setText(controls.inspectorTitle, hit.targetType === "file" ? hit.name : labelForFolder(hit));
   setText(controls.inspectorSubtitle, `${hit.targetType}: ${hit.path || "."} | ${hit.geo.geohash}`);
@@ -988,6 +1044,7 @@ async function selectMapTarget(worldPoint) {
 
 async function selectActivityEvent(event) {
   state.selectedTarget = { ...event, targetType: "activity" };
+  clearAnnotationForm();
   setText(controls.inspectorTitle, `${event.agentId}: ${normalizeActivityState(event.activityState)}`);
   setText(controls.inspectorSubtitle, `activity: ${activityPathLabel(event)} | ${event.address.geohash}`);
 
@@ -1010,6 +1067,18 @@ async function selectActivityEvent(event) {
   render();
 }
 
+function selectAnnotation(annotation) {
+  state.selectedTarget = { ...annotation, targetType: "annotation" };
+  state.draftSelection = null;
+  state.resolvedSelection = null;
+  if (controls.selectionName) controls.selectionName.value = annotation.name ?? "";
+  if (controls.selectionComment) controls.selectionComment.value = annotation.comment ?? "";
+  if (controls.saveSelection) controls.saveSelection.disabled = true;
+  setText(controls.selectionOutput, annotationSummary(annotation));
+  updateSelectionPopover();
+  render();
+}
+
 function lineAtPoint(file, worldPoint) {
   return lineAtWorldPoint(file, worldPoint);
 }
@@ -1026,8 +1095,9 @@ async function searchMap(event) {
   const namedPlace = state.namedPlaces.find((place) => place.name.toLowerCase().includes(query));
   if (namedPlace?.geometry?.bounds) {
     zoomToBounds(namedPlace.geometry.bounds, 1.35);
-    setSearchResult(`Named place: ${namedPlace.name}`);
-    state.selectedTarget = null;
+    setSearchResult(namedPlace.kind === "mapAnnotation" ? `Annotation: ${namedPlace.name}` : `Named place: ${namedPlace.name}`);
+    state.selectedTarget = namedPlace.kind === "mapAnnotation" ? { ...namedPlace, targetType: "annotation" } : null;
+    if (state.selectedTarget?.targetType === "annotation") selectAnnotation(state.selectedTarget);
     render();
     return;
   }
@@ -1078,30 +1148,54 @@ async function previewSelection() {
   if (state.draftSelection !== draftSelection) return;
   state.resolvedSelection = resolvedSelection;
   if (controls.saveSelection) controls.saveSelection.disabled = false;
-  setText(controls.selectionOutput, JSON.stringify({
-    coveringSet: state.resolvedSelection.coveringSet,
-    resolvedTargets: state.resolvedSelection.resolvedTargets.slice(0, 20),
-    totalTargets: state.resolvedSelection.resolvedTargets.length,
-  }, null, 2));
+  setText(controls.selectionOutput, selectionSummary(state.resolvedSelection));
   updateSelectionPopover();
   render();
 }
 
 async function saveSelection() {
   if (!state.resolvedSelection) return;
-  const saved = await postJson("/api/named-places", {
-    name: controls.selectionName?.value || "Named Area",
+  const saved = await postJson("/api/annotations", {
+    name: controls.selectionName?.value || "Annotation",
+    comment: controls.selectionComment?.value || "",
     level: DEFAULT_MAP_LEVEL,
     geometry: state.resolvedSelection.geometry,
   });
-  state.namedPlaces.push(saved.place);
-  state.overlaps = saved.overlaps ?? [];
-  setText(controls.selectionOutput, `Saved ${saved.place.name}\n${saved.place.coveringSet.join(", ")}\nOverlaps: ${state.overlaps.length}`);
+  state.namedPlaces.push(saved.annotation);
+  setText(controls.selectionOutput, annotationSummary(saved.annotation));
+  state.selectedTarget = { ...saved.annotation, targetType: "annotation" };
   state.draftSelection = null;
   state.resolvedSelection = null;
   if (controls.saveSelection) controls.saveSelection.disabled = true;
   updateSelectionPopover();
   render();
+}
+
+function clearAnnotationForm() {
+  if (state.draftSelection || state.resolvedSelection) return;
+  if (controls.selectionName) controls.selectionName.value = "";
+  if (controls.selectionComment) controls.selectionComment.value = "";
+  if (controls.selectionOutput) controls.selectionOutput.textContent = "";
+  if (controls.saveSelection) controls.saveSelection.disabled = true;
+  updateSelectionPopover();
+}
+
+function selectionSummary(selection) {
+  return JSON.stringify({
+    coveringSet: selection.coveringSet,
+    resolvedTargets: selection.resolvedTargets.map(targetLabel).slice(0, 20),
+    totalTargets: selection.resolvedTargets.length,
+  }, null, 2);
+}
+
+function annotationSummary(annotation) {
+  return JSON.stringify({
+    id: annotation.id,
+    coveringSet: annotation.coveringSet,
+    resolvedTargets: annotation.resolvedTargets.map(targetLabel).slice(0, 20),
+    totalTargets: annotation.resolvedTargets.length,
+    codexPrompt: annotation.codexPrompt,
+  }, null, 2);
 }
 
 async function addActivity(event) {
@@ -1119,9 +1213,24 @@ async function addActivity(event) {
 }
 
 function hitTest(point) {
+  const annotation = hitTestAnnotation(point);
+  if (annotation) return annotation;
   const activity = hitTestActivity(point);
   if (activity) return activity;
   return hitTestTargets(state.map, point);
+}
+
+function hitTestAnnotation(point) {
+  const radiusX = 15 / (canvas.clientWidth * state.view.scale);
+  const radiusY = 15 / (canvas.clientHeight * state.view.scale);
+  const annotations = state.namedPlaces
+    .filter((place) => place.kind === "mapAnnotation")
+    .reverse();
+  const annotation = annotations.find((place) => {
+    const center = boundsCenter(place.geometry.bounds);
+    return Math.abs(point.x - center.x) <= radiusX && Math.abs(point.y - center.y) <= radiusY;
+  });
+  return annotation ? { ...annotation, targetType: "annotation" } : null;
 }
 
 function hitTestActivity(point) {
@@ -1152,10 +1261,21 @@ function labelForFolder(folder) {
 }
 
 function hoverLabel(hit) {
+  if (hit.targetType === "annotation") {
+    return `annotation: ${hit.name} | ${hit.coveringSet?.[0] ?? "unresolved"}`;
+  }
   if (hit.targetType === "activity") {
     return `activity: ${hit.agentId} ${normalizeActivityState(hit.activityState)} | ${hit.address.geohash}`;
   }
   return `${hit.targetType}: ${hit.path} | ${hit.geo.geohash}`;
+}
+
+function targetLabel(target) {
+  if (target.tokenRange) {
+    return `${target.path}:${target.lineRange.start}-${target.lineRange.end}@${target.tokenRange.start}-${target.tokenRange.end}`;
+  }
+  if (target.lineRange) return `${target.path}:${target.lineRange.start}-${target.lineRange.end}`;
+  return target.path;
 }
 
 function activityPathLabel(event) {

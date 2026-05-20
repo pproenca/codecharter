@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createNamedSelection, resolveSelection } from "../src/selections.js";
+import { createMapAnnotation, createNamedSelection, refreshPlaceResolution, resolveSelection } from "../src/selections.js";
 
 const codemap = {
   folders: {
@@ -32,6 +32,44 @@ test("creates a named drawn selection", () => {
   assert.equal(place.kind, "drawnSelection");
   assert.equal(place.name, "Search Area");
   assert.equal(place.resolvedTargets.length, 1);
+});
+
+test("creates map annotations with a Codex-ready spatial prompt", () => {
+  const annotation = createMapAnnotation(codemap, {
+    name: "Search review",
+    comment: "hey explore this area",
+    level: "file",
+    geometry: { type: "rect", bounds: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } },
+  });
+
+  assert.equal(annotation.kind, "mapAnnotation");
+  assert.equal(annotation.comment, "hey explore this area");
+  assert.equal(annotation.resolvedTargets.length, 1);
+  assert.match(annotation.codexPrompt, /Explore codemap annotation "Search review"/);
+  assert.match(annotation.codexPrompt, /src\/a\.ts/);
+  assert.match(annotation.codexPrompt, /hey explore this area/);
+});
+
+test("refreshes map annotations against current geometry without changing identity", () => {
+  const annotation = createMapAnnotation(codemap, {
+    id: "annotation-1",
+    name: "Search review",
+    level: "file",
+    geometry: { type: "rect", bounds: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } },
+  });
+  const nextMap = {
+    ...codemap,
+    files: {
+      ...codemap.files,
+      "src/c.ts": target("src/c.ts", "s99999999999", { x: 0.15, y: 0.15, width: 0.05, height: 0.05 }),
+    },
+  };
+
+  const refreshed = refreshPlaceResolution(nextMap, annotation);
+
+  assert.equal(refreshed.id, "annotation-1");
+  assert.deepEqual(refreshed.resolvedTargets.map((target) => target.path), ["src/a.ts", "src/c.ts"]);
+  assert.match(refreshed.codexPrompt, /src\/c\.ts/);
 });
 
 test("resolves detailed drawn selections to line coordinates", () => {

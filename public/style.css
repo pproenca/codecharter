@@ -35,13 +35,15 @@ body {
 
 button,
 input,
+textarea,
 select {
   font: inherit;
 }
 
 button,
 select,
-input {
+input,
+textarea {
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.94);
   color: var(--ink);
@@ -156,9 +158,18 @@ button:disabled {
   display: none;
 }
 
-.selection-popover input[type="text"] {
+.selection-popover input[type="text"],
+.selection-popover textarea {
   padding: 0 8px;
   width: 100%;
+}
+
+.selection-popover textarea {
+  line-height: 1.4;
+  min-height: 86px;
+  padding-bottom: 8px;
+  padding-top: 8px;
+  resize: vertical;
 }
 
 .selection-popover pre {

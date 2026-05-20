@@ -9,6 +9,7 @@ import {
   detailBand,
   fileVisualState,
   hitTestTargets,
+  isLiveActivityEvent,
   labelBoxesOverlap,
   landmarkScore,
   lineAtWorldPoint,
@@ -219,14 +220,15 @@ test("keeps organic contour sizing in projected world-space ratios", () => {
 });
 
 test("sorts activity events and keeps the latest visible state by agent", () => {
+  const now = Date.parse("2026-05-20T12:00:00.000Z");
   const events = [
     activity("codex", "reading", "2026-05-20T10:00:00.000Z"),
     activity("reviewer", "testing", "2026-05-20T10:01:00.000Z"),
     activity("codex", "editing", "2026-05-20T10:02:00.000Z"),
   ];
 
-  assert.deepEqual(sortedActivityEvents(events, 2).map((event) => event.activityState), ["testing", "editing"]);
-  assert.equal(latestActivityByAgent(events).get("codex").activityState, "editing");
+  assert.deepEqual(sortedActivityEvents(events, 2, { now }).map((event) => event.activityState), ["testing", "editing"]);
+  assert.equal(latestActivityByAgent(events, { now }).get("codex").activityState, "editing");
   assert.equal(activityStateStyle("reviewing").fill, "#f59e0b");
   assert.equal(activityStateStyle("blocked").fill, activityStateStyle("reviewing").fill);
 });
@@ -242,6 +244,17 @@ test("encodes activity as recency-faded biological markers", () => {
   assert.equal(fresh.alpha > older.alpha, true);
   assert.equal(selected.haloRadius > fresh.haloRadius, true);
   assert.equal(fresh.coreRadius > older.coreRadius, true);
+});
+
+test("treats activity as ephemeral live tissue before archival history", () => {
+  const now = Date.parse("2026-05-20T12:00:00.000Z");
+  const fresh = activity("codex", "editing", "2026-05-20T11:55:00.000Z");
+  const expired = activity("codex", "editing", "2026-05-20T04:00:00.000Z");
+
+  assert.equal(isLiveActivityEvent(fresh, { now }), true);
+  assert.equal(isLiveActivityEvent(expired, { now }), false);
+  assert.deepEqual(sortedActivityEvents([expired, fresh], 10, { now }).map((event) => event.timestamp), [fresh.timestamp]);
+  assert.equal(activityVisualEncoding(expired, { now }).alpha, 0);
 });
 
 test("expands precise token activity into a visible tissue patch", () => {

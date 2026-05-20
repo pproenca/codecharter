@@ -34,6 +34,32 @@ test("creates a named drawn selection", () => {
   assert.equal(place.resolvedTargets.length, 1);
 });
 
+test("resolves detailed drawn selections to line coordinates", () => {
+  const result = resolveSelection(codemap, {
+    level: "lineRange",
+    geometry: { type: "rect", bounds: { x: 0.05, y: 0.1, width: 0.1, height: 0.2 } },
+  });
+
+  assert.equal(result.resolvedTargets.length, 1);
+  assert.equal(result.resolvedTargets[0].targetType, "lineRange");
+  assert.deepEqual(result.resolvedTargets[0].lineRange, { start: 2, end: 3 });
+  assert.equal(result.resolvedTargets[0].address.targetType, "lineRange");
+  assert.equal(result.coveringSet[0].length, 12);
+});
+
+test("resolves token-level drawn selections to line and column coordinates", () => {
+  const result = resolveSelection(codemap, {
+    level: "tokenRange",
+    geometry: { type: "rect", bounds: { x: 0.05, y: 0.1, width: 0.05, height: 0.2 } },
+  });
+
+  assert.equal(result.resolvedTargets.length, 1);
+  assert.equal(result.resolvedTargets[0].targetType, "tokenRange");
+  assert.deepEqual(result.resolvedTargets[0].lineRange, { start: 2, end: 3 });
+  assert.deepEqual(result.resolvedTargets[0].tokenRange, { start: 5, end: 8 });
+  assert.equal(result.resolvedTargets[0].address.targetType, "tokenRange");
+});
+
 function target(path, geohash, bounds) {
   return {
     path,
@@ -41,6 +67,7 @@ function target(path, geohash, bounds) {
     bounds,
     geo: { geohash, lat: 0, lon: 0 },
     lineCount: 10,
+    maxLineLength: 20,
     weight: 10,
   };
 }

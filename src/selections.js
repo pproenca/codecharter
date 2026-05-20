@@ -1,14 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { clampBounds, intersects, normalizeRect } from "./geometry.js";
 import { precisionForLevel } from "./levels.js";
+import { resolveAddress } from "./resolver.js";
+
+const SELECTION_EDGE_EPSILON = 1e-12;
 
 export function resolveSelection(codemap, selection) {
   const level = selection.level ?? "file";
   const geometry = normalizeSelectionGeometry(selection.geometry);
-  const targetTypes = targetTypesForLevel(level);
+  const targetMode = targetModeForLevel(level);
   const targets = [];
 
-  if (targetTypes.has("folder")) {
+  if (targetMode === "folder") {
     for (const folder of Object.values(codemap.folders)) {
       if (folder.path !== "" && intersects(geometry.bounds, folder.bounds)) {
         targets.push(resolvedTarget(folder, "folder", level));
@@ -16,11 +19,18 @@ export function resolveSelection(codemap, selection) {
     }
   }
 
-  if (targetTypes.has("file")) {
+  if (targetMode === "file") {
     for (const file of Object.values(codemap.files)) {
       if (intersects(geometry.bounds, file.bounds)) {
         targets.push(resolvedTarget(file, "file", level));
       }
+    }
+  }
+
+  if (targetMode === "lineRange" || targetMode === "tokenRange") {
+    for (const file of Object.values(codemap.files)) {
+      if (!intersects(geometry.bounds, file.bounds)) continue;
+      targets.push(resolvedCodeTarget(codemap, file, geometry.bounds, level, targetMode));
     }
   }
 
@@ -81,7 +91,61 @@ function resolvedTarget(target, targetType, level) {
   };
 }
 
-function targetTypesForLevel(level) {
-  if (level === "world" || level === "region" || level === "folder") return new Set(["folder"]);
-  return new Set(["file"]);
+function resolvedCodeTarget(codemap, file, selectionBounds, level, targetMode) {
+  const lineRange = lineRangeForSelection(file, selectionBounds);
+  const tokenRange = targetMode === "tokenRange" ? tokenRangeForSelection(file, selectionBounds) : {};
+  const address = resolveAddress(codemap, {
+    path: file.path,
+    lineStart: lineRange.lineStart,
+    lineEnd: lineRange.lineEnd,
+    ...tokenRange,
+  });
+  const precision = precisionForLevel(level);
+  return {
+    targetType: address.targetType,
+    path: file.path,
+    geohash: address.geohash.slice(0, precision),
+    bounds: address.bounds,
+    lineRange: address.lineRange,
+    ...(address.tokenRange ? { tokenRange: address.tokenRange } : {}),
+    address,
+  };
+}
+
+function lineRangeForSelection(file, selectionBounds) {
+  const top = clampRatio((selectionBounds.y - file.bounds.y) / file.bounds.height);
+  const bottom = clampRatio((selectionBounds.y + selectionBounds.height - file.bounds.y) / file.bounds.height);
+  const lineCount = Math.max(1, file.lineCount ?? 1);
+  const lineStart = startIndexForRatio(top, lineCount);
+  const lineEnd = Math.max(lineStart, endIndexForRatio(bottom, lineCount));
+  return { lineStart, lineEnd };
+}
+
+function tokenRangeForSelection(file, selectionBounds) {
+  const left = clampRatio((selectionBounds.x - file.bounds.x) / file.bounds.width);
+  const right = clampRatio((selectionBounds.x + selectionBounds.width - file.bounds.x) / file.bounds.width);
+  const maxLineLength = Math.max(1, file.maxLineLength ?? 1);
+  const columnStart = startIndexForRatio(left, maxLineLength);
+  const columnEnd = Math.max(columnStart, endIndexForRatio(right, maxLineLength));
+  return { columnStart, columnEnd };
+}
+
+function startIndexForRatio(ratio, size) {
+  return Math.min(size, Math.floor(ratio * size + SELECTION_EDGE_EPSILON) + 1);
+}
+
+function endIndexForRatio(ratio, size) {
+  return Math.min(size, Math.max(1, Math.ceil(ratio * size - SELECTION_EDGE_EPSILON)));
+}
+
+function targetModeForLevel(level) {
+  if (level === "world" || level === "region" || level === "folder") return "folder";
+  if (level === "code" || level === "lineRange") return "lineRange";
+  if (level === "tokenRange") return "tokenRange";
+  return "file";
+}
+
+function clampRatio(value) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value));
 }

@@ -13,6 +13,7 @@ export const ORGANIC_REGION_EDGE_POSITIONS = [0.08, 0.24, 0.42, 0.6, 0.78, 0.92]
 export const KEYBOARD_PAN_PIXELS = 72;
 export const KEYBOARD_ZOOM_FACTOR = 1.25;
 export const ACTIVITY_DECAY_HALF_LIFE_MINUTES = 90;
+export const ACTIVITY_LIVE_WINDOW_MINUTES = 360;
 export const ACTIVITY_MIN_ALPHA = 0.18;
 
 export const DISTRICT_PALETTE = [
@@ -356,19 +357,20 @@ export function normalizeActivityState(activityState) {
 
 export function activityVisualEncoding(event, { latest = false, selected = false, now = Date.now() } = {}) {
   const activityState = normalizeActivityState(event?.activityState);
-  const ageMinutes = Math.max(0, (now - Date.parse(event?.timestamp ?? now)) / 60000);
+  const ageMinutes = activityAgeMinutes(event, now);
   const decay = 2 ** (-ageMinutes / ACTIVITY_DECAY_HALF_LIFE_MINUTES);
+  const vitality = selected ? 1 : clamp(1 - ageMinutes / ACTIVITY_LIVE_WINDOW_MINUTES, 0, 1);
   const alpha = selected
     ? 1
-    : clamp((latest ? 0.42 : ACTIVITY_MIN_ALPHA) + decay * (latest ? 0.58 : 0.38), ACTIVITY_MIN_ALPHA, 1);
+    : clamp(((latest ? 0.42 : ACTIVITY_MIN_ALPHA) + decay * (latest ? 0.58 : 0.38)) * vitality, 0, 1);
 
   return {
     activityState,
     alpha,
-    coreRadius: selected ? 8 : latest ? 6.5 : 3.8,
-    haloRadius: selected ? 28 : latest ? 22 : 12,
-    membraneAlpha: selected ? 0.22 : latest ? 0.15 : 0.07,
-    trailAlpha: selected ? 0.72 : latest ? 0.42 : 0.18,
+    coreRadius: (selected ? 8 : latest ? 6.5 : 3.8) * (selected ? 1 : Math.max(0.55, vitality)),
+    haloRadius: (selected ? 28 : latest ? 22 : 12) * (selected ? 1 : Math.max(0.35, vitality)),
+    membraneAlpha: (selected ? 0.22 : latest ? 0.15 : 0.07) * (selected ? 1 : vitality),
+    trailAlpha: (selected ? 0.72 : latest ? 0.42 : 0.18) * (selected ? 1 : vitality),
     lineWidth: selected ? 3.2 : latest ? 2.2 : 1.3,
   };
 }
@@ -386,19 +388,29 @@ export function activityTissueBox(screenBox, encoding = {}) {
   };
 }
 
-export function sortedActivityEvents(events, limit = 80) {
+export function isLiveActivityEvent(event, { now = Date.now(), maxAgeMinutes = ACTIVITY_LIVE_WINDOW_MINUTES } = {}) {
+  return event?.address?.bounds && activityAgeMinutes(event, now) <= maxAgeMinutes;
+}
+
+export function sortedActivityEvents(events, limit = 80, options = {}) {
   return [...events]
-    .filter((event) => event?.address?.bounds)
+    .filter((event) => isLiveActivityEvent(event, options))
     .sort((a, b) => Date.parse(a.timestamp ?? 0) - Date.parse(b.timestamp ?? 0))
     .slice(-limit);
 }
 
-export function latestActivityByAgent(events) {
+export function latestActivityByAgent(events, options = {}) {
   const latest = new Map();
-  for (const event of sortedActivityEvents(events, Number.POSITIVE_INFINITY)) {
+  for (const event of sortedActivityEvents(events, Number.POSITIVE_INFINITY, options)) {
     latest.set(event.agentId, event);
   }
   return latest;
+}
+
+function activityAgeMinutes(event, now) {
+  const timestamp = Date.parse(event?.timestamp ?? "");
+  if (!Number.isFinite(timestamp)) return 0;
+  return Math.max(0, (now - timestamp) / 60000);
 }
 
 function edgeInset(key, edge, index, baseInset, wobble) {

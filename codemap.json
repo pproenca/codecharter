@@ -14,7 +14,8 @@
     "folder": 4,
     "file": 7,
     "code": 10,
-    "lineRange": 12
+    "lineRange": 12,
+    "tokenRange": 12
   },
   "codePlane": {
     "bounds": {
@@ -53,8 +54,8 @@
         "lat": 0,
         "geohash": "s00000000000"
       },
-      "lineCount": 15206,
-      "weight": 15206,
+      "lineCount": 15322,
+      "weight": 15322,
       "children": {
         "folders": [
           ".agents",
@@ -1090,8 +1091,8 @@
         "lat": -26.75340322820999,
         "geohash": "3gppf3dn5khm"
       },
-      "lineCount": 1887,
-      "weight": 1887,
+      "lineCount": 1899,
+      "weight": 1899,
       "children": {
         "folders": [],
         "files": [
@@ -1122,8 +1123,8 @@
         "lat": 42.131251412370005,
         "geohash": "wpqz8mz2qfe8"
       },
-      "lineCount": 1784,
-      "weight": 1784,
+      "lineCount": 1848,
+      "weight": 1848,
       "children": {
         "folders": [],
         "files": [
@@ -1171,8 +1172,8 @@
         "lat": -68.88465464058001,
         "geohash": "1gz047fjg3sm"
       },
-      "lineCount": 1514,
-      "weight": 1514,
+      "lineCount": 1554,
+      "weight": 1554,
       "children": {
         "folders": [],
         "files": [
@@ -1218,6 +1219,9 @@
         "geohash": "srewqf2wgtk5"
       },
       "lineCount": 32,
+      "maxLineLength": 139,
+      "tokenCount": 350,
+      "wordCount": 153,
       "weight": 32
     },
     ".agents/skills/code-map-visualization/references/_sections.md": {
@@ -1237,6 +1241,9 @@
         "geohash": "umdhqys69433"
       },
       "lineCount": 51,
+      "maxLineLength": 621,
+      "tokenCount": 924,
+      "wordCount": 654,
       "weight": 51
     },
     ".agents/skills/code-map-visualization/references/access-encode-redundantly-never-color-alone.md": {
@@ -1256,6 +1263,9 @@
         "geohash": "u79vrjt8pz8p"
       },
       "lineCount": 33,
+      "maxLineLength": 520,
+      "tokenCount": 395,
+      "wordCount": 219,
       "weight": 33
     },
     ".agents/skills/code-map-visualization/references/access-honor-prefers-reduced-motion.md": {
@@ -1275,6 +1285,9 @@
         "geohash": "u64qjhwnb70x"
       },
       "lineCount": 31,
+      "maxLineLength": 466,
+      "tokenCount": 397,
+      "wordCount": 224,
       "weight": 31
     },
     ".agents/skills/code-map-visualization/references/access-make-the-map-keyboard-operable.md": {
@@ -1294,6 +1307,9 @@
         "geohash": "u7etqv885xsp"
       },
       "lineCount": 33,
+      "maxLineLength": 543,
+      "tokenCount": 417,
+      "wordCount": 251,
       "weight": 33
     },
     ".agents/skills/code-map-visualization/references/access-provide-a-text-alternative-for-the-canvas.md": {
@@ -1313,6 +1329,9 @@
         "geohash": "u7tmqme2px8p"
       },
       "lineCount": 33,
+      "maxLineLength": 492,
+      "tokenCount": 426,
+      "wordCount": 241,
       "weight": 33
     },
     ".agents/skills/code-map-visualization/references/anim-crossfade-between-lod-levels.md": {
@@ -1332,6 +1351,9 @@
         "geohash": "u3v02yc9ye8n"
       },
       "lineCount": 30,
+      "maxLineLength": 499,
+      "tokenCount": 388,
+      "wordCount": 228,
       "weight": 30
     },
     ".agents/skills/code-map-visualization/references/anim-ease-camera-transitions-not-jumps.md": {
@@ -1351,6 +1373,9 @@
         "geohash": "umkzf30edged"
       },
       "lineCount": 36,
+      "maxLineLength": 551,
+      "tokenCount": 431,
+      "wordCount": 241,
       "weight": 36
     },
     ".agents/skills/code-map-visualization/references/anim-keep-transitions-interruptible-and-budgeted.md": {
@@ -1370,6 +1395,9 @@
         "geohash": "umsy660wdb7s"
       },
       "lineCount": 38,
+      "maxLineLength": 516,
+      "tokenCount": 434,
+      "wordCount": 245,
       "weight": 38
     },
     ".agents/skills/code-map-visualization/references/anim-preserve-object-constancy-on-data-update.md": {
@@ -1389,6 +1417,9 @@
         "geohash": "umkc66be4ues"
       },
       "lineCount": 36,
+      "maxLineLength": 538,
+      "tokenCount": 455,
+      "wordCount": 253,
       "weight": 36
     },
     ".agents/skills/code-map-visualization/references/bio-circle-packing-for-nested-counts.md": {
@@ -1408,6 +1439,9 @@
         "geohash": "u31frnjwzf8j"
       },
       "lineCount": 29,
+      "maxLineLength": 494,
+      "tokenCount": 450,
+      "wordCount": 255,
       "weight": 29
     },
     ".agents/skills/code-map-visualization/references/bio-edge-bundling-for-dependency-overlays.md": {
@@ -1427,6 +1461,9 @@
         "geohash": "u2v40v67r465"
       },
       "lineCount": 28,
+      "maxLineLength": 597,
+      "tokenCount": 438,
+      "wordCount": 249,
       "weight": 28
     },
     ".agents/skills/code-map-visualization/references/bio-flow-fields-for-animated-dependency-load.md": {
@@ -1446,6 +1483,9 @@
         "geohash": "u2t58fd6rj6h"
       },
       "lineCount": 28,
+      "maxLineLength": 582,
+      "tokenCount": 437,
+      "wordCount": 255,
       "weight": 28
     },
     ".agents/skills/code-map-visualization/references/bio-metaball-hulls-for-region-membranes.md": {
@@ -1465,6 +1505,9 @@
         "geohash": "u3t18uc8q8b4"
       },
       "lineCount": 30,
+      "maxLineLength": 647,
+      "tokenCount": 447,
+      "wordCount": 269,
       "weight": 30
     },
     ".agents/skills/code-map-visualization/references/bio-phyllotaxis-packing-for-even-point-spread.md": {
@@ -1484,6 +1527,9 @@
         "geohash": "uketxpvd1nu9"
       },
       "lineCount": 34,
+      "maxLineLength": 500,
+      "tokenCount": 485,
+      "wordCount": 286,
       "weight": 34
     },
     ".agents/skills/code-map-visualization/references/bio-relax-weights-for-even-cell-areas.md": {
@@ -1503,6 +1549,9 @@
         "geohash": "uktmwrzf1qg1"
       },
       "lineCount": 34,
+      "maxLineLength": 631,
+      "tokenCount": 482,
+      "wordCount": 266,
       "weight": 34
     },
     ".agents/skills/code-map-visualization/references/bio-voronoi-regions-for-space-filling-tessellation.md": {
@@ -1522,6 +1571,9 @@
         "geohash": "u35dqy0wgdsj"
       },
       "lineCount": 29,
+      "maxLineLength": 640,
+      "tokenCount": 439,
+      "wordCount": 262,
       "weight": 29
     },
     ".agents/skills/code-map-visualization/references/color-control-contrast-against-basemap.md": {
@@ -1541,6 +1593,9 @@
         "geohash": "u3m4bf9wwtbj"
       },
       "lineCount": 30,
+      "maxLineLength": 470,
+      "tokenCount": 400,
+      "wordCount": 241,
       "weight": 30
     },
     ".agents/skills/code-map-visualization/references/color-design-for-color-vision-deficiency.md": {
@@ -1560,6 +1615,9 @@
         "geohash": "uk3fzjtsrfbj"
       },
       "lineCount": 34,
+      "maxLineLength": 492,
+      "tokenCount": 460,
+      "wordCount": 242,
       "weight": 34
     },
     ".agents/skills/code-map-visualization/references/color-limit-categorical-hues.md": {
@@ -1579,6 +1637,9 @@
         "geohash": "u73fz1m8zz84"
       },
       "lineCount": 33,
+      "maxLineLength": 554,
+      "tokenCount": 430,
+      "wordCount": 245,
       "weight": 33
     },
     ".agents/skills/code-map-visualization/references/color-match-scale-type-to-data.md": {
@@ -1598,6 +1659,9 @@
         "geohash": "u3j6qq5qzd8j"
       },
       "lineCount": 29,
+      "maxLineLength": 530,
+      "tokenCount": 369,
+      "wordCount": 204,
       "weight": 29
     },
     ".agents/skills/code-map-visualization/references/color-perceptually-uniform-sequential-ramp.md": {
@@ -1617,6 +1681,9 @@
         "geohash": "u3frm1qn8r0t"
       },
       "lineCount": 31,
+      "maxLineLength": 545,
+      "tokenCount": 434,
+      "wordCount": 254,
       "weight": 31
     },
     ".agents/skills/code-map-visualization/references/encode-let-projection-own-position.md": {
@@ -1636,6 +1703,9 @@
         "geohash": "um1bxht8zb01"
       },
       "lineCount": 35,
+      "maxLineLength": 658,
+      "tokenCount": 473,
+      "wordCount": 260,
       "weight": 35
     },
     ".agents/skills/code-map-visualization/references/encode-maximize-data-ink-drop-chartjunk.md": {
@@ -1655,6 +1725,9 @@
         "geohash": "u71bpptszg04"
       },
       "lineCount": 32,
+      "maxLineLength": 391,
+      "tokenCount": 413,
+      "wordCount": 232,
       "weight": 32
     },
     ".agents/skills/code-map-visualization/references/encode-rank-channels-by-perceptual-accuracy.md": {
@@ -1674,6 +1747,9 @@
         "geohash": "um64wyk73jcr"
       },
       "lineCount": 40,
+      "maxLineLength": 570,
+      "tokenCount": 528,
+      "wordCount": 290,
       "weight": 40
     },
     ".agents/skills/code-map-visualization/references/encode-redundant-encoding-for-key-signals.md": {
@@ -1693,6 +1769,9 @@
         "geohash": "uk7dyv8s7duj"
       },
       "lineCount": 34,
+      "maxLineLength": 491,
+      "tokenCount": 438,
+      "wordCount": 249,
       "weight": 34
     },
     ".agents/skills/code-map-visualization/references/encode-separate-categorical-from-quantitative.md": {
@@ -1712,6 +1791,9 @@
         "geohash": "u758nz8sgeh4"
       },
       "lineCount": 32,
+      "maxLineLength": 495,
+      "tokenCount": 423,
+      "wordCount": 245,
       "weight": 32
     },
     ".agents/skills/code-map-visualization/references/encode-size-by-area-not-radius.md": {
@@ -1731,6 +1813,9 @@
         "geohash": "u2f6jmq5m4rg"
       },
       "lineCount": 29,
+      "maxLineLength": 450,
+      "tokenCount": 395,
+      "wordCount": 216,
       "weight": 29
     },
     ".agents/skills/code-map-visualization/references/gpu-atlas-tiles-and-glyphs.md": {
@@ -1750,6 +1835,9 @@
         "geohash": "u7j2nrekze04"
       },
       "lineCount": 32,
+      "maxLineLength": 409,
+      "tokenCount": 380,
+      "wordCount": 227,
       "weight": 32
     },
     ".agents/skills/code-map-visualization/references/gpu-batch-to-cut-draw-calls-and-state-changes.md": {
@@ -1769,6 +1857,9 @@
         "geohash": "um58wu88g8h1"
       },
       "lineCount": 35,
+      "maxLineLength": 462,
+      "tokenCount": 419,
+      "wordCount": 250,
       "weight": 35
     },
     ".agents/skills/code-map-visualization/references/gpu-instance-cells-not-per-quad-draw.md": {
@@ -1788,6 +1879,9 @@
         "geohash": "ukm6ymekrdbj"
       },
       "lineCount": 34,
+      "maxLineLength": 465,
+      "tokenCount": 442,
+      "wordCount": 262,
       "weight": 34
     },
     ".agents/skills/code-map-visualization/references/gpu-layer-canvas2d-over-webgl.md": {
@@ -1807,6 +1901,9 @@
         "geohash": "u6mj0dfkd14b"
       },
       "lineCount": 31,
+      "maxLineLength": 558,
+      "tokenCount": 438,
+      "wordCount": 264,
       "weight": 31
     },
     ".agents/skills/code-map-visualization/references/gpu-pack-attributes-into-typed-arrays.md": {
@@ -1826,6 +1923,9 @@
         "geohash": "uk1bphm9rg80"
       },
       "lineCount": 34,
+      "maxLineLength": 449,
+      "tokenCount": 502,
+      "wordCount": 276,
       "weight": 34
     },
     ".agents/skills/code-map-visualization/references/gpu-size-canvas-to-devicepixelratio.md": {
@@ -1845,6 +1945,9 @@
         "geohash": "u69vz0tezf0n"
       },
       "lineCount": 32,
+      "maxLineLength": 482,
+      "tokenCount": 401,
+      "wordCount": 237,
       "weight": 32
     },
     ".agents/skills/code-map-visualization/references/interact-keep-hover-feedback-under-one-frame.md": {
@@ -1864,6 +1967,9 @@
         "geohash": "u77dyc28gxs4"
       },
       "lineCount": 33,
+      "maxLineLength": 490,
+      "tokenCount": 387,
+      "wordCount": 219,
       "weight": 33
     },
     ".agents/skills/code-map-visualization/references/interact-model-the-camera-not-the-dom.md": {
@@ -1883,6 +1989,9 @@
         "geohash": "u6jn0w6qfp6z"
       },
       "lineCount": 31,
+      "maxLineLength": 531,
+      "tokenCount": 420,
+      "wordCount": 240,
       "weight": 31
     },
     ".agents/skills/code-map-visualization/references/interact-pick-with-gpu-color-id-or-spatial-index.md": {
@@ -1902,6 +2011,9 @@
         "geohash": "u7m6y372zx84"
       },
       "lineCount": 33,
+      "maxLineLength": 514,
+      "tokenCount": 467,
+      "wordCount": 277,
       "weight": 33
     },
     ".agents/skills/code-map-visualization/references/interact-support-keyboard-pan-zoom-and-focus.md": {
@@ -1921,6 +2033,9 @@
         "geohash": "umj2wke2z801"
       },
       "lineCount": 35,
+      "maxLineLength": 482,
+      "tokenCount": 440,
+      "wordCount": 241,
       "weight": 35
     },
     ".agents/skills/code-map-visualization/references/interact-sync-view-state-to-the-url.md": {
@@ -1940,6 +2055,9 @@
         "geohash": "u3vp2d436jfv"
       },
       "lineCount": 31,
+      "maxLineLength": 483,
+      "tokenCount": 431,
+      "wordCount": 238,
       "weight": 31
     },
     ".agents/skills/code-map-visualization/references/perf-bound-the-tile-cache.md": {
@@ -1959,6 +2077,9 @@
         "geohash": "u6etyb8egdhn"
       },
       "lineCount": 32,
+      "maxLineLength": 442,
+      "tokenCount": 389,
+      "wordCount": 226,
       "weight": 32
     },
     ".agents/skills/code-map-visualization/references/perf-debounce-viewport-recompute.md": {
@@ -1978,6 +2099,9 @@
         "geohash": "uk58nu297es0"
       },
       "lineCount": 34,
+      "maxLineLength": 490,
+      "tokenCount": 403,
+      "wordCount": 225,
       "weight": 34
     },
     ".agents/skills/code-map-visualization/references/perf-offload-to-worker-and-offscreencanvas.md": {
@@ -1997,6 +2121,9 @@
         "geohash": "u6tmy2e7zd0n"
       },
       "lineCount": 32,
+      "maxLineLength": 482,
+      "tokenCount": 394,
+      "wordCount": 223,
       "weight": 32
     },
     ".agents/skills/code-map-visualization/references/perf-redraw-only-dirty-regions.md": {
@@ -2016,6 +2143,9 @@
         "geohash": "ukj2nk73re80"
       },
       "lineCount": 34,
+      "maxLineLength": 455,
+      "tokenCount": 367,
+      "wordCount": 218,
       "weight": 34
     },
     ".agents/skills/code-map-visualization/references/perf-render-in-a-single-raf-loop.md": {
@@ -2035,6 +2165,9 @@
         "geohash": "u3f2mqv3uety"
       },
       "lineCount": 31,
+      "maxLineLength": 441,
+      "tokenCount": 408,
+      "wordCount": 214,
       "weight": 31
     },
     ".agents/skills/code-map-visualization/references/text-add-halo-for-legibility.md": {
@@ -2054,6 +2187,9 @@
         "geohash": "u66mj1wp0788"
       },
       "lineCount": 32,
+      "maxLineLength": 505,
+      "tokenCount": 391,
+      "wordCount": 232,
       "weight": 32
     },
     ".agents/skills/code-map-visualization/references/text-anchor-region-labels-at-centroid.md": {
@@ -2073,6 +2209,9 @@
         "geohash": "u2d7t6w4mjru"
       },
       "lineCount": 29,
+      "maxLineLength": 511,
+      "tokenCount": 363,
+      "wordCount": 221,
       "weight": 29
     },
     ".agents/skills/code-map-visualization/references/text-place-and-declutter-labels-greedily.md": {
@@ -2092,6 +2231,9 @@
         "geohash": "uk9vxry65qv9"
       },
       "lineCount": 35,
+      "maxLineLength": 487,
+      "tokenCount": 451,
+      "wordCount": 258,
       "weight": 35
     },
     ".agents/skills/code-map-visualization/references/text-render-glyphs-on-canvas2d-not-per-glyph-textures.md": {
@@ -2111,6 +2253,9 @@
         "geohash": "u3d3tkv2k8vf"
       },
       "lineCount": 31,
+      "maxLineLength": 516,
+      "tokenCount": 403,
+      "wordCount": 238,
       "weight": 31
     },
     ".agents/skills/code-map-visualization/references/text-show-labels-by-level-of-detail.md": {
@@ -2130,6 +2275,9 @@
         "geohash": "u366v6tqstvv"
       },
       "lineCount": 31,
+      "maxLineLength": 560,
+      "tokenCount": 401,
+      "wordCount": 233,
       "weight": 31
     },
     ".agents/skills/code-map-visualization/AGENTS.md": {
@@ -2149,6 +2297,9 @@
         "geohash": "sm58nube78s0"
       },
       "lineCount": 117,
+      "maxLineLength": 1396,
+      "tokenCount": 3524,
+      "wordCount": 1953,
       "weight": 117
     },
     ".agents/skills/code-map-visualization/SKILL.md": {
@@ -2168,6 +2319,9 @@
         "geohash": "sq7wngb9ges5"
       },
       "lineCount": 140,
+      "maxLineLength": 1011,
+      "tokenCount": 3536,
+      "wordCount": 1871,
       "weight": 140
     },
     ".agents/skills/computer-science-algorithms/assets/templates/_template.md": {
@@ -2187,6 +2341,9 @@
         "geohash": "cuk1kdr9mm8u"
       },
       "lineCount": 45,
+      "maxLineLength": 205,
+      "tokenCount": 361,
+      "wordCount": 163,
       "weight": 45
     },
     ".agents/skills/computer-science-algorithms/references/_sections.md": {
@@ -2206,6 +2363,9 @@
         "geohash": "c301h75cx8xe"
       },
       "lineCount": 51,
+      "maxLineLength": 563,
+      "tokenCount": 674,
+      "wordCount": 427,
       "weight": 51
     },
     ".agents/skills/computer-science-algorithms/references/comp-amortize-instead-of-worst-casing.md": {
@@ -2225,6 +2385,9 @@
         "geohash": "c390rce9bv1b"
       },
       "lineCount": 53,
+      "maxLineLength": 446,
+      "tokenCount": 606,
+      "wordCount": 369,
       "weight": 53
     },
     ".agents/skills/computer-science-algorithms/references/comp-derive-recurrences-via-master-theorem.md": {
@@ -2244,6 +2407,9 @@
         "geohash": "c3n9jbe84cdu"
       },
       "lineCount": 45,
+      "maxLineLength": 439,
+      "tokenCount": 708,
+      "wordCount": 344,
       "weight": 45
     },
     ".agents/skills/computer-science-algorithms/references/comp-pick-algorithm-class-from-input-bound.md": {
@@ -2263,6 +2429,9 @@
         "geohash": "c91c10s0h3dk"
       },
       "lineCount": 45,
+      "maxLineLength": 394,
+      "tokenCount": 485,
+      "wordCount": 295,
       "weight": 45
     },
     ".agents/skills/computer-science-algorithms/references/comp-prefer-iterative-builders-over-string-concatenation.md": {
@@ -2282,6 +2451,9 @@
         "geohash": "c2qwqz3jb6et"
       },
       "lineCount": 42,
+      "maxLineLength": 485,
+      "tokenCount": 509,
+      "wordCount": 267,
       "weight": 42
     },
     ".agents/skills/computer-science-algorithms/references/comp-treat-space-complexity-as-first-class.md": {
@@ -2301,6 +2473,9 @@
         "geohash": "c61pxce88f3v"
       },
       "lineCount": 54,
+      "maxLineLength": 451,
+      "tokenCount": 558,
+      "wordCount": 335,
       "weight": 54
     },
     ".agents/skills/computer-science-algorithms/references/comp-watch-for-quadratic-blowup-from-membership-in-list.md": {
@@ -2320,6 +2495,9 @@
         "geohash": "c83y6p3tcfej"
       },
       "lineCount": 39,
+      "maxLineLength": 382,
+      "tokenCount": 524,
+      "wordCount": 280,
       "weight": 39
     },
     ".agents/skills/computer-science-algorithms/references/divide-meet-in-the-middle-for-subset-problems.md": {
@@ -2339,6 +2517,9 @@
         "geohash": "bbub3ghbuvt0"
       },
       "lineCount": 59,
+      "maxLineLength": 381,
+      "tokenCount": 724,
+      "wordCount": 411,
       "weight": 59
     },
     ".agents/skills/computer-science-algorithms/references/divide-merge-sort-pattern-for-counting-inversions.md": {
@@ -2358,6 +2539,9 @@
         "geohash": "c353ngn1w8se"
       },
       "lineCount": 51,
+      "maxLineLength": 397,
+      "tokenCount": 678,
+      "wordCount": 383,
       "weight": 51
     },
     ".agents/skills/computer-science-algorithms/references/divide-quickselect-vs-quicksort-partitioning.md": {
@@ -2377,6 +2561,9 @@
         "geohash": "ck99stcdrz4y"
       },
       "lineCount": 75,
+      "maxLineLength": 473,
+      "tokenCount": 936,
+      "wordCount": 501,
       "weight": 75
     },
     ".agents/skills/computer-science-algorithms/references/divide-watch-recursion-depth-and-stack.md": {
@@ -2396,6 +2583,9 @@
         "geohash": "c73nj7u4fcqz"
       },
       "lineCount": 70,
+      "maxLineLength": 591,
+      "tokenCount": 622,
+      "wordCount": 369,
       "weight": 70
     },
     ".agents/skills/computer-science-algorithms/references/dp-bitmask-for-small-set-states.md": {
@@ -2415,6 +2605,9 @@
         "geohash": "cs18r8gh1c30"
       },
       "lineCount": 71,
+      "maxLineLength": 364,
+      "tokenCount": 804,
+      "wordCount": 416,
       "weight": 71
     },
     ".agents/skills/computer-science-algorithms/references/dp-define-state-precisely.md": {
@@ -2434,6 +2627,9 @@
         "geohash": "c1sywq9df1w8"
       },
       "lineCount": 61,
+      "maxLineLength": 442,
+      "tokenCount": 748,
+      "wordCount": 467,
       "weight": 61
     },
     ".agents/skills/computer-science-algorithms/references/dp-knapsack-pattern.md": {
@@ -2453,6 +2649,9 @@
         "geohash": "c45rtje8238x"
       },
       "lineCount": 63,
+      "maxLineLength": 462,
+      "tokenCount": 693,
+      "wordCount": 394,
       "weight": 63
     },
     ".agents/skills/computer-science-algorithms/references/dp-memoize-overlapping-subproblems.md": {
@@ -2472,6 +2671,9 @@
         "geohash": "c6jue5v5p62d"
       },
       "lineCount": 53,
+      "maxLineLength": 351,
+      "tokenCount": 616,
+      "wordCount": 357,
       "weight": 53
     },
     ".agents/skills/computer-science-algorithms/references/dp-prove-optimal-substructure-before-coding.md": {
@@ -2491,6 +2693,9 @@
         "geohash": "c3tg5nm1zq0x"
       },
       "lineCount": 52,
+      "maxLineLength": 405,
+      "tokenCount": 636,
+      "wordCount": 406,
       "weight": 52
     },
     ".agents/skills/computer-science-algorithms/references/dp-tabulate-when-recursion-depth-or-order-matters.md": {
@@ -2510,6 +2715,9 @@
         "geohash": "c7mfcfytkk7y"
       },
       "lineCount": 68,
+      "maxLineLength": 471,
+      "tokenCount": 774,
+      "wordCount": 434,
       "weight": 68
     },
     ".agents/skills/computer-science-algorithms/references/ds-balanced-bst-or-sorted-container-for-range-queries.md": {
@@ -2529,6 +2737,9 @@
         "geohash": "c99e0nr3gnhp"
       },
       "lineCount": 52,
+      "maxLineLength": 387,
+      "tokenCount": 602,
+      "wordCount": 353,
       "weight": 52
     },
     ".agents/skills/computer-science-algorithms/references/ds-deque-for-both-end-operations.md": {
@@ -2548,6 +2759,9 @@
         "geohash": "bbkgcbhvkbjp"
       },
       "lineCount": 59,
+      "maxLineLength": 345,
+      "tokenCount": 595,
+      "wordCount": 332,
       "weight": 59
     },
     ".agents/skills/computer-science-algorithms/references/ds-fenwick-or-segment-tree-for-mutable-range-queries.md": {
@@ -2567,6 +2781,9 @@
         "geohash": "c111zce430bk"
       },
       "lineCount": 59,
+      "maxLineLength": 377,
+      "tokenCount": 620,
+      "wordCount": 358,
       "weight": 59
     },
     ".agents/skills/computer-science-algorithms/references/ds-hash-map-for-keyed-lookup.md": {
@@ -2586,6 +2803,9 @@
         "geohash": "c27qxccpk3sk"
       },
       "lineCount": 46,
+      "maxLineLength": 373,
+      "tokenCount": 551,
+      "wordCount": 325,
       "weight": 46
     },
     ".agents/skills/computer-science-algorithms/references/ds-heap-for-top-k-and-priority-queues.md": {
@@ -2605,6 +2825,9 @@
         "geohash": "cd1s85z754k4"
       },
       "lineCount": 53,
+      "maxLineLength": 353,
+      "tokenCount": 599,
+      "wordCount": 351,
       "weight": 53
     },
     ".agents/skills/computer-science-algorithms/references/ds-prefix-sums-for-repeated-range-sums.md": {
@@ -2624,6 +2847,9 @@
         "geohash": "c03nz9gkkwn6"
       },
       "lineCount": 55,
+      "maxLineLength": 247,
+      "tokenCount": 654,
+      "wordCount": 357,
       "weight": 55
     },
     ".agents/skills/computer-science-algorithms/references/ds-set-for-uniqueness-and-membership.md": {
@@ -2643,6 +2869,9 @@
         "geohash": "c3c5zuet2zcc"
       },
       "lineCount": 54,
+      "maxLineLength": 331,
+      "tokenCount": 569,
+      "wordCount": 316,
       "weight": 54
     },
     ".agents/skills/computer-science-algorithms/references/ds-union-find-for-dynamic-connectivity.md": {
@@ -2662,6 +2891,9 @@
         "geohash": "cs81sjf1yv3u"
       },
       "lineCount": 72,
+      "maxLineLength": 459,
+      "tokenCount": 743,
+      "wordCount": 421,
       "weight": 72
     },
     ".agents/skills/computer-science-algorithms/references/graph-bfs-for-unweighted-shortest-path.md": {
@@ -2681,6 +2913,9 @@
         "geohash": "bgj0rd06kph6"
       },
       "lineCount": 81,
+      "maxLineLength": 380,
+      "tokenCount": 875,
+      "wordCount": 457,
       "weight": 81
     },
     ".agents/skills/computer-science-algorithms/references/graph-detect-cycles-during-dfs.md": {
@@ -2700,6 +2935,9 @@
         "geohash": "bfjpxwfwbw7c"
       },
       "lineCount": 64,
+      "maxLineLength": 482,
+      "tokenCount": 713,
+      "wordCount": 423,
       "weight": 64
     },
     ".agents/skills/computer-science-algorithms/references/graph-dijkstra-for-non-negative-weights.md": {
@@ -2719,6 +2957,9 @@
         "geohash": "c57m5qe9tjyt"
       },
       "lineCount": 76,
+      "maxLineLength": 563,
+      "tokenCount": 823,
+      "wordCount": 453,
       "weight": 76
     },
     ".agents/skills/computer-science-algorithms/references/graph-kruskal-or-prim-for-mst.md": {
@@ -2738,6 +2979,9 @@
         "geohash": "c5uxmh54nsr0"
       },
       "lineCount": 84,
+      "maxLineLength": 442,
+      "tokenCount": 891,
+      "wordCount": 493,
       "weight": 84
     },
     ".agents/skills/computer-science-algorithms/references/graph-represent-as-adjacency-list-not-matrix.md": {
@@ -2757,6 +3001,9 @@
         "geohash": "ce36zffmrkry"
       },
       "lineCount": 68,
+      "maxLineLength": 400,
+      "tokenCount": 782,
+      "wordCount": 438,
       "weight": 68
     },
     ".agents/skills/computer-science-algorithms/references/graph-topological-sort-for-dependency-order.md": {
@@ -2776,6 +3023,9 @@
         "geohash": "c5527r5emnws"
       },
       "lineCount": 76,
+      "maxLineLength": 484,
+      "tokenCount": 814,
+      "wordCount": 465,
       "weight": 76
     },
     ".agents/skills/computer-science-algorithms/references/greedy-huffman-and-priority-queue-greedies.md": {
@@ -2795,6 +3045,9 @@
         "geohash": "c695vks5dznv"
       },
       "lineCount": 69,
+      "maxLineLength": 491,
+      "tokenCount": 735,
+      "wordCount": 406,
       "weight": 69
     },
     ".agents/skills/computer-science-algorithms/references/greedy-interval-merge-and-sweep-line.md": {
@@ -2814,6 +3067,9 @@
         "geohash": "ck0022fhxe4d"
       },
       "lineCount": 75,
+      "maxLineLength": 493,
+      "tokenCount": 779,
+      "wordCount": 427,
       "weight": 75
     },
     ".agents/skills/computer-science-algorithms/references/greedy-prove-exchange-argument-before-using.md": {
@@ -2833,6 +3089,9 @@
         "geohash": "bchv1ckbuvtn"
       },
       "lineCount": 61,
+      "maxLineLength": 528,
+      "tokenCount": 738,
+      "wordCount": 442,
       "weight": 61
     },
     ".agents/skills/computer-science-algorithms/references/greedy-sort-by-the-right-key-for-scheduling.md": {
@@ -2852,6 +3111,9 @@
         "geohash": "cd9x0jckph2t"
       },
       "lineCount": 67,
+      "maxLineLength": 431,
+      "tokenCount": 697,
+      "wordCount": 393,
       "weight": 67
     },
     ".agents/skills/computer-science-algorithms/references/scale-aho-corasick-for-multi-pattern-search.md": {
@@ -2871,6 +3133,9 @@
         "geohash": "bgugcthwzn0x"
       },
       "lineCount": 103,
+      "maxLineLength": 476,
+      "tokenCount": 1309,
+      "wordCount": 712,
       "weight": 103
     },
     ".agents/skills/computer-science-algorithms/references/scale-bloom-filter-for-probabilistic-membership.md": {
@@ -2890,6 +3155,9 @@
         "geohash": "c710vrkp4uyu"
       },
       "lineCount": 70,
+      "maxLineLength": 500,
+      "tokenCount": 854,
+      "wordCount": 519,
       "weight": 70
     },
     ".agents/skills/computer-science-algorithms/references/scale-consistent-hashing-for-distributed-sharding.md": {
@@ -2909,6 +3177,9 @@
         "geohash": "chdcmdb5bjd8"
       },
       "lineCount": 93,
+      "maxLineLength": 481,
+      "tokenCount": 1118,
+      "wordCount": 589,
       "weight": 93
     },
     ".agents/skills/computer-science-algorithms/references/scale-count-min-sketch-for-frequency-estimation.md": {
@@ -2928,6 +3199,9 @@
         "geohash": "c5cpqu5dpsq0"
       },
       "lineCount": 87,
+      "maxLineLength": 458,
+      "tokenCount": 1074,
+      "wordCount": 628,
       "weight": 87
     },
     ".agents/skills/computer-science-algorithms/references/scale-external-merge-sort-for-out-of-memory-data.md": {
@@ -2947,6 +3221,9 @@
         "geohash": "c4e7eretjpqe"
       },
       "lineCount": 76,
+      "maxLineLength": 495,
+      "tokenCount": 1051,
+      "wordCount": 640,
       "weight": 76
     },
     ".agents/skills/computer-science-algorithms/references/scale-hyperloglog-for-cardinality-estimation.md": {
@@ -2966,6 +3243,9 @@
         "geohash": "bft5xt0ks4k3"
       },
       "lineCount": 79,
+      "maxLineLength": 499,
+      "tokenCount": 992,
+      "wordCount": 585,
       "weight": 79
     },
     ".agents/skills/computer-science-algorithms/references/scale-minhash-lsh-for-near-duplicate-detection.md": {
@@ -2985,6 +3265,9 @@
         "geohash": "bukvcsh8xp2x"
       },
       "lineCount": 137,
+      "maxLineLength": 573,
+      "tokenCount": 1636,
+      "wordCount": 872,
       "weight": 137
     },
     ".agents/skills/computer-science-algorithms/references/scale-reservoir-sampling-for-streams.md": {
@@ -3004,6 +3287,9 @@
         "geohash": "bgmjps03k5kq"
       },
       "lineCount": 83,
+      "maxLineLength": 504,
+      "tokenCount": 981,
+      "wordCount": 596,
       "weight": 83
     },
     ".agents/skills/computer-science-algorithms/references/srch-binary-search-on-sorted-data.md": {
@@ -3023,6 +3309,9 @@
         "geohash": "ckn82buu5930"
       },
       "lineCount": 72,
+      "maxLineLength": 374,
+      "tokenCount": 678,
+      "wordCount": 382,
       "weight": 72
     },
     ".agents/skills/computer-science-algorithms/references/srch-counting-and-radix-sort-for-bounded-integer-keys.md": {
@@ -3042,6 +3331,9 @@
         "geohash": "c0kwz3bkkqjd"
       },
       "lineCount": 55,
+      "maxLineLength": 438,
+      "tokenCount": 659,
+      "wordCount": 384,
       "weight": 55
     },
     ".agents/skills/computer-science-algorithms/references/srch-quickselect-for-k-th-element.md": {
@@ -3061,6 +3353,9 @@
         "geohash": "c19ysqd4y1w2"
       },
       "lineCount": 62,
+      "maxLineLength": 434,
+      "tokenCount": 682,
+      "wordCount": 379,
       "weight": 62
     },
     ".agents/skills/computer-science-algorithms/references/srch-two-pointers-on-sorted-data.md": {
@@ -3080,6 +3375,9 @@
         "geohash": "bcewvb19qy1f"
       },
       "lineCount": 64,
+      "maxLineLength": 400,
+      "tokenCount": 641,
+      "wordCount": 363,
       "weight": 64
     },
     ".agents/skills/computer-science-algorithms/references/srch-use-builtin-sort-not-hand-rolled.md": {
@@ -3099,6 +3397,9 @@
         "geohash": "c22nt1yzm3xk"
       },
       "lineCount": 49,
+      "maxLineLength": 435,
+      "tokenCount": 638,
+      "wordCount": 354,
       "weight": 49
     },
     ".agents/skills/computer-science-algorithms/references/str-kmp-or-builtin-find-not-naive-search.md": {
@@ -3118,6 +3419,9 @@
         "geohash": "bcwyc2536qn4"
       },
       "lineCount": 64,
+      "maxLineLength": 499,
+      "tokenCount": 763,
+      "wordCount": 433,
       "weight": 64
     },
     ".agents/skills/computer-science-algorithms/references/str-rolling-hash-for-multiple-substring-comparisons.md": {
@@ -3137,6 +3441,9 @@
         "geohash": "c1h9z98428zk"
       },
       "lineCount": 58,
+      "maxLineLength": 444,
+      "tokenCount": 848,
+      "wordCount": 455,
       "weight": 58
     },
     ".agents/skills/computer-science-algorithms/references/str-suffix-array-or-automaton-for-substring-queries.md": {
@@ -3156,6 +3463,9 @@
         "geohash": "c6tz4jvs5ukm"
       },
       "lineCount": 68,
+      "maxLineLength": 523,
+      "tokenCount": 871,
+      "wordCount": 508,
       "weight": 68
     },
     ".agents/skills/computer-science-algorithms/references/str-trie-for-prefix-queries.md": {
@@ -3175,6 +3485,9 @@
         "geohash": "ck5230us871d"
       },
       "lineCount": 74,
+      "maxLineLength": 528,
+      "tokenCount": 822,
+      "wordCount": 462,
       "weight": 74
     },
     ".agents/skills/computer-science-algorithms/AGENTS.md": {
@@ -3194,6 +3507,9 @@
         "geohash": "cbkze1h6n44e"
       },
       "lineCount": 106,
+      "maxLineLength": 759,
+      "tokenCount": 3716,
+      "wordCount": 2132,
       "weight": 106
     },
     ".agents/skills/computer-science-algorithms/SKILL.md": {
@@ -3213,6 +3529,9 @@
         "geohash": "cfkz70uqnp6s"
       },
       "lineCount": 146,
+      "maxLineLength": 836,
+      "tokenCount": 3715,
+      "wordCount": 1855,
       "weight": 146
     },
     ".agents/skills/geohash-spatial-code-maps/assets/templates/_template.md": {
@@ -3232,6 +3551,9 @@
         "geohash": "9v9husd136hj"
       },
       "lineCount": 31,
+      "maxLineLength": 119,
+      "tokenCount": 271,
+      "wordCount": 132,
       "weight": 31
     },
     ".agents/skills/geohash-spatial-code-maps/references/_sections.md": {
@@ -3251,6 +3573,9 @@
         "geohash": "8ug9bfhbw505"
       },
       "lineCount": 46,
+      "maxLineLength": 366,
+      "tokenCount": 680,
+      "wordCount": 472,
       "weight": 46
     },
     ".agents/skills/geohash-spatial-code-maps/references/dec-avoid-roundtrip-reencode.md": {
@@ -3270,6 +3595,9 @@
         "geohash": "96wt4k5vdxem"
       },
       "lineCount": 33,
+      "maxLineLength": 431,
+      "tokenCount": 390,
+      "wordCount": 236,
       "weight": 33
     },
     ".agents/skills/geohash-spatial-code-maps/references/dec-decode-to-bbox.md": {
@@ -3289,6 +3617,9 @@
         "geohash": "9h6smqdwgz89"
       },
       "lineCount": 45,
+      "maxLineLength": 466,
+      "tokenCount": 525,
+      "wordCount": 286,
       "weight": 45
     },
     ".agents/skills/geohash-spatial-code-maps/references/dec-precompute-reverse-alphabet.md": {
@@ -3308,6 +3639,9 @@
         "geohash": "968v1pntdu2g"
       },
       "lineCount": 36,
+      "maxLineLength": 391,
+      "tokenCount": 445,
+      "wordCount": 239,
       "weight": 36
     },
     ".agents/skills/geohash-spatial-code-maps/references/dec-symmetric-interval-reconstruction.md": {
@@ -3327,6 +3661,9 @@
         "geohash": "9jxppgdjmwng"
       },
       "lineCount": 45,
+      "maxLineLength": 442,
+      "tokenCount": 582,
+      "wordCount": 296,
       "weight": 45
     },
     ".agents/skills/geohash-spatial-code-maps/references/enc-base32-alphabet.md": {
@@ -3346,6 +3683,9 @@
         "geohash": "9mq75ye6mgkw"
       },
       "lineCount": 43,
+      "maxLineLength": 394,
+      "tokenCount": 510,
+      "wordCount": 282,
       "weight": 43
     },
     ".agents/skills/geohash-spatial-code-maps/references/enc-binary-chop-no-float-drift.md": {
@@ -3365,6 +3705,9 @@
         "geohash": "9jr0zu6jmwng"
       },
       "lineCount": 45,
+      "maxLineLength": 424,
+      "tokenCount": 464,
+      "wordCount": 265,
       "weight": 45
     },
     ".agents/skills/geohash-spatial-code-maps/references/enc-five-bit-char-boundary.md": {
@@ -3384,6 +3727,9 @@
         "geohash": "9j76hxv60hg6"
       },
       "lineCount": 47,
+      "maxLineLength": 488,
+      "tokenCount": 533,
+      "wordCount": 293,
       "weight": 47
     },
     ".agents/skills/geohash-spatial-code-maps/references/enc-integer-morton-encode.md": {
@@ -3403,6 +3749,9 @@
         "geohash": "8v5xrh7cs7uu"
       },
       "lineCount": 58,
+      "maxLineLength": 621,
+      "tokenCount": 834,
+      "wordCount": 471,
       "weight": 58
     },
     ".agents/skills/geohash-spatial-code-maps/references/enc-interleave-longitude-first.md": {
@@ -3422,6 +3771,9 @@
         "geohash": "8vewr07vh2hz"
       },
       "lineCount": 77,
+      "maxLineLength": 493,
+      "tokenCount": 931,
+      "wordCount": 463,
       "weight": 77
     },
     ".agents/skills/geohash-spatial-code-maps/references/enc-normalize-input-domain.md": {
@@ -3441,6 +3793,9 @@
         "geohash": "8u7s2zuuqn2h"
       },
       "lineCount": 46,
+      "maxLineLength": 436,
+      "tokenCount": 561,
+      "wordCount": 311,
       "weight": 46
     },
     ".agents/skills/geohash-spatial-code-maps/references/idx-db-prefix-index.md": {
@@ -3460,6 +3815,9 @@
         "geohash": "9hz4z921xmx4"
       },
       "lineCount": 43,
+      "maxLineLength": 402,
+      "tokenCount": 493,
+      "wordCount": 283,
       "weight": 43
     },
     ".agents/skills/geohash-spatial-code-maps/references/idx-integer-sortable-key.md": {
@@ -3479,6 +3837,9 @@
         "geohash": "94dynkkrk73m"
       },
       "lineCount": 38,
+      "maxLineLength": 470,
+      "tokenCount": 505,
+      "wordCount": 286,
       "weight": 38
     },
     ".agents/skills/geohash-spatial-code-maps/references/idx-range-query-from-covering-set.md": {
@@ -3498,6 +3859,9 @@
         "geohash": "8ftq5urxuwhs"
       },
       "lineCount": 39,
+      "maxLineLength": 426,
+      "tokenCount": 503,
+      "wordCount": 277,
       "weight": 39
     },
     ".agents/skills/geohash-spatial-code-maps/references/idx-sorted-string-range-scan.md": {
@@ -3517,6 +3881,9 @@
         "geohash": "8ux55kfqw2dp"
       },
       "lineCount": 46,
+      "maxLineLength": 415,
+      "tokenCount": 547,
+      "wordCount": 320,
       "weight": 46
     },
     ".agents/skills/geohash-spatial-code-maps/references/idx-trie-hierarchical-bucketing.md": {
@@ -3536,6 +3903,9 @@
         "geohash": "9jc9j7vjd14h"
       },
       "lineCount": 54,
+      "maxLineLength": 476,
+      "tokenCount": 604,
+      "wordCount": 327,
       "weight": 54
     },
     ".agents/skills/geohash-spatial-code-maps/references/map-coupling-implies-proximity.md": {
@@ -3555,6 +3925,9 @@
         "geohash": "8gx7frkzqs60"
       },
       "lineCount": 40,
+      "maxLineLength": 448,
+      "tokenCount": 468,
+      "wordCount": 283,
       "weight": 40
     },
     ".agents/skills/geohash-spatial-code-maps/references/map-deterministic-projection.md": {
@@ -3574,6 +3947,9 @@
         "geohash": "9kqr5snxquyu"
       },
       "lineCount": 42,
+      "maxLineLength": 461,
+      "tokenCount": 540,
+      "wordCount": 311,
       "weight": 42
     },
     ".agents/skills/geohash-spatial-code-maps/references/map-normalize-to-geohash-domain.md": {
@@ -3593,6 +3969,9 @@
         "geohash": "95devpmrrhk0"
       },
       "lineCount": 40,
+      "maxLineLength": 526,
+      "tokenCount": 601,
+      "wordCount": 329,
       "weight": 40
     },
     ".agents/skills/geohash-spatial-code-maps/references/map-persist-coordinate-sidecar.md": {
@@ -3612,6 +3991,9 @@
         "geohash": "9hf9v2fe5u28"
       },
       "lineCount": 46,
+      "maxLineLength": 456,
+      "tokenCount": 506,
+      "wordCount": 268,
       "weight": 46
     },
     ".agents/skills/geohash-spatial-code-maps/references/map-precision-as-architectural-level.md": {
@@ -3631,6 +4013,9 @@
         "geohash": "95vu183jjgne"
       },
       "lineCount": 38,
+      "maxLineLength": 488,
+      "tokenCount": 466,
+      "wordCount": 273,
       "weight": 38
     },
     ".agents/skills/geohash-spatial-code-maps/references/map-prefix-as-domain-region.md": {
@@ -3650,6 +4035,9 @@
         "geohash": "9hrhzd24pkx1"
       },
       "lineCount": 43,
+      "maxLineLength": 463,
+      "tokenCount": 539,
+      "wordCount": 293,
       "weight": 43
     },
     ".agents/skills/geohash-spatial-code-maps/references/map-stable-coordinates.md": {
@@ -3669,6 +4057,9 @@
         "geohash": "951tcek81yqr"
       },
       "lineCount": 39,
+      "maxLineLength": 434,
+      "tokenCount": 430,
+      "wordCount": 256,
       "weight": 39
     },
     ".agents/skills/geohash-spatial-code-maps/references/nav-breadcrumb-prefix-path.md": {
@@ -3688,6 +4079,9 @@
         "geohash": "948njkrpqg6t"
       },
       "lineCount": 39,
+      "maxLineLength": 490,
+      "tokenCount": 533,
+      "wordCount": 296,
       "weight": 39
     },
     ".agents/skills/geohash-spatial-code-maps/references/nav-cluster-by-prefix.md": {
@@ -3707,6 +4101,9 @@
         "geohash": "8ggrhgdr4h96"
       },
       "lineCount": 42,
+      "maxLineLength": 414,
+      "tokenCount": 436,
+      "wordCount": 246,
       "weight": 42
     },
     ".agents/skills/geohash-spatial-code-maps/references/nav-level-of-detail-aggregation.md": {
@@ -3726,6 +4123,9 @@
         "geohash": "97gshb7j4ghg"
       },
       "lineCount": 37,
+      "maxLineLength": 469,
+      "tokenCount": 439,
+      "wordCount": 256,
       "weight": 37
     },
     ".agents/skills/geohash-spatial-code-maps/references/nav-precision-to-zoom-levels.md": {
@@ -3745,6 +4145,9 @@
         "geohash": "97ys186jj7pg"
       },
       "lineCount": 37,
+      "maxLineLength": 530,
+      "tokenCount": 445,
+      "wordCount": 275,
       "weight": 37
     },
     ".agents/skills/geohash-spatial-code-maps/references/nav-tile-lazy-loading.md": {
@@ -3764,6 +4167,9 @@
         "geohash": "97mj70y9hjy2"
       },
       "lineCount": 37,
+      "maxLineLength": 388,
+      "tokenCount": 430,
+      "wordCount": 241,
       "weight": 37
     },
     ".agents/skills/geohash-spatial-code-maps/references/nbr-antimeridian-wrap.md": {
@@ -3783,6 +4189,9 @@
         "geohash": "97j5knun8y6c"
       },
       "lineCount": 36,
+      "maxLineLength": 524,
+      "tokenCount": 465,
+      "wordCount": 258,
       "weight": 36
     },
     ".agents/skills/geohash-spatial-code-maps/references/nbr-canonical-lookup-tables.md": {
@@ -3802,6 +4211,9 @@
         "geohash": "9j240zu41hcd"
       },
       "lineCount": 52,
+      "maxLineLength": 629,
+      "tokenCount": 679,
+      "wordCount": 353,
       "weight": 52
     },
     ".agents/skills/geohash-spatial-code-maps/references/nbr-eight-neighbor-set.md": {
@@ -3821,6 +4233,9 @@
         "geohash": "9kutng5yymfj"
       },
       "lineCount": 43,
+      "maxLineLength": 363,
+      "tokenCount": 511,
+      "wordCount": 269,
       "weight": 43
     },
     ".agents/skills/geohash-spatial-code-maps/references/nbr-integer-level-neighbors.md": {
@@ -3840,6 +4255,9 @@
         "geohash": "97bsp82j551g"
       },
       "lineCount": 38,
+      "maxLineLength": 468,
+      "tokenCount": 495,
+      "wordCount": 264,
       "weight": 38
     },
     ".agents/skills/geohash-spatial-code-maps/references/nbr-pole-handling.md": {
@@ -3859,6 +4277,9 @@
         "geohash": "95p793yn94ux"
       },
       "lineCount": 37,
+      "maxLineLength": 393,
+      "tokenCount": 411,
+      "wordCount": 241,
       "weight": 37
     },
     ".agents/skills/geohash-spatial-code-maps/references/prec-avoid-mixed-precision.md": {
@@ -3878,6 +4299,9 @@
         "geohash": "94tv4r4m9h37"
       },
       "lineCount": 37,
+      "maxLineLength": 493,
+      "tokenCount": 425,
+      "wordCount": 261,
       "weight": 37
     },
     ".agents/skills/geohash-spatial-code-maps/references/prec-cells-are-not-square.md": {
@@ -3897,6 +4321,9 @@
         "geohash": "9m755ned7emn"
       },
       "lineCount": 44,
+      "maxLineLength": 400,
+      "tokenCount": 491,
+      "wordCount": 282,
       "weight": 44
     },
     ".agents/skills/geohash-spatial-code-maps/references/prec-cells-shrink-toward-poles.md": {
@@ -3916,6 +4343,9 @@
         "geohash": "8g5vyem8v1hx"
       },
       "lineCount": 40,
+      "maxLineLength": 467,
+      "tokenCount": 449,
+      "wordCount": 268,
       "weight": 40
     },
     ".agents/skills/geohash-spatial-code-maps/references/prec-choose-from-error-radius.md": {
@@ -3935,6 +4365,9 @@
         "geohash": "8fdw1umzvq1s"
       },
       "lineCount": 40,
+      "maxLineLength": 402,
+      "tokenCount": 467,
+      "wordCount": 272,
       "weight": 40
     },
     ".agents/skills/geohash-spatial-code-maps/references/prec-error-is-half-cell.md": {
@@ -3954,6 +4387,9 @@
         "geohash": "8ge3ub47459m"
       },
       "lineCount": 41,
+      "maxLineLength": 365,
+      "tokenCount": 408,
+      "wordCount": 240,
       "weight": 41
     },
     ".agents/skills/geohash-spatial-code-maps/references/qry-bbox-range-decomposition.md": {
@@ -3973,6 +4409,9 @@
         "geohash": "9k7p4shzqkzs"
       },
       "lineCount": 43,
+      "maxLineLength": 442,
+      "tokenCount": 550,
+      "wordCount": 290,
       "weight": 43
     },
     ".agents/skills/geohash-spatial-code-maps/references/qry-expand-precision-when-sparse.md": {
@@ -3992,6 +4431,9 @@
         "geohash": "9h0crg15qv5j"
       },
       "lineCount": 41,
+      "maxLineLength": 453,
+      "tokenCount": 506,
+      "wordCount": 282,
       "weight": 41
     },
     ".agents/skills/geohash-spatial-code-maps/references/qry-precision-from-radius.md": {
@@ -4011,6 +4453,9 @@
         "geohash": "96etns4jsxsv"
       },
       "lineCount": 34,
+      "maxLineLength": 417,
+      "tokenCount": 392,
+      "wordCount": 238,
       "weight": 34
     },
     ".agents/skills/geohash-spatial-code-maps/references/qry-refine-with-haversine.md": {
@@ -4030,6 +4475,9 @@
         "geohash": "9mu9rjvfke3v"
       },
       "lineCount": 45,
+      "maxLineLength": 417,
+      "tokenCount": 595,
+      "wordCount": 322,
       "weight": 45
     },
     ".agents/skills/geohash-spatial-code-maps/references/qry-search-cell-plus-neighbors.md": {
@@ -4049,6 +4497,9 @@
         "geohash": "95rm28b9htb2"
       },
       "lineCount": 38,
+      "maxLineLength": 412,
+      "tokenCount": 503,
+      "wordCount": 279,
       "weight": 38
     },
     ".agents/skills/geohash-spatial-code-maps/AGENTS.md": {
@@ -4068,6 +4519,9 @@
         "geohash": "9f9unwee633h"
       },
       "lineCount": 99,
+      "maxLineLength": 932,
+      "tokenCount": 2676,
+      "wordCount": 1546,
       "weight": 99
     },
     ".agents/skills/geohash-spatial-code-maps/SKILL.md": {
@@ -4087,6 +4541,9 @@
         "geohash": "9u3bn87xdq3j"
       },
       "lineCount": 120,
+      "maxLineLength": 838,
+      "tokenCount": 2640,
+      "wordCount": 1415,
       "weight": 120
     },
     ".agents/skills/grill-me/SKILL.md": {
@@ -4106,6 +4563,9 @@
         "geohash": "eg6egdh02ruz"
       },
       "lineCount": 10,
+      "maxLineLength": 244,
+      "tokenCount": 127,
+      "wordCount": 100,
       "weight": 10
     },
     ".agents/skills/grill-with-docs/ADR-FORMAT.md": {
@@ -4125,6 +4585,9 @@
         "geohash": "df6d7kjudwxd"
       },
       "lineCount": 47,
+      "maxLineLength": 240,
+      "tokenCount": 655,
+      "wordCount": 436,
       "weight": 47
     },
     ".agents/skills/grill-with-docs/CONTEXT-FORMAT.md": {
@@ -4144,6 +4607,9 @@
         "geohash": "dgdeg7jfdsre"
       },
       "lineCount": 63,
+      "maxLineLength": 315,
+      "tokenCount": 624,
+      "wordCount": 389,
       "weight": 63
     },
     ".agents/skills/grill-with-docs/SKILL.md": {
@@ -4163,6 +4629,9 @@
         "geohash": "d7p0xh07zrb7"
       },
       "lineCount": 88,
+      "maxLineLength": 291,
+      "tokenCount": 831,
+      "wordCount": 529,
       "weight": 88
     },
     ".agents/skills/handoff/SKILL.md": {
@@ -4182,6 +4651,9 @@
         "geohash": "e6gd08qv59jr"
       },
       "lineCount": 15,
+      "maxLineLength": 179,
+      "tokenCount": 168,
+      "wordCount": 131,
       "weight": 15
     },
     ".agents/skills/improve-codebase-architecture/DEEPENING.md": {
@@ -4201,6 +4673,9 @@
         "geohash": "dvs6y82zb6db"
       },
       "lineCount": 37,
+      "maxLineLength": 271,
+      "tokenCount": 570,
+      "wordCount": 394,
       "weight": 37
     },
     ".agents/skills/improve-codebase-architecture/INTERFACE-DESIGN.md": {
@@ -4220,6 +4695,9 @@
         "geohash": "dyumwe8y0kdu"
       },
       "lineCount": 44,
+      "maxLineLength": 295,
+      "tokenCount": 613,
+      "wordCount": 415,
       "weight": 44
     },
     ".agents/skills/improve-codebase-architecture/LANGUAGE.md": {
@@ -4239,6 +4717,9 @@
         "geohash": "dt945u0uzb1r"
       },
       "lineCount": 53,
+      "maxLineLength": 329,
+      "tokenCount": 896,
+      "wordCount": 570,
       "weight": 53
     },
     ".agents/skills/improve-codebase-architecture/SKILL.md": {
@@ -4258,6 +4739,9 @@
         "geohash": "dwchgz2gpf37"
       },
       "lineCount": 71,
+      "maxLineLength": 415,
+      "tokenCount": 1195,
+      "wordCount": 762,
       "weight": 71
     },
     ".agents/skills/prototype/LOGIC.md": {
@@ -4277,6 +4761,9 @@
         "geohash": "g95z63vpb9uj"
       },
       "lineCount": 79,
+      "maxLineLength": 376,
+      "tokenCount": 1376,
+      "wordCount": 961,
       "weight": 79
     },
     ".agents/skills/prototype/SKILL.md": {
@@ -4296,6 +4783,9 @@
         "geohash": "gcjp33grv3fv"
       },
       "lineCount": 30,
+      "maxLineLength": 439,
+      "tokenCount": 738,
+      "wordCount": 539,
       "weight": 30
     },
     ".agents/skills/prototype/UI.md": {
@@ -4315,6 +4805,9 @@
         "geohash": "g1pr69upb3vj"
       },
       "lineCount": 112,
+      "maxLineLength": 388,
+      "tokenCount": 1659,
+      "wordCount": 1094,
       "weight": 112
     },
     ".agents/skills/tdd/deep-modules.md": {
@@ -4334,6 +4827,9 @@
         "geohash": "gus8g8ygnc0j"
       },
       "lineCount": 33,
+      "maxLineLength": 68,
+      "tokenCount": 300,
+      "wordCount": 66,
       "weight": 33
     },
     ".agents/skills/tdd/interface-design.md": {
@@ -4353,6 +4849,9 @@
         "geohash": "gek993t37fbu"
       },
       "lineCount": 31,
+      "maxLineLength": 50,
+      "tokenCount": 142,
+      "wordCount": 70,
       "weight": 31
     },
     ".agents/skills/tdd/mocking.md": {
@@ -4372,6 +4871,9 @@
         "geohash": "gsebz2be5c4m"
       },
       "lineCount": 59,
+      "maxLineLength": 109,
+      "tokenCount": 351,
+      "wordCount": 187,
       "weight": 59
     },
     ".agents/skills/tdd/refactoring.md": {
@@ -4391,6 +4893,9 @@
         "geohash": "ggm1tce9qdyk"
       },
       "lineCount": 10,
+      "maxLineLength": 80,
+      "tokenCount": 89,
+      "wordCount": 48,
       "weight": 10
     },
     ".agents/skills/tdd/SKILL.md": {
@@ -4410,6 +4915,9 @@
         "geohash": "ghxfj7km7kfv"
       },
       "lineCount": 109,
+      "maxLineLength": 390,
+      "tokenCount": 950,
+      "wordCount": 632,
       "weight": 109
     },
     ".agents/skills/tdd/tests.md": {
@@ -4429,6 +4937,9 @@
         "geohash": "g5rfvkh7eqdv"
       },
       "lineCount": 61,
+      "maxLineLength": 81,
+      "tokenCount": 401,
+      "wordCount": 195,
       "weight": 61
     },
     ".agents/skills/to-issues/SKILL.md": {
@@ -4448,6 +4959,9 @@
         "geohash": "eqjedhpg7zxs"
       },
       "lineCount": 83,
+      "maxLineLength": 351,
+      "tokenCount": 777,
+      "wordCount": 563,
       "weight": 83
     },
     ".agents/skills/to-prd/SKILL.md": {
@@ -4467,6 +4981,9 @@
         "geohash": "eyj5tkqbt2px"
       },
       "lineCount": 76,
+      "maxLineLength": 310,
+      "tokenCount": 644,
+      "wordCount": 504,
       "weight": 76
     },
     ".agents/skills/triage/AGENT-BRIEF.md": {
@@ -4486,6 +5003,9 @@
         "geohash": "fs777pq848cs"
       },
       "lineCount": 168,
+      "maxLineLength": 257,
+      "tokenCount": 1459,
+      "wordCount": 904,
       "weight": 168
     },
     ".agents/skills/triage/OUT-OF-SCOPE.md": {
@@ -4505,6 +5025,9 @@
         "geohash": "f9725pq9dscx"
       },
       "lineCount": 101,
+      "maxLineLength": 243,
+      "tokenCount": 992,
+      "wordCount": 663,
       "weight": 101
     },
     ".agents/skills/triage/SKILL.md": {
@@ -4524,6 +5047,9 @@
         "geohash": "fdeqe0w8de9x"
       },
       "lineCount": 103,
+      "maxLineLength": 335,
+      "tokenCount": 1194,
+      "wordCount": 745,
       "weight": 103
     },
     ".agents/skills/zoom-out/SKILL.md": {
@@ -4543,6 +5069,9 @@
         "geohash": "ef495xc3u4kk"
       },
       "lineCount": 7,
+      "maxLineLength": 204,
+      "tokenCount": 99,
+      "wordCount": 77,
       "weight": 7
     },
     "bin/codemap.mjs": {
@@ -4562,6 +5091,9 @@
         "geohash": "qsb1nu60mjpn"
       },
       "lineCount": 204,
+      "maxLineLength": 172,
+      "tokenCount": 2258,
+      "wordCount": 882,
       "weight": 204
     },
     "docs/adr/0001-stable-code-map-addresses.md": {
@@ -4581,6 +5113,9 @@
         "geohash": "m7cu0fmnmq0k"
       },
       "lineCount": 12,
+      "maxLineLength": 391,
+      "tokenCount": 144,
+      "wordCount": 124,
       "weight": 12
     },
     "docs/adr/0002-json-map-sidecar.md": {
@@ -4600,6 +5135,9 @@
         "geohash": "kvzw6u37js0z"
       },
       "lineCount": 13,
+      "maxLineLength": 264,
+      "tokenCount": 127,
+      "wordCount": 102,
       "weight": 13
     },
     "docs/adr/0003-geohash-map-levels.md": {
@@ -4619,6 +5157,9 @@
         "geohash": "mmcwmsmg1s4r"
       },
       "lineCount": 13,
+      "maxLineLength": 343,
+      "tokenCount": 173,
+      "wordCount": 132,
       "weight": 13
     },
     "docs/adr/0004-codemap-deep-links.md": {
@@ -4638,6 +5179,9 @@
         "geohash": "kgzsn42y3nnu"
       },
       "lineCount": 13,
+      "maxLineLength": 365,
+      "tokenCount": 173,
+      "wordCount": 122,
       "weight": 13
     },
     "docs/adr/0005-non-blocking-activity-telemetry.md": {
@@ -4657,6 +5201,9 @@
         "geohash": "m4d7yc1sghbb"
       },
       "lineCount": 19,
+      "maxLineLength": 644,
+      "tokenCount": 486,
+      "wordCount": 384,
       "weight": 19
     },
     "docs/agents/domain.md": {
@@ -4676,6 +5223,9 @@
         "geohash": "kq427hz1h0s2"
       },
       "lineCount": 51,
+      "maxLineLength": 226,
+      "tokenCount": 507,
+      "wordCount": 283,
       "weight": 51
     },
     "docs/agents/issue-tracker.md": {
@@ -4695,6 +5245,9 @@
         "geohash": "k5uxq07qbw08"
       },
       "lineCount": 19,
+      "maxLineLength": 124,
+      "tokenCount": 216,
+      "wordCount": 132,
       "weight": 19
     },
     "docs/agents/triage-labels.md": {
@@ -4714,6 +5267,9 @@
         "geohash": "kebxr06nvn1b"
       },
       "lineCount": 15,
+      "maxLineLength": 147,
+      "tokenCount": 283,
+      "wordCount": 120,
       "weight": 15
     },
     "public/app.js": {
@@ -4733,6 +5289,9 @@
         "geohash": "35hrf1en0spm"
       },
       "lineCount": 1229,
+      "maxLineLength": 140,
+      "tokenCount": 10702,
+      "wordCount": 4427,
       "weight": 1229
     },
     "public/index.html": {
@@ -4752,6 +5311,9 @@
         "geohash": "68u61n9eh0n6"
       },
       "lineCount": 32,
+      "maxLineLength": 173,
+      "tokenCount": 345,
+      "wordCount": 139,
       "weight": 32
     },
     "public/render-model.js": {
@@ -4770,8 +5332,11 @@
         "lat": -22.174844702399994,
         "geohash": "7s13f5nw0t3f"
       },
-      "lineCount": 431,
-      "weight": 431
+      "lineCount": 443,
+      "maxLineLength": 136,
+      "tokenCount": 4163,
+      "wordCount": 1898,
+      "weight": 443
     },
     "public/style.css": {
       "path": "public/style.css",
@@ -4790,6 +5355,9 @@
         "geohash": "6ss7343eupnk"
       },
       "lineCount": 195,
+      "maxLineLength": 106,
+      "tokenCount": 1106,
+      "wordCount": 472,
       "weight": 195
     },
     "src/activity-store.js": {
@@ -4809,6 +5377,9 @@
         "geohash": "wbxecu1zgnu6"
       },
       "lineCount": 86,
+      "maxLineLength": 96,
+      "tokenCount": 493,
+      "wordCount": 193,
       "weight": 86
     },
     "src/activity-watcher.js": {
@@ -4828,6 +5399,9 @@
         "geohash": "w085zsnzfyc6"
       },
       "lineCount": 215,
+      "maxLineLength": 124,
+      "tokenCount": 1653,
+      "wordCount": 638,
       "weight": 215
     },
     "src/activity.js": {
@@ -4847,6 +5421,9 @@
         "geohash": "wfnem16e4px2"
       },
       "lineCount": 20,
+      "maxLineLength": 87,
+      "tokenCount": 153,
+      "wordCount": 59,
       "weight": 20
     },
     "src/district-layout.js": {
@@ -4866,6 +5443,9 @@
         "geohash": "vsvkk0x1frzd"
       },
       "lineCount": 224,
+      "maxLineLength": 155,
+      "tokenCount": 1990,
+      "wordCount": 901,
       "weight": 224
     },
     "src/extensions.js": {
@@ -4885,6 +5465,9 @@
         "geohash": "wmzcp6dskxgt"
       },
       "lineCount": 44,
+      "maxLineLength": 47,
+      "tokenCount": 222,
+      "wordCount": 60,
       "weight": 44
     },
     "src/generator.js": {
@@ -4904,6 +5487,9 @@
         "geohash": "tw8x6j2e1vzd"
       },
       "lineCount": 82,
+      "maxLineLength": 124,
+      "tokenCount": 610,
+      "wordCount": 246,
       "weight": 82
     },
     "src/geohash.js": {
@@ -4923,6 +5509,9 @@
         "geohash": "ycu2vymgj1tn"
       },
       "lineCount": 92,
+      "maxLineLength": 75,
+      "tokenCount": 600,
+      "wordCount": 264,
       "weight": 92
     },
     "src/geometry.js": {
@@ -4942,6 +5531,9 @@
         "geohash": "wxwe9v4tugz4"
       },
       "lineCount": 46,
+      "maxLineLength": 98,
+      "tokenCount": 440,
+      "wordCount": 208,
       "weight": 46
     },
     "src/levels.js": {
@@ -4961,6 +5553,9 @@
         "geohash": "wd0179uzg521"
       },
       "lineCount": 17,
+      "maxLineLength": 65,
+      "tokenCount": 88,
+      "wordCount": 43,
       "weight": 17
     },
     "src/local-git-exclude.js": {
@@ -4980,6 +5575,9 @@
         "geohash": "x0wndw43ppqc"
       },
       "lineCount": 44,
+      "maxLineLength": 110,
+      "tokenCount": 442,
+      "wordCount": 173,
       "weight": 44
     },
     "src/overlaps.js": {
@@ -4999,6 +5597,9 @@
         "geohash": "we8je9ubgj0j"
       },
       "lineCount": 29,
+      "maxLineLength": 109,
+      "tokenCount": 311,
+      "wordCount": 138,
       "weight": 29
     },
     "src/resolver.js": {
@@ -5018,6 +5619,9 @@
         "geohash": "ykgku17bpg3x"
       },
       "lineCount": 145,
+      "maxLineLength": 142,
+      "tokenCount": 1284,
+      "wordCount": 530,
       "weight": 145
     },
     "src/scan.js": {
@@ -5037,6 +5641,9 @@
         "geohash": "tujwysb7zpn3"
       },
       "lineCount": 61,
+      "maxLineLength": 109,
+      "tokenCount": 594,
+      "wordCount": 215,
       "weight": 61
     },
     "src/selections.js": {
@@ -5055,8 +5662,11 @@
         "lat": 55.01044236231,
         "geohash": "y3g0cwme0c8y"
       },
-      "lineCount": 87,
-      "weight": 87
+      "lineCount": 151,
+      "maxLineLength": 111,
+      "tokenCount": 1217,
+      "wordCount": 506,
+      "weight": 151
     },
     "src/server.js": {
       "path": "src/server.js",
@@ -5075,6 +5685,9 @@
         "geohash": "v9v2kjxhfqp9"
       },
       "lineCount": 278,
+      "maxLineLength": 157,
+      "tokenCount": 2410,
+      "wordCount": 942,
       "weight": 278
     },
     "src/source.js": {
@@ -5094,6 +5707,9 @@
         "geohash": "tfm9qe26rhnq"
       },
       "lineCount": 48,
+      "maxLineLength": 93,
+      "tokenCount": 348,
+      "wordCount": 158,
       "weight": 48
     },
     "src/stability.js": {
@@ -5113,6 +5729,9 @@
         "geohash": "wn8r7m7g0jg4"
       },
       "lineCount": 70,
+      "maxLineLength": 121,
+      "tokenCount": 491,
+      "wordCount": 215,
       "weight": 70
     },
     "src/store.js": {
@@ -5132,6 +5751,9 @@
         "geohash": "wgwxt14s61rk"
       },
       "lineCount": 16,
+      "maxLineLength": 63,
+      "tokenCount": 132,
+      "wordCount": 58,
       "weight": 16
     },
     "src/tiles.js": {
@@ -5151,6 +5773,9 @@
         "geohash": "t7mbt5j2c04f"
       },
       "lineCount": 56,
+      "maxLineLength": 103,
+      "tokenCount": 438,
+      "wordCount": 179,
       "weight": 56
     },
     "src/tree.js": {
@@ -5170,6 +5795,9 @@
         "geohash": "yuuub3k2h5mx"
       },
       "lineCount": 94,
+      "maxLineLength": 106,
+      "tokenCount": 590,
+      "wordCount": 251,
       "weight": 94
     },
     "src/treemap.js": {
@@ -5189,6 +5817,9 @@
         "geohash": "wvy90f8k7zfv"
       },
       "lineCount": 30,
+      "maxLineLength": 85,
+      "tokenCount": 204,
+      "wordCount": 89,
       "weight": 30
     },
     "test/activity-store.test.js": {
@@ -5208,6 +5839,9 @@
         "geohash": "591qqzjwvn0w"
       },
       "lineCount": 63,
+      "maxLineLength": 135,
+      "tokenCount": 685,
+      "wordCount": 271,
       "weight": 63
     },
     "test/activity-watcher.test.js": {
@@ -5227,6 +5861,9 @@
         "geohash": "59dp7z8cn1q8"
       },
       "lineCount": 211,
+      "maxLineLength": 146,
+      "tokenCount": 2071,
+      "wordCount": 795,
       "weight": 211
     },
     "test/activity.test.js": {
@@ -5246,6 +5883,9 @@
         "geohash": "4dr6stdpk7gy"
       },
       "lineCount": 141,
+      "maxLineLength": 106,
+      "tokenCount": 1485,
+      "wordCount": 575,
       "weight": 141
     },
     "test/dev-cli.test.js": {
@@ -5265,6 +5905,9 @@
         "geohash": "59heg00sh3e4"
       },
       "lineCount": 116,
+      "maxLineLength": 107,
+      "tokenCount": 1254,
+      "wordCount": 499,
       "weight": 116
     },
     "test/generator.test.js": {
@@ -5284,6 +5927,9 @@
         "geohash": "0eg2neyvv3wj"
       },
       "lineCount": 122,
+      "maxLineLength": 93,
+      "tokenCount": 1589,
+      "wordCount": 641,
       "weight": 122
     },
     "test/geohash.test.js": {
@@ -5303,6 +5949,9 @@
         "geohash": "54q4xjer6ezy"
       },
       "lineCount": 31,
+      "maxLineLength": 93,
+      "tokenCount": 362,
+      "wordCount": 160,
       "weight": 31
     },
     "test/local-git-exclude.test.js": {
@@ -5322,6 +5971,9 @@
         "geohash": "59hxphypdvrk"
       },
       "lineCount": 32,
+      "maxLineLength": 126,
+      "tokenCount": 439,
+      "wordCount": 168,
       "weight": 32
     },
     "test/overlaps.test.js": {
@@ -5341,6 +5993,9 @@
         "geohash": "5hy1bby388e9"
       },
       "lineCount": 25,
+      "maxLineLength": 84,
+      "tokenCount": 275,
+      "wordCount": 124,
       "weight": 25
     },
     "test/render-model.test.js": {
@@ -5359,8 +6014,11 @@
         "lat": -65.89464040359002,
         "geohash": "5s615u0zyhwx"
       },
-      "lineCount": 305,
-      "weight": 305
+      "lineCount": 318,
+      "maxLineLength": 125,
+      "tokenCount": 3258,
+      "wordCount": 1414,
+      "weight": 318
     },
     "test/resolver.test.js": {
       "path": "test/resolver.test.js",
@@ -5379,6 +6037,9 @@
         "geohash": "4huwwbpncbpc"
       },
       "lineCount": 71,
+      "maxLineLength": 98,
+      "tokenCount": 723,
+      "wordCount": 311,
       "weight": 71
     },
     "test/selections.test.js": {
@@ -5397,8 +6058,11 @@
         "lat": -77.3129514798,
         "geohash": "1670njte2mk2"
       },
-      "lineCount": 46,
-      "weight": 46
+      "lineCount": 73,
+      "maxLineLength": 93,
+      "tokenCount": 784,
+      "wordCount": 333,
+      "weight": 73
     },
     "test/server.test.js": {
       "path": "test/server.test.js",
@@ -5417,6 +6081,9 @@
         "geohash": "1kepq0tt83u7"
       },
       "lineCount": 285,
+      "maxLineLength": 108,
+      "tokenCount": 2811,
+      "wordCount": 1158,
       "weight": 285
     },
     "test/source.test.js": {
@@ -5436,6 +6103,9 @@
         "geohash": "4sz1y2v1d0xc"
       },
       "lineCount": 26,
+      "maxLineLength": 74,
+      "tokenCount": 262,
+      "wordCount": 109,
       "weight": 26
     },
     "test/tiles.test.js": {
@@ -5455,6 +6125,9 @@
         "geohash": "44kxqvph9gry"
       },
       "lineCount": 40,
+      "maxLineLength": 94,
+      "tokenCount": 414,
+      "wordCount": 163,
       "weight": 40
     },
     "AGENTS.md": {
@@ -5474,6 +6147,9 @@
         "geohash": "n50vgyynsenk"
       },
       "lineCount": 40,
+      "maxLineLength": 309,
+      "tokenCount": 376,
+      "wordCount": 272,
       "weight": 40
     },
     "CONTEXT.md": {
@@ -5493,6 +6169,9 @@
         "geohash": "ht736qe25fsy"
       },
       "lineCount": 323,
+      "maxLineLength": 328,
+      "tokenCount": 3951,
+      "wordCount": 2853,
       "weight": 323
     },
     "package.json": {
@@ -5512,6 +6191,9 @@
         "geohash": "ngnvzqvye5hu"
       },
       "lineCount": 25,
+      "maxLineLength": 44,
+      "tokenCount": 173,
+      "wordCount": 51,
       "weight": 25
     },
     "README.md": {
@@ -5531,6 +6213,9 @@
         "geohash": "xej7vy4tn286"
       },
       "lineCount": 38,
+      "maxLineLength": 612,
+      "tokenCount": 494,
+      "wordCount": 366,
       "weight": 38
     },
     "skills-lock.json": {
@@ -5550,6 +6235,9 @@
         "geohash": "nrsyb5j8y56q"
       },
       "lineCount": 89,
+      "maxLineLength": 88,
+      "tokenCount": 776,
+      "wordCount": 238,
       "weight": 89
     }
   }

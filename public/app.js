@@ -197,7 +197,7 @@ function drawFolders() {
     ctx.strokeStyle = style.stroke;
     ctx.lineWidth = depth === 1 ? 2.1 : 1;
     drawRect(box);
-    if (shouldLabelFolder(depth, box)) drawLabel(labelForFolder(folder), box.x + 8, box.y + 18, style.label, 13, "600");
+    if (shouldLabelFolder(depth, box)) drawLabelInBox(labelForFolder(folder), box, style.label, 13, "600");
   }
 }
 
@@ -233,7 +233,7 @@ function drawFiles() {
     ctx.lineWidth = selected ? 2.6 : state.view.scale > 2.2 ? 1 : 0.65;
     drawRect(box);
     if (selected || landmark || (state.view.scale > 2.2 && box.width > 78 && box.height > 24)) {
-      drawLabel(file.name, box.x + 6, box.y + 16, "rgba(3, 87, 67, 0.84)", 12, "500");
+      drawLabelInBox(file.name, box, "rgba(3, 87, 67, 0.84)", 12, "500");
     }
     if (canRenderSourceText(file, box) && renderedSourceLines < SOURCE_TEXT_MAX_LINES_PER_FRAME) {
       renderedSourceLines += drawSourceText(file, box, SOURCE_TEXT_MAX_LINES_PER_FRAME - renderedSourceLines);
@@ -440,6 +440,23 @@ function drawLabel(text, x, y, color, size = 12, weight = "400") {
   ctx.fillStyle = color;
   ctx.textBaseline = "alphabetic";
   ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function drawLabelInBox(text, box, color, size = 12, weight = "400") {
+  const area = screenIntersection(box);
+  if (!area || area.width < 56 || area.height < size + 8) return;
+
+  const x = clamp(box.x + 8, area.x + 8, area.x + Math.max(8, area.width - 32));
+  const naturalY = box.y + size + 5;
+  const stickyY = area.y + Math.min(Math.max(size + 8, area.height * 0.35), Math.max(size + 8, area.height - 8));
+  const y = clamp(naturalY < area.y + size + 6 ? stickyY : naturalY, area.y + size + 6, area.y + area.height - 8);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(box.x, box.y, box.width, box.height);
+  ctx.clip();
+  drawLabel(text, x, y, color, size, weight);
   ctx.restore();
 }
 
@@ -756,6 +773,15 @@ function screenPoint(event) {
 
 function visible(box) {
   return box.x + box.width >= 0 && box.y + box.height >= 0 && box.x <= canvas.clientWidth && box.y <= canvas.clientHeight;
+}
+
+function screenIntersection(box) {
+  const x1 = Math.max(0, box.x);
+  const y1 = Math.max(0, box.y);
+  const x2 = Math.min(canvas.clientWidth, box.x + box.width);
+  const y2 = Math.min(canvas.clientHeight, box.y + box.height);
+  if (x2 <= x1 || y2 <= y1) return null;
+  return { x: x1, y: y1, width: x2 - x1, height: y2 - y1 };
 }
 
 function boundsCenter(bounds) {

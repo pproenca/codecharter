@@ -8,6 +8,8 @@
   },
   "scripts": {
     "codemap": "node ./bin/codemap.mjs",
+    "setup": "node ./bin/codemap.mjs setup",
+    "dev": "node ./bin/codemap.mjs dev",
     "serve": "node ./bin/codemap.mjs serve",
     "test": "node --test"
   },

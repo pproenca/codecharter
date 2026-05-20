@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { readFile, writeFile } from "node:fs/promises";
-import { relative, resolve as resolvePath } from "node:path";
+import { readFile } from "node:fs/promises";
+import { isAbsolute, join, relative, resolve as resolvePath } from "node:path";
 import { createActivityEvent } from "../src/activity.js";
+import { startActivityWatcher } from "../src/activity-watcher.js";
 import { generateCodemap } from "../src/generator.js";
 import { resolveAddress } from "../src/resolver.js";
 import { startServer } from "../src/server.js";
@@ -10,6 +11,8 @@ import { readJson, writeJson } from "../src/store.js";
 function usage() {
   return `Usage:
   codemap generate [--root <dir>] [--out <file>]
+  codemap setup [--root <dir>] [--out <file>] [--fresh]
+  codemap dev [--root <dir>] [--map <file>] [--port <port>] [--agent <id>] [--no-watch] [--fresh]
   codemap resolve <path> [lineStart] [lineEnd] [--map <file>]
   codemap activity <path> [lineStart] [lineEnd] [--agent <id>] [--state <state>] [--note <text>] [--map <file>] [--out <file>]
   codemap serve [--root <dir>] [--map <file>] [--port <port>]
@@ -25,22 +28,62 @@ function takeOption(args, name, fallback) {
   return value;
 }
 
+function takeFlag(args, name) {
+  const index = args.indexOf(name);
+  if (index === -1) return false;
+  args.splice(index, 1);
+  return true;
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const command = args.shift();
 
   if (command === "generate") {
     const root = resolvePath(takeOption(args, "--root", "."));
-    const out = resolvePath(takeOption(args, "--out", "codemap.json"));
-    const fresh = args.includes("--fresh");
-    if (fresh) args.splice(args.indexOf("--fresh"), 1);
+    const out = resolveMapPath(root, takeOption(args, "--out", "codemap.json"));
+    const fresh = takeFlag(args, "--fresh");
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
-    const previousCodemap = fresh ? undefined : await readOptionalJson(out);
-    const codemap = await generateCodemap({ root, excludePaths: [relative(root, out)], previousCodemap });
-    await writeFile(out, `${JSON.stringify(codemap, null, 2)}\n`);
-    console.log(`Wrote ${out}`);
-    console.log(`Mapped ${Object.keys(codemap.files).length} files and ${Object.keys(codemap.folders).length} folders`);
+    await writeCodemap({ root, out, fresh });
+    return;
+  }
+
+  if (command === "setup") {
+    const root = resolvePath(takeOption(args, "--root", "."));
+    const out = resolveMapPath(root, takeOption(args, "--out", "codemap.json"));
+    const fresh = takeFlag(args, "--fresh");
+    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+
+    await writeCodemap({ root, out, fresh });
+    await ensureActivityStream(root);
+    console.log("Setup complete.");
+    console.log("Run `npm run dev` to serve the map and stream local Codex activity.");
+    return;
+  }
+
+  if (command === "dev") {
+    const root = resolvePath(takeOption(args, "--root", "."));
+    const mapPath = resolveMapPath(root, takeOption(args, "--map", "codemap.json"));
+    const port = Number(takeOption(args, "--port", "4173"));
+    const agentId = takeOption(args, "--agent", process.env.CODEMAP_AGENT_ID ?? "codex");
+    const watch = !takeFlag(args, "--no-watch");
+    const fresh = takeFlag(args, "--fresh");
+    if (!Number.isInteger(port) || port < 1) throw new Error("Port must be a positive integer");
+    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+
+    await writeCodemap({ root, out: mapPath, fresh });
+    await ensureActivityStream(root);
+    await startServer({ root, mapPath, port });
+    if (watch) {
+      startActivityWatcher({
+        root,
+        endpoint: `http://127.0.0.1:${port}/api/activity`,
+        agentId,
+        activityState: "editing",
+      });
+      console.log(`Activity watcher streaming git changes as ${agentId}`);
+    }
     return;
   }
 
@@ -84,7 +127,7 @@ async function main() {
 
   if (command === "serve") {
     const root = resolvePath(takeOption(args, "--root", "."));
-    const mapPath = resolvePath(takeOption(args, "--map", "codemap.json"));
+    const mapPath = resolveMapPath(root, takeOption(args, "--map", "codemap.json"));
     const port = Number(takeOption(args, "--port", "4173"));
     if (!Number.isInteger(port) || port < 1) throw new Error("Port must be a positive integer");
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
@@ -104,6 +147,24 @@ async function readOptionalJson(path) {
     if (error.code === "ENOENT") return undefined;
     throw error;
   }
+}
+
+async function writeCodemap({ root, out, fresh = false }) {
+  const previousCodemap = fresh ? undefined : await readOptionalJson(out);
+  const codemap = await generateCodemap({ root, excludePaths: [relative(root, out)], previousCodemap });
+  await writeJson(out, codemap);
+  console.log(`Wrote ${out}`);
+  console.log(`Mapped ${Object.keys(codemap.files).length} files and ${Object.keys(codemap.folders).length} folders`);
+  return codemap;
+}
+
+async function ensureActivityStream(root) {
+  const activityPath = join(root, ".scratch", "activity-stream.json");
+  await writeJson(activityPath, await readJson(activityPath, { events: [] }));
+}
+
+function resolveMapPath(root, path) {
+  return isAbsolute(path) ? path : resolvePath(root, path);
 }
 
 main().catch((error) => {

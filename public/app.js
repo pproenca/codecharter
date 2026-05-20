@@ -7,6 +7,9 @@ const SOURCE_TEXT_MAX_LINES_PER_FRAME = 200;
 const SOURCE_TEXT_PREFETCH_LINES = 12;
 const SOURCE_CACHE_LIMIT = 80;
 const SOURCE_TEXT_ZOOM_HEADROOM = 1.08;
+const SOURCE_PANEL_CONTEXT_BEFORE = 12;
+const SOURCE_PANEL_CONTEXT_AFTER = 24;
+const SOURCE_PANEL_MAX_LINES = 140;
 const DISTRICT_PALETTE = [
   { fill: [126, 176, 156], stroke: [41, 98, 73], label: "#24513d" },
   { fill: [111, 162, 190], stroke: [39, 92, 122], label: "#244e66" },
@@ -567,12 +570,14 @@ async function selectMapTarget(worldPoint) {
     return;
   }
 
-  const rawLine = ((worldPoint.y - hit.bounds.y) / hit.bounds.height) * hit.lineCount;
-  const line = Math.max(1, Math.min(hit.lineCount, Math.floor(rawLine) + 1));
+  const line = lineAtPoint(hit, worldPoint);
   const lineRatio = (line - 0.5) / Math.max(1, hit.lineCount);
-  if (!canRenderSourceText(hit, screenBounds(hit.bounds))) zoomToReadableFile(hit, lineRatio);
-  const lineStart = Math.max(1, line - 12);
-  const lineEnd = Math.min(hit.lineCount, line + 24);
+  let box = screenBounds(hit.bounds);
+  if (!canRenderSourceText(hit, box)) {
+    zoomToReadableFile(hit, lineRatio);
+    box = screenBounds(hit.bounds);
+  }
+  const { start: lineStart, end: lineEnd } = sourcePanelLineRange(hit, line, box);
   const query = `path=${encodeURIComponent(hit.path)}&lineStart=${lineStart}&lineEnd=${lineEnd}`;
   const [address, source] = await Promise.all([
     fetchJson(`/api/resolve?${query}`),
@@ -583,7 +588,34 @@ async function selectMapTarget(worldPoint) {
   controls.sourceOutput.textContent = source.lines
     .map((item) => `${String(item.number).padStart(4, " ")}  ${item.text}`)
     .join("\n");
+  controls.sourceOutput.scrollTop = 0;
   render();
+}
+
+function lineAtPoint(file, worldPoint) {
+  const rawLine = ((worldPoint.y - file.bounds.y) / file.bounds.height) * file.lineCount;
+  return Math.max(1, Math.min(file.lineCount, Math.floor(rawLine) + 1));
+}
+
+function sourcePanelLineRange(file, focusLine, box) {
+  const visibleRange = canRenderSourceText(file, box) ? visibleLineRange(file, box) : null;
+  if (visibleRange) return capLineRange(file, visibleRange.start, visibleRange.end, focusLine);
+  return capLineRange(
+    file,
+    Math.max(1, focusLine - SOURCE_PANEL_CONTEXT_BEFORE),
+    Math.min(file.lineCount, focusLine + SOURCE_PANEL_CONTEXT_AFTER),
+    focusLine,
+  );
+}
+
+function capLineRange(file, start, end, focusLine) {
+  if (end - start + 1 <= SOURCE_PANEL_MAX_LINES) return { start, end };
+  const before = Math.floor(SOURCE_PANEL_MAX_LINES / 2);
+  const cappedStart = Math.max(1, Math.min(focusLine - before, file.lineCount - SOURCE_PANEL_MAX_LINES + 1));
+  return {
+    start: cappedStart,
+    end: Math.min(file.lineCount, cappedStart + SOURCE_PANEL_MAX_LINES - 1),
+  };
 }
 
 async function searchMap(event) {

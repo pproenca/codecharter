@@ -18,6 +18,7 @@ import {
   lineHeightForFile,
   lineAtWorldPoint,
   latestActivityByAgent,
+  normalizeActivityState,
   organicRegionPoints,
   organicRegionStyle,
   panViewByScreenDelta,
@@ -501,7 +502,8 @@ function drawActivity() {
     const latest = latestByAgent.get(event.agentId) === event;
     const center = boundsCenter(event.address.bounds);
     const p = worldToScreen(center);
-    const style = activityStateStyle(event.activityState);
+    const activityState = normalizeActivityState(event.activityState);
+    const style = activityStateStyle(activityState);
     const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.id === event.id;
     ctx.save();
     ctx.globalAlpha = latest ? 1 : 0.28;
@@ -518,7 +520,7 @@ function drawActivity() {
       ctx.arc(p.x, p.y, 15, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
-      drawLabel(`${event.agentId}: ${event.activityState}`, p.x + 10, p.y - 8, style.label, 12, "700");
+      drawLabel(`${event.agentId}: ${activityState}`, p.x + 10, p.y - 8, style.label, 12, "700");
     }
     ctx.restore();
   }
@@ -534,7 +536,7 @@ function drawActivityTrails(events, latestByAgent) {
   for (const agentEvents of byAgent.values()) {
     if (agentEvents.length < 2) continue;
     const latest = latestByAgent.get(agentEvents[0].agentId);
-    const style = activityStateStyle(latest?.activityState);
+    const style = activityStateStyle(normalizeActivityState(latest?.activityState));
     ctx.save();
     ctx.strokeStyle = style.fill;
     ctx.globalAlpha = 0.34;
@@ -568,7 +570,7 @@ function renderActivityFeed() {
     item.addEventListener("click", () => selectActivityEvent(event));
 
     const title = document.createElement("strong");
-    title.textContent = `${event.agentId}: ${event.activityState}`;
+    title.textContent = `${event.agentId}: ${normalizeActivityState(event.activityState)}`;
     const detail = document.createElement("span");
     detail.textContent = activityPathLabel(event);
     item.append(title, detail);
@@ -823,7 +825,7 @@ async function selectMapTarget(worldPoint) {
 
 async function selectActivityEvent(event) {
   state.selectedTarget = { ...event, targetType: "activity" };
-  controls.inspectorTitle.textContent = `${event.agentId}: ${event.activityState}`;
+  controls.inspectorTitle.textContent = `${event.agentId}: ${normalizeActivityState(event.activityState)}`;
   controls.inspectorSubtitle.textContent = `activity: ${activityPathLabel(event)} | ${event.address.geohash}`;
 
   const path = pathFromActivity(event);
@@ -932,16 +934,14 @@ async function saveSelection() {
 async function addActivity(event) {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(controls.activityForm).entries());
-  const created = await postJson("/api/activity", {
+  await postJson("/api/activity", {
     agentId: data.agentId,
     activityState: data.activityState,
     path: data.path,
     lineStart: Number(data.lineStart),
     lineEnd: Number(data.lineEnd),
   });
-  state.activity.push(created);
-  state.activitySignature = activitySignature(state.activity);
-  render();
+  setTimeout(refreshActivity, 250);
 }
 
 function hitTest(point) {
@@ -977,7 +977,7 @@ function labelForFolder(folder) {
 
 function hoverLabel(hit) {
   if (hit.targetType === "activity") {
-    return `activity: ${hit.agentId} ${hit.activityState} | ${hit.address.geohash}`;
+    return `activity: ${hit.agentId} ${normalizeActivityState(hit.activityState)} | ${hit.address.geohash}`;
   }
   return `${hit.targetType}: ${hit.path} | ${hit.geo.geohash}`;
 }

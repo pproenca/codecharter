@@ -23,6 +23,7 @@ export async function startServer({ root, mapPath, port }) {
     publicRoot: join(root, "public"),
     namedPlacesPath: join(root, ".scratch", "named-places.json"),
     activityPath: join(root, ".scratch", "activity-stream.json"),
+    activityWriteQueue: Promise.resolve(),
   };
 
   const server = createServer((request, response) => {
@@ -122,14 +123,8 @@ async function handleApi(state, request, response, url) {
   }
 
   if (request.method === "POST" && url.pathname === "/api/activity") {
-    const codemap = await loadCodemap(state);
-    const body = await readBody(request);
-    const address = body.address ?? resolveAddress(codemap, body);
-    const event = createActivityEvent(address, body);
-    const stream = await readJson(state.activityPath, { events: [] });
-    stream.events.push(event);
-    await writeJson(state.activityPath, stream);
-    sendJson(response, 201, event);
+    acceptActivityRequest(state, request);
+    sendJson(response, 202, { accepted: true });
     return;
   }
 
@@ -151,6 +146,34 @@ async function serveStatic(state, response, pathname) {
 
 async function loadCodemap(state) {
   return JSON.parse(await readFile(state.mapPath, "utf8"));
+}
+
+function acceptActivityRequest(state, request) {
+  readBody(request)
+    .then(async (body) => {
+      const codemap = await loadCodemap(state);
+      const address = body.address ?? resolveAddress(codemap, body);
+      enqueueActivityEvent(state, createActivityEvent(address, body));
+    })
+    .catch((error) => {
+      console.warn(`Dropped activity event: ${error.message}`);
+    });
+}
+
+function enqueueActivityEvent(state, event) {
+  state.activityWriteQueue = state.activityWriteQueue
+    .catch((error) => {
+      console.warn(`Activity write queue recovered: ${error.message}`);
+    })
+    .then(async () => {
+      const stream = await readJson(state.activityPath, { events: [] });
+      stream.events.push(event);
+      await writeJson(state.activityPath, stream);
+    });
+
+  state.activityWriteQueue.catch((error) => {
+    console.warn(`Dropped activity event: ${error.message}`);
+  });
 }
 
 async function readBody(request) {

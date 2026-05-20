@@ -58,23 +58,27 @@ async function main() {
   }
 
   if (command === "activity") {
-    const mapPath = resolvePath(takeOption(args, "--map", "codemap.json"));
-    const outPath = resolvePath(takeOption(args, "--out", ".scratch/activity-stream.json"));
-    const agentId = takeOption(args, "--agent", "codex");
-    const activityState = takeOption(args, "--state", "editing");
-    const note = takeOption(args, "--note", "");
-    const [path, lineStartRaw, lineEndRaw] = args;
-    if (!path) throw new Error("activity requires a path");
+    try {
+      const mapPath = resolvePath(takeOption(args, "--map", "codemap.json"));
+      const outPath = resolvePath(takeOption(args, "--out", ".scratch/activity-stream.json"));
+      const agentId = takeOption(args, "--agent", "codex");
+      const activityState = takeOption(args, "--state", "editing");
+      const note = takeOption(args, "--note", "");
+      const [path, lineStartRaw, lineEndRaw] = args;
+      if (!path) throw new Error("activity requires a path");
 
-    const codemap = JSON.parse(await readFile(mapPath, "utf8"));
-    const lineStart = lineStartRaw === undefined ? undefined : Number(lineStartRaw);
-    const lineEnd = lineEndRaw === undefined ? lineStart : Number(lineEndRaw);
-    const address = resolveAddress(codemap, { path, lineStart, lineEnd });
-    const event = createActivityEvent(address, { agentId, activityState, note });
-    const stream = await readJson(outPath, { events: [] });
-    stream.events.push(event);
-    await writeJson(outPath, stream);
-    console.log(JSON.stringify(event, null, 2));
+      const codemap = JSON.parse(await readFile(mapPath, "utf8"));
+      const lineStart = lineStartRaw === undefined ? undefined : Number(lineStartRaw);
+      const lineEnd = lineEndRaw === undefined ? lineStart : Number(lineEndRaw);
+      const address = resolveAddress(codemap, { path, lineStart, lineEnd });
+      const event = createActivityEvent(address, { agentId, activityState, note });
+      const stream = await readJson(outPath, { events: [] });
+      stream.events.push(event);
+      await writeJson(outPath, stream);
+      console.log(JSON.stringify({ accepted: true, event }, null, 2));
+    } catch (error) {
+      console.log(JSON.stringify({ accepted: false, error: error.message }, null, 2));
+    }
     return;
   }
 

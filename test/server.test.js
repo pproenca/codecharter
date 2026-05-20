@@ -40,15 +40,28 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.equal(namedPlaceResponse.place.resolvedTargets.length, 1);
     assert.deepEqual(namedPlaceResponse.overlaps, []);
 
-    const activity = await postJson(`${baseUrl}/api/activity`, {
+    const accepted = await postJson(`${baseUrl}/api/activity`, {
       agentId: "codex",
       activityState: "reading",
       path: "src/app.ts",
       lineStart: 1,
       lineEnd: 2,
     });
+    assert.equal(accepted.accepted, true);
+
+    const activityStream = await waitForActivityEvent(baseUrl);
+    const activity = activityStream.events.at(-1);
     assert.equal(activity.agentId, "codex");
     assert.equal(activity.address.targetType, "lineRange");
+
+    const badActivity = await postJson(`${baseUrl}/api/activity`, {
+      agentId: "codex",
+      activityState: "editing",
+      path: "src/missing.ts",
+      lineStart: 1,
+      lineEnd: 2,
+    });
+    assert.equal(badActivity.accepted, true);
   } finally {
     server.close();
     await once(server, "close");
@@ -69,6 +82,15 @@ async function postJson(url, body) {
   });
   if (!response.ok) assert.fail(await response.text());
   return response.json();
+}
+
+async function waitForActivityEvent(baseUrl) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const activity = await getJson(`${baseUrl}/api/activity`);
+    if (activity.events.length > 0) return activity;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.fail("Activity event was not persisted");
 }
 
 function sampleCodemap() {

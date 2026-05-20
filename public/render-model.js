@@ -35,7 +35,7 @@ const ACTIVITY_STATE_STYLES = {
   reading: { fill: "#2563eb", stroke: "#dbeafe", label: "#1e3a8a" },
   editing: { fill: "#e11d48", stroke: "#ffe4e6", label: "#9f1239" },
   testing: { fill: "#7c3aed", stroke: "#ede9fe", label: "#4c1d95" },
-  blocked: { fill: "#f59e0b", stroke: "#fef3c7", label: "#92400e" },
+  reviewing: { fill: "#f59e0b", stroke: "#fef3c7", label: "#92400e" },
 };
 
 export function detailBand(scale) {
@@ -344,7 +344,12 @@ export function hashString(value) {
 }
 
 export function activityStateStyle(activityState) {
-  return ACTIVITY_STATE_STYLES[activityState] ?? ACTIVITY_STATE_STYLES.reading;
+  return ACTIVITY_STATE_STYLES[normalizeActivityState(activityState)];
+}
+
+export function normalizeActivityState(activityState) {
+  if (activityState === "blocked") return "reviewing";
+  return ACTIVITY_STATE_STYLES[activityState] ? activityState : "reading";
 }
 
 export function sortedActivityEvents(events, limit = 80) {

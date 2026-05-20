@@ -225,7 +225,8 @@ test("sorts activity events and keeps the latest visible state by agent", () => 
 
   assert.deepEqual(sortedActivityEvents(events, 2).map((event) => event.activityState), ["testing", "editing"]);
   assert.equal(latestActivityByAgent(events).get("codex").activityState, "editing");
-  assert.equal(activityStateStyle("blocked").fill, "#f59e0b");
+  assert.equal(activityStateStyle("reviewing").fill, "#f59e0b");
+  assert.equal(activityStateStyle("blocked").fill, activityStateStyle("reviewing").fill);
 });
 
 function codeFile(overrides = {}) {

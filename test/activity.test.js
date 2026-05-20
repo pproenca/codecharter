@@ -21,6 +21,15 @@ test("creates timestamped agent activity events at map addresses", () => {
   assert.equal(event.address.deepLink, "codemap://file/s123456?path=src%2Fa.ts");
 });
 
+test("normalizes blocked activity to an active reviewing state", () => {
+  const event = createActivityEvent(
+    { deepLink: "codemap://file/s123456?path=src%2Fa.ts", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    { agentId: "codex", activityState: "blocked", timestamp: "2026-05-20T00:00:00.000Z" },
+  );
+
+  assert.equal(event.activityState, "reviewing");
+});
+
 test("CLI appends Codex activity events to the shared activity stream", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-activity-"));
   await mkdir(join(root, "src"), { recursive: true });
@@ -45,6 +54,23 @@ test("CLI appends Codex activity events to the shared activity stream", async ()
   assert.equal(stream.events[0].activityState, "editing");
   assert.equal(stream.events[0].address.targetType, "lineRange");
   assert.deepEqual(stream.events[0].address.lineRange, { start: 2, end: 4 });
+});
+
+test("CLI activity telemetry never exits non-zero for an unmapped path", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-missing-"));
+  await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
+
+  const { stdout } = await execFileAsync("node", [
+    join(process.cwd(), "bin/codemap.mjs"),
+    "activity",
+    "src/missing.ts",
+    "1",
+    "2",
+  ], { cwd: root });
+  const response = JSON.parse(stdout);
+
+  assert.equal(response.accepted, false);
+  assert.match(response.error, /No map target found/);
 });
 
 function sampleCodemap() {

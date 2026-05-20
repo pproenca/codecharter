@@ -7,6 +7,9 @@ export const SOURCE_TEXT_ZOOM_HEADROOM = 1.08;
 export const SOURCE_PANEL_CONTEXT_BEFORE = 12;
 export const SOURCE_PANEL_CONTEXT_AFTER = 24;
 export const SOURCE_PANEL_MAX_LINES = 140;
+export const MAP_MIN_SCALE = 0.65;
+export const MAP_MAX_SCALE = 160;
+export const ORGANIC_REGION_EDGE_POSITIONS = [0.08, 0.24, 0.42, 0.6, 0.78, 0.92];
 
 export const DISTRICT_PALETTE = [
   { fill: [126, 176, 156], stroke: [41, 98, 73], label: "#24513d" },
@@ -55,6 +58,63 @@ export function folderStyle(path, depth) {
     stroke: rgba(base.stroke, strokeAlpha),
     label: base.label,
   };
+}
+
+export function organicRegionStyle(path, depth) {
+  const base = DISTRICT_PALETTE[hashString(path.split("/")[0]) % DISTRICT_PALETTE.length];
+  const fillAlpha = depth === 1 ? 0.1 : 0.055;
+  const strokeAlpha = depth === 1 ? 0.5 : 0.32;
+  return {
+    fill: rgba(base.fill, fillAlpha),
+    stroke: rgba(base.stroke, strokeAlpha),
+  };
+}
+
+export function shouldDrawOrganicRegion(scale, depth, box) {
+  if (depth > 4) return false;
+  if (depth > maxFolderDepthForScale(scale) + 1) return false;
+  if (Math.min(box.width, box.height) < 68) return false;
+  return box.width * box.height >= 7200;
+}
+
+export function organicRegionPoints(bounds, key, depth = 1) {
+  if (!bounds || bounds.width <= 0 || bounds.height <= 0) return [];
+  const edgePositions = ORGANIC_REGION_EDGE_POSITIONS;
+  const minInset = 0.018;
+  const baseInset = clamp(0.024 + depth * 0.004, minInset, 0.058);
+  const wobble = clamp(0.018 - depth * 0.002, 0.006, 0.018);
+  const points = [];
+
+  for (let index = 0; index < edgePositions.length; index += 1) {
+    const t = edgePositions[index];
+    points.push({
+      x: bounds.x + bounds.width * t,
+      y: bounds.y + bounds.height * edgeInset(key, "top", index, baseInset, wobble),
+    });
+  }
+  for (let index = 0; index < edgePositions.length; index += 1) {
+    const t = edgePositions[index];
+    points.push({
+      x: bounds.x + bounds.width * (1 - edgeInset(key, "right", index, baseInset, wobble)),
+      y: bounds.y + bounds.height * t,
+    });
+  }
+  for (let index = edgePositions.length - 1; index >= 0; index -= 1) {
+    const t = edgePositions[index];
+    points.push({
+      x: bounds.x + bounds.width * t,
+      y: bounds.y + bounds.height * (1 - edgeInset(key, "bottom", index, baseInset, wobble)),
+    });
+  }
+  for (let index = edgePositions.length - 1; index >= 0; index -= 1) {
+    const t = edgePositions[index];
+    points.push({
+      x: bounds.x + bounds.width * edgeInset(key, "left", index, baseInset, wobble),
+      y: bounds.y + bounds.height * t,
+    });
+  }
+
+  return points;
 }
 
 export function shouldDrawFolder(scale, depth, box) {
@@ -114,20 +174,6 @@ export function fileLabelPriority({ file, selected }) {
   return (selected ? 120 : 40) + landmarkScore(file);
 }
 
-export function shouldDrawAggregateHint({ scale, depth, box, childCount }) {
-  if (childCount < 4) return false;
-  if (box.width < 110 || box.height < 42) return false;
-  return depth >= maxFolderDepthForScale(scale) || detailBand(scale) !== "source";
-}
-
-export function aggregateLabel(folder) {
-  const fileCount = folder.children?.files?.length ?? 0;
-  const folderCount = folder.children?.folders?.length ?? 0;
-  if (fileCount > 0 && folderCount > 0) return `${fileCount} files, ${folderCount} folders`;
-  if (fileCount > 0) return `${fileCount} files`;
-  return `${folderCount} folders`;
-}
-
 export function canRenderSourceText(file, box) {
   return box.width >= SOURCE_TEXT_MIN_WIDTH
     && lineHeightForFile(file, box) >= SOURCE_TEXT_MIN_LINE_HEIGHT
@@ -155,4 +201,17 @@ export function hashString(value) {
     hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
   }
   return hash;
+}
+
+function edgeInset(key, edge, index, baseInset, wobble) {
+  const unit = hashUnit(`${key}:${edge}:${index}`);
+  return clamp(baseInset + (unit - 0.5) * wobble, 0.012, 0.08);
+}
+
+function hashUnit(value) {
+  return hashString(value) / 0xffffffff;
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }

@@ -8,7 +8,8 @@ import {
   SOURCE_TEXT_MIN_WIDTH,
   SOURCE_TEXT_PREFETCH_LINES,
   SOURCE_TEXT_ZOOM_HEADROOM,
-  aggregateLabel,
+  MAP_MAX_SCALE,
+  MAP_MIN_SCALE,
   canRenderSourceText,
   fileLabelPriority,
   fileVisualState,
@@ -17,8 +18,10 @@ import {
   folderStyle,
   labelBoxesOverlap,
   lineHeightForFile,
-  shouldDrawAggregateHint,
+  organicRegionPoints,
+  organicRegionStyle,
   shouldDrawFolder,
+  shouldDrawOrganicRegion,
   shouldLabelFile,
   shouldLabelFolder,
 } from "./render-model.js";
@@ -65,6 +68,7 @@ const controls = {
   sourceTitle: document.querySelector("#sourceTitle"),
   sourceOutput: document.querySelector("#sourceOutput"),
   showFolders: document.querySelector("#showFolders"),
+  showOrganicRegions: document.querySelector("#showOrganicRegions"),
   showFiles: document.querySelector("#showFiles"),
   showNames: document.querySelector("#showNames"),
   showActivity: document.querySelector("#showActivity"),
@@ -96,7 +100,15 @@ function bindEvents() {
     render();
   });
 
-  for (const control of [controls.mapLevel, controls.showFolders, controls.showFiles, controls.showNames, controls.showActivity, controls.showGrid]) {
+  for (const control of [
+    controls.mapLevel,
+    controls.showFolders,
+    controls.showOrganicRegions,
+    controls.showFiles,
+    controls.showNames,
+    controls.showActivity,
+    controls.showGrid,
+  ]) {
     control.addEventListener("change", render);
   }
 
@@ -160,6 +172,7 @@ function render() {
   drawCompassRose();
   if (controls.showGrid.checked) drawGrid();
   if (controls.showFolders.checked) drawFolders();
+  if (controls.showOrganicRegions.checked) drawOrganicRegions();
   if (controls.showFiles.checked) drawFiles();
   drawQueuedLabels();
   if (controls.showNames.checked) drawNamedPlaces();
@@ -213,9 +226,6 @@ function drawFolders() {
     ctx.strokeStyle = style.stroke;
     ctx.lineWidth = depth === 1 ? 2.1 : 1;
     drawRect(box);
-    if (shouldDrawAggregateHint({ scale: state.view.scale, depth, box, childCount: childCountFor(folder) })) {
-      drawAggregateHint(folder, box, style);
-    }
     if (shouldLabelFolder(state.view.scale, depth, box)) {
       queueLabelInBox({
         text: labelForFolder(folder),
@@ -226,6 +236,31 @@ function drawFolders() {
         priority: folderLabelPriority(depth, box),
       });
     }
+  }
+}
+
+function drawOrganicRegions() {
+  const folders = Object.values(state.map.folders)
+    .filter((folder) => folder.path)
+    .sort((a, b) => folderDepth(a.path) - folderDepth(b.path) || a.path.localeCompare(b.path));
+
+  for (const folder of folders) {
+    const box = screenBounds(folder.bounds);
+    if (!visible(box)) continue;
+    const depth = folderDepth(folder.path);
+    if (!shouldDrawOrganicRegion(state.view.scale, depth, box)) continue;
+    const points = organicRegionPoints(folder.bounds, folder.path, depth);
+    if (points.length < 3) continue;
+    const style = organicRegionStyle(folder.path, depth);
+
+    ctx.save();
+    drawOrganicPath(points);
+    ctx.fillStyle = style.fill;
+    ctx.strokeStyle = style.stroke;
+    ctx.lineWidth = depth === 1 ? 2.4 : 1.4;
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
   }
 }
 
@@ -262,6 +297,21 @@ function drawFiles() {
       drawLineBands(file, box);
     }
   }
+}
+
+function drawOrganicPath(points) {
+  const first = worldToScreen(points[0]);
+  const second = worldToScreen(points[1]);
+  ctx.beginPath();
+  ctx.moveTo((first.x + second.x) / 2, (first.y + second.y) / 2);
+
+  for (let index = 1; index <= points.length; index += 1) {
+    const control = worldToScreen(points[index % points.length]);
+    const next = worldToScreen(points[(index + 1) % points.length]);
+    ctx.quadraticCurveTo(control.x, control.y, (control.x + next.x) / 2, (control.y + next.y) / 2);
+  }
+
+  ctx.closePath();
 }
 
 function drawSourceText(file, box, remainingBudget) {
@@ -384,23 +434,6 @@ function drawLineBands(file, box) {
     ctx.lineTo(box.x + box.width, y);
     ctx.stroke();
   }
-}
-
-function drawAggregateHint(folder, box, style) {
-  const area = screenIntersection(box);
-  if (!area) return;
-  const text = aggregateLabel(folder);
-  ctx.save();
-  ctx.fillStyle = style.label;
-  ctx.globalAlpha = 0.36;
-  ctx.font = "600 11px Inter, system-ui, sans-serif";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, Math.max(box.x + 10, area.x + 10), area.y + area.height / 2);
-  ctx.restore();
-}
-
-function childCountFor(folder) {
-  return (folder.children?.folders?.length ?? 0) + (folder.children?.files?.length ?? 0);
 }
 
 function drawNamedPlaces() {
@@ -531,7 +564,7 @@ function onWheel(event) {
 
 function zoomAt(screenAnchor, factor) {
   const before = screenToWorld(screenAnchor);
-  state.view.scale = clamp(state.view.scale * factor, 0.65, 80);
+  state.view.scale = clamp(state.view.scale * factor, MAP_MIN_SCALE, MAP_MAX_SCALE);
   const after = screenToWorld(screenAnchor);
   state.view.x += before.x - after.x;
   state.view.y += before.y - after.y;
@@ -774,7 +807,7 @@ function hitTest(point) {
 function zoomToBounds(bounds, paddingFactor = 1.2) {
   const scaleX = 1 / Math.max(bounds.width * paddingFactor, 0.001);
   const scaleY = 1 / Math.max(bounds.height * paddingFactor, 0.001);
-  const scale = clamp(Math.min(scaleX, scaleY), 0.65, 80);
+  const scale = clamp(Math.min(scaleX, scaleY), MAP_MIN_SCALE, MAP_MAX_SCALE);
   state.view.scale = scale;
   state.view.x = bounds.x + bounds.width / 2 - 0.5 / scale;
   state.view.y = bounds.y + bounds.height / 2 - 0.5 / scale;
@@ -783,7 +816,7 @@ function zoomToBounds(bounds, paddingFactor = 1.2) {
 function zoomToReadableFile(file, lineRatio = 0.5) {
   const widthScale = SOURCE_TEXT_MIN_WIDTH / Math.max(file.bounds.width * canvas.clientWidth, 0.001);
   const lineScale = (SOURCE_TEXT_MIN_LINE_HEIGHT * Math.max(1, file.lineCount)) / Math.max(file.bounds.height * canvas.clientHeight, 0.001);
-  const scale = clamp(Math.max(widthScale, lineScale) * SOURCE_TEXT_ZOOM_HEADROOM, 0.65, 80);
+  const scale = clamp(Math.max(widthScale, lineScale) * SOURCE_TEXT_ZOOM_HEADROOM, MAP_MIN_SCALE, MAP_MAX_SCALE);
   const screenWidth = file.bounds.width * canvas.clientWidth * scale;
   const focusX = file.bounds.x + file.bounds.width / 2;
   const focusY = file.bounds.y + file.bounds.height * clamp(lineRatio, 0, 1);

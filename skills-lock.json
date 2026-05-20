@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "code-map-visualization": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/.experimental/code-map-visualization/SKILL.md",
+      "computedHash": "0e2b958dbc3216395e1b7b4486a2816e9a7d510d6c263cd830f484120684ce83"
+    },
     "computer-science-algorithms": {
       "source": "pproenca/dot-skills",
       "sourceType": "github",

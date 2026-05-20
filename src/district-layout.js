@@ -2,9 +2,9 @@ import { geohashForBoundsCenter } from "./geohash.js";
 import { FULL_GEOHASH_PRECISION } from "./levels.js";
 
 export const PROJECTION_TYPE = "filesystem-district-map";
-export const PROJECTION_LAYOUT_VERSION = 2;
+export const PROJECTION_LAYOUT_VERSION = 3;
 export const PROJECTION_ORDER = "bounded-weight-binary-districts-folders-first";
-export const PROJECTION_AREA_WEIGHT = "sqrt-line-count-with-structural-floor";
+export const PROJECTION_AREA_WEIGHT = "sqrt-token-count-with-structural-floor";
 
 const ROOT_MARGIN = 0.012;
 const INNER_PADDING_RATIO = 0.035;
@@ -96,7 +96,7 @@ function orderedForLayout(children) {
 }
 
 function layoutWeight(child) {
-  const size = Math.sqrt(Math.max(1, child.lineCount || child.weight || 1));
+  const size = Math.sqrt(Math.max(1, child.weight || child.lineCount || 1));
   const childCount = child.type === "folder" ? child.folders.size + child.files.size : 0;
   const structure = child.type === "folder" ? Math.log2(childCount + 2) : 0;
   return Math.max(MIN_LAYOUT_WEIGHT, size + structure);

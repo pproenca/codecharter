@@ -16,6 +16,7 @@ test("generates a path-keyed map sidecar from gitignore-filtered code files", as
   await mkdir(join(root, "dist"), { recursive: true });
   await writeFile(join(root, ".gitignore"), "dist/\n");
   await writeFile(join(root, "src", "app.ts"), "const a = 1;\nconst b = 2;\n");
+  await writeFile(join(root, "src", "wide.ts"), "export const wide = call(alpha, beta, gamma, delta, epsilon);\n");
   await writeFile(join(root, "src", "image.png"), "not really an image");
   await writeFile(join(root, "dist", "generated.ts"), "const generated = true;\n");
   await writeFile(join(root, "codemap.json"), "{}\n");
@@ -24,16 +25,19 @@ test("generates a path-keyed map sidecar from gitignore-filtered code files", as
 
   assert.equal(codemap.version, 1);
   assert.equal(codemap.projection.type, "filesystem-district-map");
-  assert.equal(codemap.projection.layoutVersion, 2);
+  assert.equal(codemap.projection.layoutVersion, 3);
   assert.equal(codemap.projection.mapOrder, "bounded-weight-binary-districts-folders-first");
+  assert.equal(codemap.projection.areaWeight, "sqrt-token-count-with-structural-floor");
   assert.equal(codemap.mapLevels.file, 7);
   assert.ok(codemap.folders[""]);
   assert.ok(codemap.folders.src);
   assert.ok(codemap.files["src/app.ts"]);
   assert.equal(codemap.files["src/app.ts"].lineCount, 2);
   assert.equal(codemap.files["src/app.ts"].maxLineLength, 12);
-  assert.equal(codemap.files["src/app.ts"].tokenCount, 10);
-  assert.equal(codemap.files["src/app.ts"].wordCount, 6);
+  assert.equal(codemap.files["src/app.ts"].weight, 10);
+  assert.equal(codemap.files["src/wide.ts"].weight > codemap.files["src/app.ts"].weight, true);
+  assert.equal("tokenCount" in codemap.files["src/app.ts"], false);
+  assert.equal("wordCount" in codemap.files["src/app.ts"], false);
   assert.equal(codemap.files["src/image.png"], undefined);
   assert.equal(codemap.files["dist/generated.ts"], undefined);
   assert.equal(codemap.files["codemap.json"], undefined);
@@ -96,7 +100,7 @@ test("does not anchor when the district layout algorithm changes", async () => {
     previousCodemap: {
       projection: {
         type: "filesystem-district-map",
-        layoutVersion: 1,
+        layoutVersion: 2,
         mapOrder: "bounded-weight-squarified-folders-first",
         areaWeight: "sqrt-line-count-with-structural-floor",
       },
@@ -110,7 +114,7 @@ test("does not anchor when the district layout algorithm changes", async () => {
   });
 
   assert.equal(codemap.projection.mapOrder, "bounded-weight-binary-districts-folders-first");
-  assert.equal(codemap.projection.layoutVersion, 2);
+  assert.equal(codemap.projection.layoutVersion, 3);
   assert.notDeepEqual(codemap.files["src/app.ts"].bounds, obsoleteBounds);
 });
 

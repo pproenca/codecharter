@@ -51,10 +51,11 @@ function contentMetrics(content) {
   return {
     lineCount: Math.max(1, lines.length),
     maxLineLength: Math.max(1, ...lines.map((line) => line.length)),
-    tokenCount: countMatches(content, /[A-Za-z_$][A-Za-z0-9_$]*|\d+(?:\.\d+)?|[^\s]/g),
-    wordCount: countMatches(content, /[A-Za-z0-9_]+/g),
+    tokenCount: Math.max(1, countMatches(content, TOKEN_PATTERN)),
   };
 }
+
+const TOKEN_PATTERN = /[A-Za-z_$][A-Za-z0-9_$]*|\d+(?:\.\d+)?|[^\s]/g;
 
 function countMatches(content, pattern) {
   return content.match(pattern)?.length ?? 0;

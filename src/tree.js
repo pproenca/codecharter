@@ -22,9 +22,7 @@ export function buildFileTree(files) {
       extension: file.extension,
       lineCount: file.lineCount,
       maxLineLength: file.maxLineLength,
-      tokenCount: file.tokenCount,
-      wordCount: file.wordCount,
-      weight: Math.max(file.lineCount, MIN_VISIBLE_WEIGHT),
+      weight: Math.max(file.tokenCount, MIN_VISIBLE_WEIGHT),
     });
   }
 

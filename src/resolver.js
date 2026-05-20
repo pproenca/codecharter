@@ -133,15 +133,14 @@ function resolveFragment(file, fragment) {
   const lineBounds = lineRangeBounds(file, start, end);
   const bounds = tokenRange ? tokenBounds(file, lineBounds, tokenRange) : lineBounds;
   const level = tokenRange ? "tokenRange" : "lineRange";
-  const geo = geoForBounds(bounds, level);
+  const geohash = geoForBounds(bounds, level).geohash;
   return {
     level,
     targetType: level,
-    geohash: geo.geohash,
+    geohash,
     lineRange: { start, end },
     ...(tokenRange ? { tokenRange } : {}),
     bounds,
-    geo,
   };
 }
 

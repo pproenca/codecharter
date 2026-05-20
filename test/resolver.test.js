@@ -81,7 +81,8 @@ test("resolves token fragments without placing the anchor in whitespace between 
   assert.deepEqual(address.coveringSet, address.fragments.map((fragment) => fragment.geohash).sort());
   assert.equal(address.fragments.length, 2);
   assert.equal(address.fragments.every((fragment) => fragment.targetType === "tokenRange"), true);
-  assert.equal(address.fragments.every((fragment) => fragment.geo?.geohash === fragment.geohash), true);
+  assert.equal(address.fragments.every((fragment) => typeof fragment.geohash === "string"), true);
+  assert.equal(address.fragments.every((fragment) => fragment.geo === undefined), true);
   assert.deepEqual(address.fragments[0].lineRange, { start: 10, end: 10 });
   assert.deepEqual(address.fragments[0].tokenRange, { start: 1, end: 8 });
   assert.equal(address.fragments[0].bounds.x, 0.25);

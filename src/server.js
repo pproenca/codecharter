@@ -176,8 +176,7 @@ async function loadMapVersion(state) {
 function acceptActivityRequest(state, request) {
   readBody(request)
     .then(async (body) => {
-      const codemap = await loadCodemap(state);
-      const address = body.address ?? resolveAddress(codemap, body);
+      const address = body.address ?? resolveAddress(await loadCodemap(state), body);
       state.activityStore.add(createActivityEvent(address, body));
     })
     .catch((error) => {

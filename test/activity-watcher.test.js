@@ -125,6 +125,60 @@ test("watcher polling does not wait for activity delivery", async () => {
   }
 });
 
+test("watcher can post pre-resolved map addresses without path resolution at the endpoint", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-watcher-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.js"), "const app = true;\n");
+  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileAsync("git", ["add", "src/app.js"], { cwd: root });
+
+  const posted = [];
+  const server = createServer(async (request, response) => {
+    posted.push(await readBody(request));
+    response.writeHead(202, { "content-type": "application/json" });
+    response.end(JSON.stringify({ accepted: true }));
+  });
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+
+  const watcher = startActivityWatcher({
+    root,
+    endpoint: `http://127.0.0.1:${server.address().port}/api/activity`,
+    intervalMs: 60_000,
+    throttleMs: 0,
+    createActivityPayload: (change, { agentId, activityState }) => ({
+      agentId,
+      activityState,
+      address: {
+        level: "lineRange",
+        targetType: "lineRange",
+        geohash: "s00000000000",
+        deepLink: `codemap://lineRange/s00000000000?path=${encodeURIComponent(change.path)}&lines=${change.lineStart}-${change.lineEnd}`,
+        breadcrumb: `${change.path}:${change.lineStart}-${change.lineEnd}`,
+        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        geo: { lat: 0, lon: 0, geohash: "s00000000000" },
+        lineRange: { start: change.lineStart, end: change.lineEnd },
+      },
+      note: "pre-resolved",
+    }),
+  });
+
+  try {
+    watcher.close();
+    await watcher.poll();
+    await waitFor(() => posted.length === 1);
+    assert.equal(posted[0].path, undefined);
+    assert.equal(posted[0].address.targetType, "lineRange");
+    assert.equal(posted[0].address.lineRange.start, 1);
+  } finally {
+    watcher.close();
+    server.close();
+    await once(server, "close");
+  }
+});
+
 async function readBody(request) {
   let raw = "";
   for await (const chunk of request) raw += chunk;

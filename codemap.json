@@ -53,8 +53,8 @@
         "lat": 0,
         "geohash": "s00000000000"
       },
-      "lineCount": 14635,
-      "weight": 14635,
+      "lineCount": 14862,
+      "weight": 14862,
       "children": {
         "folders": [
           ".agents",
@@ -967,8 +967,8 @@
         "lat": -18.082052019359992,
         "geohash": "qsc94k786v4y"
       },
-      "lineCount": 186,
-      "weight": 186,
+      "lineCount": 195,
+      "weight": 195,
       "children": {
         "folders": [],
         "files": [
@@ -1122,8 +1122,8 @@
         "lat": 42.131251412370005,
         "geohash": "wpqz8mz2qfe8"
       },
-      "lineCount": 1630,
-      "weight": 1630,
+      "lineCount": 1642,
+      "weight": 1642,
       "children": {
         "folders": [],
         "files": [
@@ -1171,14 +1171,15 @@
         "lat": -68.88465464058001,
         "geohash": "1gz047fjg3sm"
       },
-      "lineCount": 1156,
-      "weight": 1156,
+      "lineCount": 1362,
+      "weight": 1362,
       "children": {
         "folders": [],
         "files": [
           "test/activity-store.test.js",
           "test/activity-watcher.test.js",
           "test/activity.test.js",
+          "test/dev-cli.test.js",
           "test/generator.test.js",
           "test/geohash.test.js",
           "test/local-git-exclude.test.js",
@@ -1192,9 +1193,9 @@
         ]
       },
       "growthArea": {
-        "x": 0.453410362037,
+        "x": 0.457483160471,
         "y": 0.964419581588,
-        "width": 0.005090998043,
+        "width": 0.001018199609,
         "height": 0.001328895216
       }
     }
@@ -4560,8 +4561,8 @@
         "lat": -18.082052019359992,
         "geohash": "qsb1nu60mjpn"
       },
-      "lineCount": 186,
-      "weight": 186
+      "lineCount": 195,
+      "weight": 195
     },
     "docs/adr/0001-stable-code-map-addresses.md": {
       "path": "docs/adr/0001-stable-code-map-addresses.md",
@@ -4826,8 +4827,8 @@
         "lat": 3.495019426109991,
         "geohash": "w085zsnzfyc6"
       },
-      "lineCount": 158,
-      "weight": 158
+      "lineCount": 171,
+      "weight": 171
     },
     "src/activity.js": {
       "path": "src/activity.js",
@@ -5073,8 +5074,8 @@
         "lat": 54.918755498159996,
         "geohash": "v9v2kjxhfqp9"
       },
-      "lineCount": 236,
-      "weight": 236
+      "lineCount": 235,
+      "weight": 235
     },
     "src/source.js": {
       "path": "src/source.js",
@@ -5225,8 +5226,8 @@
         "lat": -80.24670874044,
         "geohash": "59dp7z8cn1q8"
       },
-      "lineCount": 140,
-      "weight": 140
+      "lineCount": 194,
+      "weight": 194
     },
     "test/activity.test.js": {
       "path": "test/activity.test.js",
@@ -5246,6 +5247,25 @@
       },
       "lineCount": 91,
       "weight": 91
+    },
+    "test/dev-cli.test.js": {
+      "path": "test/dev-cli.test.js",
+      "name": "dev-cli.test.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.45345687337,
+        "y": 0.964466092921,
+        "width": 0.003979775769,
+        "height": 0.001235872551
+      },
+      "geo": {
+        "lon": -16.039165948380003,
+        "lat": -83.71512525537,
+        "geohash": "59heg00sh3e4"
+      },
+      "lineCount": 116,
+      "weight": 116
     },
     "test/generator.test.js": {
       "path": "test/generator.test.js",
@@ -5396,8 +5416,8 @@
         "lat": -63.40938527844,
         "geohash": "1kepq0tt83u7"
       },
-      "lineCount": 206,
-      "weight": 206
+      "lineCount": 242,
+      "weight": 242
     },
     "test/source.test.js": {
       "path": "test/source.test.js",

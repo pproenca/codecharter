@@ -108,6 +108,30 @@ test("serves bundled UI assets when mapping a repo without its own public direct
   }
 });
 
+test("accepts pre-resolved activity without reading the map sidecar", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-address-activity-"));
+  await writeFile(join(root, "codemap.json"), "{");
+
+  const server = await startServer({ root, mapPath: join(root, "codemap.json"), port: 0 });
+  const address = server.address();
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+
+  try {
+    const accepted = await postJson(`${baseUrl}/api/activity`, {
+      agentId: "codex",
+      activityState: "editing",
+      address: sampleActivityAddress(),
+    });
+    assert.equal(accepted.accepted, true);
+
+    const activityStream = await waitForActivityEvent(baseUrl);
+    assert.equal(activityStream.events.at(-1).address.deepLink, "codemap://file/s000000?path=src%2Fapp.ts");
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
 async function getJson(url) {
   const response = await fetch(url);
   if (!response.ok) assert.fail(await response.text());
@@ -154,6 +178,18 @@ async function waitForMapVersion(baseUrl, previousVersion) {
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
   assert.fail("Map version did not change");
+}
+
+function sampleActivityAddress() {
+  return {
+    level: "file",
+    targetType: "file",
+    geohash: "s000000",
+    deepLink: "codemap://file/s000000?path=src%2Fapp.ts",
+    breadcrumb: "src > app.ts",
+    bounds: { x: 0, y: 0, width: 1, height: 1 },
+    geo: { lat: 0, lon: 0, geohash: "s000000" },
+  };
 }
 
 function sampleCodemap({ includeExtraFile = false } = {}) {

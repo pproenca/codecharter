@@ -76,7 +76,7 @@ async function main() {
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
     await ensureLocalGitExcludes(root);
-    await writeCodemap({ root, out: mapPath, fresh });
+    let currentCodemap = await writeCodemap({ root, out: mapPath, fresh });
     await ensureActivityStream(root);
     await startServer({ root, mapPath, port });
     if (watch) {
@@ -93,7 +93,16 @@ async function main() {
             .join("\0");
           if (!signature || signature === lastRefreshSignature) return;
           lastRefreshSignature = signature;
-          await writeCodemap({ root, out: mapPath, quiet: true });
+          currentCodemap = await writeCodemap({ root, out: mapPath, quiet: true });
+        },
+        createActivityPayload: (change, { agentId: eventAgentId, activityState }) => {
+          const address = resolveAddress(currentCodemap, change);
+          return {
+            agentId: eventAgentId,
+            activityState,
+            address,
+            note: "codemap dev watcher",
+          };
         },
       });
       console.log(`Activity watcher streaming git changes as ${agentId}`);

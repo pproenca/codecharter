@@ -14,6 +14,7 @@ export function startActivityWatcher({
   intervalMs = DEFAULT_INTERVAL_MS,
   throttleMs = DEFAULT_THROTTLE_MS,
   prepareChanges = async () => {},
+  createActivityPayload = defaultActivityPayload,
   postActivity = sendActivityDatagram,
 } = {}) {
   const recent = new Map();
@@ -38,14 +39,15 @@ export function startActivityWatcher({
       if (previous?.signature === change.signature) continue;
       if (previous && now - previous.timestamp < throttleMs) continue;
       recent.set(path, { signature: change.signature, timestamp: now });
-      void postActivity(endpoint, {
-        agentId,
-        activityState,
-        path,
-        lineStart: change.lineStart,
-        lineEnd: change.lineEnd,
-        note: "codemap dev watcher",
-      });
+      let payload;
+      try {
+        payload = createActivityPayload(change, { agentId, activityState });
+      } catch (error) {
+        console.warn(`Activity watcher skipped ${path}: ${error.message}`);
+        continue;
+      }
+      if (!payload) continue;
+      void postActivity(endpoint, payload);
     }
   }
 
@@ -103,7 +105,7 @@ export function lineRangeFromUnifiedDiff(diff) {
 }
 
 async function changedGitPaths(root) {
-  const { stdout } = await execFileAsync("git", ["status", "--porcelain=v1", "-z"], { cwd: root });
+  const { stdout } = await execFileAsync("git", ["status", "--porcelain=v1", "-z", "--untracked-files=all"], { cwd: root });
   return parseGitStatusPorcelain(stdout);
 }
 
@@ -126,6 +128,17 @@ async function gitDiff(root, args) {
   } catch {
     return "";
   }
+}
+
+function defaultActivityPayload(change, { agentId, activityState }) {
+  return {
+    agentId,
+    activityState,
+    path: change.path,
+    lineStart: change.lineStart,
+    lineEnd: change.lineEnd,
+    note: "codemap dev watcher",
+  };
 }
 
 async function sendActivityDatagram(endpoint, body) {

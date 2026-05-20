@@ -70,6 +70,7 @@ const controls = {
   summary: document.querySelector("#mapSummary"),
   hover: document.querySelector("#hoverReadout"),
   viewport: document.querySelector("#viewportReadout"),
+  selectionPopover: document.querySelector("#selectionPopover"),
   inspectorTitle: document.querySelector("#inspectorTitle"),
   inspectorSubtitle: document.querySelector("#inspectorSubtitle"),
   searchForm: document.querySelector("#searchForm"),
@@ -158,8 +159,8 @@ function bindEvents() {
   });
 
   controls.searchForm?.addEventListener("submit", searchMap);
-  controls.saveSelection.addEventListener("click", saveSelection);
-  controls.activityForm.addEventListener("submit", addActivity);
+  controls.saveSelection?.addEventListener("click", saveSelection);
+  controls.activityForm?.addEventListener("submit", addActivity);
 
   mapArea.addEventListener("wheel", onWheel, { passive: false });
   canvas.addEventListener("pointerdown", onPointerDown);
@@ -228,8 +229,14 @@ function clearDraftSelection() {
   state.dragging = null;
   state.draftSelection = null;
   state.resolvedSelection = null;
-  controls.saveSelection.disabled = true;
-  controls.selectionOutput.textContent = "Draw an area to resolve files.";
+  if (controls.saveSelection) controls.saveSelection.disabled = true;
+  if (controls.selectionOutput) controls.selectionOutput.textContent = "";
+  updateSelectionPopover();
+}
+
+function updateSelectionPopover() {
+  if (!controls.selectionPopover) return;
+  controls.selectionPopover.hidden = !(state.draftSelection || state.resolvedSelection);
 }
 
 function resize() {
@@ -897,10 +904,10 @@ async function selectMapTarget(worldPoint) {
   const hit = hitTest(worldPoint);
   if (!hit) {
     state.selectedTarget = null;
-    controls.inspectorTitle.textContent = "No place selected";
-    controls.inspectorSubtitle.textContent = "Click a district, parcel, or activity marker.";
-    controls.sourceTitle.textContent = "No file selected";
-    controls.sourceOutput.textContent = "";
+    setText(controls.inspectorTitle, "No place selected");
+    setText(controls.inspectorSubtitle, "Click a district, parcel, or activity marker.");
+    setText(controls.sourceTitle, "No file selected");
+    setText(controls.sourceOutput, "");
     render();
     return;
   }
@@ -911,12 +918,12 @@ async function selectMapTarget(worldPoint) {
     return;
   }
 
-  controls.inspectorTitle.textContent = hit.targetType === "file" ? hit.name : labelForFolder(hit);
-  controls.inspectorSubtitle.textContent = `${hit.targetType}: ${hit.path || "."} | ${hit.geo.geohash}`;
+  setText(controls.inspectorTitle, hit.targetType === "file" ? hit.name : labelForFolder(hit));
+  setText(controls.inspectorSubtitle, `${hit.targetType}: ${hit.path || "."} | ${hit.geo.geohash}`);
 
   if (hit.targetType !== "file") {
-    controls.sourceTitle.textContent = hit.path || ".";
-    controls.sourceOutput.textContent = "Folder selected.";
+    setText(controls.sourceTitle, hit.path || ".");
+    setText(controls.sourceOutput, "Folder selected.");
     render();
     return;
   }
@@ -935,23 +942,23 @@ async function selectMapTarget(worldPoint) {
     fetchJson(`/api/source?${query}`),
   ]);
 
-  controls.sourceTitle.textContent = `${hit.path} · ${address.deepLink}`;
-  controls.sourceOutput.textContent = source.lines
+  setText(controls.sourceTitle, `${hit.path} · ${address.deepLink}`);
+  setText(controls.sourceOutput, source.lines
     .map((item) => `${String(item.number).padStart(4, " ")}  ${item.text}`)
-    .join("\n");
-  controls.sourceOutput.scrollTop = 0;
+    .join("\n"));
+  if (controls.sourceOutput) controls.sourceOutput.scrollTop = 0;
   render();
 }
 
 async function selectActivityEvent(event) {
   state.selectedTarget = { ...event, targetType: "activity" };
-  controls.inspectorTitle.textContent = `${event.agentId}: ${normalizeActivityState(event.activityState)}`;
-  controls.inspectorSubtitle.textContent = `activity: ${activityPathLabel(event)} | ${event.address.geohash}`;
+  setText(controls.inspectorTitle, `${event.agentId}: ${normalizeActivityState(event.activityState)}`);
+  setText(controls.inspectorSubtitle, `activity: ${activityPathLabel(event)} | ${event.address.geohash}`);
 
   const path = pathFromActivity(event);
   if (!path) {
-    controls.sourceTitle.textContent = event.address.deepLink;
-    controls.sourceOutput.textContent = event.note || "Activity selected.";
+    setText(controls.sourceTitle, event.address.deepLink);
+    setText(controls.sourceOutput, event.note || "Activity selected.");
     render();
     return;
   }
@@ -959,11 +966,11 @@ async function selectActivityEvent(event) {
   const lineRange = event.address.lineRange ?? { start: 1, end: undefined };
   const query = `path=${encodeURIComponent(path)}&lineStart=${lineRange.start}&lineEnd=${lineRange.end ?? lineRange.start}`;
   const source = await fetchJson(`/api/source?${query}`);
-  controls.sourceTitle.textContent = `${path} · ${event.address.deepLink}`;
-  controls.sourceOutput.textContent = source.lines
+  setText(controls.sourceTitle, `${path} · ${event.address.deepLink}`);
+  setText(controls.sourceOutput, source.lines
     .map((item) => `${String(item.number).padStart(4, " ")}  ${item.text}`)
-    .join("\n");
-  controls.sourceOutput.scrollTop = 0;
+    .join("\n"));
+  if (controls.sourceOutput) controls.sourceOutput.scrollTop = 0;
   render();
 }
 
@@ -1005,8 +1012,8 @@ async function searchMap(event) {
   if (folder) {
     zoomToBounds(folder.bounds, 1.6);
     state.selectedTarget = { ...folder, targetType: "folder" };
-    controls.inspectorTitle.textContent = labelForFolder(folder);
-    controls.inspectorSubtitle.textContent = `folder: ${folder.path || "."} | ${folder.geo.geohash}`;
+    setText(controls.inspectorTitle, labelForFolder(folder));
+    setText(controls.inspectorSubtitle, `folder: ${folder.path || "."} | ${folder.geo.geohash}`);
     setSearchResult(`Folder: ${folder.path || "."}`);
     render();
     return;
@@ -1019,44 +1026,51 @@ function setSearchResult(message) {
   if (controls.searchResult) controls.searchResult.textContent = message;
 }
 
+function setText(element, value) {
+  if (element) element.textContent = value;
+}
+
 async function previewSelection() {
   const draftSelection = state.draftSelection;
   if (!draftSelection) return;
   const body = {
-    name: controls.selectionName.value || "Preview",
+    name: controls.selectionName?.value || "Preview",
     level: DEFAULT_MAP_LEVEL,
     geometry: draftSelection,
   };
   const resolvedSelection = await postJson("/api/selections/resolve", body);
   if (state.draftSelection !== draftSelection) return;
   state.resolvedSelection = resolvedSelection;
-  controls.saveSelection.disabled = false;
-  controls.selectionOutput.textContent = JSON.stringify({
+  if (controls.saveSelection) controls.saveSelection.disabled = false;
+  setText(controls.selectionOutput, JSON.stringify({
     coveringSet: state.resolvedSelection.coveringSet,
     resolvedTargets: state.resolvedSelection.resolvedTargets.slice(0, 20),
     totalTargets: state.resolvedSelection.resolvedTargets.length,
-  }, null, 2);
+  }, null, 2));
+  updateSelectionPopover();
   render();
 }
 
 async function saveSelection() {
   if (!state.resolvedSelection) return;
   const saved = await postJson("/api/named-places", {
-    name: controls.selectionName.value || "Named Area",
+    name: controls.selectionName?.value || "Named Area",
     level: DEFAULT_MAP_LEVEL,
     geometry: state.resolvedSelection.geometry,
   });
   state.namedPlaces.push(saved.place);
   state.overlaps = saved.overlaps ?? [];
-  controls.selectionOutput.textContent = `Saved ${saved.place.name}\n${saved.place.coveringSet.join(", ")}\nOverlaps: ${state.overlaps.length}`;
+  setText(controls.selectionOutput, `Saved ${saved.place.name}\n${saved.place.coveringSet.join(", ")}\nOverlaps: ${state.overlaps.length}`);
   state.draftSelection = null;
   state.resolvedSelection = null;
-  controls.saveSelection.disabled = true;
+  if (controls.saveSelection) controls.saveSelection.disabled = true;
+  updateSelectionPopover();
   render();
 }
 
 async function addActivity(event) {
   event.preventDefault();
+  if (!controls.activityForm) return;
   const data = Object.fromEntries(new FormData(controls.activityForm).entries());
   await postJson("/api/activity", {
     agentId: data.agentId,

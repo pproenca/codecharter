@@ -15,45 +15,11 @@
           <button id="drawTool" class="icon-tool square-tool" type="button" title="Draw geohash selection" aria-label="Draw geohash selection" aria-pressed="false"></button>
         </div>
 
-        <aside id="inspector" class="inspector">
-          <section class="inspector-section selected-place">
-            <h2 id="inspectorTitle">Select a place</h2>
-            <p id="inspectorSubtitle">Click a file, folder, named place, or agent marker.</p>
-          </section>
-
-          <section class="inspector-section selection-panel">
-            <h3>Drawn Selection</h3>
-            <input id="selectionName" type="text" placeholder="Name this area">
-            <button id="saveSelection" type="button" disabled>Save named place</button>
-            <pre id="selectionOutput">Draw an area to resolve files.</pre>
-          </section>
-
-          <section class="inspector-section source-panel">
-            <h3>Source</h3>
-            <div id="sourceTitle">Click a file tile</div>
-            <pre id="sourceOutput"></pre>
-          </section>
-
-          <section class="inspector-section">
-            <h3>Agent Activity</h3>
-            <div id="activityFeed" class="activity-feed">No activity yet.</div>
-            <form id="activityForm">
-              <input name="agentId" type="text" value="codex" aria-label="Agent">
-              <select name="activityState" aria-label="Activity state">
-                <option value="reading">reading</option>
-                <option value="editing">editing</option>
-                <option value="testing">testing</option>
-                <option value="reviewing">reviewing</option>
-              </select>
-              <input name="path" type="text" value="src/resolver.js" aria-label="Path">
-              <div class="line-inputs">
-                <input name="lineStart" type="number" min="1" value="1" aria-label="Line start">
-                <input name="lineEnd" type="number" min="1" value="20" aria-label="Line end">
-              </div>
-              <button type="submit">Add event</button>
-            </form>
-          </section>
-        </aside>
+        <div id="selectionPopover" class="selection-popover" hidden>
+          <input id="selectionName" type="text" placeholder="Name this area" aria-label="Selection name">
+          <button id="saveSelection" type="button" disabled>Save named place</button>
+          <pre id="selectionOutput"></pre>
+        </div>
 
         <footer class="map-status">
           <div id="hoverReadout">Move over the map</div>

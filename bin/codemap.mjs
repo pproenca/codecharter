@@ -5,6 +5,7 @@ import { createActivityEvent } from "../src/activity.js";
 import { appendActivityEvents, ensureActivityArchive } from "../src/activity-store.js";
 import { startActivityWatcher } from "../src/activity-watcher.js";
 import { generateCodemap } from "../src/generator.js";
+import { ensureLocalGitExcludes } from "../src/local-git-exclude.js";
 import { resolveAddress } from "../src/resolver.js";
 import { startServer } from "../src/server.js";
 import { writeJson } from "../src/store.js";
@@ -56,6 +57,7 @@ async function main() {
     const fresh = takeFlag(args, "--fresh");
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
+    await ensureLocalGitExcludes(root);
     await writeCodemap({ root, out, fresh });
     await ensureActivityStream(root);
     console.log("Setup complete.");
@@ -73,6 +75,7 @@ async function main() {
     if (!Number.isInteger(port) || port < 1) throw new Error("Port must be a positive integer");
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
+    await ensureLocalGitExcludes(root);
     await writeCodemap({ root, out: mapPath, fresh });
     await ensureActivityStream(root);
     await startServer({ root, mapPath, port });

@@ -16,6 +16,7 @@ That command:
 
 Activity telemetry is deliberately non-blocking. If the server cannot resolve an activity event, code work continues and the event is dropped. Accepted real-time events live in memory first and are periodically appended to `.scratch/activity-stream.jsonl` as a JSONL archive, without a hard file-size check.
 While `npm run dev` is running, changed code files refresh `codemap.json` before activity is posted, so newly created files can receive stable Map Addresses without restarting the server.
+`setup` and `dev` add Codemaps scratch files to the target repo's local `.git/info/exclude`, so telemetry does not show up as untracked work.
 
 ## Useful commands
 

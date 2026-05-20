@@ -53,8 +53,8 @@
         "lat": 0,
         "geohash": "s00000000000"
       },
-      "lineCount": 14598,
-      "weight": 14598,
+      "lineCount": 14563,
+      "weight": 14563,
       "children": {
         "folders": [
           ".agents",
@@ -967,8 +967,8 @@
         "lat": -18.082052019359992,
         "geohash": "qsc94k786v4y"
       },
-      "lineCount": 183,
-      "weight": 183,
+      "lineCount": 186,
+      "weight": 186,
       "children": {
         "folders": [],
         "files": [
@@ -1090,8 +1090,8 @@
         "lat": -26.75340322820999,
         "geohash": "3gppf3dn5khm"
       },
-      "lineCount": 1962,
-      "weight": 1962,
+      "lineCount": 1847,
+      "weight": 1847,
       "children": {
         "folders": [],
         "files": [
@@ -1122,8 +1122,8 @@
         "lat": 42.131251412370005,
         "geohash": "wpqz8mz2qfe8"
       },
-      "lineCount": 1577,
-      "weight": 1577,
+      "lineCount": 1621,
+      "weight": 1621,
       "children": {
         "folders": [],
         "files": [
@@ -1136,6 +1136,7 @@
           "src/geohash.js",
           "src/geometry.js",
           "src/levels.js",
+          "src/local-git-exclude.js",
           "src/overlaps.js",
           "src/resolver.js",
           "src/scan.js",
@@ -1151,9 +1152,9 @@
       },
       "growthArea": {
         "x": 0.893655204369,
-        "y": 0.466882433926,
+        "y": 0.488803700301,
         "width": 0.01019382822,
-        "height": 0.027401582969
+        "height": 0.005480316594
       }
     },
     "test": {
@@ -1170,8 +1171,8 @@
         "lat": -68.88465464058001,
         "geohash": "1gz047fjg3sm"
       },
-      "lineCount": 1061,
-      "weight": 1061,
+      "lineCount": 1093,
+      "weight": 1093,
       "children": {
         "folders": [],
         "files": [
@@ -1180,6 +1181,7 @@
           "test/activity.test.js",
           "test/generator.test.js",
           "test/geohash.test.js",
+          "test/local-git-exclude.test.js",
           "test/overlaps.test.js",
           "test/render-model.test.js",
           "test/resolver.test.js",
@@ -1191,9 +1193,9 @@
       },
       "growthArea": {
         "x": 0.453410362037,
-        "y": 0.959104000722,
+        "y": 0.964419581588,
         "width": 0.005090998043,
-        "height": 0.006644476082
+        "height": 0.001328895216
       }
     }
   },
@@ -4558,8 +4560,8 @@
         "lat": -18.082052019359992,
         "geohash": "qsb1nu60mjpn"
       },
-      "lineCount": 183,
-      "weight": 183
+      "lineCount": 186,
+      "weight": 186
     },
     "docs/adr/0001-stable-code-map-addresses.md": {
       "path": "docs/adr/0001-stable-code-map-addresses.md",
@@ -4729,8 +4731,8 @@
         "lat": -26.753403228299987,
         "geohash": "35hrf1en0spm"
       },
-      "lineCount": 1188,
-      "weight": 1188
+      "lineCount": 1202,
+      "weight": 1202
     },
     "public/index.html": {
       "path": "public/index.html",
@@ -4748,8 +4750,8 @@
         "lat": -40.39346645523,
         "geohash": "68u61n9eh0n6"
       },
-      "lineCount": 66,
-      "weight": 66
+      "lineCount": 32,
+      "weight": 32
     },
     "public/render-model.js": {
       "path": "public/render-model.js",
@@ -4786,8 +4788,8 @@
         "lat": -19.103169310019993,
         "geohash": "6ss7343eupnk"
       },
-      "lineCount": 290,
-      "weight": 290
+      "lineCount": 195,
+      "weight": 195
     },
     "src/activity-store.js": {
       "path": "src/activity-store.js",
@@ -4959,6 +4961,25 @@
       },
       "lineCount": 16,
       "weight": 16
+    },
+    "src/local-git-exclude.js": {
+      "path": "src/local-git-exclude.js",
+      "name": "local-git-exclude.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.894011988357,
+        "y": 0.467239217914,
+        "width": 0.009480260245,
+        "height": 0.0212076984
+      },
+      "geo": {
+        "lon": 143.55076265262,
+        "lat": 3.9882479194799885,
+        "geohash": "x0wndw43ppqc"
+      },
+      "lineCount": 44,
+      "weight": 44
     },
     "src/overlaps.js": {
       "path": "src/overlaps.js",
@@ -5264,6 +5285,25 @@
       "lineCount": 31,
       "weight": 31
     },
+    "test/local-git-exclude.test.js": {
+      "path": "test/local-git-exclude.test.js",
+      "name": "local-git-exclude.test.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.453588546969,
+        "y": 0.959282185654,
+        "width": 0.00473462818,
+        "height": 0.004959211003
+      },
+      "geo": {
+        "lon": -15.855890018759993,
+        "lat": -83.11712240799,
+        "geohash": "59hxphypdvrk"
+      },
+      "lineCount": 32,
+      "weight": 32
+    },
     "test/overlaps.test.js": {
       "path": "test/overlaps.test.js",
       "name": "overlaps.test.js",
@@ -5470,8 +5510,8 @@
         "lat": 17.567999999999998,
         "geohash": "xej7vy4tn286"
       },
-      "lineCount": 36,
-      "weight": 36
+      "lineCount": 37,
+      "weight": 37
     },
     "skills-lock.json": {
       "path": "skills-lock.json",

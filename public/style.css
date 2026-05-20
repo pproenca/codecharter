@@ -171,23 +171,6 @@ button:disabled {
   resize: vertical;
 }
 
-.selection-popover pre {
-  background: #0e1726;
-  color: #d8e9ff;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 12px;
-  line-height: 1.45;
-  margin: 0;
-  max-height: 220px;
-  overflow: auto;
-  padding: 10px;
-  white-space: pre;
-}
-
-.selection-popover pre:empty {
-  display: none;
-}
-
 .map-status {
   align-items: center;
   border: 1px solid var(--line);

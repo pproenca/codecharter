@@ -92,7 +92,6 @@ const controls = {
   drawTool: document.querySelector("#drawTool"),
   saveSelection: document.querySelector("#saveSelection"),
   selectionComment: document.querySelector("#selectionComment"),
-  selectionOutput: document.querySelector("#selectionOutput"),
   sourceTitle: document.querySelector("#sourceTitle"),
   sourceOutput: document.querySelector("#sourceOutput"),
   showFolders: document.querySelector("#showFolders"),
@@ -361,9 +360,6 @@ function clearDraftSelection() {
   state.resolvedSelection = null;
   if (controls.saveSelection) controls.saveSelection.disabled = true;
   setSaveButtonLabel();
-  if (state.selectedTarget?.targetType !== "annotation") {
-    if (controls.selectionOutput) controls.selectionOutput.textContent = "";
-  }
   updateSelectionPopover();
 }
 
@@ -375,7 +371,6 @@ function resetSelectionOverlay() {
   state.draftSelection = null;
   state.resolvedSelection = null;
   if (controls.selectionComment) controls.selectionComment.value = "";
-  if (controls.selectionOutput) controls.selectionOutput.textContent = "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
   setSaveButtonLabel();
   updateSelectionPopover();
@@ -1225,7 +1220,6 @@ function selectAnnotation(annotation) {
   if (controls.selectionComment) controls.selectionComment.value = annotation.comment ?? "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
   setSaveButtonLabel();
-  setText(controls.selectionOutput, annotationSummary(annotation));
   updateSelectionPopover();
   render();
 }
@@ -1327,7 +1321,6 @@ async function previewSelection({ routeToken = null } = {}) {
   syncHashRoute(createSelectionHashRoute({ level: DEFAULT_MAP_LEVEL, bounds: resolvedSelection.geometry.bounds }));
   if (controls.saveSelection) controls.saveSelection.disabled = false;
   setSaveButtonLabel();
-  setText(controls.selectionOutput, selectionSummary(state.resolvedSelection));
   updateSelectionPopover();
   render();
 }
@@ -1344,7 +1337,6 @@ async function saveSelection() {
   state.namedPlaces.push(saved.annotation);
   const shareLink = annotationShareLink(saved.annotation);
   const copied = await copyToClipboard(shareLink);
-  setText(controls.selectionOutput, annotationSummary(saved.annotation, { shareLink, copied }));
   state.selectedTarget = { ...saved.annotation, targetType: "annotation" };
   syncHashRoute(createAnnotationHashRoute(saved.annotation.id));
   state.draftSelection = null;
@@ -1357,31 +1349,9 @@ async function saveSelection() {
 function clearAnnotationForm() {
   if (state.draftSelection || state.resolvedSelection) return;
   if (controls.selectionComment) controls.selectionComment.value = "";
-  if (controls.selectionOutput) controls.selectionOutput.textContent = "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
   setSaveButtonLabel();
   updateSelectionPopover();
-}
-
-function selectionSummary(selection) {
-  return JSON.stringify({
-    coveringSet: selection.coveringSet,
-    resolvedTargets: selection.resolvedTargets.map(targetLabel).slice(0, 20),
-    totalTargets: selection.resolvedTargets.length,
-  }, null, 2);
-}
-
-function annotationSummary(annotation, copyState = {}) {
-  return JSON.stringify({
-    id: annotation.id,
-    deepLink: annotation.deepLink,
-    browserHash: annotation.browserHash,
-    ...(copyState.shareLink ? { copiedDeepLink: copyState.shareLink, copied: copyState.copied } : {}),
-    coveringSet: annotation.coveringSet,
-    resolvedTargets: annotation.resolvedTargets.map(targetLabel).slice(0, 20),
-    totalTargets: annotation.resolvedTargets.length,
-    codexPrompt: annotation.codexPrompt,
-  }, null, 2);
 }
 
 function annotationShareLink(annotation) {
@@ -1490,14 +1460,6 @@ function hoverLabel(hit) {
     return `activity: ${hit.agentId} ${normalizeActivityState(hit.activityState)} | ${hit.address.geohash}`;
   }
   return `${hit.targetType}: ${hit.path} | ${hit.geo.geohash}`;
-}
-
-function targetLabel(target) {
-  if (target.tokenRange) {
-    return `${target.path}:${target.lineRange.start}-${target.lineRange.end}@${target.tokenRange.start}-${target.tokenRange.end}`;
-  }
-  if (target.lineRange) return `${target.path}:${target.lineRange.start}-${target.lineRange.end}`;
-  return target.path;
 }
 
 function activityPathLabel(event) {

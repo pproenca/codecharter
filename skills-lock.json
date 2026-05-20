@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "computer-science-algorithms": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/.experimental/computer-science-algorithms/SKILL.md",
+      "computedHash": "b4619f6d9c5ac19460dff820a29b1f955f1371f22828aef983cf1bad2012be51"
+    },
     "geohash-spatial-code-maps": {
       "source": "pproenca/dot-skills",
       "sourceType": "github",

@@ -1,10 +1,10 @@
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { createActivityEvent } from "./activity.js";
 import { findNamedPlaceOverlaps } from "./overlaps.js";
 import { resolveAddress } from "./resolver.js";
-import { createNamedAddress, createNamedSelection } from "./selections.js";
+import { createNamedAddress, createNamedSelection, resolveSelection } from "./selections.js";
 import { readSourceRange } from "./source.js";
 import { readJson, writeJson } from "./store.js";
 import { buildTileIndex, getTile, visiblePrefixes } from "./tiles.js";
@@ -59,6 +59,11 @@ async function handleApi(state, request, response, url) {
     return;
   }
 
+  if (request.method === "GET" && url.pathname === "/api/map-version") {
+    sendJson(response, 200, await loadMapVersion(state));
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/api/tiles") {
     const codemap = await loadCodemap(state);
     const level = url.searchParams.get("level") ?? "file";
@@ -95,7 +100,8 @@ async function handleApi(state, request, response, url) {
   }
 
   if (request.method === "GET" && url.pathname === "/api/named-places") {
-    sendJson(response, 200, withOverlaps(await readJson(state.namedPlacesPath, { places: [] })));
+    const codemap = await loadCodemap(state);
+    sendJson(response, 200, withOverlaps(refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }))));
     return;
   }
 
@@ -148,6 +154,13 @@ async function loadCodemap(state) {
   return JSON.parse(await readFile(state.mapPath, "utf8"));
 }
 
+async function loadMapVersion(state) {
+  const stats = await stat(state.mapPath, { bigint: true });
+  return {
+    version: `${stats.mtimeNs.toString()}:${stats.size.toString()}`,
+  };
+}
+
 function acceptActivityRequest(state, request) {
   readBody(request)
     .then(async (body) => {
@@ -191,6 +204,22 @@ function withOverlaps(store) {
   return {
     ...store,
     overlaps: findNamedPlaceOverlaps(store.places ?? []),
+  };
+}
+
+function refreshNamedPlaces(codemap, store) {
+  return {
+    ...store,
+    places: (store.places ?? []).map((place) => {
+      if (place.kind !== "drawnSelection") return place;
+      return {
+        ...place,
+        ...resolveSelection(codemap, {
+          level: place.level,
+          geometry: place.geometry,
+        }),
+      };
+    }),
   };
 }
 

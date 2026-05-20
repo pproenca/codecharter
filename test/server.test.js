@@ -21,6 +21,8 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
   try {
     const map = await getJson(`${baseUrl}/api/map`);
     assert.equal(Object.keys(map.files).length, 1);
+    const mapVersion = await getJson(`${baseUrl}/api/map-version`);
+    assert.equal(typeof mapVersion.version, "string");
 
     const tiles = await getJson(`${baseUrl}/api/tiles?level=file`);
     assert.equal(tiles.length, 1);
@@ -39,6 +41,12 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.equal(namedPlaceResponse.place.name, "App Area");
     assert.equal(namedPlaceResponse.place.resolvedTargets.length, 1);
     assert.deepEqual(namedPlaceResponse.overlaps, []);
+
+    await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap({ includeExtraFile: true })));
+    const nextMapVersion = await waitForMapVersion(baseUrl, mapVersion.version);
+    assert.notEqual(nextMapVersion.version, mapVersion.version);
+    const refreshedPlaces = await getJson(`${baseUrl}/api/named-places`);
+    assert.equal(refreshedPlaces.places[0].resolvedTargets.length, 2);
 
     const accepted = await postJson(`${baseUrl}/api/activity`, {
       agentId: "codex",
@@ -93,7 +101,16 @@ async function waitForActivityEvent(baseUrl) {
   assert.fail("Activity event was not persisted");
 }
 
-function sampleCodemap() {
+async function waitForMapVersion(baseUrl, previousVersion) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const mapVersion = await getJson(`${baseUrl}/api/map-version`);
+    if (mapVersion.version !== previousVersion) return mapVersion;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.fail("Map version did not change");
+}
+
+function sampleCodemap({ includeExtraFile = false } = {}) {
   return {
     version: 1,
     mapLevels: { world: 1, region: 2, folder: 4, file: 7, code: 10, lineRange: 12 },
@@ -126,6 +143,18 @@ function sampleCodemap() {
         lineCount: 2,
         weight: 2,
       },
+      ...(includeExtraFile ? {
+        "src/extra.ts": {
+          path: "src/extra.ts",
+          name: "extra.ts",
+          extension: ".ts",
+          contentType: "code",
+          bounds: { x: 0.2, y: 0.2, width: 0.3, height: 0.3 },
+          geo: { lat: 0, lon: 0, geohash: "s11111111111" },
+          lineCount: 1,
+          weight: 1,
+        },
+      } : {}),
     },
   };
 }

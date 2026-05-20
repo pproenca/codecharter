@@ -43,9 +43,11 @@ const mapArea = document.querySelector(".map-area");
 
 let frameLabels = [];
 let activityPollTimer = null;
+let mapPollTimer = null;
 
 const state = {
   map: null,
+  mapVersion: "",
   namedPlaces: [],
   overlaps: [],
   activity: [],
@@ -93,21 +95,43 @@ const controls = {
 await boot();
 
 async function boot() {
-  const [map, names, activity] = await Promise.all([
+  const [map, mapVersion, names, activity] = await Promise.all([
     fetchJson("/api/map"),
+    fetchJson("/api/map-version"),
     fetchJson("/api/named-places"),
     fetchJson("/api/activity"),
   ]);
-  state.map = map;
+  applyMap(map, mapVersion.version);
   state.namedPlaces = names.places;
   state.overlaps = names.overlaps ?? [];
   state.activity = activity.events;
   state.activitySignature = activitySignature(state.activity);
-  controls.summary.textContent = `${Object.keys(map.files).length} files, ${Object.keys(map.folders).length} folders`;
   bindEvents();
+  startMapPolling();
   startActivityPolling();
   resize();
   render();
+}
+
+function applyMap(map, version) {
+  const previousSelection = state.selectedTarget;
+  state.map = map;
+  state.mapVersion = version ?? state.mapVersion;
+  state.sourceCache.clear();
+  state.pendingSourceRequests.clear();
+  controls.summary.textContent = `${Object.keys(map.files).length} files, ${Object.keys(map.folders).length} folders`;
+  reconcileSelectedTarget(previousSelection);
+}
+
+function reconcileSelectedTarget(target) {
+  if (!target || target.targetType === "activity") return;
+  if (target.targetType === "file") {
+    state.selectedTarget = state.map.files[target.path] ? { ...state.map.files[target.path], targetType: "file" } : null;
+    return;
+  }
+  if (target.targetType === "folder") {
+    state.selectedTarget = state.map.folders[target.path] ? { ...state.map.folders[target.path], targetType: "folder" } : null;
+  }
 }
 
 function bindEvents() {
@@ -164,6 +188,28 @@ function bindEvents() {
 function startActivityPolling() {
   if (activityPollTimer) clearInterval(activityPollTimer);
   activityPollTimer = setInterval(refreshActivity, 1800);
+}
+
+function startMapPolling() {
+  if (mapPollTimer) clearInterval(mapPollTimer);
+  mapPollTimer = setInterval(refreshMap, 1800);
+}
+
+async function refreshMap() {
+  try {
+    const mapVersion = await fetchJson("/api/map-version");
+    if (!mapVersion.version || mapVersion.version === state.mapVersion) return;
+    const [map, names] = await Promise.all([
+      fetchJson("/api/map"),
+      fetchJson("/api/named-places"),
+    ]);
+    applyMap(map, mapVersion.version);
+    state.namedPlaces = names.places;
+    state.overlaps = names.overlaps ?? [];
+    render();
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 async function refreshActivity() {

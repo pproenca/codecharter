@@ -53,8 +53,8 @@
         "lat": 0,
         "geohash": "s00000000000"
       },
-      "lineCount": 14135,
-      "weight": 14135,
+      "lineCount": 14392,
+      "weight": 14392,
       "children": {
         "folders": [
           ".agents",
@@ -68,14 +68,15 @@
           "AGENTS.md",
           "CONTEXT.md",
           "package.json",
+          "README.md",
           "skills-lock.json"
         ]
       },
       "growthArea": {
         "x": 0.92944,
-        "y": 0.012,
+        "y": 0.7928,
         "width": 0.05856,
-        "height": 0.976
+        "height": 0.1952
       }
     },
     ".agents": {
@@ -966,8 +967,8 @@
         "lat": -18.082052019359992,
         "geohash": "qsc94k786v4y"
       },
-      "lineCount": 173,
-      "weight": 173,
+      "lineCount": 185,
+      "weight": 185,
       "children": {
         "folders": [],
         "files": [
@@ -995,8 +996,8 @@
         "lat": -18.082052019359992,
         "geohash": "kub1hs322tjw"
       },
-      "lineCount": 136,
-      "weight": 136,
+      "lineCount": 153,
+      "weight": 153,
       "children": {
         "folders": [
           "docs/adr",
@@ -1025,21 +1026,22 @@
         "lat": -18.082052019450003,
         "geohash": "mhu9hhr87t1w"
       },
-      "lineCount": 51,
-      "weight": 51,
+      "lineCount": 68,
+      "weight": 68,
       "children": {
         "folders": [],
         "files": [
           "docs/adr/0001-stable-code-map-addresses.md",
           "docs/adr/0002-json-map-sidecar.md",
           "docs/adr/0003-geohash-map-levels.md",
-          "docs/adr/0004-codemap-deep-links.md"
+          "docs/adr/0004-codemap-deep-links.md",
+          "docs/adr/0005-non-blocking-activity-telemetry.md"
         ]
       },
       "growthArea": {
-        "x": 0.600713839676,
+        "x": 0.668524400346,
         "y": 0.66385502967,
-        "width": 0.084763200838,
+        "width": 0.016952640168,
         "height": 0.008645343425
       }
     },
@@ -1088,8 +1090,8 @@
         "lat": -26.75340322820999,
         "geohash": "3gppf3dn5khm"
       },
-      "lineCount": 1894,
-      "weight": 1894,
+      "lineCount": 1940,
+      "weight": 1940,
       "children": {
         "folders": [],
         "files": [
@@ -1120,8 +1122,8 @@
         "lat": 42.131251412370005,
         "geohash": "wpqz8mz2qfe8"
       },
-      "lineCount": 1449,
-      "weight": 1449,
+      "lineCount": 1503,
+      "weight": 1503,
       "children": {
         "folders": [],
         "files": [
@@ -1167,8 +1169,8 @@
         "lat": -68.88465464058001,
         "geohash": "1gz047fjg3sm"
       },
-      "lineCount": 873,
-      "weight": 873,
+      "lineCount": 969,
+      "weight": 969,
       "children": {
         "folders": [],
         "files": [
@@ -4554,8 +4556,8 @@
         "lat": -18.082052019359992,
         "geohash": "qsb1nu60mjpn"
       },
-      "lineCount": 173,
-      "weight": 173
+      "lineCount": 185,
+      "weight": 185
     },
     "docs/adr/0001-stable-code-map-addresses.md": {
       "path": "docs/adr/0001-stable-code-map-addresses.md",
@@ -4633,6 +4635,25 @@
       "lineCount": 13,
       "weight": 13
     },
+    "docs/adr/0005-non-blocking-activity-telemetry.md": {
+      "path": "docs/adr/0005-non-blocking-activity-telemetry.md",
+      "name": "0005-non-blocking-activity-telemetry.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.601016426696,
+        "y": 0.66415761669,
+        "width": 0.067205386631,
+        "height": 0.008040169385
+      },
+      "geo": {
+        "lon": 48.46288320414001,
+        "lat": -30.27198624885,
+        "geohash": "m4d7yc1sghbb"
+      },
+      "lineCount": 17,
+      "weight": 17
+    },
     "docs/agents/domain.md": {
       "path": "docs/agents/domain.md",
       "name": "domain.md",
@@ -4706,8 +4727,8 @@
         "lat": -26.753403228299987,
         "geohash": "35hrf1en0spm"
       },
-      "lineCount": 1064,
-      "weight": 1064
+      "lineCount": 1110,
+      "weight": 1110
     },
     "public/index.html": {
       "path": "public/index.html",
@@ -4782,8 +4803,8 @@
         "lat": 3.495019426109991,
         "geohash": "w085zsnzfyc6"
       },
-      "lineCount": 132,
-      "weight": 132
+      "lineCount": 157,
+      "weight": 157
     },
     "src/activity.js": {
       "path": "src/activity.js",
@@ -5010,8 +5031,8 @@
         "lat": 54.918755498159996,
         "geohash": "v9v2kjxhfqp9"
       },
-      "lineCount": 211,
-      "weight": 211
+      "lineCount": 240,
+      "weight": 240
     },
     "src/source.js": {
       "path": "src/source.js",
@@ -5143,8 +5164,8 @@
         "lat": -80.24670874044,
         "geohash": "59dp7z8cn1q8"
       },
-      "lineCount": 42,
-      "weight": 42
+      "lineCount": 109,
+      "weight": 109
     },
     "test/activity.test.js": {
       "path": "test/activity.test.js",
@@ -5295,8 +5316,8 @@
         "lat": -63.40938527844,
         "geohash": "1kepq0tt83u7"
       },
-      "lineCount": 131,
-      "weight": 131
+      "lineCount": 160,
+      "weight": 160
     },
     "test/source.test.js": {
       "path": "test/source.test.js",
@@ -5371,8 +5392,8 @@
         "lat": -60.21330343173,
         "geohash": "ht736qe25fsy"
       },
-      "lineCount": 315,
-      "weight": 315
+      "lineCount": 319,
+      "weight": 319
     },
     "package.json": {
       "path": "package.json",
@@ -5392,6 +5413,25 @@
       },
       "lineCount": 19,
       "weight": 19
+    },
+    "README.md": {
+      "path": "README.md",
+      "name": "README.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.9314896,
+        "y": 0.0140496,
+        "width": 0.0544608,
+        "height": 0.7767008
+      },
+      "geo": {
+        "lon": 165.13920000000002,
+        "lat": 17.567999999999998,
+        "geohash": "xej7vy4tn286"
+      },
+      "lineCount": 28,
+      "weight": 28
     },
     "skills-lock.json": {
       "path": "skills-lock.json",

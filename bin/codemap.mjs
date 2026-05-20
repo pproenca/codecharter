@@ -76,11 +76,21 @@ async function main() {
     await ensureActivityStream(root);
     await startServer({ root, mapPath, port });
     if (watch) {
+      let lastRefreshSignature = "";
       startActivityWatcher({
         root,
         endpoint: `http://127.0.0.1:${port}/api/activity`,
         agentId,
         activityState: "editing",
+        prepareChanges: async (changes) => {
+          const signature = changes
+            .map((change) => `${change.path}:${change.signature}`)
+            .sort()
+            .join("\0");
+          if (!signature || signature === lastRefreshSignature) return;
+          lastRefreshSignature = signature;
+          await writeCodemap({ root, out: mapPath, quiet: true });
+        },
       });
       console.log(`Activity watcher streaming git changes as ${agentId}`);
     }
@@ -149,12 +159,14 @@ async function readOptionalJson(path) {
   }
 }
 
-async function writeCodemap({ root, out, fresh = false }) {
+async function writeCodemap({ root, out, fresh = false, quiet = false }) {
   const previousCodemap = fresh ? undefined : await readOptionalJson(out);
   const codemap = await generateCodemap({ root, excludePaths: [relative(root, out)], previousCodemap });
   await writeJson(out, codemap);
-  console.log(`Wrote ${out}`);
-  console.log(`Mapped ${Object.keys(codemap.files).length} files and ${Object.keys(codemap.folders).length} folders`);
+  if (!quiet) {
+    console.log(`Wrote ${out}`);
+    console.log(`Mapped ${Object.keys(codemap.files).length} files and ${Object.keys(codemap.folders).length} folders`);
+  }
   return codemap;
 }
 

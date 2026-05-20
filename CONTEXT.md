@@ -28,6 +28,10 @@ _Avoid_: Map sidecar section, label cache
 The timeline of Agent Positions and Activity States. It is separate from the Map Sidecar because agent activity changes without changing the Code Map.
 _Avoid_: Map layout history, cursor log
 
+**Activity Producer**:
+A tool, hook, watcher, or agent integration that reports Agent Positions into the Activity Stream. Activity Producers are best-effort and must never block code reading, editing, testing, or serving when telemetry cannot be delivered.
+_Avoid_: Required build step, blocking status reporter
+
 **Viewport State**:
 The current view of the **Code Map**, including pan, zoom, selected layers, and temporary drawings. Viewport State is not part of the stable map.
 _Avoid_: Map data, persisted geography
@@ -165,7 +169,7 @@ An agent's current **Map Address** while it reads, edits, reasons about, or veri
 _Avoid_: Avatar location, cursor only
 
 **Activity State**:
-The kind of work an agent is doing at an **Agent Position**, such as reading, editing, testing, or blocked.
+The kind of work an agent is doing at an **Agent Position**, such as reading, editing, testing, or reviewing. Activity States describe visible work in progress; legacy blocked events are normalized to reviewing rather than becoming a blocking workflow state.
 _Avoid_: Status text only, task label
 
 ## Example Dialogue

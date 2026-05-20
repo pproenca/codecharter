@@ -13,23 +13,36 @@ export function startActivityWatcher({
   activityState = "editing",
   intervalMs = DEFAULT_INTERVAL_MS,
   throttleMs = DEFAULT_THROTTLE_MS,
+  prepareChanges = async () => {},
 } = {}) {
   const recent = new Map();
 
   async function poll() {
     const paths = await changedGitPaths(root);
+    const activePaths = new Set(paths);
     const now = Date.now();
-    await Promise.all(paths.map(async (path) => {
-      const lineRange = await changedLineRange(root, path);
-      const key = `${path}:${lineRange.lineStart ?? ""}:${lineRange.lineEnd ?? ""}:${activityState}`;
-      if (now - (recent.get(key) ?? 0) < throttleMs) return;
-      recent.set(key, now);
+    for (const path of recent.keys()) {
+      if (!activePaths.has(path)) recent.delete(path);
+    }
+
+    const changes = await Promise.all(paths.map(async (path) => ({
+      path,
+      ...await changedLineRange(root, path),
+    })));
+    await prepareChanges(changes);
+
+    await Promise.all(changes.map(async (change) => {
+      const { path } = change;
+      const previous = recent.get(path);
+      if (previous?.signature === change.signature) return;
+      if (previous && now - previous.timestamp < throttleMs) return;
+      recent.set(path, { signature: change.signature, timestamp: now });
       await postActivity(endpoint, {
         agentId,
         activityState,
         path,
-        lineStart: lineRange.lineStart,
-        lineEnd: lineRange.lineEnd,
+        lineStart: change.lineStart,
+        lineEnd: change.lineEnd,
         note: "codemap dev watcher",
       });
     }));
@@ -98,12 +111,16 @@ async function changedLineRange(root, path) {
     gitDiff(root, ["diff", "--unified=0", "--", path]),
     gitDiff(root, ["diff", "--cached", "--unified=0", "--", path]),
   ]);
-  return lineRangeFromUnifiedDiff(diffs.join("\n"));
+  const diff = diffs.join("\n");
+  return {
+    ...lineRangeFromUnifiedDiff(diff),
+    signature: diff ? hashString(diff) : "file",
+  };
 }
 
 async function gitDiff(root, args) {
   try {
-    const { stdout } = await execFileAsync("git", args, { cwd: root });
+    const { stdout } = await execFileAsync("git", args, { cwd: root, maxBuffer: 10 * 1024 * 1024 });
     return stdout;
   } catch {
     return "";
@@ -129,4 +146,12 @@ function isActivityWatchablePath(path) {
     && !path.startsWith(".git/")
     && !path.startsWith(".scratch/")
     && isCodeFile(path);
+}
+
+function hashString(value) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash.toString(36);
 }

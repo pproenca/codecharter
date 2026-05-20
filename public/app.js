@@ -1,22 +1,33 @@
+import {
+  SOURCE_CACHE_LIMIT,
+  SOURCE_PANEL_CONTEXT_AFTER,
+  SOURCE_PANEL_CONTEXT_BEFORE,
+  SOURCE_PANEL_MAX_LINES,
+  SOURCE_TEXT_MAX_LINES_PER_FRAME,
+  SOURCE_TEXT_MIN_LINE_HEIGHT,
+  SOURCE_TEXT_MIN_WIDTH,
+  SOURCE_TEXT_PREFETCH_LINES,
+  SOURCE_TEXT_ZOOM_HEADROOM,
+  aggregateLabel,
+  canRenderSourceText,
+  fileLabelPriority,
+  fileVisualState,
+  folderDepth,
+  folderLabelPriority,
+  folderStyle,
+  labelBoxesOverlap,
+  lineHeightForFile,
+  shouldDrawAggregateHint,
+  shouldDrawFolder,
+  shouldLabelFile,
+  shouldLabelFolder,
+} from "./render-model.js";
+
 const canvas = document.querySelector("#mapCanvas");
 const ctx = canvas.getContext("2d");
 const mapArea = document.querySelector(".map-area");
-const SOURCE_TEXT_MIN_LINE_HEIGHT = 14;
-const SOURCE_TEXT_MIN_WIDTH = 260;
-const SOURCE_TEXT_MAX_LINES_PER_FRAME = 200;
-const SOURCE_TEXT_PREFETCH_LINES = 12;
-const SOURCE_CACHE_LIMIT = 80;
-const SOURCE_TEXT_ZOOM_HEADROOM = 1.08;
-const SOURCE_PANEL_CONTEXT_BEFORE = 12;
-const SOURCE_PANEL_CONTEXT_AFTER = 24;
-const SOURCE_PANEL_MAX_LINES = 140;
-const DISTRICT_PALETTE = [
-  { fill: [126, 176, 156], stroke: [41, 98, 73], label: "#24513d" },
-  { fill: [111, 162, 190], stroke: [39, 92, 122], label: "#244e66" },
-  { fill: [188, 154, 92], stroke: [126, 89, 34], label: "#6f4f1f" },
-  { fill: [176, 128, 137], stroke: [118, 65, 77], label: "#6f3d49" },
-  { fill: [126, 151, 117], stroke: [68, 101, 55], label: "#3f5d34" },
-];
+
+let frameLabels = [];
 
 const state = {
   map: null,
@@ -142,6 +153,7 @@ function resize() {
 
 function render() {
   const rect = canvas.getBoundingClientRect();
+  frameLabels = [];
   ctx.clearRect(0, 0, rect.width, rect.height);
   controls.viewport.textContent = `scale ${state.view.scale.toFixed(2)} | level ${controls.mapLevel.value}`;
 
@@ -149,6 +161,7 @@ function render() {
   if (controls.showGrid.checked) drawGrid();
   if (controls.showFolders.checked) drawFolders();
   if (controls.showFiles.checked) drawFiles();
+  drawQueuedLabels();
   if (controls.showNames.checked) drawNamedPlaces();
   if (controls.showNames.checked) drawOverlaps();
   if (state.draftSelection) drawSelection(state.draftSelection.bounds, "rgba(245, 158, 11, 0.18)", "#f59e0b", [6, 4]);
@@ -194,31 +207,26 @@ function drawFolders() {
     const box = screenBounds(folder.bounds);
     if (!visible(box)) continue;
     const depth = folderDepth(folder.path);
-    if (!shouldDrawFolder(depth, box)) continue;
+    if (!shouldDrawFolder(state.view.scale, depth, box)) continue;
     const style = folderStyle(folder.path, depth);
     ctx.fillStyle = style.fill;
     ctx.strokeStyle = style.stroke;
     ctx.lineWidth = depth === 1 ? 2.1 : 1;
     drawRect(box);
-    if (shouldLabelFolder(depth, box)) drawLabelInBox(labelForFolder(folder), box, style.label, 13, "600");
+    if (shouldDrawAggregateHint({ scale: state.view.scale, depth, box, childCount: childCountFor(folder) })) {
+      drawAggregateHint(folder, box, style);
+    }
+    if (shouldLabelFolder(state.view.scale, depth, box)) {
+      queueLabelInBox({
+        text: labelForFolder(folder),
+        box,
+        color: style.label,
+        size: 13,
+        weight: "600",
+        priority: folderLabelPriority(depth, box),
+      });
+    }
   }
-}
-
-function shouldDrawFolder(depth, box) {
-  if (depth <= maxFolderDepthForScale()) return true;
-  return depth <= 3 && box.width > 360 && box.height > 220;
-}
-
-function shouldLabelFolder(depth, box) {
-  if (box.width <= 90 || box.height <= 28) return false;
-  return depth <= maxFolderDepthForScale() || (box.width > 260 && box.height > 120);
-}
-
-function maxFolderDepthForScale() {
-  if (state.view.scale < 1.35) return 1;
-  if (state.view.scale < 2.4) return 2;
-  if (state.view.scale < 4.5) return 3;
-  return 99;
 }
 
 function drawFiles() {
@@ -227,16 +235,26 @@ function drawFiles() {
     const box = screenBounds(file.bounds);
     if (!visible(box)) continue;
     const selected = state.selectedTarget?.path === file.path;
-    const landmark = box.width > 110 && box.height > 34;
-    const visibleParcel = selected || landmark || state.view.scale > 1.8 || (state.view.scale > 1.2 && box.width > 42 && box.height > 18);
-    if (!visibleParcel) continue;
+    const visualState = fileVisualState({ file, box, scale: state.view.scale, selected });
+    if (visualState === "hidden") continue;
 
     ctx.fillStyle = selected ? "rgba(255, 255, 255, 0.82)" : "rgba(235, 248, 241, 0.48)";
-    ctx.strokeStyle = selected ? "rgba(180, 84, 24, 0.95)" : "rgba(18, 128, 98, 0.34)";
-    ctx.lineWidth = selected ? 2.6 : state.view.scale > 2.2 ? 1 : 0.65;
+    ctx.strokeStyle = selected
+      ? "rgba(180, 84, 24, 0.95)"
+      : visualState === "aggregate"
+        ? "rgba(18, 128, 98, 0.16)"
+        : "rgba(18, 128, 98, 0.34)";
+    ctx.lineWidth = selected ? 2.6 : visualState === "aggregate" ? 0.35 : state.view.scale > 2.2 ? 1 : 0.65;
     drawRect(box);
-    if (selected || landmark || (state.view.scale > 2.2 && box.width > 78 && box.height > 24)) {
-      drawLabelInBox(file.name, box, "rgba(3, 87, 67, 0.84)", 12, "500");
+    if (shouldLabelFile({ file, box, scale: state.view.scale, selected })) {
+      queueLabelInBox({
+        text: file.name,
+        box,
+        color: "rgba(3, 87, 67, 0.84)",
+        size: 12,
+        weight: "500",
+        priority: fileLabelPriority({ file, selected }),
+      });
     }
     if (canRenderSourceText(file, box) && renderedSourceLines < SOURCE_TEXT_MAX_LINES_PER_FRAME) {
       renderedSourceLines += drawSourceText(file, box, SOURCE_TEXT_MAX_LINES_PER_FRAME - renderedSourceLines);
@@ -244,12 +262,6 @@ function drawFiles() {
       drawLineBands(file, box);
     }
   }
-}
-
-function canRenderSourceText(file, box) {
-  return box.width >= SOURCE_TEXT_MIN_WIDTH
-    && lineHeightForFile(file, box) >= SOURCE_TEXT_MIN_LINE_HEIGHT
-    && file.lineCount > 0;
 }
 
 function drawSourceText(file, box, remainingBudget) {
@@ -318,10 +330,6 @@ function visibleLineRange(file, box) {
   };
 }
 
-function lineHeightForFile(file, box) {
-  return box.height / Math.max(1, file.lineCount);
-}
-
 function requestSourceRange(path, lineStart, lineEnd, cacheKey) {
   if (state.pendingSourceRequests.has(cacheKey)) return;
   state.pendingSourceRequests.add(cacheKey);
@@ -376,6 +384,23 @@ function drawLineBands(file, box) {
     ctx.lineTo(box.x + box.width, y);
     ctx.stroke();
   }
+}
+
+function drawAggregateHint(folder, box, style) {
+  const area = screenIntersection(box);
+  if (!area) return;
+  const text = aggregateLabel(folder);
+  ctx.save();
+  ctx.fillStyle = style.label;
+  ctx.globalAlpha = 0.36;
+  ctx.font = "600 11px Inter, system-ui, sans-serif";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, Math.max(box.x + 10, area.x + 10), area.y + area.height / 2);
+  ctx.restore();
+}
+
+function childCountFor(folder) {
+  return (folder.children?.folders?.length ?? 0) + (folder.children?.files?.length ?? 0);
 }
 
 function drawNamedPlaces() {
@@ -446,21 +471,51 @@ function drawLabel(text, x, y, color, size = 12, weight = "400") {
   ctx.restore();
 }
 
-function drawLabelInBox(text, box, color, size = 12, weight = "400") {
-  const area = screenIntersection(box);
-  if (!area || area.width < 56 || area.height < size + 8) return;
+function queueLabelInBox(label) {
+  const placement = labelPlacement(label.text, label.box, label.size, label.weight);
+  if (!placement) return;
+  frameLabels.push({ ...label, ...placement });
+}
 
-  const x = clamp(box.x + 8, area.x + 8, area.x + Math.max(8, area.width - 32));
+function drawQueuedLabels() {
+  const placed = [];
+  frameLabels.sort((a, b) => b.priority - a.priority);
+  for (const label of frameLabels) {
+    if (placed.some((other) => labelBoxesOverlap(label.collisionBox, other))) continue;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(label.box.x, label.box.y, label.box.width, label.box.height);
+    ctx.clip();
+    drawLabel(label.text, label.x, label.y, label.color, label.size, label.weight);
+    ctx.restore();
+    placed.push(label.collisionBox);
+  }
+}
+
+function labelPlacement(text, box, size = 12, weight = "400") {
+  const area = screenIntersection(box);
+  if (!area || area.width < 56 || area.height < size + 8) return null;
+
+  ctx.save();
+  ctx.font = `${weight} ${size}px Inter, system-ui, sans-serif`;
+  const width = Math.min(area.width - 12, ctx.measureText(text).width);
+  ctx.restore();
+
+  const x = clamp(box.x + 8, area.x + 8, area.x + Math.max(8, area.width - width - 6));
   const naturalY = box.y + size + 5;
   const stickyY = area.y + Math.min(Math.max(size + 8, area.height * 0.35), Math.max(size + 8, area.height - 8));
   const y = clamp(naturalY < area.y + size + 6 ? stickyY : naturalY, area.y + size + 6, area.y + area.height - 8);
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(box.x, box.y, box.width, box.height);
-  ctx.clip();
-  drawLabel(text, x, y, color, size, weight);
-  ctx.restore();
+  return {
+    x,
+    y,
+    collisionBox: {
+      x: x - 3,
+      y: y - size - 4,
+      width: width + 8,
+      height: size + 8,
+    },
+  };
 }
 
 function onWheel(event) {
@@ -742,33 +797,6 @@ function zoomToReadableFile(file, lineRatio = 0.5) {
 function labelForFolder(folder) {
   if (!folder.path) return "Codebase";
   return folder.path.split("/").at(-1);
-}
-
-function folderDepth(path) {
-  return path ? path.split("/").length : 0;
-}
-
-function folderStyle(path, depth) {
-  const base = DISTRICT_PALETTE[hashString(path.split("/")[0]) % DISTRICT_PALETTE.length];
-  const fillAlpha = depth === 1 ? 0.18 : 0.09;
-  const strokeAlpha = depth === 1 ? 0.52 : 0.28;
-  return {
-    fill: rgba(base.fill, fillAlpha),
-    stroke: rgba(base.stroke, strokeAlpha),
-    label: base.label,
-  };
-}
-
-function rgba(rgb, alpha) {
-  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
-}
-
-function hashString(value) {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
-  }
-  return hash;
 }
 
 function worldToScreen(point) {

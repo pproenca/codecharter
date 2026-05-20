@@ -1,3 +1,4 @@
+import { PROJECTION_AREA_WEIGHT, PROJECTION_ORDER, PROJECTION_TYPE } from "./district-layout.js";
 import { MAP_LEVELS } from "./levels.js";
 import { scanCodeFiles } from "./scan.js";
 import { stabilizeTreeLayout } from "./stability.js";
@@ -6,16 +7,17 @@ import { layoutTree } from "./treemap.js";
 
 export async function generateCodemap({ root, excludePaths = ["codemap.json"], previousCodemap } = {}) {
   const scannedFiles = await scanCodeFiles(root, { excludePaths });
-  const tree = stabilizeTreeLayout(layoutTree(buildFileTree(scannedFiles)), previousCodemap);
+  const previousLayout = canReusePreviousLayout(previousCodemap) ? previousCodemap : undefined;
+  const tree = stabilizeTreeLayout(layoutTree(buildFileTree(scannedFiles)), previousLayout);
   const { folders, files } = flattenTree(tree);
 
   return {
     version: 1,
     projection: {
-      type: "filesystem-treemap",
-      mapOrder: "lexical-folders-first",
+      type: PROJECTION_TYPE,
+      mapOrder: PROJECTION_ORDER,
       inclusion: "gitignore-known-code-extensions",
-      areaWeight: "line-count",
+      areaWeight: PROJECTION_AREA_WEIGHT,
       tileAddressing: "geohash-prefix",
     },
     mapLevels: MAP_LEVELS,
@@ -37,6 +39,10 @@ export async function generateCodemap({ root, excludePaths = ["codemap.json"], p
       Object.entries(files).map(([path, file]) => [path, serializeFile(file)]),
     ),
   };
+}
+
+function canReusePreviousLayout(previousCodemap) {
+  return previousCodemap?.projection?.type === PROJECTION_TYPE;
 }
 
 function serializeFolder(folder) {

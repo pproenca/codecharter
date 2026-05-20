@@ -1,10 +1,10 @@
 {
   "version": 1,
   "projection": {
-    "type": "filesystem-treemap",
-    "mapOrder": "lexical-folders-first",
+    "type": "filesystem-district-map",
+    "mapOrder": "bounded-weight-squarified-folders-first",
     "inclusion": "gitignore-known-code-extensions",
-    "areaWeight": "line-count",
+    "areaWeight": "sqrt-line-count-with-structural-floor",
     "tileAddressing": "geohash-prefix"
   },
   "mapLevels": {
@@ -52,8 +52,8 @@
         "lat": 0,
         "geohash": "s00000000000"
       },
-      "lineCount": 6745,
-      "weight": 6745,
+      "lineCount": 10804,
+      "weight": 10804,
       "children": {
         "folders": [
           ".agents",
@@ -71,28 +71,28 @@
         ]
       },
       "growthArea": {
-        "x": 0.95,
-        "y": 0,
-        "width": 0.05,
-        "height": 1
+        "x": 0.92944,
+        "y": 0.012,
+        "width": 0.05856,
+        "height": 0.976
       }
     },
     ".agents": {
       "path": ".agents",
       "name": ".agents",
       "bounds": {
-        "x": 0,
-        "y": 0,
-        "width": 0.95,
-        "height": 0.586399474376
+        "x": 0.028,
+        "y": 0.028,
+        "width": 0.44947268438,
+        "height": 0.641849978642
       },
       "geo": {
-        "lon": -9,
-        "lat": 37.224047306159996,
-        "geohash": "ey9eg0qmuc3e"
+        "lon": -89.01491681159999,
+        "lat": 27.193501922219994,
+        "geohash": "dhbdwqmmdh5m"
       },
-      "lineCount": 3570,
-      "weight": 3570,
+      "lineCount": 7284,
+      "weight": 7284,
       "children": {
         "folders": [
           ".agents/skills"
@@ -100,30 +100,31 @@
         "files": []
       },
       "growthArea": {
-        "x": 0.9025,
-        "y": 0,
-        "width": 0.0475,
-        "height": 0.586399474376
+        "x": 0.04,
+        "y": 0.620778979923,
+        "width": 0.42547268438,
+        "height": 0.037070998719
       }
     },
     ".agents/skills": {
       "path": ".agents/skills",
       "name": "skills",
       "bounds": {
-        "x": 0,
-        "y": 0,
-        "width": 0.9025,
-        "height": 0.586399474376
+        "x": 0.052,
+        "y": 0.052,
+        "width": 0.40147268438,
+        "height": 0.556778979923
       },
       "geo": {
-        "lon": -17.55000000000001,
-        "lat": 37.224047306159996,
-        "geohash": "eweeb8kmz37e"
+        "lon": -89.01491681159999,
+        "lat": 30.529891806930003,
+        "geohash": "dj2twmv3d076"
       },
-      "lineCount": 3570,
-      "weight": 3570,
+      "lineCount": 7284,
+      "weight": 7284,
       "children": {
         "folders": [
+          ".agents/skills/computer-science-algorithms",
           ".agents/skills/geohash-spatial-code-maps",
           ".agents/skills/grill-me",
           ".agents/skills/grill-with-docs",
@@ -139,25 +140,196 @@
         "files": []
       },
       "growthArea": {
-        "x": 0.857375,
-        "y": 0,
-        "width": 0.045125,
-        "height": 0.586399474376
+        "x": 0.064,
+        "y": 0.564812241128,
+        "width": 0.37747268438,
+        "height": 0.031966738795
+      }
+    },
+    ".agents/skills/computer-science-algorithms": {
+      "path": ".agents/skills/computer-science-algorithms",
+      "name": "computer-science-algorithms",
+      "bounds": {
+        "x": 0.079181254159,
+        "y": 0.079181254159,
+        "width": 0.158416124872,
+        "height": 0.264769274633
+      },
+      "geo": {
+        "lon": -122.9798460258,
+        "lat": 51.91813953441,
+        "geohash": "c30x3e2v1fsm"
+      },
+      "lineCount": 3714,
+      "weight": 3714,
+      "children": {
+        "folders": [
+          ".agents/skills/computer-science-algorithms/assets",
+          ".agents/skills/computer-science-algorithms/references"
+        ],
+        "files": [
+          ".agents/skills/computer-science-algorithms/AGENTS.md",
+          ".agents/skills/computer-science-algorithms/SKILL.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.08472581853,
+        "y": 0.323185155668,
+        "width": 0.147326996131,
+        "height": 0.015220808754
+      }
+    },
+    ".agents/skills/computer-science-algorithms/assets": {
+      "path": ".agents/skills/computer-science-algorithms/assets",
+      "name": "assets",
+      "bounds": {
+        "x": 0.18383782774,
+        "y": 0.091115390352,
+        "width": 0.009509491662,
+        "height": 0.225680193494
+      },
+      "geo": {
+        "lon": -112.10667351444,
+        "lat": 53.288012322179995,
+        "geohash": "c92r0uy3jjmr"
+      },
+      "lineCount": 45,
+      "weight": 45,
+      "children": {
+        "folders": [
+          ".agents/skills/computer-science-algorithms/assets/templates"
+        ],
+        "files": []
+      },
+      "growthArea": {
+        "x": 0.184170659948,
+        "y": 0.302961879893,
+        "width": 0.008843827246,
+        "height": 0.013500871745
+      }
+    },
+    ".agents/skills/computer-science-algorithms/assets/templates": {
+      "path": ".agents/skills/computer-science-algorithms/assets/templates",
+      "name": "templates",
+      "bounds": {
+        "x": 0.184480193902,
+        "y": 0.091757756514,
+        "width": 0.008224759338,
+        "height": 0.210894589426
+      },
+      "geo": {
+        "lon": -112.10667351444,
+        "lat": 54.50309077914,
+        "geohash": "c98q0cyrt0t2"
+      },
+      "lineCount": 45,
+      "weight": 45,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/computer-science-algorithms/assets/templates/_template.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.184768060479,
+        "y": 0.289745347987,
+        "width": 0.007649026184,
+        "height": 0.012619131376
+      }
+    },
+    ".agents/skills/computer-science-algorithms/references": {
+      "path": ".agents/skills/computer-science-algorithms/references",
+      "name": "references",
+      "bounds": {
+        "x": 0.091115390352,
+        "y": 0.091115390352,
+        "width": 0.090256183473,
+        "height": 0.225680193494
+      },
+      "geo": {
+        "lon": -130.95234644814,
+        "lat": 53.288012322179995,
+        "geohash": "c16zhhg3jjmp"
+      },
+      "lineCount": 3417,
+      "weight": 3417,
+      "children": {
+        "folders": [],
+        "files": [
+          ".agents/skills/computer-science-algorithms/references/_sections.md",
+          ".agents/skills/computer-science-algorithms/references/comp-amortize-instead-of-worst-casing.md",
+          ".agents/skills/computer-science-algorithms/references/comp-derive-recurrences-via-master-theorem.md",
+          ".agents/skills/computer-science-algorithms/references/comp-pick-algorithm-class-from-input-bound.md",
+          ".agents/skills/computer-science-algorithms/references/comp-prefer-iterative-builders-over-string-concatenation.md",
+          ".agents/skills/computer-science-algorithms/references/comp-treat-space-complexity-as-first-class.md",
+          ".agents/skills/computer-science-algorithms/references/comp-watch-for-quadratic-blowup-from-membership-in-list.md",
+          ".agents/skills/computer-science-algorithms/references/divide-meet-in-the-middle-for-subset-problems.md",
+          ".agents/skills/computer-science-algorithms/references/divide-merge-sort-pattern-for-counting-inversions.md",
+          ".agents/skills/computer-science-algorithms/references/divide-quickselect-vs-quicksort-partitioning.md",
+          ".agents/skills/computer-science-algorithms/references/divide-watch-recursion-depth-and-stack.md",
+          ".agents/skills/computer-science-algorithms/references/dp-bitmask-for-small-set-states.md",
+          ".agents/skills/computer-science-algorithms/references/dp-define-state-precisely.md",
+          ".agents/skills/computer-science-algorithms/references/dp-knapsack-pattern.md",
+          ".agents/skills/computer-science-algorithms/references/dp-memoize-overlapping-subproblems.md",
+          ".agents/skills/computer-science-algorithms/references/dp-prove-optimal-substructure-before-coding.md",
+          ".agents/skills/computer-science-algorithms/references/dp-tabulate-when-recursion-depth-or-order-matters.md",
+          ".agents/skills/computer-science-algorithms/references/ds-balanced-bst-or-sorted-container-for-range-queries.md",
+          ".agents/skills/computer-science-algorithms/references/ds-deque-for-both-end-operations.md",
+          ".agents/skills/computer-science-algorithms/references/ds-fenwick-or-segment-tree-for-mutable-range-queries.md",
+          ".agents/skills/computer-science-algorithms/references/ds-hash-map-for-keyed-lookup.md",
+          ".agents/skills/computer-science-algorithms/references/ds-heap-for-top-k-and-priority-queues.md",
+          ".agents/skills/computer-science-algorithms/references/ds-prefix-sums-for-repeated-range-sums.md",
+          ".agents/skills/computer-science-algorithms/references/ds-set-for-uniqueness-and-membership.md",
+          ".agents/skills/computer-science-algorithms/references/ds-union-find-for-dynamic-connectivity.md",
+          ".agents/skills/computer-science-algorithms/references/graph-bfs-for-unweighted-shortest-path.md",
+          ".agents/skills/computer-science-algorithms/references/graph-detect-cycles-during-dfs.md",
+          ".agents/skills/computer-science-algorithms/references/graph-dijkstra-for-non-negative-weights.md",
+          ".agents/skills/computer-science-algorithms/references/graph-kruskal-or-prim-for-mst.md",
+          ".agents/skills/computer-science-algorithms/references/graph-represent-as-adjacency-list-not-matrix.md",
+          ".agents/skills/computer-science-algorithms/references/graph-topological-sort-for-dependency-order.md",
+          ".agents/skills/computer-science-algorithms/references/greedy-huffman-and-priority-queue-greedies.md",
+          ".agents/skills/computer-science-algorithms/references/greedy-interval-merge-and-sweep-line.md",
+          ".agents/skills/computer-science-algorithms/references/greedy-prove-exchange-argument-before-using.md",
+          ".agents/skills/computer-science-algorithms/references/greedy-sort-by-the-right-key-for-scheduling.md",
+          ".agents/skills/computer-science-algorithms/references/scale-aho-corasick-for-multi-pattern-search.md",
+          ".agents/skills/computer-science-algorithms/references/scale-bloom-filter-for-probabilistic-membership.md",
+          ".agents/skills/computer-science-algorithms/references/scale-consistent-hashing-for-distributed-sharding.md",
+          ".agents/skills/computer-science-algorithms/references/scale-count-min-sketch-for-frequency-estimation.md",
+          ".agents/skills/computer-science-algorithms/references/scale-external-merge-sort-for-out-of-memory-data.md",
+          ".agents/skills/computer-science-algorithms/references/scale-hyperloglog-for-cardinality-estimation.md",
+          ".agents/skills/computer-science-algorithms/references/scale-minhash-lsh-for-near-duplicate-detection.md",
+          ".agents/skills/computer-science-algorithms/references/scale-reservoir-sampling-for-streams.md",
+          ".agents/skills/computer-science-algorithms/references/srch-binary-search-on-sorted-data.md",
+          ".agents/skills/computer-science-algorithms/references/srch-counting-and-radix-sort-for-bounded-integer-keys.md",
+          ".agents/skills/computer-science-algorithms/references/srch-quickselect-for-k-th-element.md",
+          ".agents/skills/computer-science-algorithms/references/srch-two-pointers-on-sorted-data.md",
+          ".agents/skills/computer-science-algorithms/references/srch-use-builtin-sort-not-hand-rolled.md",
+          ".agents/skills/computer-science-algorithms/references/str-kmp-or-builtin-find-not-naive-search.md",
+          ".agents/skills/computer-science-algorithms/references/str-rolling-hash-for-multiple-substring-comparisons.md",
+          ".agents/skills/computer-science-algorithms/references/str-suffix-array-or-automaton-for-substring-queries.md",
+          ".agents/skills/computer-science-algorithms/references/str-trie-for-prefix-queries.md"
+        ]
+      },
+      "growthArea": {
+        "x": 0.094274356774,
+        "y": 0.300474881785,
+        "width": 0.08393825063,
+        "height": 0.013161735639
       }
     },
     ".agents/skills/geohash-spatial-code-maps": {
       "path": ".agents/skills/geohash-spatial-code-maps",
       "name": "geohash-spatial-code-maps",
       "bounds": {
-        "x": 0,
-        "y": 0,
-        "width": 0.499535014006,
-        "height": 0.586399474376
+        "x": 0.079181254159,
+        "y": 0.350313037111,
+        "width": 0.158416124872,
+        "height": 0.199317949857
       },
       "geo": {
-        "lon": -90.08369747892,
-        "lat": 37.224047306159996,
-        "geohash": "9yxgy07jc9qe"
+        "lon": -122.9798460258,
+        "lat": 9.005037832889997,
+        "geohash": "938e1x2f1usr"
       },
       "lineCount": 2080,
       "weight": 2080,
@@ -172,25 +344,25 @@
         ]
       },
       "growthArea": {
-        "x": 0,
-        "y": 0.557079500657,
-        "width": 0.499535014006,
-        "height": 0.029319973719
+        "x": 0.08472581853,
+        "y": 0.532792693331,
+        "width": 0.147326996131,
+        "height": 0.011293729267
       }
     },
     ".agents/skills/geohash-spatial-code-maps/assets": {
       "path": ".agents/skills/geohash-spatial-code-maps/assets",
       "name": "assets",
       "bounds": {
-        "x": 0,
-        "y": 0,
-        "width": 0.499535014006,
-        "height": 0.008302627173
+        "x": 0.177764729693,
+        "y": 0.362247173304,
+        "width": 0.010373491949,
+        "height": 0.164155948205
       },
       "geo": {
-        "lon": -90.08369747892,
-        "lat": 89.25276355443,
-        "geohash": "czzgwpgp19n8"
+        "lon": -114.1374687597,
+        "lat": 10.021473466829988,
+        "geohash": "93yc48rek4nc"
       },
       "lineCount": 31,
       "weight": 31,
@@ -201,25 +373,25 @@
         "files": []
       },
       "growthArea": {
-        "x": 0.474558263305,
-        "y": 0,
-        "width": 0.0249767507,
-        "height": 0.008302627173
+        "x": 0.178127801911,
+        "y": 0.516234261065,
+        "width": 0.009647347513,
+        "height": 0.009805788226
       }
     },
     ".agents/skills/geohash-spatial-code-maps/assets/templates": {
       "path": ".agents/skills/geohash-spatial-code-maps/assets/templates",
       "name": "templates",
       "bounds": {
-        "x": 0,
-        "y": 0,
-        "width": 0.474558263305,
-        "height": 0.008302627173
+        "x": 0.178465459074,
+        "y": 0.362947902685,
+        "width": 0.008972033187,
+        "height": 0.152948701217
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 89.25276355443,
-        "geohash": "czuexzcr195b"
+        "lon": -114.1374687597,
+        "lat": 10.903994407170003,
+        "geohash": "93yy49p8k5yu"
       },
       "lineCount": 31,
       "weight": 31,
@@ -230,25 +402,25 @@
         ]
       },
       "growthArea": {
-        "x": 0.45083035014,
-        "y": 0,
-        "width": 0.023727913165,
-        "height": 0.008302627173
+        "x": 0.178779480236,
+        "y": 0.506443343207,
+        "width": 0.008343990864,
+        "height": 0.009139239534
       }
     },
     ".agents/skills/geohash-spatial-code-maps/references": {
       "path": ".agents/skills/geohash-spatial-code-maps/references",
       "name": "references",
       "bounds": {
-        "x": 0,
-        "y": 0.008302627173,
-        "width": 0.499535014006,
-        "height": 0.490122829905
+        "x": 0.091115390352,
+        "y": 0.362247173304,
+        "width": 0.084183085426,
+        "height": 0.164155948205
       },
       "geo": {
-        "lon": -90.08369747892,
-        "lat": 44.39447241741,
-        "geohash": "9zzuw1g099qx"
+        "lon": -132.04550409659998,
+        "lat": 10.021473466829988,
+        "geohash": "91f150r7kdpc"
       },
       "lineCount": 1830,
       "weight": 1830,
@@ -301,25 +473,25 @@
         ]
       },
       "growthArea": {
-        "x": 0.474558263305,
-        "y": 0.008302627173,
-        "width": 0.0249767507,
-        "height": 0.490122829905
+        "x": 0.094061798342,
+        "y": 0.513960925586,
+        "width": 0.078290269446,
+        "height": 0.009495787934
       }
     },
     ".agents/skills/grill-me": {
       "path": ".agents/skills/grill-me",
       "name": "grill-me",
       "bounds": {
-        "x": 0.499535014006,
-        "y": 0,
-        "width": 0.002401610644,
-        "height": 0.586399474376
+        "x": 0.419412074031,
+        "y": 0.079181254159,
+        "width": 0.000639344352,
+        "height": 0.470449732809
       },
       "geo": {
-        "lon": 0.26489495807996377,
-        "lat": 37.224047306159996,
-        "geohash": "sn85y02vu3rg"
+        "lon": -28.896571365480014,
+        "lat": 33.406898298570006,
+        "geohash": "emgqn3w1m14w"
       },
       "lineCount": 10,
       "weight": 10,
@@ -330,25 +502,25 @@
         ]
       },
       "growthArea": {
-        "x": 0.499535014006,
-        "y": 0.557079500657,
-        "width": 0.002401610644,
-        "height": 0.029319973719
+        "x": 0.419434451083,
+        "y": 0.521384311193,
+        "width": 0.000594590247,
+        "height": 0.028224298722
       }
     },
     ".agents/skills/grill-with-docs": {
       "path": ".agents/skills/grill-with-docs",
       "name": "grill-with-docs",
       "bounds": {
-        "x": 0.50193662465,
-        "y": 0,
-        "width": 0.047551890756,
-        "height": 0.586399474376
+        "x": 0.356212337077,
+        "y": 0.079181254159,
+        "width": 0.017816297658,
+        "height": 0.470449732809
       },
       "geo": {
-        "lon": 9.256525210079985,
-        "lat": 37.224047306159996,
-        "geohash": "snwef8kmu9m7"
+        "lon": -48.556625073839996,
+        "lat": 33.406898298570006,
+        "geohash": "dvvqp1d1k9hn"
       },
       "lineCount": 198,
       "weight": 198,
@@ -361,25 +533,25 @@
         ]
       },
       "growthArea": {
-        "x": 0.50193662465,
-        "y": 0.557079500657,
-        "width": 0.047551890756,
-        "height": 0.029319973719
+        "x": 0.356835907495,
+        "y": 0.520855261032,
+        "width": 0.016569156822,
+        "height": 0.028152155518
       }
     },
     ".agents/skills/handoff": {
       "path": ".agents/skills/handoff",
       "name": "handoff",
       "bounds": {
-        "x": 0.549488515406,
-        "y": 0,
-        "width": 0.003602415966,
-        "height": 0.586399474376
+        "x": 0.411361979363,
+        "y": 0.079181254159,
+        "width": 0.001687586349,
+        "height": 0.470449732809
       },
       "geo": {
-        "lon": 18.46430042003999,
-        "lat": 37.224047306159996,
-        "geohash": "sqt5u0mmc3k7"
+        "lon": -31.6059218865,
+        "lat": 33.406898298570006,
+        "geohash": "emcw0c9329hw"
       },
       "lineCount": 15,
       "weight": 15,
@@ -390,25 +562,25 @@
         ]
       },
       "growthArea": {
-        "x": 0.549488515406,
-        "y": 0.557079500657,
-        "width": 0.003602415966,
-        "height": 0.029319973719
+        "x": 0.411421044885,
+        "y": 0.52135202534,
+        "width": 0.001569455305,
+        "height": 0.028219896106
       }
     },
     ".agents/skills/improve-codebase-architecture": {
       "path": ".agents/skills/improve-codebase-architecture",
       "name": "improve-codebase-architecture",
       "bounds": {
-        "x": 0.553090931373,
-        "y": 0,
-        "width": 0.049233018207,
-        "height": 0.586399474376
+        "x": 0.331281894076,
+        "y": 0.079181254159,
+        "width": 0.018567934682,
+        "height": 0.470449732809
       },
       "geo": {
-        "lon": 27.97467857154001,
-        "lat": 37.224047306159996,
-        "geohash": "swegu86tc325"
+        "lon": -57.396289889879995,
+        "lat": 33.406898298570006,
+        "geohash": "dtznjct3390q"
       },
       "lineCount": 205,
       "weight": 205,
@@ -422,25 +594,25 @@
         ]
       },
       "growthArea": {
-        "x": 0.553090931373,
-        "y": 0.557079500657,
-        "width": 0.049233018207,
-        "height": 0.029319973719
+        "x": 0.33193177179,
+        "y": 0.520832110611,
+        "width": 0.017268179254,
+        "height": 0.028148998643
       }
     },
     ".agents/skills/prototype": {
       "path": ".agents/skills/prototype",
       "name": "prototype",
       "bounds": {
-        "x": 0.60232394958,
-        "y": 0,
-        "width": 0.053075595238,
-        "height": 0.586399474376
+        "x": 0.30593078111,
+        "y": 0.079181254159,
+        "width": 0.018988604647,
+        "height": 0.470449732809
       },
       "geo": {
-        "lon": 46.390228991640015,
-        "lat": 37.224047306159996,
-        "geohash": "tn8gz8kmf9mg"
+        "lon": -66.44696996393999,
+        "lat": 33.406898298570006,
+        "geohash": "dtbwpcwc33hn"
       },
       "lineCount": 221,
       "weight": 221,
@@ -453,25 +625,25 @@
         ]
       },
       "growthArea": {
-        "x": 0.60232394958,
-        "y": 0.557079500657,
-        "width": 0.053075595238,
-        "height": 0.029319973719
+        "x": 0.306595382273,
+        "y": 0.520819153976,
+        "width": 0.017659402322,
+        "height": 0.028147231829
       }
     },
     ".agents/skills/tdd": {
       "path": ".agents/skills/tdd",
       "name": "tdd",
       "bounds": {
-        "x": 0.655399544818,
-        "y": 0,
-        "width": 0.072768802521,
-        "height": 0.586399474376
+        "x": 0.243959887351,
+        "y": 0.324409609966,
+        "width": 0.055608385441,
+        "height": 0.225221377002
       },
       "geo": {
-        "lon": 69.04222058826002,
-        "lat": 37.224047306159996,
-        "geohash": "tw95g07jb375"
+        "lon": -82.16493117426,
+        "lat": 11.336346275940002,
+        "geohash": "d4j86r9r424g"
       },
       "lineCount": 303,
       "weight": 303,
@@ -487,25 +659,25 @@
         ]
       },
       "growthArea": {
-        "x": 0.655399544818,
-        "y": 0.557079500657,
-        "width": 0.072768802521,
-        "height": 0.029319973719
+        "x": 0.245906180841,
+        "y": 0.534404966076,
+        "width": 0.05171579846,
+        "height": 0.013279727401
       }
     },
     ".agents/skills/to-issues": {
       "path": ".agents/skills/to-issues",
       "name": "to-issues",
       "bounds": {
-        "x": 0.728168347339,
-        "y": 0,
-        "width": 0.019933368347,
-        "height": 0.586399474376
+        "x": 0.380391143054,
+        "y": 0.079181254159,
+        "width": 0.009412465154,
+        "height": 0.470449732809
       },
       "geo": {
-        "lon": 85.7286113445,
-        "lat": 37.224047306159996,
-        "geohash": "tysgyb3tv3mg"
+        "lon": -41.364944772840005,
+        "lat": 33.406898298570006,
+        "geohash": "ejfw49wcqcjw"
       },
       "lineCount": 83,
       "weight": 83,
@@ -516,25 +688,25 @@
         ]
       },
       "growthArea": {
-        "x": 0.728168347339,
-        "y": 0.557079500657,
-        "width": 0.019933368347,
-        "height": 0.029319973719
+        "x": 0.380720579334,
+        "y": 0.521114099073,
+        "width": 0.008753592593,
+        "height": 0.028187451615
       }
     },
     ".agents/skills/to-prd": {
       "path": ".agents/skills/to-prd",
       "name": "to-prd",
       "bounds": {
-        "x": 0.748101715686,
-        "y": 0,
-        "width": 0.018252240896,
-        "height": 0.586399474376
+        "x": 0.396166116526,
+        "y": 0.079181254159,
+        "width": 0.008833354518,
+        "height": 0.470449732809
       },
       "geo": {
-        "lon": 92.60202100824,
-        "lat": 37.224047306159996,
-        "geohash": "wn9gg0qtz3r7"
+        "lon": -35.79019423739999,
+        "lat": 33.406898298570006,
+        "geohash": "ejyw19d3k10y"
       },
       "lineCount": 76,
       "weight": 76,
@@ -545,25 +717,25 @@
         ]
       },
       "growthArea": {
-        "x": 0.748101715686,
-        "y": 0.557079500657,
-        "width": 0.018252240896,
-        "height": 0.029319973719
+        "x": 0.396475283934,
+        "y": 0.52113193568,
+        "width": 0.008215019702,
+        "height": 0.02818988388
       }
     },
     ".agents/skills/triage": {
       "path": ".agents/skills/triage",
       "name": "triage",
       "bounds": {
-        "x": 0.766353956583,
-        "y": 0,
-        "width": 0.089339915966,
-        "height": 0.586399474376
+        "x": 0.243959887351,
+        "y": 0.079181254159,
+        "width": 0.055608385441,
+        "height": 0.238865847488
       },
       "geo": {
-        "lon": 111.96860924376,
-        "lat": 37.224047306159996,
-        "geohash": "wqxegbmjc9q7"
+        "lon": -82.16493117426,
+        "lat": 54.24944797746,
+        "geohash": "f1tsd7c3fq4f"
       },
       "lineCount": 372,
       "weight": 372,
@@ -576,25 +748,25 @@
         ]
       },
       "growthArea": {
-        "x": 0.766353956583,
-        "y": 0.557079500657,
-        "width": 0.089339915966,
-        "height": 0.029319973719
+        "x": 0.245906180841,
+        "y": 0.302002412526,
+        "width": 0.05171579846,
+        "height": 0.01409839563
       }
     },
     ".agents/skills/zoom-out": {
       "path": ".agents/skills/zoom-out",
       "name": "zoom-out",
       "bounds": {
-        "x": 0.855693872549,
-        "y": 0,
-        "width": 0.001681127451,
-        "height": 0.586399474376
+        "x": 0.426352678461,
+        "y": 0.079120005919,
+        "width": 0,
+        "height": 0.47057222929
       },
       "geo": {
-        "lon": 128.35239705881997,
-        "lat": 37.224047306159996,
-        "geohash": "wye7b8rmg97g"
+        "lon": -26.513035754040004,
+        "lat": 33.40689829848001,
+        "geohash": "emvnh9tc33pw"
       },
       "lineCount": 7,
       "weight": 7,
@@ -605,25 +777,25 @@
         ]
       },
       "growthArea": {
-        "x": 0.855693872549,
-        "y": 0.557079500657,
-        "width": 0.001681127451,
-        "height": 0.029319973719
+        "x": 0.426352678461,
+        "y": 0.521457901452,
+        "width": 0,
+        "height": 0.028234333757
       }
     },
     "bin": {
       "path": "bin",
       "name": "bin",
       "bounds": {
-        "x": 0,
-        "y": 0.586399474376,
-        "width": 0.95,
-        "height": 0.011826544021
+        "x": 0.748809812968,
+        "y": 0.028,
+        "width": 0.030616965212,
+        "height": 0.944
       },
       "geo": {
-        "lon": -9,
-        "lat": -16.616294349569998,
-        "geohash": "7v197pn7hf1x"
+        "lon": 95.08258640664002,
+        "lat": 0,
+        "geohash": "w05858j00b50"
       },
       "lineCount": 84,
       "weight": 84,
@@ -634,25 +806,25 @@
         ]
       },
       "growthArea": {
-        "x": 0.9025,
-        "y": 0.586399474376,
-        "width": 0.0475,
-        "height": 0.011826544021
+        "x": 0.74988140675,
+        "y": 0.914416997471,
+        "width": 0.028473777647,
+        "height": 0.056511408746
       }
     },
     "docs": {
       "path": "docs",
       "name": "docs",
       "bounds": {
-        "x": 0,
-        "y": 0.598226018397,
-        "width": 0.95,
-        "height": 0.022339027595
+        "x": 0.699733006085,
+        "y": 0.028,
+        "width": 0.041076806883,
+        "height": 0.944
       },
       "geo": {
-        "lon": -9,
-        "lat": -19.69119579500999,
-        "geohash": "7u3xgpq6kz19"
+        "lon": 79.29770742954003,
+        "lat": 0,
+        "geohash": "tb02h2nb4802"
       },
       "lineCount": 136,
       "weight": 136,
@@ -664,25 +836,25 @@
         "files": []
       },
       "growthArea": {
-        "x": 0.9025,
-        "y": 0.598226018397,
-        "width": 0.0475,
-        "height": 0.022339027595
+        "x": 0.701170694326,
+        "y": 0.914094834348,
+        "width": 0.038201430401,
+        "height": 0.056467477411
       }
     },
     "docs/adr": {
       "path": "docs/adr",
       "name": "adr",
       "bounds": {
-        "x": 0,
-        "y": 0.598226018397,
-        "width": 0.3384375,
-        "height": 0.022339027595
+        "x": 0.722107175299,
+        "y": 0.031094484277,
+        "width": 0.015608153391,
+        "height": 0.881343554034
       },
       "geo": {
-        "lon": -119.08125,
-        "lat": -19.69119579500999,
-        "geohash": "3k7rfprdmz03"
+        "lon": 82.76805071801999,
+        "lat": 5.082072967079995,
+        "geohash": "tbfugmjv5r5f"
       },
       "lineCount": 51,
       "weight": 51,
@@ -696,25 +868,25 @@
         ]
       },
       "growthArea": {
-        "x": 0.321515625,
-        "y": 0.598226018397,
-        "width": 0.016921875,
-        "height": 0.022339027595
+        "x": 0.722653460668,
+        "y": 0.859076693945,
+        "width": 0.014515582654,
+        "height": 0.052815058998
       }
     },
     "docs/agents": {
       "path": "docs/agents",
       "name": "agents",
       "bounds": {
-        "x": 0.3384375,
-        "y": 0.598226018397,
-        "width": 0.5640625,
-        "height": 0.022339027595
+        "x": 0.702827490362,
+        "y": 0.031094484277,
+        "width": 0.018640192992,
+        "height": 0.881343554034
       },
       "geo": {
-        "lon": 43.368750000000006,
-        "lat": -19.69119579500999,
-        "geohash": "kuqzfzk4mp5c"
+        "lon": 76.37313126888,
+        "lat": 5.082072967079995,
+        "geohash": "t8ykcvjjnzn4"
       },
       "lineCount": 85,
       "weight": 85,
@@ -727,28 +899,28 @@
         ]
       },
       "growthArea": {
-        "x": 0.874296875,
-        "y": 0.598226018397,
-        "width": 0.028203125,
-        "height": 0.022339027595
+        "x": 0.703479897117,
+        "y": 0.858983307125,
+        "width": 0.017335379483,
+        "height": 0.052802324431
       }
     },
     "public": {
       "path": "public",
       "name": "public",
       "bounds": {
-        "x": 0,
-        "y": 0.620565045992,
-        "width": 0.95,
-        "height": 0.103975032852
+        "x": 0.48547268438,
+        "y": 0.028,
+        "width": 0.121362550138,
+        "height": 0.944
       },
       "geo": {
-        "lon": -9,
-        "lat": -31.059461235239993,
-        "geohash": "7f3x71y3sbc8"
+        "lon": 16.61542540164001,
+        "lat": 0,
+        "geohash": "s25b404bp2p0"
       },
-      "lineCount": 954,
-      "weight": 954,
+      "lineCount": 1135,
+      "weight": 1135,
       "children": {
         "folders": [],
         "files": [
@@ -758,32 +930,33 @@
         ]
       },
       "growthArea": {
-        "x": 0.9025,
-        "y": 0.620565045992,
-        "width": 0.0475,
-        "height": 0.103975032852
+        "x": 0.489720373635,
+        "y": 0.911622033456,
+        "width": 0.112867171628,
+        "height": 0.056130277289
       }
     },
     "src": {
       "path": "src",
       "name": "src",
       "bounds": {
-        "x": 0,
-        "y": 0.724540078844,
-        "width": 0.95,
-        "height": 0.152759526938
+        "x": 0.028,
+        "y": 0.677849978642,
+        "width": 0.44947268438,
+        "height": 0.294150021358
       },
       "geo": {
-        "lon": -9,
-        "lat": -54.16557161634,
-        "geohash": "5y3eg5qqsv9e"
+        "lon": -89.01491681159999,
+        "lat": -58.48649807778,
+        "geohash": "4j8eq2v76ne3"
       },
-      "lineCount": 1170,
-      "weight": 1170,
+      "lineCount": 1303,
+      "weight": 1303,
       "children": {
         "folders": [],
         "files": [
           "src/activity.js",
+          "src/district-layout.js",
           "src/extensions.js",
           "src/generator.js",
           "src/geohash.js",
@@ -803,28 +976,28 @@
         ]
       },
       "growthArea": {
-        "x": 0.9405,
-        "y": 0.871189224704,
-        "width": 0.0095,
-        "height": 0.006110381078
+        "x": 0.441444502659,
+        "y": 0.68814522939,
+        "width": 0.025732930973,
+        "height": 0.273559519863
       }
     },
     "test": {
       "path": "test",
       "name": "test",
       "bounds": {
-        "x": 0,
-        "y": 0.877299605782,
-        "width": 0.95,
-        "height": 0.048948751643
+        "x": 0.614835234517,
+        "y": 0.028,
+        "width": 0.076897771568,
+        "height": 0.944
       },
       "geo": {
-        "lon": -9,
-        "lat": -72.31931668862998,
-        "geohash": "5g1se4wmky38"
+        "lon": 55.182283308359956,
+        "lat": 0,
+        "geohash": "t0p0p8n802h8"
       },
-      "lineCount": 382,
-      "weight": 382,
+      "lineCount": 407,
+      "weight": 407,
       "children": {
         "folders": [],
         "files": [
@@ -840,29 +1013,1074 @@
         ]
       },
       "growthArea": {
-        "x": 0.9405,
-        "y": 0.916458607096,
-        "width": 0.0095,
-        "height": 0.009789750329
+        "x": 0.617526656522,
+        "y": 0.912991548636,
+        "width": 0.071514927558,
+        "height": 0.056317029359
       }
     }
   },
   "files": {
+    ".agents/skills/computer-science-algorithms/assets/templates/_template.md": {
+      "path": ".agents/skills/computer-science-algorithms/assets/templates/_template.md",
+      "name": "_template.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.185035776395,
+        "y": 0.092313339007,
+        "width": 0.007113594351,
+        "height": 0.197164293063
+      },
+      "geo": {
+        "lon": -112.10667351462,
+        "lat": 55.63881260307,
+        "geohash": "c9bk8bwrt4mm"
+      },
+      "lineCount": 45,
+      "weight": 45
+    },
+    ".agents/skills/computer-science-algorithms/references/_sections.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/_sections.md",
+      "name": "_sections.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.165829894003,
+        "y": 0.097878214498,
+        "width": 0,
+        "height": 0.198992809562
+      },
+      "geo": {
+        "lon": -120.30123815892,
+        "lat": 54.47256852978,
+        "geohash": "c3dmykrm9yz0"
+      },
+      "lineCount": 51,
+      "weight": 51
+    },
+    ".agents/skills/computer-science-algorithms/references/comp-amortize-instead-of-worst-casing.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/comp-amortize-instead-of-worst-casing.md",
+      "name": "comp-amortize-instead-of-worst-casing.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.159079044804,
+        "y": 0.097891148113,
+        "width": 0,
+        "height": 0.198966942333
+      },
+      "geo": {
+        "lon": -122.73154387055999,
+        "lat": 54.47256852969,
+        "geohash": "c38tzhmtewzb"
+      },
+      "lineCount": 53,
+      "weight": 53
+    },
+    ".agents/skills/computer-science-algorithms/references/comp-derive-recurrences-via-master-theorem.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/comp-derive-recurrences-via-master-theorem.md",
+      "name": "comp-derive-recurrences-via-master-theorem.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.171024282962,
+        "y": 0.097837811415,
+        "width": 0,
+        "height": 0.199073615728
+      },
+      "geo": {
+        "lon": -118.43125813367999,
+        "lat": 54.47256852978,
+        "geohash": "c3evch2vxwv2"
+      },
+      "lineCount": 45,
+      "weight": 45
+    },
+    ".agents/skills/computer-science-algorithms/references/comp-pick-algorithm-class-from-input-bound.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/comp-pick-algorithm-class-from-input-bound.md",
+      "name": "comp-pick-algorithm-class-from-input-bound.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.172275514701,
+        "y": 0.097837811415,
+        "width": 0,
+        "height": 0.199073615728
+      },
+      "geo": {
+        "lon": -117.98081470764001,
+        "lat": 54.47256852978,
+        "geohash": "c3sjgk2vxyb2"
+      },
+      "lineCount": 45,
+      "weight": 45
+    },
+    ".agents/skills/computer-science-algorithms/references/comp-prefer-iterative-builders-over-string-concatenation.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/comp-prefer-iterative-builders-over-string-concatenation.md",
+      "name": "comp-prefer-iterative-builders-over-string-concatenation.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.173505532923,
+        "y": 0.097816597897,
+        "width": 0,
+        "height": 0.199116042765
+      },
+      "geo": {
+        "lon": -117.53800814772,
+        "lat": 54.47256852969,
+        "geohash": "c3smvk7mtyub"
+      },
+      "lineCount": 42,
+      "weight": 42
+    },
+    ".agents/skills/computer-science-algorithms/references/comp-treat-space-complexity-as-first-class.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/comp-treat-space-complexity-as-first-class.md",
+      "name": "comp-treat-space-complexity-as-first-class.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.156344108692,
+        "y": 0.097897523394,
+        "width": 0,
+        "height": 0.198954191771
+      },
+      "geo": {
+        "lon": -123.71612087088,
+        "lat": 54.47256852969,
+        "geohash": "c38jbu2ttqy0"
+      },
+      "lineCount": 54,
+      "weight": 54
+    },
+    ".agents/skills/computer-science-algorithms/references/comp-watch-for-quadratic-blowup-from-membership-in-list.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/comp-watch-for-quadratic-blowup-from-membership-in-list.md",
+      "name": "comp-watch-for-quadratic-blowup-from-membership-in-list.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.174692351953,
+        "y": 0.097794612224,
+        "width": 0,
+        "height": 0.19916001411
+      },
+      "geo": {
+        "lon": -117.11075329692,
+        "lat": 54.47256852978,
+        "geohash": "c3stzh6t9wv0"
+      },
+      "lineCount": 39,
+      "weight": 39
+    },
+    ".agents/skills/computer-science-algorithms/references/divide-meet-in-the-middle-for-subset-problems.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/divide-meet-in-the-middle-for-subset-problems.md",
+      "name": "divide-meet-in-the-middle-for-subset-problems.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.146419342246,
+        "y": 0.198911927274,
+        "width": 0.00148436927,
+        "height": 0.097922552581
+      },
+      "geo": {
+        "lon": -127.02185032284,
+        "lat": 45.38282335839,
+        "geohash": "c0jdjt9w077w"
+      },
+      "lineCount": 59,
+      "weight": 59
+    },
+    ".agents/skills/computer-science-algorithms/references/divide-merge-sort-pattern-for-counting-inversions.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/divide-merge-sort-pattern-for-counting-inversions.md",
+      "name": "divide-merge-sort-pattern-for-counting-inversions.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.167161931909,
+        "y": 0.097878214498,
+        "width": 0,
+        "height": 0.198992809562
+      },
+      "geo": {
+        "lon": -119.82170451276,
+        "lat": 54.47256852978,
+        "geohash": "c3dvckkmxyv2"
+      },
+      "lineCount": 51,
+      "weight": 51
+    },
+    ".agents/skills/computer-science-algorithms/references/divide-quickselect-vs-quicksort-partitioning.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/divide-quickselect-vs-quicksort-partitioning.md",
+      "name": "divide-quickselect-vs-quicksort-partitioning.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.112274836526,
+        "y": 0.24840673361,
+        "width": 0.005088406293,
+        "height": 0.048427746245
+      },
+      "geo": {
+        "lon": -138.6651457179,
+        "lat": 40.92829078815,
+        "geohash": "8zm2udg0efmk"
+      },
+      "lineCount": 75,
+      "weight": 75
+    },
+    ".agents/skills/computer-science-algorithms/references/divide-watch-recursion-depth-and-stack.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/divide-watch-recursion-depth-and-stack.md",
+      "name": "divide-watch-recursion-depth-and-stack.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.12357092744,
+        "y": 0.231935474547,
+        "width": 0.003309798207,
+        "height": 0.064899005308
+      },
+      "geo": {
+        "lon": -134.91870244434,
+        "lat": 42.410704103819995,
+        "geohash": "9p813behq27b"
+      },
+      "lineCount": 70,
+      "weight": 70
+    },
+    ".agents/skills/computer-science-algorithms/references/dp-bitmask-for-small-set-states.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/dp-bitmask-for-small-set-states.md",
+      "name": "dp-bitmask-for-small-set-states.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.12357092744,
+        "y": 0.165159421441,
+        "width": 0.003309798207,
+        "height": 0.065370926791
+      },
+      "geo": {
+        "lon": -134.91870244434,
+        "lat": 54.38792072943001,
+        "geohash": "c18j3v50w77b"
+      },
+      "lineCount": 71,
+      "weight": 71
+    },
+    ".agents/skills/computer-science-algorithms/references/dp-define-state-precisely.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/dp-define-state-precisely.md",
+      "name": "dp-define-state-precisely.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.143493873513,
+        "y": 0.19848435349,
+        "width": 0.001520342418,
+        "height": 0.098350126366
+      },
+      "geo": {
+        "lon": -128.06854390008,
+        "lat": 45.42130499886,
+        "geohash": "c0hfmsxq68uq"
+      },
+      "lineCount": 61,
+      "weight": 61
+    },
+    ".agents/skills/computer-science-algorithms/references/dp-knapsack-pattern.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/dp-knapsack-pattern.md",
+      "name": "dp-knapsack-pattern.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.140521215233,
+        "y": 0.198471528801,
+        "width": 0.001567531965,
+        "height": 0.098362951055
+      },
+      "geo": {
+        "lon": -129.13020676242002,
+        "lat": 45.42245922087,
+        "geohash": "c0h4msfm0055"
+      },
+      "lineCount": 63,
+      "weight": 63
+    },
+    ".agents/skills/computer-science-algorithms/references/dp-memoize-overlapping-subproblems.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/dp-memoize-overlapping-subproblems.md",
+      "name": "dp-memoize-overlapping-subproblems.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.160436949939,
+        "y": 0.097891148113,
+        "width": 0,
+        "height": 0.198966942333
+      },
+      "geo": {
+        "lon": -122.24269802196,
+        "lat": 54.47256852969,
+        "geohash": "c39jfk3tdwvb"
+      },
+      "lineCount": 53,
+      "weight": 53
+    },
+    ".agents/skills/computer-science-algorithms/references/dp-prove-optimal-substructure-before-coding.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/dp-prove-optimal-substructure-before-coding.md",
+      "name": "dp-prove-optimal-substructure-before-coding.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.163146324493,
+        "y": 0.097884712398,
+        "width": 0,
+        "height": 0.198979813763
+      },
+      "geo": {
+        "lon": -121.26732318251999,
+        "lat": 54.47256852969,
+        "geohash": "c39vbkrvdwf0"
+      },
+      "lineCount": 52,
+      "weight": 52
+    },
+    ".agents/skills/computer-science-algorithms/references/dp-tabulate-when-recursion-depth-or-order-matters.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/dp-tabulate-when-recursion-depth-or-order-matters.md",
+      "name": "dp-tabulate-when-recursion-depth-or-order-matters.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.128285851962,
+        "y": 0.231949139075,
+        "width": 0.003242911937,
+        "height": 0.064885340781
+      },
+      "geo": {
+        "lon": -133.23336914502,
+        "lat": 42.40947429621,
+        "geohash": "9p9320qmj7p2"
+      },
+      "lineCount": 68,
+      "weight": 68
+    },
+    ".agents/skills/computer-science-algorithms/references/ds-balanced-bst-or-sorted-container-for-range-queries.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/ds-balanced-bst-or-sorted-container-for-range-queries.md",
+      "name": "ds-balanced-bst-or-sorted-container-for-range-queries.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.164491358198,
+        "y": 0.097884712398,
+        "width": 0,
+        "height": 0.198979813763
+      },
+      "geo": {
+        "lon": -120.78311104872,
+        "lat": 54.47256852969,
+        "geohash": "c3djgs2mtwb8"
+      },
+      "lineCount": 52,
+      "weight": 52
+    },
+    ".agents/skills/computer-science-algorithms/references/ds-deque-for-both-end-operations.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/ds-deque-for-both-end-operations.md",
+      "name": "ds-deque-for-both-end-operations.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.149308837832,
+        "y": 0.097914758703,
+        "width": 0.001460288467,
+        "height": 0.098757297418
+      },
+      "geo": {
+        "lon": -125.98596645641999,
+        "lat": 63.48718666584,
+        "geohash": "c5q3jj7zdjqs"
+      },
+      "lineCount": 59,
+      "weight": 59
+    },
+    ".agents/skills/computer-science-algorithms/references/ds-fenwick-or-segment-tree-for-mutable-range-queries.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/ds-fenwick-or-segment-tree-for-mutable-range-queries.md",
+      "name": "ds-fenwick-or-segment-tree-for-mutable-range-queries.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.149308837832,
+        "y": 0.198077182437,
+        "width": 0.001460288467,
+        "height": 0.098757297418
+      },
+      "geo": {
+        "lon": -125.98596645641999,
+        "lat": 45.45795039372,
+        "geohash": "c0n6t57gf0ns"
+      },
+      "lineCount": 59,
+      "weight": 59
+    },
+    ".agents/skills/computer-science-algorithms/references/ds-hash-map-for-keyed-lookup.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/ds-hash-map-for-keyed-lookup.md",
+      "name": "ds-hash-map-for-keyed-lookup.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.169766138129,
+        "y": 0.097844724508,
+        "width": 0,
+        "height": 0.199059789543
+      },
+      "geo": {
+        "lon": -118.88419027356,
+        "lat": 54.47256852969,
+        "geohash": "c3emysrjtwf8"
+      },
+      "lineCount": 46,
+      "weight": 46
+    },
+    ".agents/skills/computer-science-algorithms/references/ds-heap-for-top-k-and-priority-queues.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/ds-heap-for-top-k-and-priority-queues.md",
+      "name": "ds-heap-for-top-k-and-priority-queues.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.161794855073,
+        "y": 0.097891148113,
+        "width": 0,
+        "height": 0.198966942333
+      },
+      "geo": {
+        "lon": -121.75385217371999,
+        "lat": 54.47256852969,
+        "geohash": "c39mvkmt9wg8"
+      },
+      "lineCount": 53,
+      "weight": 53
+    },
+    ".agents/skills/computer-science-algorithms/references/ds-prefix-sums-for-repeated-range-sums.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/ds-prefix-sums-for-repeated-range-sums.md",
+      "name": "ds-prefix-sums-for-repeated-range-sums.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.15358384774,
+        "y": 0.097903839913,
+        "width": 0,
+        "height": 0.198941558732
+      },
+      "geo": {
+        "lon": -124.70981481359999,
+        "lat": 54.47256852978,
+        "geohash": "c1xmfhmjdwy0"
+      },
+      "lineCount": 55,
+      "weight": 55
+    },
+    ".agents/skills/computer-science-algorithms/references/ds-set-for-uniqueness-and-membership.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/ds-set-for-uniqueness-and-membership.md",
+      "name": "ds-set-for-uniqueness-and-membership.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.157714764389,
+        "y": 0.097897523394,
+        "width": 0,
+        "height": 0.198954191771
+      },
+      "geo": {
+        "lon": -123.22268481996,
+        "lat": 54.47256852969,
+        "geohash": "c38mgurvxqf8"
+      },
+      "lineCount": 54,
+      "weight": 54
+    },
+    ".agents/skills/computer-science-algorithms/references/ds-union-find-for-dynamic-connectivity.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/ds-union-find-for-dynamic-connectivity.md",
+      "name": "ds-union-find-for-dynamic-connectivity.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.118768369134,
+        "y": 0.232221977825,
+        "width": 0.00339743199,
+        "height": 0.06461250203
+      },
+      "geo": {
+        "lon": -136.63184935356,
+        "lat": 42.3849188088,
+        "geohash": "8zwc4ggwp1sc"
+      },
+      "lineCount": 72,
+      "weight": 72
+    },
+    ".agents/skills/computer-science-algorithms/references/graph-bfs-for-unweighted-shortest-path.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/graph-bfs-for-unweighted-shortest-path.md",
+      "name": "graph-bfs-for-unweighted-shortest-path.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.105529473825,
+        "y": 0.199150133806,
+        "width": 0.005340236386,
+        "height": 0.048449276565
+      },
+      "geo": {
+        "lon": -141.04814687352,
+        "lat": 49.792541024070005,
+        "geohash": "bbgeq27yefqu"
+      },
+      "lineCount": 81,
+      "weight": 81
+    },
+    ".agents/skills/computer-science-algorithms/references/graph-detect-cycles-during-dfs.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/graph-detect-cycles-during-dfs.md",
+      "name": "graph-detect-cycles-during-dfs.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.137536853392,
+        "y": 0.097914758703,
+        "width": 0.001579235525,
+        "height": 0.098757297418
+      },
+      "geo": {
+        "lon": -130.20247038438,
+        "lat": 63.48718666584,
+        "geohash": "c573jjmrwt3k"
+      },
+      "lineCount": 64,
+      "weight": 64
+    },
+    ".agents/skills/computer-science-algorithms/references/graph-dijkstra-for-non-negative-weights.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/graph-dijkstra-for-non-negative-weights.md",
+      "name": "graph-dijkstra-for-non-negative-weights.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.112274836526,
+        "y": 0.097914758703,
+        "width": 0.005088406293,
+        "height": 0.04875886532
+      },
+      "geo": {
+        "lon": -138.6651457179,
+        "lat": 67.98704555466,
+        "geohash": "buj6u8ej5zv7"
+      },
+      "lineCount": 76,
+      "weight": 76
+    },
+    ".agents/skills/computer-science-algorithms/references/graph-kruskal-or-prim-for-mst.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/graph-kruskal-or-prim-for-mst.md",
+      "name": "graph-kruskal-or-prim-for-mst.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.105529473825,
+        "y": 0.097914758703,
+        "width": 0.005340236386,
+        "height": 0.049364112557
+      },
+      "geo": {
+        "lon": -141.04814687352,
+        "lat": 67.93257330333,
+        "geohash": "bu5dqqezgvwb"
+      },
+      "lineCount": 84,
+      "weight": 84
+    },
+    ".agents/skills/computer-science-algorithms/references/graph-represent-as-adjacency-list-not-matrix.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/graph-represent-as-adjacency-list-not-matrix.md",
+      "name": "graph-represent-as-adjacency-list-not-matrix.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.132933890214,
+        "y": 0.097914758703,
+        "width": 0.003197836862,
+        "height": 0.065534498214
+      },
+      "geo": {
+        "lon": -131.5681888878,
+        "lat": 66.4772385942,
+        "geohash": "c5f6njfcyzry"
+      },
+      "lineCount": 68,
+      "weight": 68
+    },
+    ".agents/skills/computer-science-algorithms/references/graph-topological-sort-for-dependency-order.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/graph-topological-sort-for-dependency-order.md",
+      "name": "graph-topological-sort-for-dependency-order.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.112274836526,
+        "y": 0.148078750339,
+        "width": 0.005088406293,
+        "height": 0.04875886532
+      },
+      "geo": {
+        "lon": -138.6651457179,
+        "lat": 58.95752706018,
+        "geohash": "bfmrksgh7ztk"
+      },
+      "lineCount": 76,
+      "weight": 76
+    },
+    ".agents/skills/computer-science-algorithms/references/greedy-huffman-and-priority-queue-greedies.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/greedy-huffman-and-priority-queue-greedies.md",
+      "name": "greedy-huffman-and-priority-queue-greedies.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.128285851962,
+        "y": 0.165173021038,
+        "width": 0.003242911937,
+        "height": 0.065370991721
+      },
+      "geo": {
+        "lon": -133.23336914502,
+        "lat": 54.38546695827,
+        "geohash": "c19m2hw6m3z7"
+      },
+      "lineCount": 69,
+      "weight": 69
+    },
+    ".agents/skills/computer-science-algorithms/references/greedy-interval-merge-and-sweep-line.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/greedy-interval-merge-and-sweep-line.md",
+      "name": "greedy-interval-merge-and-sweep-line.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.118768369134,
+        "y": 0.097914758703,
+        "width": 0.00339743199,
+        "height": 0.065973833466
+      },
+      "geo": {
+        "lon": -136.63184935356,
+        "lat": 66.43769842152,
+        "geohash": "bgycfyeexhsu"
+      },
+      "lineCount": 75,
+      "weight": 75
+    },
+    ".agents/skills/computer-science-algorithms/references/greedy-prove-exchange-argument-before-using.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/greedy-prove-exchange-argument-before-using.md",
+      "name": "greedy-prove-exchange-argument-before-using.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.146419342246,
+        "y": 0.097914758703,
+        "width": 0.00148436927,
+        "height": 0.099592042255
+      },
+      "geo": {
+        "lon": -127.02185032284,
+        "lat": 63.41205963051,
+        "geohash": "c5m8txcd02et"
+      },
+      "lineCount": 61,
+      "weight": 61
+    },
+    ".agents/skills/computer-science-algorithms/references/greedy-sort-by-the-right-key-for-scheduling.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/greedy-sort-by-the-right-key-for-scheduling.md",
+      "name": "greedy-sort-by-the-right-key-for-scheduling.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.132933890214,
+        "y": 0.231794007763,
+        "width": 0.003197836862,
+        "height": 0.065040472093
+      },
+      "geo": {
+        "lon": -131.5681888878,
+        "lat": 42.423436114290006,
+        "geohash": "9pd3q4fyqvxv"
+      },
+      "lineCount": 67,
+      "weight": 67
+    },
+    ".agents/skills/computer-science-algorithms/references/scale-aho-corasick-for-multi-pattern-search.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/scale-aho-corasick-for-multi-pattern-search.md",
+      "name": "scale-aho-corasick-for-multi-pattern-search.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.097914758703,
+        "y": 0.155349271264,
+        "width": 0.006209588806,
+        "height": 0.048395094495
+      },
+      "geo": {
+        "lon": -143.63296088184,
+        "lat": 57.68157266793,
+        "geohash": "bf3b5s9et2mz"
+      },
+      "lineCount": 103,
+      "weight": 103
+    },
+    ".agents/skills/computer-science-algorithms/references/scale-bloom-filter-for-probabilistic-membership.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/scale-bloom-filter-for-probabilistic-membership.md",
+      "name": "scale-bloom-filter-for-probabilistic-membership.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.128285851962,
+        "y": 0.097914758703,
+        "width": 0.003242911937,
+        "height": 0.065853136019
+      },
+      "geo": {
+        "lon": -133.23336914502,
+        "lat": 66.44856119175,
+        "geohash": "c5c600w6vmx7"
+      },
+      "lineCount": 70,
+      "weight": 70
+    },
+    ".agents/skills/computer-science-algorithms/references/scale-consistent-hashing-for-distributed-sharding.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/scale-consistent-hashing-for-distributed-sharding.md",
+      "name": "scale-consistent-hashing-for-distributed-sharding.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.097914758703,
+        "y": 0.205149492075,
+        "width": 0.006209588806,
+        "height": 0.04591589729
+      },
+      "geo": {
+        "lon": -143.63296088184,
+        "lat": 48.9406606704,
+        "geohash": "bb9y7t3sj2mu"
+      },
+      "lineCount": 93,
+      "weight": 93
+    },
+    ".agents/skills/computer-science-algorithms/references/scale-count-min-sketch-for-frequency-estimation.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/scale-count-min-sketch-for-frequency-estimation.md",
+      "name": "scale-count-min-sketch-for-frequency-estimation.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.097914758703,
+        "y": 0.25247051568,
+        "width": 0.006209588806,
+        "height": 0.044363964176
+      },
+      "geo": {
+        "lon": -143.63296088184,
+        "lat": 40.56255040176,
+        "geohash": "8z1yg81tvrmy"
+      },
+      "lineCount": 87,
+      "weight": 87
+    },
+    ".agents/skills/computer-science-algorithms/references/scale-external-merge-sort-for-out-of-memory-data.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/scale-external-merge-sort-for-out-of-memory-data.md",
+      "name": "scale-external-merge-sort-for-out-of-memory-data.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.112274836526,
+        "y": 0.198242741975,
+        "width": 0.005088406293,
+        "height": 0.04875886532
+      },
+      "geo": {
+        "lon": -138.6651457179,
+        "lat": 49.9280085657,
+        "geohash": "bbvkh955ezmk"
+      },
+      "lineCount": 76,
+      "weight": 76
+    },
+    ".agents/skills/computer-science-algorithms/references/scale-hyperloglog-for-cardinality-estimation.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/scale-hyperloglog-for-cardinality-estimation.md",
+      "name": "scale-hyperloglog-for-cardinality-estimation.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.105529473825,
+        "y": 0.249004536687,
+        "width": 0.005340236386,
+        "height": 0.047829943169
+      },
+      "geo": {
+        "lon": -141.04814687352,
+        "lat": 40.87448851113,
+        "geohash": "8z78w2gz5uyv"
+      },
+      "lineCount": 79,
+      "weight": 79
+    },
+    ".agents/skills/computer-science-algorithms/references/scale-minhash-lsh-for-near-duplicate-detection.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/scale-minhash-lsh-for-near-duplicate-detection.md",
+      "name": "scale-minhash-lsh-for-near-duplicate-detection.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.097914758703,
+        "y": 0.097914758703,
+        "width": 0.006209588806,
+        "height": 0.056029386245
+      },
+      "geo": {
+        "lon": -143.63296088184,
+        "lat": 67.33269867141,
+        "geohash": "bgcz5999mkvb"
+      },
+      "lineCount": 137,
+      "weight": 137
+    },
+    ".agents/skills/computer-science-algorithms/references/scale-reservoir-sampling-for-streams.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/scale-reservoir-sampling-for-streams.md",
+      "name": "scale-reservoir-sampling-for-streams.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.105529473825,
+        "y": 0.148683997576,
+        "width": 0.005340236386,
+        "height": 0.049061009915
+      },
+      "geo": {
+        "lon": -141.04814687352,
+        "lat": 58.82138954397,
+        "geohash": "bf7wwk5g7vyb"
+      },
+      "lineCount": 83,
+      "weight": 83
+    },
+    ".agents/skills/computer-science-algorithms/references/srch-binary-search-on-sorted-data.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/srch-binary-search-on-sorted-data.md",
+      "name": "srch-binary-search-on-sorted-data.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.12357092744,
+        "y": 0.097914758703,
+        "width": 0.003309798207,
+        "height": 0.065839536422
+      },
+      "geo": {
+        "lon": -134.91870244434,
+        "lat": 66.44978515548,
+        "geohash": "c5b41bg4n3gb"
+      },
+      "lineCount": 72,
+      "weight": 72
+    },
+    ".agents/skills/computer-science-algorithms/references/srch-counting-and-radix-sort-for-bounded-integer-keys.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/srch-counting-and-radix-sort-for-bounded-integer-keys.md",
+      "name": "srch-counting-and-radix-sort-for-bounded-integer-keys.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.154967136475,
+        "y": 0.097903839913,
+        "width": 0,
+        "height": 0.198941558732
+      },
+      "geo": {
+        "lon": -124.21183086900001,
+        "lat": 54.47256852978,
+        "geohash": "c1xtvkrtwwcb"
+      },
+      "lineCount": 55,
+      "weight": 55
+    },
+    ".agents/skills/computer-science-algorithms/references/srch-quickselect-for-k-th-element.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/srch-quickselect-for-k-th-element.md",
+      "name": "srch-quickselect-for-k-th-element.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.143493873513,
+        "y": 0.097914758703,
+        "width": 0.001520342418,
+        "height": 0.099164468471
+      },
+      "geo": {
+        "lon": -128.06854390008,
+        "lat": 63.45054127107,
+        "geohash": "c5kbvwz64whm"
+      },
+      "lineCount": 62,
+      "weight": 62
+    },
+    ".agents/skills/computer-science-algorithms/references/srch-two-pointers-on-sorted-data.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/srch-two-pointers-on-sorted-data.md",
+      "name": "srch-two-pointers-on-sorted-data.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.137536853392,
+        "y": 0.198077182437,
+        "width": 0.001579235525,
+        "height": 0.098757297418
+      },
+      "geo": {
+        "lon": -130.20247038438,
+        "lat": 45.45795039372,
+        "geohash": "c056t5m7y81k"
+      },
+      "lineCount": 64,
+      "weight": 64
+    },
+    ".agents/skills/computer-science-algorithms/references/srch-use-builtin-sort-not-hand-rolled.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/srch-use-builtin-sort-not-hand-rolled.md",
+      "name": "srch-use-builtin-sort-not-hand-rolled.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.168480780015,
+        "y": 0.097865024698,
+        "width": 0,
+        "height": 0.199019189162
+      },
+      "geo": {
+        "lon": -119.34691919459999,
+        "lat": 54.47256852978,
+        "geohash": "c3ejuhqjxnz0"
+      },
+      "lineCount": 49,
+      "weight": 49
+    },
+    ".agents/skills/computer-science-algorithms/references/str-kmp-or-builtin-find-not-naive-search.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/str-kmp-or-builtin-find-not-naive-search.md",
+      "name": "str-kmp-or-builtin-find-not-naive-search.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.140521215233,
+        "y": 0.097914758703,
+        "width": 0.001567531965,
+        "height": 0.099151643782
+      },
+      "geo": {
+        "lon": -129.13020676242002,
+        "lat": 63.451695493079995,
+        "geohash": "c5k0vx42bj74"
+      },
+      "lineCount": 64,
+      "weight": 64
+    },
+    ".agents/skills/computer-science-algorithms/references/str-rolling-hash-for-multiple-substring-comparisons.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/str-rolling-hash-for-multiple-substring-comparisons.md",
+      "name": "str-rolling-hash-for-multiple-substring-comparisons.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.152174252614,
+        "y": 0.097914758703,
+        "width": 0.0000153876,
+        "height": 0.198919721152
+      },
+      "geo": {
+        "lon": -125.21449929095999,
+        "lat": 54.47256852978,
+        "geohash": "c1wvysmtdwy0"
+      },
+      "lineCount": 58,
+      "weight": 58
+    },
+    ".agents/skills/computer-science-algorithms/references/str-suffix-array-or-automaton-for-substring-queries.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/str-suffix-array-or-automaton-for-substring-queries.md",
+      "name": "str-suffix-array-or-automaton-for-substring-queries.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.132933890214,
+        "y": 0.164854383233,
+        "width": 0.003197836862,
+        "height": 0.065534498214
+      },
+      "geo": {
+        "lon": -131.5681888878,
+        "lat": 54.4281061788,
+        "geohash": "c1dmwh6fwyru"
+      },
+      "lineCount": 68,
+      "weight": 68
+    },
+    ".agents/skills/computer-science-algorithms/references/str-trie-for-prefix-queries.md": {
+      "path": ".agents/skills/computer-science-algorithms/references/str-trie-for-prefix-queries.md",
+      "name": "str-trie-for-prefix-queries.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.118768369134,
+        "y": 0.165293718485,
+        "width": 0.00339743199,
+        "height": 0.065523133025
+      },
+      "geo": {
+        "lon": -136.63184935356,
+        "lat": 54.35004870045,
+        "geohash": "bcwv4y5ezpkv"
+      },
+      "lineCount": 74,
+      "weight": 74
+    },
+    ".agents/skills/computer-science-algorithms/AGENTS.md": {
+      "path": ".agents/skills/computer-science-algorithms/AGENTS.md",
+      "name": "AGENTS.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.2132620938,
+        "y": 0.091115390352,
+        "width": 0.012401149038,
+        "height": 0.225680193494
+      },
+      "geo": {
+        "lon": -100.99343940516,
+        "lat": 53.288012322179995,
+        "geohash": "cc2pjufc4m3r"
+      },
+      "lineCount": 106,
+      "weight": 106
+    },
+    ".agents/skills/computer-science-algorithms/SKILL.md": {
+      "path": ".agents/skills/computer-science-algorithms/SKILL.md",
+      "name": "SKILL.md",
+      "extension": ".md",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.195813573317,
+        "y": 0.091115390352,
+        "width": 0.014982266567,
+        "height": 0.225680193494
+      },
+      "geo": {
+        "lon": -106.81030562382,
+        "lat": 53.288012322179995,
+        "geohash": "c9kp1kz15mrx"
+      },
+      "lineCount": 146,
+      "weight": 146
+    },
     ".agents/skills/geohash-spatial-code-maps/assets/templates/_template.md": {
       "path": ".agents/skills/geohash-spatial-code-maps/assets/templates/_template.md",
       "name": "_template.md",
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0,
-        "width": 0.45083035014,
-        "height": 0.008302627173
+        "x": 0.179071519916,
+        "y": 0.363553963527,
+        "width": 0.007759911503,
+        "height": 0.14259734
       },
       "geo": {
-        "lon": -98.8505369748,
-        "lat": 89.25276355443,
-        "geohash": "czcewxgpp912"
+        "lon": -114.1374687597,
+        "lat": 11.726525965139999,
+        "geohash": "96nfdwxxunyu"
       },
       "lineCount": 31,
       "weight": 31
@@ -873,15 +2091,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.008302627173,
-        "width": 0.474558263305,
-        "height": 0.012320027418
+        "x": 0.105515890351,
+        "y": 0.404700458831,
+        "width": 0.005772271008,
+        "height": 0.034414619849
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 87.39672464124,
-        "geohash": "czs9py16cd7c"
+        "lon": -140.9752706922,
+        "lat": 14.056601624010014,
+        "geohash": "8f7zbnbvwh7n"
       },
       "lineCount": 46,
       "weight": 46
@@ -892,15 +2110,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.020622654592,
-        "width": 0.474558263305,
-        "height": 0.008838280539
+        "x": 0.168771465535,
+        "y": 0.36858903028,
+        "width": 0.000185153268,
+        "height": 0.14197644632
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 85.49247692493,
-        "geohash": "czhwrg3mc8gc"
+        "lon": -119.20894481916,
+        "lat": 10.876094380799998,
+        "geohash": "93gjz7fty6bn"
       },
       "lineCount": 33,
       "weight": 33
@@ -911,15 +2129,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.029460935131,
-        "width": 0.474558263305,
-        "height": 0.012052200735
+        "x": 0.11259874047,
+        "y": 0.404706843173,
+        "width": 0.005695277818,
+        "height": 0.034412491735
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 83.61233361027,
-        "geohash": "cyuexv1m1sev"
+        "lon": -138.43930342356,
+        "lat": 14.055643972710001,
+        "geohash": "8fmxcwz843vq"
       },
       "lineCount": 45,
       "weight": 45
@@ -930,15 +2148,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.041513135866,
-        "width": 0.474558263305,
-        "height": 0.009641760588
+        "x": 0.164128756642,
+        "y": 0.36858903028,
+        "width": 0.000251662407,
+        "height": 0.14197644632
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 81.6598770912,
-        "geohash": "cys8xc9r387u"
+        "lon": -120.86834837562,
+        "lat": 10.876094380799998,
+        "geohash": "93fjcefmg6gn"
       },
       "lineCount": 36,
       "weight": 36
@@ -949,15 +2167,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.051154896455,
-        "width": 0.474558263305,
-        "height": 0.012052200735
+        "x": 0.11259874047,
+        "y": 0.440429914019,
+        "width": 0.005695277818,
+        "height": 0.034412491735
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 79.70742057195,
-        "geohash": "cyhtry333s5u"
+        "lon": -138.43930342356,
+        "lat": 7.625491220429993,
+        "geohash": "8cme3sptdqt6"
       },
       "lineCount": 45,
       "weight": 45
@@ -968,15 +2186,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.06320709719,
-        "width": 0.474558263305,
-        "height": 0.011516547369
+        "x": 0.119604597398,
+        "y": 0.464657554358,
+        "width": 0.003870566773,
+        "height": 0.045907922242
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 77.58623324259,
-        "geohash": "cvu9ru1k9d5u"
+        "lon": -136.24564291758,
+        "lat": 2.2299272137800017,
+        "geohash": "8brhetuyq2t3"
       },
       "lineCount": 43,
       "weight": 43
@@ -987,15 +2205,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.074723644559,
-        "width": 0.474558263305,
-        "height": 0.012052200735
+        "x": 0.11259874047,
+        "y": 0.476152984865,
+        "width": 0.005695277818,
+        "height": 0.034412491735
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 75.46504591323,
-        "geohash": "cvktrccrc85v"
+        "lon": -138.43930342356,
+        "lat": 1.1953384681499983,
+        "geohash": "8bjwc9xe67jr"
       },
       "lineCount": 45,
       "weight": 45
@@ -1006,15 +2224,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.086775845295,
-        "width": 0.474558263305,
-        "height": 0.012587854101
+        "x": 0.105515890351,
+        "y": 0.36858903028,
+        "width": 0.005772271008,
+        "height": 0.034800849441
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 73.24744097781,
-        "geohash": "cvh8xy3338eu"
+        "lon": -140.9752706922,
+        "lat": 20.52189809990999,
+        "geohash": "8geu8pbuwp54"
       },
       "lineCount": 47,
       "weight": 47
@@ -1025,15 +2243,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.099363699396,
-        "width": 0.474558263305,
-        "height": 0.015533947614
+        "x": 0.097457247328,
+        "y": 0.40921345617,
+        "width": 0.006748063913,
+        "height": 0.033947274538
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 70.71647882346,
-        "geohash": "cusdrc933e5g"
+        "lon": -143.70073945758,
+        "lat": 13.286323180980006,
+        "geohash": "8f3gd48q6n4k"
       },
       "lineCount": 58,
       "weight": 58
@@ -1044,15 +2262,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.114897647011,
-        "width": 0.474558263305,
-        "height": 0.020622654592
+        "x": 0.097457247328,
+        "y": 0.36858903028,
+        "width": 0.006748063913,
+        "height": 0.03931384678
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 67.46238462474,
-        "geohash": "cguxzc1kcegz"
+        "lon": -143.70073945758,
+        "lat": 20.115728339399993,
+        "geohash": "8g9f6jbqd5d3"
       },
       "lineCount": 77,
       "weight": 77
@@ -1063,15 +2281,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.135520301602,
-        "width": 0.474558263305,
-        "height": 0.012320027418
+        "x": 0.105515890351,
+        "y": 0.440425657791,
+        "width": 0.005772271008,
+        "height": 0.034414619849
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 64.49754324402001,
-        "geohash": "cgkwzv3m3t7z"
+        "lon": -140.9752706922,
+        "lat": 7.6260658112099975,
+        "geohash": "8c7g2h2cn1en"
       },
       "lineCount": 46,
       "weight": 46
@@ -1082,15 +2300,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.147840329021,
-        "width": 0.474558263305,
-        "height": 0.011516547369
+        "x": 0.124785743282,
+        "y": 0.36858903028,
+        "width": 0.003811572247,
+        "height": 0.0464517627
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 62.35225151301,
-        "geohash": "cghdxyck1w5u"
+        "lon": -134.39104941402002,
+        "lat": 19.473315906600007,
+        "geohash": "952qvc52m94q"
       },
       "lineCount": 43,
       "weight": 43
@@ -1101,15 +2319,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.15935687639,
-        "width": 0.474558263305,
-        "height": 0.010177413954
+        "x": 0.148163568317,
+        "y": 0.440697780228,
+        "width": 0.001920503996,
+        "height": 0.069867696372
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 60.39979499393999,
-        "geohash": "cfsxxg3q39gg"
+        "lon": -126.3154246866,
+        "lat": 4.3863068854800105,
+        "geohash": "90y0vwebj6be"
       },
       "lineCount": 38,
       "weight": 38
@@ -1120,15 +2338,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.169534290344,
-        "width": 0.474558263305,
-        "height": 0.010445240637
+        "x": 0.144911503266,
+        "y": 0.36858903028,
+        "width": 0.00194148594,
+        "height": 0.070332933605
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 58.54375608075,
-        "geohash": "cfktpc961e5g"
+        "lon": -127.48239135504,
+        "lat": 17.32401052515,
+        "geohash": "95j6e1dpsvxk"
       },
       "lineCount": 39,
       "weight": 39
@@ -1139,15 +2357,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.179979530982,
-        "width": 0.474558263305,
-        "height": 0.012320027418
+        "x": 0.105515890351,
+        "y": 0.476150856751,
+        "width": 0.005772271008,
+        "height": 0.034414619849
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 56.49488195562,
-        "geohash": "cfh9ru96997c"
+        "lon": -140.9752706922,
+        "lat": 1.1955299984100094,
+        "geohash": "8b5yb18uqngn"
       },
       "lineCount": 46,
       "weight": 46
@@ -1158,15 +2376,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.1922995584,
-        "width": 0.474558263305,
-        "height": 0.014462640882
+        "x": 0.097457247328,
+        "y": 0.444471309818,
+        "width": 0.006748063913,
+        "height": 0.032709769052
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 54.08444180862,
-        "geohash": "ccsexvc29wey"
+        "lon": -143.70073945758,
+        "lat": 7.051285018080009,
+        "geohash": "8c3b458kdnf3"
       },
       "lineCount": 54,
       "weight": 54
@@ -1177,15 +2395,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.206762199282,
-        "width": 0.474558263305,
-        "height": 0.01071306732
+        "x": 0.138324514663,
+        "y": 0.36858903028,
+        "width": 0.001982915191,
+        "height": 0.070332933605
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 51.818628070440006,
-        "geohash": "cchwzc333s7u"
+        "lon": -129.84624998694,
+        "lat": 17.32401052515,
+        "geohash": "955dt38zejds"
       },
       "lineCount": 40,
       "weight": 40
@@ -1196,15 +2414,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.217475266603,
-        "width": 0.474558263305,
-        "height": 0.011248720686
+        "x": 0.129907894639,
+        "y": 0.416726727672,
+        "width": 0.003771632071,
+        "height": 0.046264084908
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 49.842067149719995,
-        "geohash": "cbuexc3r1dez"
+        "lon": -132.55426415718,
+        "lat": 10.825421377319998,
+        "geohash": "91ctxdsytubc"
       },
       "lineCount": 42,
       "weight": 42
@@ -1215,15 +2433,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.228723987289,
-        "width": 0.474558263305,
-        "height": 0.01071306732
+        "x": 0.138324514663,
+        "y": 0.440232542995,
+        "width": 0.001982915191,
+        "height": 0.070332933605
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 47.86550622918,
-        "geohash": "cbs8rc9kc95f"
+        "lon": -129.84624998694,
+        "lat": 4.428178236449995,
+        "geohash": "90g9jq0u5068"
       },
       "lineCount": 40,
       "weight": 40
@@ -1234,15 +2452,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.239437054609,
-        "width": 0.474558263305,
-        "height": 0.012320027418
+        "x": 0.11259874047,
+        "y": 0.36858903028,
+        "width": 0.005695277818,
+        "height": 0.034807233783
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 45.792527702760005,
-        "geohash": "cbhsxb32c9gg"
+        "lon": -138.43930342356,
+        "lat": 20.52132350913,
+        "geohash": "8gts9xz967vq"
       },
       "lineCount": 46,
       "weight": 46
@@ -1253,15 +2471,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.251757082028,
-        "width": 0.474558263305,
-        "height": 0.010177413954
+        "x": 0.151394651424,
+        "y": 0.36858903028,
+        "width": 0.000294471471,
+        "height": 0.14197644632
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 43.767757979100004,
-        "geohash": "9zu8zz9m9t7y"
+        "lon": -125.44492062258001,
+        "lat": 10.876094380799998,
+        "geohash": "91yvc7vvc6zw"
       },
       "lineCount": 38,
       "weight": 38
@@ -1272,15 +2490,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.261934495982,
-        "width": 0.474558263305,
-        "height": 0.011516547369
+        "x": 0.124785743282,
+        "y": 0.41635137209,
+        "width": 0.003811572247,
+        "height": 0.0464517627
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 41.81530146003,
-        "geohash": "9zktzu1rc95v"
+        "lon": -134.39104941402002,
+        "lat": 10.876094380799998,
+        "geohash": "91bmvggmvdfq"
       },
       "lineCount": 43,
       "weight": 43
@@ -1291,15 +2509,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.273451043351,
-        "width": 0.474558263305,
-        "height": 0.010445240637
+        "x": 0.144911503266,
+        "y": 0.440232542995,
+        "width": 0.00194148594,
+        "height": 0.070332933605
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 39.83874053949,
-        "geohash": "9zhdxu3m3xeb"
+        "lon": -127.48239135504,
+        "lat": 4.428178236449995,
+        "geohash": "90v35n4hhbr2"
       },
       "lineCount": 39,
       "weight": 39
@@ -1310,15 +2528,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.283896283989,
-        "width": 0.474558263305,
-        "height": 0.010445240637
+        "x": 0.148163568317,
+        "y": 0.36858903028,
+        "width": 0.001920503996,
+        "height": 0.070798170838
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 37.95859722464999,
-        "geohash": "9ysxzy1kce7u"
+        "lon": -126.3154246866,
+        "lat": 17.282139174180003,
+        "geohash": "95n4md5gv20x"
       },
       "lineCount": 39,
       "weight": 39
@@ -1329,15 +2547,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.294341524626,
-        "width": 0.474558263305,
-        "height": 0.011248720686
+        "x": 0.129907894639,
+        "y": 0.464301391691,
+        "width": 0.003771632071,
+        "height": 0.046264084908
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 36.00614070558,
-        "geohash": "9ykszf9qcx5g"
+        "lon": -132.55426415718,
+        "lat": 2.2619818538999965,
+        "geohash": "903szeubvzbz"
       },
       "lineCount": 42,
       "weight": 42
@@ -1348,15 +2566,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.305590245312,
-        "width": 0.474558263305,
-        "height": 0.009909587271
+        "x": 0.156209803168,
+        "y": 0.36858903028,
+        "width": 0.000273211584,
+        "height": 0.14197644632
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 34.10189298944999,
-        "geohash": "9yhdpb13cteg"
+        "lon": -123.71529277439998,
+        "lat": 10.876094380799998,
+        "geohash": "93bjbgcmbdzw"
       },
       "lineCount": 37,
       "weight": 37
@@ -1367,15 +2585,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.315499832584,
-        "width": 0.474558263305,
-        "height": 0.009909587271
+        "x": 0.157793593863,
+        "y": 0.36858903028,
+        "width": 0.000273211584,
+        "height": 0.14197644632
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 32.31816728049,
-        "geohash": "9vsxzg36cx5c"
+        "lon": -123.1451281242,
+        "lat": 10.876094380799998,
+        "geohash": "93bmvgbmydcn"
       },
       "lineCount": 37,
       "weight": 37
@@ -1386,15 +2604,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.325409419855,
-        "width": 0.474558263305,
-        "height": 0.009909587271
+        "x": 0.159377384558,
+        "y": 0.36858903028,
+        "width": 0.000273211584,
+        "height": 0.14197644632
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 30.534441571710005,
-        "geohash": "9vktxy9k187y"
+        "lon": -122.574963474,
+        "lat": 10.876094380799998,
+        "geohash": "93bvfeztu6fw"
       },
       "lineCount": 37,
       "weight": 37
@@ -1405,15 +2623,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.335319007126,
-        "width": 0.474558263305,
-        "height": 0.009641760588
+        "x": 0.16569099816,
+        "y": 0.36858903028,
+        "width": 0.000251662407,
+        "height": 0.14197644632
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 28.7748202644,
-        "geohash": "9vhexy333x7b"
+        "lon": -120.30594142914,
+        "lat": 10.876094380799998,
+        "geohash": "93fmy7gvu6un"
       },
       "lineCount": 36,
       "weight": 36
@@ -1424,15 +2642,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.344960767715,
-        "width": 0.474558263305,
-        "height": 0.013926987516
+        "x": 0.097457247328,
+        "y": 0.478491657981,
+        "width": 0.006748063913,
+        "height": 0.032073818619
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 26.65363293486,
-        "geohash": "9usxxu1k9t7c"
+        "lon": -143.70073945758,
+        "lat": 0.9848578877099925,
+        "geohash": "8b1vd5234nf6"
       },
       "lineCount": 52,
       "weight": 52
@@ -1443,15 +2661,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.358887755231,
-        "width": 0.474558263305,
-        "height": 0.011516547369
+        "x": 0.124785743282,
+        "y": 0.4641137139,
+        "width": 0.003811572247,
+        "height": 0.0464517627
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 24.36371479521,
-        "geohash": "9ukdxg32cteg"
+        "lon": -134.39104941402002,
+        "lat": 2.278872855000003,
+        "geohash": "902kvyg7msdq"
       },
       "lineCount": 43,
       "weight": 43
@@ -1462,15 +2680,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.3704043026,
-        "width": 0.474558263305,
-        "height": 0.010177413954
+        "x": 0.152999702005,
+        "y": 0.36858903028,
+        "width": 0.000294471471,
+        "height": 0.14197644632
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 22.411258276140003,
-        "geohash": "9guxrzc7197f"
+        "lon": -124.86710241342001,
+        "lat": 10.876094380799998,
+        "geohash": "91zjyeftcdun"
       },
       "lineCount": 38,
       "weight": 38
@@ -1481,15 +2699,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.380581716555,
-        "width": 0.474558263305,
-        "height": 0.009909587271
+        "x": 0.160961175253,
+        "y": 0.36858903028,
+        "width": 0.000273211584,
+        "height": 0.14197644632
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 20.60342816571,
-        "geohash": "9gstpy9r9t7u"
+        "lon": -122.0047988238,
+        "lat": 10.876094380799998,
+        "geohash": "93cjzeyvf4uq"
       },
       "lineCount": 37,
       "weight": 37
@@ -1500,15 +2718,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.390491303826,
-        "width": 0.474558263305,
-        "height": 0.009909587271
+        "x": 0.162544965947,
+        "y": 0.36858903028,
+        "width": 0.000273211584,
+        "height": 0.14197644632
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 18.819702456930003,
-        "geohash": "9gkepf129wgf"
+        "lon": -121.43463417396,
+        "lat": 10.876094380799998,
+        "geohash": "93ctuevvzfvy"
       },
       "lineCount": 37,
       "weight": 37
@@ -1519,15 +2737,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.400400891097,
-        "width": 0.474558263305,
-        "height": 0.011784374052
+        "x": 0.119604597398,
+        "y": 0.416893156241,
+        "width": 0.003870566773,
+        "height": 0.046453819006
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 16.867245937860005,
-        "geohash": "9fuxzy96cdec"
+        "lon": -136.24564291758,
+        "lat": 10.778388166080006,
+        "geohash": "8czj7dhuwmjm"
       },
       "lineCount": 44,
       "weight": 44
@@ -1538,15 +2756,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.41218526515,
-        "width": 0.474558263305,
-        "height": 0.01071306732
+        "x": 0.141618008964,
+        "y": 0.36858903028,
+        "width": 0.001982915191,
+        "height": 0.070332933605
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 14.842476214200005,
-        "geohash": "9fssrvcr9w5g"
+        "lon": -128.66059203857998,
+        "lat": 17.32401052515,
+        "geohash": "95hd838pwvth"
       },
       "lineCount": 40,
       "weight": 40
@@ -1557,15 +2775,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.42289833247,
-        "width": 0.474558263305,
-        "height": 0.01071306732
+        "x": 0.141618008964,
+        "y": 0.440232542995,
+        "width": 0.001982915191,
+        "height": 0.070332933605
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 12.914124096599991,
-        "geohash": "9fk9rycq1x5y"
+        "lon": -128.66059203857998,
+        "lat": 4.428178236449995,
+        "geohash": "90u90q0hnbm0"
       },
       "lineCount": 40,
       "weight": 40
@@ -1576,15 +2794,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.43361139979,
-        "width": 0.474558263305,
-        "height": 0.010980894003
+        "x": 0.13499010582,
+        "y": 0.36858903028,
+        "width": 0.002023829732,
+        "height": 0.070332933605
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 10.961667577529994,
-        "geohash": "9cuwrg923dgy"
+        "lon": -131.03927255304,
+        "lat": 17.32401052515,
+        "geohash": "954fd1spetsk"
       },
       "lineCount": 41,
       "weight": 41
@@ -1595,15 +2813,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.444592293794,
-        "width": 0.474558263305,
-        "height": 0.011516547369
+        "x": 0.129907894639,
+        "y": 0.36858903028,
+        "width": 0.003771632071,
+        "height": 0.046827118282
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 8.936897853869993,
-        "geohash": "9csdzfcm1web"
+        "lon": -132.55426415718,
+        "lat": 19.43953390422,
+        "geohash": "953wxdugmzbb"
       },
       "lineCount": 43,
       "weight": 43
@@ -1614,15 +2832,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.456108841163,
-        "width": 0.474558263305,
-        "height": 0.010980894003
+        "x": 0.13499010582,
+        "y": 0.440232542995,
+        "width": 0.002023829732,
+        "height": 0.070332933605
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 6.912128130390002,
-        "geohash": "9chxrf361d5f"
+        "lon": -131.03927255304,
+        "lat": 4.428178236449995,
+        "geohash": "90fc4nhh58k2"
       },
       "lineCount": 41,
       "weight": 41
@@ -1633,15 +2851,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.467089735166,
-        "width": 0.474558263305,
-        "height": 0.009106107222
+        "x": 0.167253239678,
+        "y": 0.36858903028,
+        "width": 0.000207646746,
+        "height": 0.14197644632
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 5.104298020140007,
-        "geohash": "9butpc1q9w5g"
+        "lon": -119.75145730164002,
+        "lat": 10.876094380799998,
+        "geohash": "93fvfgztufcw"
       },
       "lineCount": 34,
       "weight": 34
@@ -1652,15 +2870,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.476195842389,
-        "width": 0.474558263305,
-        "height": 0.012052200735
+        "x": 0.119604597398,
+        "y": 0.36858903028,
+        "width": 0.003870566773,
+        "height": 0.046993546851
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 3.200050303829997,
-        "geohash": "9bsdpy939seg"
+        "lon": -136.24564291758,
+        "lat": 19.424555333010005,
+        "geohash": "8grne8hunrt3"
       },
       "lineCount": 45,
       "weight": 45
@@ -1671,15 +2889,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.488248043124,
-        "width": 0.474558263305,
-        "height": 0.010177413954
+        "x": 0.154604752587,
+        "y": 0.36858903028,
+        "width": 0.000294471471,
+        "height": 0.14197644632
       },
       "geo": {
-        "lon": -94.57951260509999,
-        "lat": 1.1993849818200033,
-        "geohash": "9bhwzf36ctef"
+        "lon": -124.28928420390001,
+        "lat": 10.876094380799998,
+        "geohash": "91ztgezmcfbw"
       },
       "lineCount": 38,
       "weight": 38
@@ -1690,15 +2908,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.498425457078,
-        "width": 0.499535014006,
-        "height": 0.026514841618
+        "x": 0.210268636029,
+        "y": 0.362247173304,
+        "width": 0.015394606809,
+        "height": 0.164155948205
       },
       "geo": {
-        "lon": -90.08369747892,
-        "lat": -2.1029180196600095,
-        "geohash": "3zxun15j9ewt"
+        "lon": -101.53226180394,
+        "lat": 10.021473466829988,
+        "geohash": "99zc1867qf43"
       },
       "lineCount": 99,
       "weight": 99
@@ -1709,15 +2927,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.524940298696,
-        "width": 0.499535014006,
-        "height": 0.032139201961
+        "x": 0.190604475557,
+        "y": 0.362247173304,
+        "width": 0.017197906556,
+        "height": 0.164155948205
       },
       "geo": {
-        "lon": -90.08369747892,
-        "lat": -7.381781941770001,
-        "geohash": "3yxyn05n18ne"
+        "lon": -108.2867656194,
+        "lat": 10.021473466829988,
+        "geohash": "99fcpb7gr6p3"
       },
       "lineCount": 120,
       "weight": 120
@@ -1728,15 +2946,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.499535014006,
-        "y": 0,
-        "width": 0.002401610644,
-        "height": 0.557079500657
+        "x": 0.419455261742,
+        "y": 0.07922444187,
+        "width": 0.00055296893,
+        "height": 0.442139058665
       },
       "geo": {
-        "lon": 0.26489495807996377,
-        "lat": 39.862844940870005,
-        "geohash": "sp04y0bcukzu"
+        "lon": -28.896571365480014,
+        "lat": 35.94708518355,
+        "geohash": "eq7kqrynvn6e"
       },
       "lineCount": 10,
       "weight": 10
@@ -1747,15 +2965,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.50193662465,
-        "y": 0,
-        "width": 0.047551890756,
-        "height": 0.132236043085
+        "x": 0.368593757221,
+        "y": 0.080523428908,
+        "width": 0.004092702764,
+        "height": 0.439613227792
       },
       "geo": {
-        "lon": 9.256525210079985,
-        "lat": 78.09875612235,
-        "geohash": "ujys69kqhxm6"
+        "lon": -46.56956090291999,
+        "lat": 35.94059229528,
+        "geohash": "dyqukqc14s48"
       },
       "lineCount": 47,
       "weight": 47
@@ -1766,15 +2984,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.50193662465,
-        "y": 0.132236043085,
-        "width": 0.047551890756,
-        "height": 0.177252568391
+        "x": 0.363534231781,
+        "y": 0.080523428908,
+        "width": 0.004782157755,
+        "height": 0.439613227792
       },
       "geo": {
-        "lon": 9.256525210079985,
-        "lat": 50.24478108951,
-        "geohash": "u0ytfdu3hdj3"
+        "lon": -48.266888162940006,
+        "lat": 35.94059229528,
+        "geohash": "dymsmwv15up8"
       },
       "lineCount": 63,
       "weight": 63
@@ -1785,15 +3003,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.50193662465,
-        "y": 0.309488611476,
-        "width": 0.047551890756,
-        "height": 0.247590889181
+        "x": 0.357554511826,
+        "y": 0.080523428908,
+        "width": 0.005702352269,
+        "height": 0.439613227792
       },
       "geo": {
-        "lon": 9.256525210079985,
-        "lat": 12.008869908029993,
-        "geohash": "s4ns6dhksxt7"
+        "lon": -50.25395233422,
+        "lat": 35.94059229528,
+        "geohash": "dykk2qy1nh10"
       },
       "lineCount": 88,
       "weight": 88
@@ -1804,15 +3022,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.549488515406,
-        "y": 0,
-        "width": 0.003602415966,
-        "height": 0.557079500657
+        "x": 0.411475975821,
+        "y": 0.079295250617,
+        "width": 0.001459593433,
+        "height": 0.442001843787
       },
       "geo": {
-        "lon": 18.46430042003999,
-        "lat": 39.862844940870005,
-        "geohash": "srj4u0v3ckuk"
+        "lon": -31.605921886500028,
+        "lat": 35.94668894811,
+        "geohash": "eq3s2zck8skx"
       },
       "lineCount": 15,
       "weight": 15
@@ -1823,15 +3041,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.553090931373,
-        "y": 0,
-        "width": 0.049233018207,
-        "height": 0.100546056216
+        "x": 0.345303162434,
+        "y": 0.080580052807,
+        "width": 0.003147867675,
+        "height": 0.43950313687
       },
       "geo": {
-        "lon": 27.97467857154001,
-        "lat": 80.95085494055999,
-        "geohash": "uw7us8dscm05"
+        "lon": -55.12424534226001,
+        "lat": 35.940308176440006,
+        "geohash": "dy2u3wexrzp9"
       },
       "lineCount": 37,
       "weight": 37
@@ -1842,15 +3060,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.553090931373,
-        "y": 0.100546056216,
-        "width": 0.049233018207,
-        "height": 0.119568283068
+        "x": 0.341555184312,
+        "y": 0.080580052807,
+        "width": 0.003458908802,
+        "height": 0.43950313687
       },
       "geo": {
-        "lon": 27.97467857154001,
-        "lat": 61.140564405,
-        "geohash": "udggud699721"
+        "lon": -56.417530063320015,
+        "lat": 35.940308176440006,
+        "geohash": "dwruknwp2r09"
       },
       "lineCount": 44,
       "weight": 44
@@ -1861,15 +3079,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.553090931373,
-        "y": 0.220114339284,
-        "width": 0.049233018207,
-        "height": 0.144025431877
+        "x": 0.337441711381,
+        "y": 0.080580052807,
+        "width": 0.00382440361,
+        "height": 0.43950313687
       },
       "geo": {
-        "lon": 27.97467857154001,
-        "lat": 37.41713005994999,
-        "geohash": "sweuuedd9684"
+        "lon": -57.83259125303999,
+        "lat": 35.940308176440006,
+        "geohash": "dwqu7yxx6zn3"
       },
       "lineCount": 53,
       "weight": 53
@@ -1880,15 +3098,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.553090931373,
-        "y": 0.364139771161,
-        "width": 0.049233018207,
-        "height": 0.192939729496
+        "x": 0.332680692724,
+        "y": 0.080580052807,
+        "width": 0.004471949336,
+        "height": 0.43950313687
       },
       "geo": {
-        "lon": 27.97467857154001,
-        "lat": 7.090265536380002,
-        "geohash": "s97bkddxc321"
+        "lon": -59.429999738879985,
+        "lat": 35.940308176440006,
+        "geohash": "dwmsrwsrkxh3"
       },
       "lineCount": 71,
       "weight": 71
@@ -1899,15 +3117,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.60232394958,
-        "y": 0,
-        "width": 0.053075595238,
-        "height": 0.199137016072
+        "x": 0.314327933874,
+        "y": 0.0806117436,
+        "width": 0.005555371624,
+        "height": 0.439441522097
       },
       "geo": {
-        "lon": 46.390228991640015,
-        "lat": 72.07766855352,
-        "geohash": "vhbfp9k6femb"
+        "lon": -65.84197691304,
+        "lat": 35.94014916327001,
+        "geohash": "dw3hmwxqd9rs"
       },
       "lineCount": 79,
       "weight": 79
@@ -1918,15 +3136,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.60232394958,
-        "y": 0.199137016072,
-        "width": 0.053075595238,
-        "height": 0.075621651673
+        "x": 0.320178923893,
+        "y": 0.0806117436,
+        "width": 0.003309972422,
+        "height": 0.439441522097
       },
       "geo": {
-        "lon": 46.390228991640015,
-        "lat": 47.34938845647,
-        "geohash": "v02vresq4tvb"
+        "lon": -64.13979236255999,
+        "lat": 35.94014916327001,
+        "geohash": "dw6kkqwyd92k"
       },
       "lineCount": 30,
       "weight": 30
@@ -1937,15 +3155,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.60232394958,
-        "y": 0.274758667745,
-        "width": 0.053075595238,
-        "height": 0.282320832912
+        "x": 0.307361270551,
+        "y": 0.0806117436,
+        "width": 0.006671044928,
+        "height": 0.439441522097
       },
       "geo": {
-        "lon": 46.390228991640015,
-        "lat": 15.134564843820002,
-        "geohash": "t48ypehm4xmg"
+        "lon": -68.14915451460001,
+        "lat": 35.94014916327001,
+        "geohash": "dqrs3nxq997k"
       },
       "lineCount": 112,
       "weight": 112
@@ -1956,15 +3174,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.655399544818,
-        "y": 0,
-        "width": 0.072768802521,
-        "height": 0.060672024824
+        "x": 0.279015642072,
+        "y": 0.328598817636,
+        "width": 0.005972039809,
+        "height": 0.203563234261
       },
       "geo": {
-        "lon": 69.04222058826002,
-        "lat": 84.53951776584,
-        "geohash": "vx10gjgn2k74"
+        "lon": -78.47940168846,
+        "lat": 12.531521742029994,
+        "geohash": "d60pq1m13kuw"
       },
       "lineCount": 33,
       "weight": 33
@@ -1975,15 +3193,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.655399544818,
-        "y": 0.060672024824,
-        "width": 0.072768802521,
-        "height": 0.05699493241
+        "x": 0.285853404348,
+        "y": 0.328598817636,
+        "width": 0.005761596524,
+        "height": 0.203563234261
       },
       "geo": {
-        "lon": 69.04222058826002,
-        "lat": 73.94949161478,
-        "geohash": "vt1hen55027h"
+        "lon": -76.0556870604,
+        "lat": 12.531521742029994,
+        "geohash": "d61zm33cqhcq"
       },
       "lineCount": 31,
       "weight": 31
@@ -1994,15 +3212,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.655399544818,
-        "y": 0.117666957234,
-        "width": 0.072768802521,
-        "height": 0.108474226201
+        "x": 0.269872761776,
+        "y": 0.328598817636,
+        "width": 0.00827715783,
+        "height": 0.203563234261
       },
       "geo": {
-        "lon": 69.04222058826002,
-        "lat": 59.05726733979,
-        "geohash": "vd3pgp5182e1"
+        "lon": -81.35591735124,
+        "lat": 12.531521742029994,
+        "geohash": "d4npk9q3mszn"
       },
       "lineCount": 59,
       "weight": 59
@@ -2013,15 +3231,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.655399544818,
-        "y": 0.226141183435,
-        "width": 0.072768802521,
-        "height": 0.018385462068
+        "x": 0.292480723339,
+        "y": 0.328598817636,
+        "width": 0.002898341784,
+        "height": 0.203563234261
       },
       "geo": {
-        "lon": 69.04222058826002,
-        "lat": 47.63989539558,
-        "geohash": "v83p50e4825j"
+        "lon": -74.18523807684001,
+        "lat": 12.531521742029994,
+        "geohash": "d65prc7cqsvn"
       },
       "lineCount": 10,
       "weight": 10
@@ -2032,15 +3250,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.655399544818,
-        "y": 0.244526645503,
-        "width": 0.072768802521,
-        "height": 0.20040153654
+        "x": 0.248149095021,
+        "y": 0.328598817636,
+        "width": 0.011561391378,
+        "height": 0.203563234261
       },
       "geo": {
-        "lon": 69.04222058826002,
-        "lat": 27.949065520860003,
-        "geohash": "tscngpgp077j"
+        "lon": -88.5852753444,
+        "lat": 12.531521742029994,
+        "geohash": "d41p21q1mkzn"
       },
       "lineCount": 109,
       "weight": 109
@@ -2051,15 +3269,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.655399544818,
-        "y": 0.444928182043,
-        "width": 0.072768802521,
-        "height": 0.112151318614
+        "x": 0.260576208865,
+        "y": 0.328598817636,
+        "width": 0.008430830445,
+        "height": 0.203563234261
       },
       "geo": {
-        "lon": 69.04222058826002,
-        "lat": -0.18069144300000062,
-        "geohash": "mxcngp552kej"
+        "lon": -84.6750153285,
+        "lat": 12.531521742029994,
+        "geohash": "d45z31m93huq"
       },
       "lineCount": 61,
       "weight": 61
@@ -2070,15 +3288,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.728168347339,
-        "y": 0,
-        "width": 0.019933368347,
-        "height": 0.557079500657
+        "x": 0.381026955075,
+        "y": 0.07981706618,
+        "width": 0.008140841112,
+        "height": 0.440990657152
       },
       "geo": {
-        "lon": 85.7286113445,
-        "lat": 39.862844940870005,
-        "geohash": "tzhfybc9vkvu"
+        "lon": -41.364944772840005,
+        "lat": 35.943768943920006,
+        "geohash": "en6s6xqgwujt"
       },
       "lineCount": 83,
       "weight": 83
@@ -2089,15 +3307,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.748101715686,
-        "y": 0,
-        "width": 0.018252240896,
-        "height": 0.557079500657
+        "x": 0.396762809624,
+        "y": 0.079777947257,
+        "width": 0.007639968323,
+        "height": 0.441066462734
       },
       "geo": {
-        "lon": 92.60202100824,
-        "lat": 39.862844940870005,
-        "geohash": "wp1fg0y9zkzk"
+        "lon": -35.79019423721999,
+        "lat": 35.94398784767999,
+        "geohash": "enqs3x6kuhbz"
       },
       "lineCount": 76,
       "weight": 76
@@ -2108,15 +3326,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.766353956583,
-        "y": 0,
-        "width": 0.089339915966,
-        "height": 0.251584290619
+        "x": 0.248149095021,
+        "y": 0.083370461829,
+        "width": 0.01793363674,
+        "height": 0.216389036518
       },
       "geo": {
-        "lon": 111.96860924376,
-        "lat": 67.35741384429,
-        "geohash": "y7zx5yj13sn2"
+        "lon": -87.43827117924,
+        "lat": 55.51830358416,
+        "geohash": "f1cgf6c3s9gk"
       },
       "lineCount": 168,
       "weight": 168
@@ -2127,15 +3345,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.766353956583,
-        "y": 0.251584290619,
-        "width": 0.089339915966,
-        "height": 0.151250079479
+        "x": 0.281668427372,
+        "y": 0.083370461829,
+        "width": 0.01371063775,
+        "height": 0.216389036518
       },
       "geo": {
-        "lon": 111.96860924376,
-        "lat": 31.102320535470007,
-        "geohash": "wmx8gyj01sy2"
+        "lon": -76.13145135108,
+        "lat": 55.51830358416,
+        "geohash": "f3cggdfc89gk"
       },
       "lineCount": 101,
       "weight": 101
@@ -2146,15 +3364,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.766353956583,
-        "y": 0.402834370099,
-        "width": 0.089339915966,
-        "height": 0.154245130558
+        "x": 0.266948454227,
+        "y": 0.083370461829,
+        "width": 0.013854250679,
+        "height": 0.216389036518
       },
       "geo": {
-        "lon": 111.96860924376,
-        "lat": 3.6077516319599994,
-        "geohash": "w2xsebv09twk"
+        "lon": -81.40479135606,
+        "lat": 55.51830358416,
+        "geohash": "f1y5gdfcdcuh"
       },
       "lineCount": 103,
       "weight": 103
@@ -2165,15 +3383,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.855693872549,
-        "y": 0,
-        "width": 0.001681127451,
-        "height": 0.557079500657
+        "x": 0.426352678461,
+        "y": 0.079120005919,
+        "width": 0,
+        "height": 0.442337895533
       },
       "geo": {
-        "lon": 128.35239705881997,
-        "lat": 39.862844940870005,
-        "geohash": "wz56b8z3gsgu"
+        "lon": -26.513035754040004,
+        "lat": 35.947988336609995,
+        "geohash": "eqmhs8ju1qxx"
       },
       "lineCount": 7,
       "weight": 7
@@ -2184,15 +3402,15 @@
       "extension": ".mjs",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.586399474376,
-        "width": 0.9025,
-        "height": 0.011826544021
+        "x": 0.750877988968,
+        "y": 0.030068176,
+        "width": 0.026480613212,
+        "height": 0.883352239254
       },
       "geo": {
-        "lon": -17.55000000000001,
-        "lat": -16.616294349569998,
-        "geohash": "7t592xh7p65x"
+        "lon": 95.08258640663996,
+        "lat": 5.08602678714,
+        "geohash": "w0gsgtvh2b55"
       },
       "lineCount": 84,
       "weight": 84
@@ -2203,15 +3421,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.598226018397,
-        "width": 0.075650735294,
-        "height": 0.022339027595
+        "x": 0.733507903872,
+        "y": 0.032270310465,
+        "width": 0.00303159863,
+        "height": 0.826176842659
       },
       "geo": {
-        "lon": -166.38286764708,
-        "lat": -19.69119579500999,
-        "geohash": "2k3xvz7dqpjc"
+        "lon": 84.60853314732003,
+        "lat": 9.835428276990001,
+        "geohash": "tcspvq6p98wy"
       },
       "lineCount": 12,
       "weight": 12
@@ -2222,15 +3440,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.075650735294,
-        "y": 0.598226018397,
-        "width": 0.081954963235,
-        "height": 0.022339027595
+        "x": 0.723283001487,
+        "y": 0.032270310465,
+        "width": 0.003165309941,
+        "height": 0.826176842659
       },
       "geo": {
-        "lon": -138.01384191186,
-        "lat": -19.69119579500999,
-        "geohash": "2umzgrm6krh9"
+        "lon": 80.95163632470002,
+        "lat": 9.835428276990001,
+        "geohash": "tc9xfn7ptben"
       },
       "lineCount": 13,
       "weight": 13
@@ -2241,15 +3459,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.157605698529,
-        "y": 0.598226018397,
-        "width": 0.081954963235,
-        "height": 0.022339027595
+        "x": 0.726691302282,
+        "y": 0.032270310465,
+        "width": 0.003165309941,
+        "height": 0.826176842659
       },
       "geo": {
-        "lon": -108.51005514726,
-        "lat": -19.69119579500999,
-        "geohash": "3s6zfz36krn9"
+        "lon": 82.17862461089999,
+        "lat": 9.835428276990001,
+        "geohash": "tcdryn2xs8xy"
       },
       "lineCount": 13,
       "weight": 13
@@ -2260,15 +3478,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.239560661765,
-        "y": 0.598226018397,
-        "width": 0.081954963235,
-        "height": 0.022339027595
+        "x": 0.730099603077,
+        "y": 0.032270310465,
+        "width": 0.003165309941,
+        "height": 0.826176842659
       },
       "geo": {
-        "lon": -79.00626838230001,
-        "lat": -19.69119579500999,
-        "geohash": "6hrzfpm6kx03"
+        "lon": 83.40561289710001,
+        "lat": 9.835428276990001,
+        "geohash": "tcercyqpe8sw"
       },
       "lineCount": 13,
       "weight": 13
@@ -2279,15 +3497,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.3384375,
-        "y": 0.598226018397,
-        "width": 0.321515625,
-        "height": 0.022339027595
+        "x": 0.704231732525,
+        "y": 0.03249872644,
+        "width": 0.007198980847,
+        "height": 0.825732745277
       },
       "geo": {
-        "lon": -0.2896874999999852,
-        "lat": -19.69119579500999,
-        "geohash": "7urzcrm43z13"
+        "lon": 74.81924026146004,
+        "lat": 9.834282165869993,
+        "geohash": "t9tpyw38yej4"
       },
       "lineCount": 51,
       "weight": 51
@@ -2298,15 +3516,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.659953125,
-        "y": 0.598226018397,
-        "width": 0.119780330882,
-        "height": 0.022339027595
+        "x": 0.711720907624,
+        "y": 0.03249872644,
+        "width": 0.004280958109,
+        "height": 0.825732745277
       },
       "geo": {
-        "lon": 79.14358455876004,
-        "lat": -19.69119579500999,
-        "geohash": "mu2rbzqd7pjc"
+        "lon": 76.99009920425999,
+        "lat": 9.834282165869993,
+        "geohash": "t9wxzyq2z74f"
       },
       "lineCount": 19,
       "weight": 19
@@ -2317,15 +3535,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0.779733455882,
-        "y": 0.598226018397,
-        "width": 0.094563419118,
-        "height": 0.022339027595
+        "x": 0.716292059986,
+        "y": 0.03249872644,
+        "width": 0.003771381205,
+        "height": 0.825732745277
       },
       "geo": {
-        "lon": 117.72545955876001,
-        "lat": -19.69119579500999,
-        "geohash": "qs7xyzm46p11"
+        "lon": 78.54399021185998,
+        "lat": 9.834282165869993,
+        "geohash": "t9xzgq3bze5f"
       },
       "lineCount": 15,
       "weight": 15
@@ -2336,18 +3554,18 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.620565045992,
-        "width": 0.543210900474,
-        "height": 0.103975032852
+        "x": 0.494615422868,
+        "y": 0.037142738488,
+        "width": 0.050633679829,
+        "height": 0.869584245734
       },
       "geo": {
-        "lon": -82.22203791468,
-        "lat": -31.059461235239993,
-        "geohash": "64mx2cz9x8ub"
+        "lon": 7.1756146016999764,
+        "lat": 5.051724956100003,
+        "geohash": "s0vher9h7vy1"
       },
-      "lineCount": 562,
-      "weight": 562
+      "lineCount": 738,
+      "weight": 738
     },
     "public/index.html": {
       "path": "public/index.html",
@@ -2355,15 +3573,15 @@
       "extension": ".html",
       "contentType": "code",
       "bounds": {
-        "x": 0.543210900474,
-        "y": 0.620565045992,
-        "width": 0.112634281201,
-        "height": 0.103975032852
+        "x": 0.580737429029,
+        "y": 0.037142738488,
+        "width": 0.016955067,
+        "height": 0.869584245734
       },
       "geo": {
-        "lon": 35.830094786819984,
-        "lat": -31.059461235239993,
-        "geohash": "kf3rr3f9t8z0"
+        "lon": 32.117386510440014,
+        "lat": 5.051724956100003,
+        "geohash": "s8yudzehmmg1"
       },
       "lineCount": 95,
       "weight": 95
@@ -2374,18 +3592,18 @@
       "extension": ".css",
       "contentType": "code",
       "bounds": {
-        "x": 0.655845181675,
-        "y": 0.620565045992,
-        "width": 0.246654818325,
-        "height": 0.103975032852
+        "x": 0.54713849915,
+        "y": 0.037142738488,
+        "width": 0.031709533426,
+        "height": 0.869584245734
       },
       "geo": {
-        "lon": 100.50213270149999,
-        "lat": -31.059461235239993,
-        "geohash": "q4rrqcz3t2v8"
+        "lon": 22.677575710680003,
+        "lat": 5.051724956100003,
+        "geohash": "s8bhsp9k3vf1"
       },
-      "lineCount": 297,
-      "weight": 297
+      "lineCount": 302,
+      "weight": 302
     },
     "src/activity.js": {
       "path": "src/activity.js",
@@ -2393,18 +3611,37 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.724540078844,
-        "width": 0.01164516129,
-        "height": 0.152759526938
+        "x": 0.050159527124,
+        "y": 0.948229219944,
+        "width": 0.379420699159,
+        "height": 0.001611252932
       },
       "geo": {
-        "lon": -177.9038709678,
-        "lat": -54.16557161634,
-        "geohash": "0n37zeqqeme5"
+        "lon": -93.64684438674,
+        "lat": -80.8262723538,
+        "geohash": "1ctkjn02y6g8"
       },
       "lineCount": 12,
       "weight": 12
+    },
+    "src/district-layout.js": {
+      "path": "src/district-layout.js",
+      "name": "district-layout.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.050159527124,
+        "y": 0.700009505766,
+        "width": 0.147900667814,
+        "height": 0.066722336078
+      },
+      "geo": {
+        "lon": -135.32045002884,
+        "lat": -42.00672128490001,
+        "geohash": "2bxc08ythgx5"
+      },
+      "lineCount": 251,
+      "weight": 251
     },
     "src/extensions.js": {
       "path": "src/extensions.js",
@@ -2412,15 +3649,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.01164516129,
-        "y": 0.724540078844,
-        "width": 0.042698924731,
-        "height": 0.152759526938
+        "x": 0.050159527124,
+        "y": 0.902666379087,
+        "width": 0.379420699159,
+        "height": 0.007274785388
       },
       "geo": {
-        "lon": -168.12193548402,
-        "lat": -54.16557161634,
-        "geohash": "0q27y73qdvwg"
+        "lon": -93.64684438674,
+        "lat": -73.13467892058,
+        "geohash": "1fvrvn0rw7ew"
       },
       "lineCount": 44,
       "weight": 44
@@ -2431,18 +3668,18 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.054344086022,
-        "y": 0.724540078844,
-        "width": 0.065989247312,
-        "height": 0.152759526938
+        "x": 0.248726249885,
+        "y": 0.805027725963,
+        "width": 0.180853976398,
+        "height": 0.027469943694
       },
       "geo": {
-        "lon": -148.55806451592,
-        "lat": -54.16557161634,
-        "geohash": "0wq7g7rqdjw7"
+        "lon": -57.904834289760004,
+        "lat": -57.37728560580001,
+        "geohash": "4tycd6fcpddp"
       },
-      "lineCount": 69,
-      "weight": 69
+      "lineCount": 75,
+      "weight": 75
     },
     "src/geohash.js": {
       "path": "src/geohash.js",
@@ -2450,15 +3687,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.120333333333,
-        "y": 0.724540078844,
-        "width": 0.083456989247,
-        "height": 0.152759526938
+        "x": 0.050159527124,
+        "y": 0.805027725963,
+        "width": 0.193987336399,
+        "height": 0.027469943694
       },
       "geo": {
-        "lon": -121.65774193566,
-        "lat": -54.16557161634,
-        "geohash": "1q37ze7w9jse"
+        "lon": -127.02484968354,
+        "lat": -57.37728560580001,
+        "geohash": "1jv9t6z346xp"
       },
       "lineCount": 86,
       "weight": 86
@@ -2469,15 +3706,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.203790322581,
-        "y": 0.724540078844,
-        "width": 0.044639784946,
-        "height": 0.152759526938
+        "x": 0.050159527124,
+        "y": 0.89054578819,
+        "width": 0.379420699159,
+        "height": 0.007541204535
       },
       "geo": {
-        "lon": -98.60032258056,
-        "lat": -54.16557161634,
-        "geohash": "1y3gu73qtvwe"
+        "lon": -93.64684438674,
+        "lat": -70.97695028235,
+        "geohash": "1gmkjp03q37x"
       },
       "lineCount": 46,
       "weight": 46
@@ -2488,15 +3725,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.248430107527,
-        "y": 0.724540078844,
-        "width": 0.01552688172,
-        "height": 0.152759526938
+        "x": 0.050159527124,
+        "y": 0.93393255089,
+        "width": 0.379420699159,
+        "height": 0.002568948164
       },
       "geo": {
-        "lon": -87.77032258067999,
-        "lat": -54.16557161634,
-        "geohash": "4n3eferwejxg"
+        "lon": -93.64684438674,
+        "lat": -78.33906449496001,
+        "geohash": "1fj6m4b3y7gt"
       },
       "lineCount": 16,
       "weight": 16
@@ -2507,15 +3744,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.9405,
-        "y": 0.846747700394,
-        "width": 0.0095,
-        "height": 0.02444152431
+        "x": 0.050159527124,
+        "y": 0.92430881101,
+        "width": 0.379420699159,
+        "height": 0.005044353518
       },
       "geo": {
-        "lon": 160.29000000000002,
-        "lat": -64.61432325882001,
-        "geohash": "ps9brmrd79nu"
+        "lon": -93.64684438674,
+        "lat": -76.82957779841999,
+        "geohash": "1fm6vj87q2es"
       },
       "lineCount": 29,
       "weight": 29
@@ -2526,15 +3763,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.263956989247,
-        "y": 0.724540078844,
-        "width": 0.103836021505,
-        "height": 0.152759526938
+        "x": 0.33460346899,
+        "y": 0.700009505766,
+        "width": 0.094976757292,
+        "height": 0.066722336078
       },
       "geo": {
-        "lon": -66.28500000017999,
-        "lat": -54.16557161634,
-        "geohash": "4w2ggekwxt9e"
+        "lon": -42.44693485104,
+        "lat": -42.00672128490001,
+        "geohash": "709c40gj4ex7"
       },
       "lineCount": 107,
       "weight": 107
@@ -2545,15 +3782,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.367793010753,
-        "y": 0.724540078844,
-        "width": 0.049491935484,
-        "height": 0.152759526938
+        "x": 0.050159527124,
+        "y": 0.865402179749,
+        "width": 0.379420699159,
+        "height": 0.008182943489
       },
       "geo": {
-        "lon": -38.6859677418,
-        "lat": -54.16557161634,
-        "geohash": "5nk7zemwxtee"
+        "lon": -93.64684438674,
+        "lat": -66.50885726883001,
+        "geohash": "1ujmth2my67s"
       },
       "lineCount": 51,
       "weight": 51
@@ -2564,15 +3801,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.417284946237,
-        "y": 0.724540078844,
-        "width": 0.084427419355,
-        "height": 0.152759526938
+        "x": 0.244317146157,
+        "y": 0.771311228206,
+        "width": 0.185263080126,
+        "height": 0.029137111394
       },
       "geo": {
-        "lon": -14.58048387078,
-        "lat": -54.16557161634,
-        "geohash": "5wmeu5qydje5"
+        "lon": -58.69847296079999,
+        "lat": -51.45836110253998,
+        "geohash": "4wy7223166np"
       },
       "lineCount": 87,
       "weight": 87
@@ -2583,15 +3820,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.501712365591,
-        "y": 0.724540078844,
-        "width": 0.162061827957,
-        "height": 0.152759526938
+        "x": 0.2026395813,
+        "y": 0.700009505766,
+        "width": 0.127384501328,
+        "height": 0.066722336078
       },
       "geo": {
-        "lon": 29.78758064502,
-        "lat": -54.16557161634,
-        "geohash": "hwm5vg6wsvtg"
+        "lon": -84.12054049296,
+        "lat": -42.00672128490001,
+        "geohash": "60s1jbcm17dg"
       },
       "lineCount": 188,
       "weight": 188
@@ -2602,18 +3839,18 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.9025,
-        "y": 0.846747700394,
-        "width": 0.038,
-        "height": 0.030551905388
+        "x": 0.050159527124,
+        "y": 0.8781645096,
+        "width": 0.379420699159,
+        "height": 0.007801892227
       },
       "geo": {
-        "lon": 151.74,
-        "lat": -65.16425755584001,
-        "geohash": "pk7vkcjwwmbw"
+        "lon": -93.64684438674,
+        "lat": -68.77178202843001,
+        "geohash": "1gv2v02rq6es"
       },
-      "lineCount": 27,
-      "weight": 27
+      "lineCount": 48,
+      "weight": 48
     },
     "src/stability.js": {
       "path": "src/stability.js",
@@ -2621,18 +3858,18 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.9025,
-        "y": 0.724540078844,
-        "width": 0.0475,
-        "height": 0.12220762155
+        "x": 0.050159527124,
+        "y": 0.83707705602,
+        "width": 0.198120452061,
+        "height": 0.023745737367
       },
       "geo": {
-        "lon": 153.45,
-        "lat": -51.41590013141999,
-        "geohash": "pqv5eb4bsjt0"
+        "lon": -126.28088886437999,
+        "lat": -62.81098644663001,
+        "geohash": "1hy4wmt56p2r"
       },
-      "lineCount": 162,
-      "weight": 162
+      "lineCount": 70,
+      "weight": 70
     },
     "src/store.js": {
       "path": "src/store.js",
@@ -2640,15 +3877,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.663774193548,
-        "y": 0.724540078844,
-        "width": 0.01552688172,
-        "height": 0.152759526938
+        "x": 0.050159527124,
+        "y": 0.941080885417,
+        "width": 0.379420699159,
+        "height": 0.002568948164
       },
       "geo": {
-        "lon": 61.75354838688003,
-        "lat": -54.16557161634,
-        "geohash": "jq7gv5rw9vx5"
+        "lon": -93.64684438674,
+        "lat": -79.62576470982,
+        "geohash": "1cv7j086q3es"
       },
       "lineCount": 16,
       "weight": 16
@@ -2659,15 +3896,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.679301075269,
-        "y": 0.724540078844,
-        "width": 0.054344086022,
-        "height": 0.152759526938
+        "x": 0.252859365548,
+        "y": 0.83707705602,
+        "width": 0.176720860735,
+        "height": 0.023745737367
       },
       "geo": {
-        "lon": 74.33032258079999,
-        "lat": -54.16557161634,
-        "geohash": "jwkgg7mwwj9e"
+        "lon": -57.16087347042,
+        "lat": -62.81098644663001,
+        "geohash": "4sz6em8erp7x"
       },
       "lineCount": 56,
       "weight": 56
@@ -2678,15 +3915,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.73364516129,
-        "y": 0.724540078844,
-        "width": 0.088309139785,
-        "height": 0.152759526938
+        "x": 0.050159527124,
+        "y": 0.771311228206,
+        "width": 0.189578232671,
+        "height": 0.029137111394
       },
       "geo": {
-        "lon": 100.00790322569998,
-        "lat": -54.16557161634,
-        "geohash": "nnr5gerw9j9e"
+        "lon": -127.81848835458001,
+        "lat": -51.45836110253998,
+        "geohash": "1nv572m3m65p"
       },
       "lineCount": 91,
       "weight": 91
@@ -2697,18 +3934,18 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.821954301075,
-        "y": 0.724540078844,
-        "width": 0.080545698925,
-        "height": 0.152759526938
+        "x": 0.050159527124,
+        "y": 0.914520550838,
+        "width": 0.379420699159,
+        "height": 0.00520887381
       },
       "geo": {
-        "lon": 130.4017741935,
-        "lat": -54.16557161634,
-        "geohash": "nykez77wttd7"
+        "lon": -93.64684438674,
+        "lat": -75.08249779374,
+        "geohash": "1ftkv58kwrgw"
       },
-      "lineCount": 83,
-      "weight": 83
+      "lineCount": 30,
+      "weight": 30
     },
     "test/activity.test.js": {
       "path": "test/activity.test.js",
@@ -2716,15 +3953,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.877299605782,
-        "width": 0.045427852349,
-        "height": 0.048948751643
+        "x": 0.678443624556,
+        "y": 0.033793024413,
+        "width": 0.003305038508,
+        "height": 0.876096921814
       },
       "geo": {
-        "lon": -171.82298657718,
-        "lat": -72.31931668862998,
-        "geohash": "05jud4dm6nr0"
+        "lon": 64.83461177160001,
+        "lat": 5.068532642400001,
+        "geohash": "t2yhg6en7fyq"
       },
       "lineCount": 15,
       "weight": 15
@@ -2735,18 +3972,18 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.045427852349,
-        "y": 0.877299605782,
-        "width": 0.109026845638,
-        "height": 0.048948751643
+        "x": 0.632764725062,
+        "y": 0.033793024413,
+        "width": 0.009707706165,
+        "height": 0.876096921814
       },
       "geo": {
-        "lon": -144.02114093952,
-        "lat": -72.31931668862998,
-        "geohash": "0g1sddxj2nmb"
+        "lon": 49.542688132019975,
+        "lat": 5.068532642400001,
+        "geohash": "t0ghz6eyk6cy"
       },
-      "lineCount": 63,
-      "weight": 63
+      "lineCount": 88,
+      "weight": 88
     },
     "test/geohash.test.js": {
       "path": "test/geohash.test.js",
@@ -2754,15 +3991,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.154454697987,
-        "y": 0.877299605782,
-        "width": 0.039370805369,
-        "height": 0.048948751643
+        "x": 0.682945822952,
+        "y": 0.033793024413,
+        "width": 0.00299415872,
+        "height": 0.876096921814
       },
       "geo": {
-        "lon": -117.30956375826,
-        "lat": -72.31931668862998,
-        "geohash": "17hsdd9v3n32"
+        "lon": 66.39944483232,
+        "lat": 5.068532642400001,
+        "geohash": "t2zhyfww74yw"
       },
       "lineCount": 13,
       "weight": 13
@@ -2773,15 +4010,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.9025,
-        "y": 0.916458607096,
-        "width": 0.038,
-        "height": 0.009789750329
+        "x": 0.672631311421,
+        "y": 0.033793024413,
+        "width": 0.004615153248,
+        "height": 0.876096921814
       },
       "geo": {
-        "lon": 151.74,
-        "lat": -75.84362680689,
-        "geohash": "p6ebscjdy70x"
+        "lon": 62.977999696200015,
+        "lat": 5.068532642400001,
+        "geohash": "t2uuc4enmfbn"
       },
       "lineCount": 25,
       "weight": 25
@@ -2792,15 +4029,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.193825503356,
-        "y": 0.877299605782,
-        "width": 0.136283557047,
-        "height": 0.048948751643
+        "x": 0.651553796243,
+        "y": 0.033793024413,
+        "width": 0.006600876479,
+        "height": 0.876096921814
       },
       "geo": {
-        "lon": -85.69177852338001,
-        "lat": -72.31931668862998,
-        "geohash": "455hd49jky6b"
+        "lon": 55.747524413700006,
+        "lat": 5.068532642400001,
+        "geohash": "t0zsuddn76zn"
       },
       "lineCount": 45,
       "weight": 45
@@ -2811,15 +4048,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.330109060403,
-        "y": 0.877299605782,
-        "width": 0.139312080537,
-        "height": 0.048948751643
+        "x": 0.643669591114,
+        "y": 0.033793024413,
+        "width": 0.006687045242,
+        "height": 0.876096921814
       },
       "geo": {
-        "lon": -36.08456375826,
-        "lat": -72.31931668862998,
-        "geohash": "55nkdfsj2wr0"
+        "lon": 52.92472094460001,
+        "lat": 5.068532642400001,
+        "geohash": "t0vsu6dw76un"
       },
       "lineCount": 46,
       "weight": 46
@@ -2830,15 +4067,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.46942114094,
-        "y": 0.877299605782,
-        "width": 0.311937919463,
-        "height": 0.048948751643
+        "x": 0.62062825893,
+        "y": 0.033793024413,
+        "width": 0.010939306244,
+        "height": 0.876096921814
       },
       "geo": {
-        "lon": 45.14043624173996,
-        "lat": -72.31931668862998,
-        "geohash": "j50he4wm2qkb"
+        "lon": 45.395248338719966,
+        "lat": 5.068532642400001,
+        "geohash": "t0bkbfxy3fyw"
       },
       "lineCount": 109,
       "weight": 109
@@ -2849,15 +4086,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.9025,
-        "y": 0.877299605782,
-        "width": 0.0475,
-        "height": 0.039159001314
+        "x": 0.666703891802,
+        "y": 0.033793024413,
+        "width": 0.004730259732,
+        "height": 0.876096921814
       },
       "geo": {
-        "lon": 153.45,
-        "lat": -71.43823915901999,
-        "geohash": "p7m1eg4fh5j0"
+        "lon": 60.86484780047999,
+        "lat": 5.068532642400001,
+        "geohash": "t2gkc48qmdzy"
       },
       "lineCount": 26,
       "weight": 26
@@ -2868,15 +4105,15 @@
       "extension": ".js",
       "contentType": "code",
       "bounds": {
-        "x": 0.781359060403,
-        "y": 0.877299605782,
-        "width": 0.121140939597,
-        "height": 0.048948751643
+        "x": 0.65935183261,
+        "y": 0.033793024413,
+        "width": 0.006154899305,
+        "height": 0.876096921814
       },
       "geo": {
-        "lon": 123.09463087254,
-        "lat": -72.31931668862998,
-        "geohash": "neps94dv2y32"
+        "lon": 58.4745416145,
+        "lat": 5.068532642400001,
+        "geohash": "t2csfdey7dfq"
       },
       "lineCount": 40,
       "weight": 40
@@ -2887,15 +4124,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.926248357424,
-        "width": 0.95,
-        "height": 0.006570302234
+        "x": 0.883909517681,
+        "y": 0.028,
+        "width": 0.014719306537,
+        "height": 0.944
       },
       "geo": {
-        "lon": -9,
-        "lat": -77.31603153738001,
-        "geohash": "5f385jn3kz1e"
+        "lon": 140.85690154181998,
+        "lat": 0,
+        "geohash": "x0h0j20b58n2"
       },
       "lineCount": 40,
       "weight": 40
@@ -2906,15 +4143,15 @@
       "extension": ".md",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.932818659658,
-        "width": 0.95,
-        "height": 0.051741130092
+        "x": 0.78742677818,
+        "y": 0.028,
+        "width": 0.055755895844,
+        "height": 0.944
       },
       "geo": {
-        "lon": -9,
-        "lat": -82.56406044672002,
-        "geohash": "5c3d71wmkz9e"
+        "lon": 113.50970139672,
+        "lat": 0,
+        "geohash": "w808nbp0p8pb"
       },
       "lineCount": 315,
       "weight": 315
@@ -2925,15 +4162,15 @@
       "extension": ".json",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.98455978975,
-        "width": 0.95,
-        "height": 0.002792378449
+        "x": 0.906628824218,
+        "y": 0.028,
+        "width": 0.006811175782,
+        "height": 0.944
       },
       "geo": {
-        "lon": -9,
-        "lat": -87.47207621541,
-        "geohash": "5b3w7hnqhz1s"
+        "lon": 147.61238835923996,
+        "lat": 0,
+        "geohash": "x20bp0001bn2"
       },
       "lineCount": 17,
       "weight": 17
@@ -2944,18 +4181,18 @@
       "extension": ".json",
       "contentType": "code",
       "bounds": {
-        "x": 0,
-        "y": 0.9873521682,
-        "width": 0.95,
-        "height": 0.0126478318
+        "x": 0.851182674024,
+        "y": 0.028,
+        "width": 0.024726843657,
+        "height": 0.944
       },
       "geo": {
-        "lon": -9,
-        "lat": -88.86169513800002,
-        "geohash": "5b1w7pnrhg3s"
+        "lon": 130.8765945069,
+        "lat": 0,
+        "geohash": "wbj040j2j8n0"
       },
-      "lineCount": 77,
-      "weight": 77
+      "lineCount": 83,
+      "weight": 83
     }
   }
 }

@@ -23,7 +23,8 @@ test("generates a path-keyed map sidecar from gitignore-filtered code files", as
   const codemap = await generateCodemap({ root });
 
   assert.equal(codemap.version, 1);
-  assert.equal(codemap.projection.type, "filesystem-treemap");
+  assert.equal(codemap.projection.type, "filesystem-district-map");
+  assert.equal(codemap.projection.mapOrder, "bounded-weight-squarified-folders-first");
   assert.equal(codemap.mapLevels.file, 7);
   assert.ok(codemap.folders[""]);
   assert.ok(codemap.folders.src);
@@ -53,6 +54,30 @@ test("stabilizes existing file addresses when new files are added", async () => 
   assert.deepEqual(second.files["src/app.ts"].geo, previousApp.geo);
   assert.ok(second.files["src/new-feature.ts"]);
   assert.equal(isInside(second.files["src/new-feature.ts"].bounds, previousSrcGrowth), true);
+});
+
+test("does not anchor a district map to an obsolete projection", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-projection-"));
+  await execFileAsync("git", ["init"], { cwd: root });
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.ts"), "const a = 1;\n");
+  const obsoleteBounds = { x: 0, y: 0, width: 1, height: 1 };
+
+  const codemap = await generateCodemap({
+    root,
+    previousCodemap: {
+      projection: { type: "filesystem-treemap" },
+      folders: {
+        src: { bounds: obsoleteBounds, geo: { geohash: "old" }, growthArea: obsoleteBounds },
+      },
+      files: {
+        "src/app.ts": { bounds: obsoleteBounds, geo: { geohash: "old" } },
+      },
+    },
+  });
+
+  assert.equal(codemap.projection.type, "filesystem-district-map");
+  assert.notDeepEqual(codemap.files["src/app.ts"].bounds, obsoleteBounds);
 });
 
 function isInside(bounds, container) {

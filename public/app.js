@@ -1,12 +1,20 @@
 const canvas = document.querySelector("#mapCanvas");
 const ctx = canvas.getContext("2d");
 const mapArea = document.querySelector(".map-area");
+const SOURCE_TEXT_MIN_LINE_HEIGHT = 14;
+const SOURCE_TEXT_MIN_WIDTH = 260;
+const SOURCE_TEXT_MAX_LINES_PER_FRAME = 200;
+const SOURCE_TEXT_PREFETCH_LINES = 12;
+const SOURCE_CACHE_LIMIT = 80;
+const SOURCE_TEXT_ZOOM_HEADROOM = 1.08;
 
 const state = {
   map: null,
   namedPlaces: [],
   overlaps: [],
   activity: [],
+  sourceCache: new Map(),
+  pendingSourceRequests: new Set(),
   view: { x: 0, y: 0, scale: 1 },
   dragging: null,
   lastPointerDown: null,
@@ -72,8 +80,8 @@ function bindEvents() {
   }
 
   controls.drawTool.addEventListener("click", () => {
-    state.drawing = !state.drawing;
-    controls.drawTool.classList.toggle("active", state.drawing);
+    setDrawMode(!state.drawing);
+    render();
   });
 
   controls.resetView.addEventListener("click", () => {
@@ -98,6 +106,20 @@ function bindEvents() {
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointerleave", onPointerUp);
+}
+
+function setDrawMode(enabled) {
+  state.drawing = enabled;
+  controls.drawTool.classList.toggle("active", enabled);
+  if (!enabled) clearDraftSelection();
+}
+
+function clearDraftSelection() {
+  state.dragging = null;
+  state.draftSelection = null;
+  state.resolvedSelection = null;
+  controls.saveSelection.disabled = true;
+  controls.selectionOutput.textContent = "Draw an area to resolve files.";
 }
 
 function resize() {
@@ -171,6 +193,7 @@ function drawFolders() {
 }
 
 function drawFiles() {
+  let renderedSourceLines = 0;
   for (const file of Object.values(state.map.files)) {
     const box = screenBounds(file.bounds);
     if (!visible(box)) continue;
@@ -186,8 +209,131 @@ function drawFiles() {
     if (selected || landmark || (state.view.scale > 2.2 && box.width > 78 && box.height > 24)) {
       drawLabel(file.name, box.x + 6, box.y + 16, "rgba(3, 87, 67, 0.84)", 12, "500");
     }
-    if (state.view.scale > 6 && box.height > 34) drawLineBands(file, box);
+    if (canRenderSourceText(file, box) && renderedSourceLines < SOURCE_TEXT_MAX_LINES_PER_FRAME) {
+      renderedSourceLines += drawSourceText(file, box, SOURCE_TEXT_MAX_LINES_PER_FRAME - renderedSourceLines);
+    } else if (state.view.scale > 6 && box.height > 34) {
+      drawLineBands(file, box);
+    }
   }
+}
+
+function canRenderSourceText(file, box) {
+  return box.width >= SOURCE_TEXT_MIN_WIDTH
+    && lineHeightForFile(file, box) >= SOURCE_TEXT_MIN_LINE_HEIGHT
+    && file.lineCount > 0;
+}
+
+function drawSourceText(file, box, remainingBudget) {
+  const visibleRange = visibleLineRange(file, box);
+  if (!visibleRange) return 0;
+
+  const budgetedEnd = Math.min(visibleRange.end, visibleRange.start + remainingBudget - 1);
+  const fetchStart = Math.max(1, visibleRange.start - SOURCE_TEXT_PREFETCH_LINES);
+  const fetchEnd = Math.min(file.lineCount, budgetedEnd + SOURCE_TEXT_PREFETCH_LINES);
+  const cacheKey = sourceCacheKey(file.path, fetchStart, fetchEnd);
+  const cached = getCachedSourceRange(file.path, fetchStart, fetchEnd);
+
+  if (!cached) {
+    requestSourceRange(file.path, fetchStart, fetchEnd, cacheKey);
+    drawSourcePlaceholder(box);
+    return 0;
+  }
+
+  const linesByNumber = new Map(cached.lines.map((line) => [line.number, line.text]));
+  const lineHeight = lineHeightForFile(file, box);
+  const firstBaseline = box.y + (visibleRange.start - 1) * lineHeight + Math.min(13, lineHeight * 0.78);
+  const maxChars = Math.max(12, Math.floor((box.width - 44) / 7.2));
+  let drawn = 0;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(box.x, box.y, box.width, box.height);
+  ctx.clip();
+  ctx.font = "12px SFMono-Regular, Consolas, Liberation Mono, monospace";
+  ctx.textBaseline = "alphabetic";
+
+  for (let lineNumber = visibleRange.start; lineNumber <= budgetedEnd; lineNumber += 1) {
+    const y = firstBaseline + drawn * lineHeight;
+    if (y > box.y + box.height) break;
+    const text = linesByNumber.get(lineNumber) ?? "";
+    ctx.fillStyle = "rgba(63, 83, 97, 0.58)";
+    ctx.fillText(String(lineNumber).padStart(4, " "), box.x + 6, y);
+    ctx.fillStyle = "rgba(12, 34, 48, 0.86)";
+    ctx.fillText(truncateLine(text, maxChars), box.x + 42, y);
+    drawn += 1;
+  }
+
+  ctx.restore();
+  return drawn;
+}
+
+function drawSourcePlaceholder(box) {
+  ctx.save();
+  ctx.fillStyle = "rgba(255, 255, 255, 0.36)";
+  ctx.fillRect(box.x + 4, box.y + 4, Math.max(0, box.width - 8), Math.min(24, Math.max(0, box.height - 8)));
+  ctx.restore();
+}
+
+function visibleLineRange(file, box) {
+  const viewportTop = 0;
+  const viewportBottom = canvas.clientHeight;
+  const top = Math.max(box.y, viewportTop);
+  const bottom = Math.min(box.y + box.height, viewportBottom);
+  if (bottom <= top) return null;
+
+  const startRatio = clamp((top - box.y) / box.height, 0, 1);
+  const endRatio = clamp((bottom - box.y) / box.height, 0, 1);
+  return {
+    start: Math.max(1, Math.floor(startRatio * file.lineCount) + 1),
+    end: Math.min(file.lineCount, Math.ceil(endRatio * file.lineCount)),
+  };
+}
+
+function lineHeightForFile(file, box) {
+  return box.height / Math.max(1, file.lineCount);
+}
+
+function requestSourceRange(path, lineStart, lineEnd, cacheKey) {
+  if (state.pendingSourceRequests.has(cacheKey)) return;
+  state.pendingSourceRequests.add(cacheKey);
+  fetchJson(`/api/source?path=${encodeURIComponent(path)}&lineStart=${lineStart}&lineEnd=${lineEnd}`)
+    .then((source) => {
+      rememberSource(cacheKey, source);
+      render();
+    })
+    .catch((error) => {
+      console.error(error);
+    })
+    .finally(() => {
+      state.pendingSourceRequests.delete(cacheKey);
+    });
+}
+
+function rememberSource(cacheKey, source) {
+  if (state.sourceCache.has(cacheKey)) state.sourceCache.delete(cacheKey);
+  state.sourceCache.set(cacheKey, source);
+  while (state.sourceCache.size > SOURCE_CACHE_LIMIT) {
+    state.sourceCache.delete(state.sourceCache.keys().next().value);
+  }
+}
+
+function getCachedSourceRange(path, lineStart, lineEnd) {
+  for (const [cacheKey, source] of state.sourceCache) {
+    if (source.path !== path) continue;
+    if (source.lineRange.start > lineStart || source.lineRange.end < lineEnd) continue;
+    state.sourceCache.delete(cacheKey);
+    state.sourceCache.set(cacheKey, source);
+    return source;
+  }
+  return null;
+}
+
+function sourceCacheKey(path, lineStart, lineEnd) {
+  return `${path}:${lineStart}-${lineEnd}`;
+}
+
+function truncateLine(text, maxChars) {
+  return text.length > maxChars ? `${text.slice(0, Math.max(0, maxChars - 3))}...` : text;
 }
 
 function drawLineBands(file, box) {
@@ -380,6 +526,8 @@ async function selectMapTarget(worldPoint) {
 
   const rawLine = ((worldPoint.y - hit.bounds.y) / hit.bounds.height) * hit.lineCount;
   const line = Math.max(1, Math.min(hit.lineCount, Math.floor(rawLine) + 1));
+  const lineRatio = (line - 0.5) / Math.max(1, hit.lineCount);
+  if (!canRenderSourceText(hit, screenBounds(hit.bounds))) zoomToReadableFile(hit, lineRatio);
   const lineStart = Math.max(1, line - 12);
   const lineEnd = Math.min(hit.lineCount, line + 24);
   const query = `path=${encodeURIComponent(hit.path)}&lineStart=${lineStart}&lineEnd=${lineEnd}`;
@@ -413,7 +561,7 @@ async function searchMap(event) {
     candidate.path.toLowerCase().includes(query) || candidate.geo.geohash.startsWith(query)
   );
   if (file) {
-    zoomToBounds(file.bounds, 3.2);
+    zoomToReadableFile(file);
     await selectMapTarget(boundsCenter(file.bounds));
     controls.searchResult.textContent = `File: ${file.path}`;
     return;
@@ -436,12 +584,16 @@ async function searchMap(event) {
 }
 
 async function previewSelection() {
+  const draftSelection = state.draftSelection;
+  if (!draftSelection) return;
   const body = {
     name: controls.selectionName.value || "Preview",
     level: controls.mapLevel.value,
-    geometry: state.draftSelection,
+    geometry: draftSelection,
   };
-  state.resolvedSelection = await postJson("/api/selections/resolve", body);
+  const resolvedSelection = await postJson("/api/selections/resolve", body);
+  if (state.draftSelection !== draftSelection) return;
+  state.resolvedSelection = resolvedSelection;
   controls.saveSelection.disabled = false;
   controls.selectionOutput.textContent = JSON.stringify({
     coveringSet: state.resolvedSelection.coveringSet,
@@ -461,6 +613,9 @@ async function saveSelection() {
   state.namedPlaces.push(saved.place);
   state.overlaps = saved.overlaps ?? [];
   controls.selectionOutput.textContent = `Saved ${saved.place.name}\n${saved.place.coveringSet.join(", ")}\nOverlaps: ${state.overlaps.length}`;
+  state.draftSelection = null;
+  state.resolvedSelection = null;
+  controls.saveSelection.disabled = true;
   render();
 }
 
@@ -493,6 +648,20 @@ function zoomToBounds(bounds, paddingFactor = 1.2) {
   state.view.scale = scale;
   state.view.x = bounds.x + bounds.width / 2 - 0.5 / scale;
   state.view.y = bounds.y + bounds.height / 2 - 0.5 / scale;
+}
+
+function zoomToReadableFile(file, lineRatio = 0.5) {
+  const widthScale = SOURCE_TEXT_MIN_WIDTH / Math.max(file.bounds.width * canvas.clientWidth, 0.001);
+  const lineScale = (SOURCE_TEXT_MIN_LINE_HEIGHT * Math.max(1, file.lineCount)) / Math.max(file.bounds.height * canvas.clientHeight, 0.001);
+  const scale = clamp(Math.max(widthScale, lineScale) * SOURCE_TEXT_ZOOM_HEADROOM, 0.65, 80);
+  const screenWidth = file.bounds.width * canvas.clientWidth * scale;
+  const focusX = file.bounds.x + file.bounds.width / 2;
+  const focusY = file.bounds.y + file.bounds.height * clamp(lineRatio, 0, 1);
+  state.view.scale = scale;
+  state.view.x = screenWidth > canvas.clientWidth * 0.9
+    ? file.bounds.x - 24 / (canvas.clientWidth * scale)
+    : focusX - 0.5 / scale;
+  state.view.y = focusY - 0.5 / scale;
 }
 
 function labelForFolder(folder) {

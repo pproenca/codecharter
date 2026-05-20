@@ -54,8 +54,8 @@
         "lat": 0,
         "geohash": "s00000000000"
       },
-      "lineCount": 15472,
-      "weight": 15472,
+      "lineCount": 15614,
+      "weight": 15614,
       "children": {
         "folders": [
           ".agents",
@@ -1123,8 +1123,8 @@
         "lat": 42.131251412370005,
         "geohash": "wpqz8mz2qfe8"
       },
-      "lineCount": 1919,
-      "weight": 1919,
+      "lineCount": 1965,
+      "weight": 1965,
       "children": {
         "folders": [],
         "files": [
@@ -1172,8 +1172,8 @@
         "lat": -68.88465464058001,
         "geohash": "1gz047fjg3sm"
       },
-      "lineCount": 1610,
-      "weight": 1610,
+      "lineCount": 1706,
+      "weight": 1706,
       "children": {
         "folders": [],
         "files": [
@@ -1190,14 +1190,15 @@
           "test/selections.test.js",
           "test/server.test.js",
           "test/source.test.js",
+          "test/spatial-invariants.test.js",
           "test/tiles.test.js"
         ]
       },
       "growthArea": {
         "x": 0.457483160471,
-        "y": 0.964419581588,
+        "y": 0.965482697761,
         "width": 0.001018199609,
-        "height": 0.001328895216
+        "height": 0.000265779043
       }
     }
   },
@@ -5508,11 +5509,11 @@
         "lat": 55.01044236231,
         "geohash": "ycu2vymgj1tn"
       },
-      "lineCount": 92,
-      "maxLineLength": 75,
-      "tokenCount": 600,
-      "wordCount": 264,
-      "weight": 92
+      "lineCount": 127,
+      "maxLineLength": 80,
+      "tokenCount": 854,
+      "wordCount": 371,
+      "weight": 127
     },
     "src/geometry.js": {
       "path": "src/geometry.js",
@@ -5618,11 +5619,11 @@
         "lat": 72.56059615971,
         "geohash": "ykgku17bpg3x"
       },
-      "lineCount": 189,
-      "maxLineLength": 142,
-      "tokenCount": 1712,
-      "wordCount": 702,
-      "weight": 189
+      "lineCount": 200,
+      "maxLineLength": 146,
+      "tokenCount": 1815,
+      "wordCount": 739,
+      "weight": 200
     },
     "src/scan.js": {
       "path": "src/scan.js",
@@ -5948,11 +5949,11 @@
         "lat": -76.87281871025999,
         "geohash": "54q4xjer6ezy"
       },
-      "lineCount": 31,
+      "lineCount": 59,
       "maxLineLength": 93,
-      "tokenCount": 362,
-      "wordCount": 160,
-      "weight": 31
+      "tokenCount": 680,
+      "wordCount": 306,
+      "weight": 59
     },
     "test/local-git-exclude.test.js": {
       "path": "test/local-git-exclude.test.js",
@@ -6036,11 +6037,11 @@
         "lat": -62.13751292754,
         "geohash": "4huwwbpncbpc"
       },
-      "lineCount": 96,
-      "maxLineLength": 98,
-      "tokenCount": 1019,
-      "wordCount": 443,
-      "weight": 96
+      "lineCount": 100,
+      "maxLineLength": 104,
+      "tokenCount": 1127,
+      "wordCount": 484,
+      "weight": 100
     },
     "test/selections.test.js": {
       "path": "test/selections.test.js",
@@ -6107,6 +6108,28 @@
       "tokenCount": 262,
       "wordCount": 109,
       "weight": 26
+    },
+    "test/spatial-invariants.test.js": {
+      "path": "test/spatial-invariants.test.js",
+      "name": "spatial-invariants.test.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.457518797457,
+        "y": 0.964455218574,
+        "width": 0.000946925636,
+        "height": 0.0009918422
+      },
+      "geo": {
+        "lon": -15.12278630099999,
+        "lat": -83.69120514131998,
+        "geohash": "59j5zu7zms95"
+      },
+      "lineCount": 64,
+      "maxLineLength": 134,
+      "tokenCount": 800,
+      "wordCount": 337,
+      "weight": 64
     },
     "test/tiles.test.js": {
       "path": "test/tiles.test.js",

@@ -1,4 +1,4 @@
-import { codePointToGeo, encodeGeohash } from "./geohash.js";
+import { geohashForBoundsCenter } from "./geohash.js";
 import { precisionForLevel } from "./levels.js";
 
 export function resolveAddress(codemap, request) {
@@ -62,25 +62,22 @@ function resolveCodeRangeAddress(file, request) {
   const bounds = fragments.length
     ? unionBounds(fragments.map((fragment) => fragment.bounds))
     : tokenRange ? tokenBounds(file, lineBounds, tokenRange) : lineBounds;
-  const center = {
-    x: bounds.x + bounds.width / 2,
-    y: bounds.y + bounds.height / 2,
-  };
-  const geo = codePointToGeo(center);
-  const level = tokenRange ? "tokenRange" : "lineRange";
-  const geohash = encodeGeohash(geo.lat, geo.lon, precisionForLevel(level));
+  const hasTokenFragments = fragments.some((fragment) => fragment.tokenRange);
+  const level = tokenRange || hasTokenFragments ? "tokenRange" : "lineRange";
+  const geo = geoForBounds(fragments[0]?.bounds ?? bounds, level);
   const lines = `${start}-${end}`;
 
   return {
     level,
     targetType: level,
-    geohash,
-    deepLink: deepLink(level, geohash, { path: file.path, lines, columns: tokenRange ? `${tokenRange.start}-${tokenRange.end}` : undefined }),
+    geohash: geo.geohash,
+    deepLink: deepLink(level, geo.geohash, { path: file.path, lines, columns: tokenRange ? `${tokenRange.start}-${tokenRange.end}` : undefined }),
     breadcrumb: `${breadcrumbForPath(file.path)}:${lines}${tokenRange ? `@${tokenRange.start}-${tokenRange.end}` : ""}`,
     bounds,
-    geo: { ...geo, geohash },
+    geo,
     lineRange: { start, end },
     ...(tokenRange ? { tokenRange } : {}),
+    ...(fragments.length ? { coveringSet: sortedUnique(fragments.map((fragment) => fragment.geohash)) } : {}),
     ...(fragments.length ? { fragments } : {}),
   };
 }
@@ -135,10 +132,16 @@ function resolveFragment(file, fragment) {
   const tokenRange = resolveTokenRange(file, fragment);
   const lineBounds = lineRangeBounds(file, start, end);
   const bounds = tokenRange ? tokenBounds(file, lineBounds, tokenRange) : lineBounds;
+  const level = tokenRange ? "tokenRange" : "lineRange";
+  const geo = geoForBounds(bounds, level);
   return {
+    level,
+    targetType: level,
+    geohash: geo.geohash,
     lineRange: { start, end },
     ...(tokenRange ? { tokenRange } : {}),
     bounds,
+    geo,
   };
 }
 
@@ -157,6 +160,14 @@ function unionBounds(boundsList) {
 
 function normalizePathForMap(path) {
   return path.replaceAll("\\", "/").replace(/^\.\//, "");
+}
+
+function geoForBounds(bounds, level) {
+  return geohashForBoundsCenter(bounds, precisionForLevel(level));
+}
+
+function sortedUnique(values) {
+  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
 }
 
 function normalizeLine(value, lineCount) {

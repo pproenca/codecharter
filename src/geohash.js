@@ -52,6 +52,35 @@ export function encodeGeohash(lat, lon, precision = 12) {
   return geohash;
 }
 
+export function decodeGeohashBounds(geohash) {
+  if (typeof geohash !== "string" || geohash.length === 0) {
+    throw new Error("Geohash must be a non-empty string");
+  }
+
+  let latRange = [-90, 90];
+  let lonRange = [-180, 180];
+  let evenBit = true;
+
+  for (const char of geohash) {
+    const charIndex = BASE32.indexOf(char);
+    if (charIndex === -1) throw new Error(`Invalid geohash character: ${char}`);
+
+    for (let mask = 16; mask > 0; mask >>= 1) {
+      if (evenBit) {
+        bisectRange(lonRange, (charIndex & mask) !== 0);
+      } else {
+        bisectRange(latRange, (charIndex & mask) !== 0);
+      }
+      evenBit = !evenBit;
+    }
+  }
+
+  return {
+    lat: { min: latRange[0], max: latRange[1] },
+    lon: { min: lonRange[0], max: lonRange[1] },
+  };
+}
+
 export function codePointToGeo(point) {
   if (!Number.isFinite(point?.x) || !Number.isFinite(point?.y)) {
     throw new Error("Code-plane point coordinates must be finite numbers");
@@ -80,6 +109,12 @@ export function geohashForBoundsCenter(bounds, precision = 12) {
 
 function midpoint(range) {
   return (range[0] + range[1]) / 2;
+}
+
+function bisectRange(range, upperHalf) {
+  const mid = midpoint(range);
+  if (upperHalf) range[0] = mid;
+  else range[1] = mid;
 }
 
 function clamp(value, min, max) {

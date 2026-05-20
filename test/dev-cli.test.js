@@ -52,7 +52,8 @@ test("codemap dev is a one-command dogfood workflow", { timeout: 8000 }, async (
 
     const activity = await waitForActivity(port);
     assert.equal(activity.agentId, "dogfood");
-    assert.equal(activity.address.targetType, "file");
+    assert.equal(activity.address.targetType, "lineRange");
+    assert.deepEqual(activity.address.lineRange, { start: 1, end: 1 });
     assert.match(activity.address.deepLink, /path=src%2Fapp\.js/);
   } finally {
     cli.kill("SIGTERM");

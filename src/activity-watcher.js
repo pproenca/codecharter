@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { promisify } from "node:util";
 import { isCodeFile } from "./extensions.js";
 
@@ -97,14 +99,7 @@ export function lineRangeFromUnifiedDiff(diff) {
 
 export function changedRangeFromUnifiedDiff(diff) {
   const ranges = [...diff.matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)]
-    .map((match) => {
-      const start = Number(match[1]);
-      const count = match[2] === undefined ? 1 : Number(match[2]);
-      return {
-        start,
-        end: start + Math.max(1, count) - 1,
-      };
-    });
+    .map((match) => changedHunkRange(match[1], match[2]));
 
   if (ranges.length === 0) return {};
   const fragments = tokenFragmentsFromUnifiedDiff(diff);
@@ -120,6 +115,16 @@ export function changedRangeFromUnifiedDiff(diff) {
   };
 }
 
+function changedHunkRange(startRaw, countRaw) {
+  const hunkStart = Number(startRaw);
+  const count = countRaw === undefined ? 1 : Number(countRaw);
+  const start = count === 0 ? Math.max(1, hunkStart + 1) : hunkStart;
+  return {
+    start,
+    end: start + Math.max(1, count) - 1,
+  };
+}
+
 async function changedGitPaths(root) {
   const { stdout } = await execFileAsync("git", ["status", "--porcelain=v1", "-z", "--untracked-files=all"], { cwd: root });
   return parseGitStatusPorcelain(stdout);
@@ -131,9 +136,18 @@ async function changedLineRange(root, path) {
     gitDiff(root, ["diff", "--cached", "--unified=0", "--", path]),
   ]);
   const diff = diffs.join("\n");
+  const range = changedRangeFromUnifiedDiff(diff);
+  if (range.lineStart !== undefined) {
+    return {
+      ...range,
+      signature: hashString(diff),
+    };
+  }
+
+  const fallbackRange = await wholeFileRange(root, path);
   return {
-    ...changedRangeFromUnifiedDiff(diff),
-    signature: diff ? hashString(diff) : "file",
+    ...fallbackRange,
+    signature: fallbackRange.signature ?? (diff ? hashString(diff) : "file"),
   };
 }
 
@@ -179,6 +193,23 @@ function isActivityWatchablePath(path) {
     && !path.startsWith(".git/")
     && !path.startsWith(".scratch/")
     && isCodeFile(path);
+}
+
+async function wholeFileRange(root, path) {
+  try {
+    const content = await readFile(join(root, path), "utf8");
+    const lineCount = contentLineCount(content);
+    return { lineStart: 1, lineEnd: lineCount, signature: `file:${hashString(content)}` };
+  } catch {
+    return {};
+  }
+}
+
+function contentLineCount(content) {
+  if (content.length === 0) return 1;
+  const lines = content.split("\n");
+  if (content.endsWith("\n")) lines.pop();
+  return Math.max(1, lines.length);
 }
 
 function tokenFragmentsFromUnifiedDiff(diff) {

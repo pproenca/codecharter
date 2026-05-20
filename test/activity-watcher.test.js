@@ -79,6 +79,16 @@ test("keeps token fragments on their changed text-bearing lines", () => {
   ]);
 });
 
+test("anchors deletion-only hunks to the next surviving line", () => {
+  const diff = [
+    "diff --git a/src/app.js b/src/app.js",
+    "@@ -2 +1,0 @@ const removed = true;",
+    "-const removed = true;",
+  ].join("\n");
+
+  assert.deepEqual(lineRangeFromUnifiedDiff(diff), { lineStart: 2, lineEnd: 2 });
+});
+
 test("returns an empty line range when a diff has no hunks", () => {
   assert.deepEqual(lineRangeFromUnifiedDiff(""), {});
 });
@@ -125,6 +135,69 @@ test("watcher prepares changed map state before posting each new diff signature"
     watcher.close();
     server.close();
     await once(server, "close");
+  }
+});
+
+test("watcher reports untracked code files as line ranges", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-watcher-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "new-file.js"), "const first = true;\nexport const second = first;\n");
+  await execFileAsync("git", ["init"], { cwd: root });
+
+  const posted = [];
+  const watcher = startActivityWatcher({
+    root,
+    endpoint: "http://127.0.0.1:1/api/activity",
+    intervalMs: 60_000,
+    throttleMs: 0,
+    postActivity: async (_endpoint, body) => {
+      posted.push(body);
+    },
+  });
+
+  try {
+    watcher.close();
+    await watcher.poll();
+    assert.equal(posted[0].path, "src/new-file.js");
+    assert.deepEqual(
+      { lineStart: posted[0].lineStart, lineEnd: posted[0].lineEnd },
+      { lineStart: 1, lineEnd: 2 },
+    );
+  } finally {
+    watcher.close();
+  }
+});
+
+test("watcher reports later edits to the same untracked file", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-watcher-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "new-file.js"), "const first = true;\n");
+  await execFileAsync("git", ["init"], { cwd: root });
+
+  const posted = [];
+  const watcher = startActivityWatcher({
+    root,
+    endpoint: "http://127.0.0.1:1/api/activity",
+    intervalMs: 60_000,
+    throttleMs: 0,
+    postActivity: async (_endpoint, body) => {
+      posted.push(body);
+    },
+  });
+
+  try {
+    watcher.close();
+    await watcher.poll();
+    await writeFile(join(root, "src", "new-file.js"), "const first = true;\nexport const second = first;\n");
+    await watcher.poll();
+
+    assert.equal(posted.length, 2);
+    assert.deepEqual(
+      { lineStart: posted[1].lineStart, lineEnd: posted[1].lineEnd },
+      { lineStart: 1, lineEnd: 2 },
+    );
+  } finally {
+    watcher.close();
   }
 });
 

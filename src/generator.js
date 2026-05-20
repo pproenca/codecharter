@@ -1,4 +1,4 @@
-import { PROJECTION_AREA_WEIGHT, PROJECTION_ORDER, PROJECTION_TYPE } from "./district-layout.js";
+import { PROJECTION_AREA_WEIGHT, PROJECTION_LAYOUT_VERSION, PROJECTION_ORDER, PROJECTION_TYPE } from "./district-layout.js";
 import { MAP_LEVELS } from "./levels.js";
 import { scanCodeFiles } from "./scan.js";
 import { stabilizeTreeLayout } from "./stability.js";
@@ -15,6 +15,7 @@ export async function generateCodemap({ root, excludePaths = ["codemap.json"], p
     version: 1,
     projection: {
       type: PROJECTION_TYPE,
+      layoutVersion: PROJECTION_LAYOUT_VERSION,
       mapOrder: PROJECTION_ORDER,
       inclusion: "gitignore-known-code-extensions",
       areaWeight: PROJECTION_AREA_WEIGHT,
@@ -42,7 +43,10 @@ export async function generateCodemap({ root, excludePaths = ["codemap.json"], p
 }
 
 function canReusePreviousLayout(previousCodemap) {
-  return previousCodemap?.projection?.type === PROJECTION_TYPE;
+  return previousCodemap?.projection?.type === PROJECTION_TYPE
+    && previousCodemap.projection.layoutVersion === PROJECTION_LAYOUT_VERSION
+    && previousCodemap.projection.mapOrder === PROJECTION_ORDER
+    && previousCodemap.projection.areaWeight === PROJECTION_AREA_WEIGHT;
 }
 
 function serializeFolder(folder) {

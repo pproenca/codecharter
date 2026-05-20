@@ -7,6 +7,13 @@ const SOURCE_TEXT_MAX_LINES_PER_FRAME = 200;
 const SOURCE_TEXT_PREFETCH_LINES = 12;
 const SOURCE_CACHE_LIMIT = 80;
 const SOURCE_TEXT_ZOOM_HEADROOM = 1.08;
+const DISTRICT_PALETTE = [
+  { fill: [126, 176, 156], stroke: [41, 98, 73], label: "#24513d" },
+  { fill: [111, 162, 190], stroke: [39, 92, 122], label: "#244e66" },
+  { fill: [188, 154, 92], stroke: [126, 89, 34], label: "#6f4f1f" },
+  { fill: [176, 128, 137], stroke: [118, 65, 77], label: "#6f3d49" },
+  { fill: [126, 151, 117], stroke: [68, 101, 55], label: "#3f5d34" },
+];
 
 const state = {
   map: null,
@@ -183,13 +190,32 @@ function drawFolders() {
     if (!folder.path) continue;
     const box = screenBounds(folder.bounds);
     if (!visible(box)) continue;
-    const depth = folder.path.split("/").length;
-    ctx.fillStyle = depth <= 2 ? "rgba(132, 178, 156, 0.16)" : "rgba(132, 178, 156, 0.08)";
-    ctx.strokeStyle = depth <= 2 ? "rgba(49, 101, 69, 0.46)" : "rgba(49, 101, 69, 0.22)";
-    ctx.lineWidth = depth <= 2 ? 1.6 : 1;
+    const depth = folderDepth(folder.path);
+    if (!shouldDrawFolder(depth, box)) continue;
+    const style = folderStyle(folder.path, depth);
+    ctx.fillStyle = style.fill;
+    ctx.strokeStyle = style.stroke;
+    ctx.lineWidth = depth === 1 ? 2.1 : 1;
     drawRect(box);
-    if (box.width > 90 && box.height > 28) drawLabel(labelForFolder(folder), box.x + 8, box.y + 18, "rgba(33, 79, 57, 0.76)", 13, "600");
+    if (shouldLabelFolder(depth, box)) drawLabel(labelForFolder(folder), box.x + 8, box.y + 18, style.label, 13, "600");
   }
+}
+
+function shouldDrawFolder(depth, box) {
+  if (depth <= maxFolderDepthForScale()) return true;
+  return depth <= 3 && box.width > 360 && box.height > 220;
+}
+
+function shouldLabelFolder(depth, box) {
+  if (box.width <= 90 || box.height <= 28) return false;
+  return depth <= maxFolderDepthForScale() || (box.width > 260 && box.height > 120);
+}
+
+function maxFolderDepthForScale() {
+  if (state.view.scale < 1.35) return 1;
+  if (state.view.scale < 2.4) return 2;
+  if (state.view.scale < 4.5) return 3;
+  return 99;
 }
 
 function drawFiles() {
@@ -199,7 +225,7 @@ function drawFiles() {
     if (!visible(box)) continue;
     const selected = state.selectedTarget?.path === file.path;
     const landmark = box.width > 110 && box.height > 34;
-    const visibleParcel = selected || landmark || state.view.scale > 1.8 || (box.width > 42 && box.height > 18);
+    const visibleParcel = selected || landmark || state.view.scale > 1.8 || (state.view.scale > 1.2 && box.width > 42 && box.height > 18);
     if (!visibleParcel) continue;
 
     ctx.fillStyle = selected ? "rgba(255, 255, 255, 0.82)" : "rgba(235, 248, 241, 0.48)";
@@ -667,6 +693,33 @@ function zoomToReadableFile(file, lineRatio = 0.5) {
 function labelForFolder(folder) {
   if (!folder.path) return "Codebase";
   return folder.path.split("/").at(-1);
+}
+
+function folderDepth(path) {
+  return path ? path.split("/").length : 0;
+}
+
+function folderStyle(path, depth) {
+  const base = DISTRICT_PALETTE[hashString(path.split("/")[0]) % DISTRICT_PALETTE.length];
+  const fillAlpha = depth === 1 ? 0.18 : 0.09;
+  const strokeAlpha = depth === 1 ? 0.52 : 0.28;
+  return {
+    fill: rgba(base.fill, fillAlpha),
+    stroke: rgba(base.stroke, strokeAlpha),
+    label: base.label,
+  };
+}
+
+function rgba(rgb, alpha) {
+  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+}
+
+function hashString(value) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash;
 }
 
 function worldToScreen(point) {

@@ -2,7 +2,8 @@ import { geohashForBoundsCenter } from "./geohash.js";
 import { FULL_GEOHASH_PRECISION } from "./levels.js";
 
 export const PROJECTION_TYPE = "filesystem-district-map";
-export const PROJECTION_ORDER = "bounded-weight-squarified-folders-first";
+export const PROJECTION_LAYOUT_VERSION = 2;
+export const PROJECTION_ORDER = "bounded-weight-binary-districts-folders-first";
 export const PROJECTION_AREA_WEIGHT = "sqrt-line-count-with-structural-floor";
 
 const ROOT_MARGIN = 0.012;
@@ -105,42 +106,59 @@ function typeRank(child) {
   return child.type === "folder" ? 0 : 1;
 }
 
-function squarify(children, bounds) {
-  const totalWeight = children.reduce((sum, child) => sum + layoutWeight(child), 0);
-  if (totalWeight <= 0 || bounds.width <= 0 || bounds.height <= 0) return [];
-
-  const totalArea = bounds.width * bounds.height;
-  const items = children.map((child) => ({
-    item: child,
-    area: (layoutWeight(child) / totalWeight) * totalArea,
-  }));
-  const rectangles = [];
-  let remaining = { ...bounds };
-  let row = [];
-
-  for (const item of items) {
-    const nextRow = [...row, item];
-    if (row.length === 0 || worstAspect(nextRow, shortSide(remaining)) <= worstAspect(row, shortSide(remaining))) {
-      row = nextRow;
-      continue;
-    }
-
-    remaining = layoutRow(row, remaining, rectangles);
-    row = [item];
-  }
-
-  if (row.length > 0) layoutRow(row, remaining, rectangles);
-  return rectangles;
-}
-
 function layoutRectangles(children, preferredBounds, fallbackBounds) {
   const bounds = hasUsableArea(preferredBounds) ? preferredBounds : fallbackBounds;
   if (!hasUsableArea(bounds)) {
     return children.map((item) => ({ item, bounds }));
   }
 
-  const rectangles = squarify(children, bounds);
+  const rectangles = binaryPartition(children.map((item) => ({ item, weight: layoutWeight(item) })), bounds);
   return rectangles.length === children.length ? rectangles : stripLayout(children, bounds);
+}
+
+function binaryPartition(entries, bounds) {
+  if (entries.length === 0) return [];
+  if (entries.length === 1) return [{ item: entries[0].item, bounds }];
+
+  const split = splitEntries(entries);
+  const firstWeight = split.first.reduce((sum, entry) => sum + entry.weight, 0);
+  const totalWeight = firstWeight + split.second.reduce((sum, entry) => sum + entry.weight, 0);
+  const ratio = totalWeight > 0 ? firstWeight / totalWeight : 0.5;
+
+  if (bounds.width >= bounds.height) {
+    const firstWidth = bounds.width * ratio;
+    return [
+      ...binaryPartition(split.first, { x: bounds.x, y: bounds.y, width: firstWidth, height: bounds.height }),
+      ...binaryPartition(split.second, { x: bounds.x + firstWidth, y: bounds.y, width: bounds.width - firstWidth, height: bounds.height }),
+    ];
+  }
+
+  const firstHeight = bounds.height * ratio;
+  return [
+    ...binaryPartition(split.first, { x: bounds.x, y: bounds.y, width: bounds.width, height: firstHeight }),
+    ...binaryPartition(split.second, { x: bounds.x, y: bounds.y + firstHeight, width: bounds.width, height: bounds.height - firstHeight }),
+  ];
+}
+
+function splitEntries(entries) {
+  const totalWeight = entries.reduce((sum, entry) => sum + entry.weight, 0);
+  let bestIndex = 1;
+  let bestDelta = Infinity;
+  let runningWeight = 0;
+
+  for (let index = 0; index < entries.length - 1; index += 1) {
+    runningWeight += entries[index].weight;
+    const delta = Math.abs(totalWeight / 2 - runningWeight);
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      bestIndex = index + 1;
+    }
+  }
+
+  return {
+    first: entries.slice(0, bestIndex),
+    second: entries.slice(bestIndex),
+  };
 }
 
 function stripLayout(children, bounds) {
@@ -159,47 +177,6 @@ function stripLayout(children, bounds) {
     cursor += span;
     return { item, bounds: childBounds };
   });
-}
-
-function layoutRow(row, bounds, rectangles) {
-  const rowArea = row.reduce((sum, item) => sum + item.area, 0);
-  if (rowArea <= 0 || bounds.width <= 0 || bounds.height <= 0) return bounds;
-
-  if (bounds.width >= bounds.height) {
-    const rowHeight = Math.min(bounds.height, rowArea / bounds.width);
-    let x = bounds.x;
-    for (const entry of row) {
-      const width = entry === row.at(-1)
-        ? bounds.x + bounds.width - x
-        : entry.area / Math.max(rowHeight, Number.EPSILON);
-      rectangles.push({ item: entry.item, bounds: { x, y: bounds.y, width, height: rowHeight } });
-      x += width;
-    }
-    return { x: bounds.x, y: bounds.y + rowHeight, width: bounds.width, height: Math.max(0, bounds.height - rowHeight) };
-  }
-
-  const columnWidth = Math.min(bounds.width, rowArea / bounds.height);
-  let y = bounds.y;
-  for (const entry of row) {
-    const height = entry === row.at(-1)
-      ? bounds.y + bounds.height - y
-      : entry.area / Math.max(columnWidth, Number.EPSILON);
-    rectangles.push({ item: entry.item, bounds: { x: bounds.x, y, width: columnWidth, height } });
-    y += height;
-  }
-  return { x: bounds.x + columnWidth, y: bounds.y, width: Math.max(0, bounds.width - columnWidth), height: bounds.height };
-}
-
-function worstAspect(row, side) {
-  if (row.length === 0 || side <= 0) return Infinity;
-  const areas = row.map((item) => item.area).filter((area) => area > 0);
-  if (areas.length === 0) return Infinity;
-  const sum = areas.reduce((total, area) => total + area, 0);
-  const minArea = Math.min(...areas);
-  const maxArea = Math.max(...areas);
-  const sideSquared = side * side;
-  const sumSquared = sum * sum;
-  return Math.max((sideSquared * maxArea) / sumSquared, sumSquared / (sideSquared * minArea));
 }
 
 function reserveGrowthArea(bounds, fraction) {
@@ -236,10 +213,6 @@ function insetBounds(bounds, inset) {
 function gutterFor(bounds, childCount) {
   if (childCount <= 1) return 0;
   return Math.min(GUTTER_MAX, Math.min(bounds.width, bounds.height) * GUTTER_RATIO);
-}
-
-function shortSide(bounds) {
-  return Math.min(bounds.width, bounds.height);
 }
 
 function hasUsableArea(bounds) {

@@ -24,7 +24,8 @@ test("generates a path-keyed map sidecar from gitignore-filtered code files", as
 
   assert.equal(codemap.version, 1);
   assert.equal(codemap.projection.type, "filesystem-district-map");
-  assert.equal(codemap.projection.mapOrder, "bounded-weight-squarified-folders-first");
+  assert.equal(codemap.projection.layoutVersion, 2);
+  assert.equal(codemap.projection.mapOrder, "bounded-weight-binary-districts-folders-first");
   assert.equal(codemap.mapLevels.file, 7);
   assert.ok(codemap.folders[""]);
   assert.ok(codemap.folders.src);
@@ -77,6 +78,36 @@ test("does not anchor a district map to an obsolete projection", async () => {
   });
 
   assert.equal(codemap.projection.type, "filesystem-district-map");
+  assert.notDeepEqual(codemap.files["src/app.ts"].bounds, obsoleteBounds);
+});
+
+test("does not anchor when the district layout algorithm changes", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-order-"));
+  await execFileAsync("git", ["init"], { cwd: root });
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.ts"), "const a = 1;\n");
+  const obsoleteBounds = { x: 0, y: 0, width: 1, height: 1 };
+
+  const codemap = await generateCodemap({
+    root,
+    previousCodemap: {
+      projection: {
+        type: "filesystem-district-map",
+        layoutVersion: 1,
+        mapOrder: "bounded-weight-squarified-folders-first",
+        areaWeight: "sqrt-line-count-with-structural-floor",
+      },
+      folders: {
+        src: { bounds: obsoleteBounds, geo: { geohash: "old" }, growthArea: obsoleteBounds },
+      },
+      files: {
+        "src/app.ts": { bounds: obsoleteBounds, geo: { geohash: "old" } },
+      },
+    },
+  });
+
+  assert.equal(codemap.projection.mapOrder, "bounded-weight-binary-districts-folders-first");
+  assert.equal(codemap.projection.layoutVersion, 2);
   assert.notDeepEqual(codemap.files["src/app.ts"].bounds, obsoleteBounds);
 });
 

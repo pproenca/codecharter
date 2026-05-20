@@ -3,6 +3,7 @@ import {
   SOURCE_TEXT_MAX_LINES_PER_FRAME,
   SOURCE_TEXT_PREFETCH_LINES,
   activityStateStyle,
+  activityVisualEncoding,
   boundsCenter as modelBoundsCenter,
   canRenderSourceText,
   fileLabelPriority,
@@ -10,6 +11,7 @@ import {
   folderDepth,
   folderLabelPriority,
   folderStyle,
+  hashString,
   hitTestTargets,
   isScreenBoxVisible,
   KEYBOARD_PAN_PIXELS,
@@ -542,32 +544,62 @@ function drawOverlaps() {
 function drawActivity() {
   const events = sortedActivityEvents(state.activity);
   const latestByAgent = latestActivityByAgent(events);
+  drawActivityMembranes(events, latestByAgent);
   drawActivityTrails(events, latestByAgent);
 
   for (const event of events) {
     const latest = latestByAgent.get(event.agentId) === event;
     const center = boundsCenter(event.address.bounds);
     const p = worldToScreen(center);
-    const activityState = normalizeActivityState(event.activityState);
-    const style = activityStateStyle(activityState);
     const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.id === event.id;
+    const encoding = activityVisualEncoding(event, { latest, selected });
+    const style = activityStateStyle(encoding.activityState);
     ctx.save();
-    ctx.globalAlpha = latest ? 1 : 0.28;
+    ctx.globalAlpha = encoding.alpha;
+    ctx.fillStyle = style.stroke;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, encoding.haloRadius * 0.46, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = style.fill;
     ctx.strokeStyle = selected ? "#111827" : style.stroke;
     ctx.lineWidth = selected ? 3 : latest ? 2.5 : 1.5;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, latest ? 7 : 4, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, encoding.coreRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     if (latest) {
-      ctx.globalAlpha = 0.16;
+      ctx.globalAlpha = encoding.membraneAlpha * 1.25;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 15, 0, Math.PI * 2);
-      ctx.fill();
+      drawActivityCell(p, encoding.haloRadius, event.id ?? event.agentId);
+      ctx.strokeStyle = style.fill;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
       ctx.globalAlpha = 1;
-      drawLabel(`${event.agentId}: ${activityState}`, p.x + 10, p.y - 8, style.label, 12, "700");
+      drawLabel(`${event.agentId}: ${encoding.activityState}`, p.x + 10, p.y - 8, style.label, 12, "700");
     }
+    ctx.restore();
+  }
+}
+
+function drawActivityMembranes(events, latestByAgent) {
+  for (const event of events) {
+    const latest = latestByAgent.get(event.agentId) === event;
+    const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.id === event.id;
+    const encoding = activityVisualEncoding(event, { latest, selected });
+    if (encoding.membraneAlpha <= 0.08 && !selected) continue;
+
+    const p = worldToScreen(boundsCenter(event.address.bounds));
+    const style = activityStateStyle(encoding.activityState);
+    const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, encoding.haloRadius);
+    gradient.addColorStop(0, hexToRgba(style.fill, encoding.membraneAlpha));
+    gradient.addColorStop(0.58, hexToRgba(style.fill, encoding.membraneAlpha * 0.45));
+    gradient.addColorStop(1, hexToRgba(style.fill, 0));
+
+    ctx.save();
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    drawActivityCell(p, encoding.haloRadius, event.id ?? event.agentId);
+    ctx.fill();
     ctx.restore();
   }
 }
@@ -582,20 +614,72 @@ function drawActivityTrails(events, latestByAgent) {
   for (const agentEvents of byAgent.values()) {
     if (agentEvents.length < 2) continue;
     const latest = latestByAgent.get(agentEvents[0].agentId);
-    const style = activityStateStyle(normalizeActivityState(latest?.activityState));
+    const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.agentId === agentEvents[0].agentId;
+    const encoding = activityVisualEncoding(latest, { latest: true, selected });
+    const style = activityStateStyle(encoding.activityState);
     ctx.save();
     ctx.strokeStyle = style.fill;
-    ctx.globalAlpha = 0.34;
-    ctx.lineWidth = 2;
+    ctx.globalAlpha = encoding.trailAlpha;
+    ctx.lineWidth = encoding.lineWidth;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     ctx.beginPath();
-    agentEvents.forEach((event, index) => {
-      const p = worldToScreen(boundsCenter(event.address.bounds));
-      if (index === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
-    });
+    drawMyceliumPath(agentEvents);
     ctx.stroke();
     ctx.restore();
   }
+}
+
+function drawMyceliumPath(events) {
+  const points = events.map((event) => worldToScreen(boundsCenter(event.address.bounds)));
+  if (points.length < 2) return;
+
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    const mid = {
+      x: (previous.x + current.x) / 2,
+      y: (previous.y + current.y) / 2,
+    };
+    const dx = current.x - previous.x;
+    const dy = current.y - previous.y;
+    const length = Math.max(1, Math.hypot(dx, dy));
+    const unit = hashUnit(`${events[index].id ?? events[index].timestamp}:bend`);
+    const direction = unit > 0.5 ? 1 : -1;
+    const bend = Math.min(110, length * 0.28) * (0.45 + Math.abs(unit - 0.5)) * direction;
+    const control = {
+      x: mid.x - (dy / length) * bend,
+      y: mid.y + (dx / length) * bend,
+    };
+    ctx.quadraticCurveTo(control.x, control.y, current.x, current.y);
+  }
+}
+
+function drawActivityCell(center, radius, key) {
+  const points = 10;
+  ctx.moveTo(center.x + radius, center.y);
+  for (let index = 1; index <= points; index += 1) {
+    const angle = (index / points) * Math.PI * 2;
+    const wobble = 0.82 + hashUnit(`${key}:cell:${index}`) * 0.26;
+    const r = radius * wobble;
+    ctx.lineTo(center.x + Math.cos(angle) * r, center.y + Math.sin(angle) * r);
+  }
+  ctx.closePath();
+}
+
+function hexToRgba(hex, alpha) {
+  const value = hex.replace("#", "");
+  const rgb = [
+    Number.parseInt(value.slice(0, 2), 16),
+    Number.parseInt(value.slice(2, 4), 16),
+    Number.parseInt(value.slice(4, 6), 16),
+  ];
+  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+}
+
+function hashUnit(value) {
+  return hashString(value) / 0xffffffff;
 }
 
 function renderActivityFeed() {

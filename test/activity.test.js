@@ -30,7 +30,7 @@ test("normalizes blocked activity to an active reviewing state", () => {
   assert.equal(event.activityState, "reviewing");
 });
 
-test("CLI appends Codex activity events to the shared activity stream", async () => {
+test("CLI appends Codex activity events to the JSONL activity archive", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-activity-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
@@ -47,13 +47,14 @@ test("CLI appends Codex activity events to the shared activity stream", async ()
     "editing",
   ], { cwd: root });
 
-  const stream = JSON.parse(await readFile(join(root, ".scratch/activity-stream.json"), "utf8"));
+  const lines = (await readFile(join(root, ".scratch/activity-stream.jsonl"), "utf8")).trim().split("\n");
+  const event = JSON.parse(lines[0]);
 
-  assert.equal(stream.events.length, 1);
-  assert.equal(stream.events[0].agentId, "codex");
-  assert.equal(stream.events[0].activityState, "editing");
-  assert.equal(stream.events[0].address.targetType, "lineRange");
-  assert.deepEqual(stream.events[0].address.lineRange, { start: 2, end: 4 });
+  assert.equal(lines.length, 1);
+  assert.equal(event.agentId, "codex");
+  assert.equal(event.activityState, "editing");
+  assert.equal(event.address.targetType, "lineRange");
+  assert.deepEqual(event.address.lineRange, { start: 2, end: 4 });
 });
 
 test("CLI activity telemetry never exits non-zero for an unmapped path", async () => {

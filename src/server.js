@@ -1,7 +1,9 @@
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createActivityEvent } from "./activity.js";
+import { createActivityStore } from "./activity-store.js";
 import { findNamedPlaceOverlaps } from "./overlaps.js";
 import { resolveAddress } from "./resolver.js";
 import { createNamedAddress, createNamedSelection, resolveSelection } from "./selections.js";
@@ -16,14 +18,18 @@ const MIME_TYPES = {
   ".json": "application/json; charset=utf-8",
 };
 
-export async function startServer({ root, mapPath, port }) {
+const BUNDLED_PUBLIC_ROOT = fileURLToPath(new URL("../public", import.meta.url));
+
+export async function startServer({ root, mapPath, port, activityFlushIntervalMs, publicRoot = BUNDLED_PUBLIC_ROOT }) {
   const state = {
     root,
     mapPath,
-    publicRoot: join(root, "public"),
+    publicRoot,
     namedPlacesPath: join(root, ".scratch", "named-places.json"),
-    activityPath: join(root, ".scratch", "activity-stream.json"),
-    activityWriteQueue: Promise.resolve(),
+    activityStore: createActivityStore({
+      archivePath: join(root, ".scratch", "activity-stream.jsonl"),
+      flushIntervalMs: activityFlushIntervalMs,
+    }),
   };
 
   const server = createServer((request, response) => {
@@ -35,6 +41,12 @@ export async function startServer({ root, mapPath, port }) {
   await new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, "127.0.0.1", resolve);
+  });
+
+  server.on("close", () => {
+    state.activityStore.close().catch((error) => {
+      console.warn(`Activity archive close flush skipped: ${error.message}`);
+    });
   });
 
   console.log(`Codemap running at http://127.0.0.1:${port}`);
@@ -124,7 +136,7 @@ async function handleApi(state, request, response, url) {
   }
 
   if (request.method === "GET" && url.pathname === "/api/activity") {
-    sendJson(response, 200, await readJson(state.activityPath, { events: [] }));
+    sendJson(response, 200, state.activityStore.snapshot());
     return;
   }
 
@@ -166,27 +178,11 @@ function acceptActivityRequest(state, request) {
     .then(async (body) => {
       const codemap = await loadCodemap(state);
       const address = body.address ?? resolveAddress(codemap, body);
-      enqueueActivityEvent(state, createActivityEvent(address, body));
+      state.activityStore.add(createActivityEvent(address, body));
     })
     .catch((error) => {
       console.warn(`Dropped activity event: ${error.message}`);
     });
-}
-
-function enqueueActivityEvent(state, event) {
-  state.activityWriteQueue = state.activityWriteQueue
-    .catch((error) => {
-      console.warn(`Activity write queue recovered: ${error.message}`);
-    })
-    .then(async () => {
-      const stream = await readJson(state.activityPath, { events: [] });
-      stream.events.push(event);
-      await writeJson(state.activityPath, stream);
-    });
-
-  state.activityWriteQueue.catch((error) => {
-    console.warn(`Dropped activity event: ${error.message}`);
-  });
 }
 
 async function readBody(request) {

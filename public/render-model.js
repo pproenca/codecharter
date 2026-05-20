@@ -12,6 +12,8 @@ export const MAP_MAX_SCALE = 160;
 export const ORGANIC_REGION_EDGE_POSITIONS = [0.08, 0.24, 0.42, 0.6, 0.78, 0.92];
 export const KEYBOARD_PAN_PIXELS = 72;
 export const KEYBOARD_ZOOM_FACTOR = 1.25;
+export const ACTIVITY_DECAY_HALF_LIFE_MINUTES = 90;
+export const ACTIVITY_MIN_ALPHA = 0.18;
 
 export const DISTRICT_PALETTE = [
   { fill: [126, 176, 156], stroke: [41, 98, 73], label: "#24513d" },
@@ -350,6 +352,25 @@ export function activityStateStyle(activityState) {
 export function normalizeActivityState(activityState) {
   if (activityState === "blocked") return "reviewing";
   return ACTIVITY_STATE_STYLES[activityState] ? activityState : "reading";
+}
+
+export function activityVisualEncoding(event, { latest = false, selected = false, now = Date.now() } = {}) {
+  const activityState = normalizeActivityState(event?.activityState);
+  const ageMinutes = Math.max(0, (now - Date.parse(event?.timestamp ?? now)) / 60000);
+  const decay = 2 ** (-ageMinutes / ACTIVITY_DECAY_HALF_LIFE_MINUTES);
+  const alpha = selected
+    ? 1
+    : clamp((latest ? 0.42 : ACTIVITY_MIN_ALPHA) + decay * (latest ? 0.58 : 0.38), ACTIVITY_MIN_ALPHA, 1);
+
+  return {
+    activityState,
+    alpha,
+    coreRadius: selected ? 8 : latest ? 6.5 : 3.8,
+    haloRadius: selected ? 28 : latest ? 22 : 12,
+    membraneAlpha: selected ? 0.22 : latest ? 0.15 : 0.07,
+    trailAlpha: selected ? 0.72 : latest ? 0.42 : 0.18,
+    lineWidth: selected ? 3.2 : latest ? 2.2 : 1.3,
+  };
 }
 
 export function sortedActivityEvents(events, limit = 80) {

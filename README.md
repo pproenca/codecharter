@@ -12,9 +12,9 @@ That command:
 
 - regenerates `codemap.json` from gitignore-filtered code files while preserving existing stable coordinates when possible
 - serves the map at `http://127.0.0.1:4173`
-- starts a best-effort Activity Producer that watches local git changes and streams file or line-range positions to `/api/activity`
+- starts a best-effort Activity Producer that watches local git changes and streams file or line-range positions to the in-memory `/api/activity` feed
 
-Activity telemetry is deliberately non-blocking. If the server cannot resolve or persist an activity event, code work continues and the event is dropped.
+Activity telemetry is deliberately non-blocking. If the server cannot resolve an activity event, code work continues and the event is dropped. Accepted real-time events live in memory first and are periodically appended to `.scratch/activity-stream.jsonl` as a JSONL archive, without a hard file-size check.
 While `npm run dev` is running, changed code files refresh `codemap.json` before activity is posted, so newly created files can receive stable Map Addresses without restarting the server.
 
 ## Useful commands
@@ -25,4 +25,4 @@ npm run test
 node ./bin/codemap.mjs resolve public/app.js 1 20
 ```
 
-`npm run setup` prepares the Map Sidecar and Activity Stream without serving the app. `resolve` is the stable interface for turning paths and line ranges into geohash-backed Map Addresses.
+`npm run setup` prepares the Map Sidecar and local Activity Archive without serving the app. `resolve` is the stable interface for turning paths and line ranges into geohash-backed Map Addresses.

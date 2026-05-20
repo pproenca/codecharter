@@ -1,0 +1,31 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createActivityStore } from "../src/activity-store.js";
+
+test("keeps activity hot path in memory until an explicit or timed JSONL flush", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-store-"));
+  const archivePath = join(root, ".scratch", "activity-stream.jsonl");
+  const event = {
+    id: "event-1",
+    agentId: "codex",
+    activityState: "editing",
+    address: { targetType: "file", deepLink: "codemap://file/s000000?path=src%2Fapp.ts", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    timestamp: "2026-05-20T00:00:00.000Z",
+  };
+  const store = createActivityStore({ archivePath, flushIntervalMs: 60_000 });
+
+  try {
+    store.add(event);
+    assert.deepEqual(store.snapshot().events, [event]);
+    await assert.rejects(readFile(archivePath, "utf8"), { code: "ENOENT" });
+
+    await store.flush();
+    const lines = (await readFile(archivePath, "utf8")).trim().split("\n");
+    assert.deepEqual(lines.map((line) => JSON.parse(line)), [event]);
+  } finally {
+    await store.close();
+  }
+});

@@ -53,8 +53,8 @@
         "lat": 0,
         "geohash": "s00000000000"
       },
-      "lineCount": 14392,
-      "weight": 14392,
+      "lineCount": 14626,
+      "weight": 14626,
       "children": {
         "folders": [
           ".agents",
@@ -967,8 +967,8 @@
         "lat": -18.082052019359992,
         "geohash": "qsc94k786v4y"
       },
-      "lineCount": 185,
-      "weight": 185,
+      "lineCount": 183,
+      "weight": 183,
       "children": {
         "folders": [],
         "files": [
@@ -996,8 +996,8 @@
         "lat": -18.082052019359992,
         "geohash": "kub1hs322tjw"
       },
-      "lineCount": 153,
-      "weight": 153,
+      "lineCount": 155,
+      "weight": 155,
       "children": {
         "folders": [
           "docs/adr",
@@ -1026,8 +1026,8 @@
         "lat": -18.082052019450003,
         "geohash": "mhu9hhr87t1w"
       },
-      "lineCount": 68,
-      "weight": 68,
+      "lineCount": 70,
+      "weight": 70,
       "children": {
         "folders": [],
         "files": [
@@ -1090,8 +1090,8 @@
         "lat": -26.75340322820999,
         "geohash": "3gppf3dn5khm"
       },
-      "lineCount": 1940,
-      "weight": 1940,
+      "lineCount": 2033,
+      "weight": 2033,
       "children": {
         "folders": [],
         "files": [
@@ -1122,11 +1122,12 @@
         "lat": 42.131251412370005,
         "geohash": "wpqz8mz2qfe8"
       },
-      "lineCount": 1503,
-      "weight": 1503,
+      "lineCount": 1577,
+      "weight": 1577,
       "children": {
         "folders": [],
         "files": [
+          "src/activity-store.js",
           "src/activity-watcher.js",
           "src/activity.js",
           "src/district-layout.js",
@@ -1149,9 +1150,9 @@
         ]
       },
       "growthArea": {
-        "x": 0.852879891487,
+        "x": 0.893655204369,
         "y": 0.466882433926,
-        "width": 0.050969141102,
+        "width": 0.01019382822,
         "height": 0.027401582969
       }
     },
@@ -1169,11 +1170,12 @@
         "lat": -68.88465464058001,
         "geohash": "1gz047fjg3sm"
       },
-      "lineCount": 969,
-      "weight": 969,
+      "lineCount": 1032,
+      "weight": 1032,
       "children": {
         "folders": [],
         "files": [
+          "test/activity-store.test.js",
           "test/activity-watcher.test.js",
           "test/activity.test.js",
           "test/generator.test.js",
@@ -1188,9 +1190,9 @@
         ]
       },
       "growthArea": {
-        "x": 0.433046369867,
+        "x": 0.453410362037,
         "y": 0.959104000722,
-        "width": 0.025454990213,
+        "width": 0.005090998043,
         "height": 0.006644476082
       }
     }
@@ -4556,8 +4558,8 @@
         "lat": -18.082052019359992,
         "geohash": "qsb1nu60mjpn"
       },
-      "lineCount": 185,
-      "weight": 185
+      "lineCount": 183,
+      "weight": 183
     },
     "docs/adr/0001-stable-code-map-addresses.md": {
       "path": "docs/adr/0001-stable-code-map-addresses.md",
@@ -4651,8 +4653,8 @@
         "lat": -30.27198624885,
         "geohash": "m4d7yc1sghbb"
       },
-      "lineCount": 17,
-      "weight": 17
+      "lineCount": 19,
+      "weight": 19
     },
     "docs/agents/domain.md": {
       "path": "docs/agents/domain.md",
@@ -4727,8 +4729,8 @@
         "lat": -26.753403228299987,
         "geohash": "35hrf1en0spm"
       },
-      "lineCount": 1110,
-      "weight": 1110
+      "lineCount": 1194,
+      "weight": 1194
     },
     "public/index.html": {
       "path": "public/index.html",
@@ -4746,8 +4748,8 @@
         "lat": -40.39346645523,
         "geohash": "68u61n9eh0n6"
       },
-      "lineCount": 97,
-      "weight": 97
+      "lineCount": 85,
+      "weight": 85
     },
     "public/render-model.js": {
       "path": "public/render-model.js",
@@ -4765,8 +4767,8 @@
         "lat": -22.174844702399994,
         "geohash": "7s13f5nw0t3f"
       },
-      "lineCount": 397,
-      "weight": 397
+      "lineCount": 418,
+      "weight": 418
     },
     "public/style.css": {
       "path": "public/style.css",
@@ -4786,6 +4788,25 @@
       },
       "lineCount": 336,
       "weight": 336
+    },
+    "src/activity-store.js": {
+      "path": "src/activity-store.js",
+      "name": "activity-store.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.853838946891,
+        "y": 0.46784148933,
+        "width": 0.038857202074,
+        "height": 0.025483472161
+      },
+      "geo": {
+        "lon": 134.37631725408,
+        "lat": 3.495019426109991,
+        "geohash": "wbxecu1zgnu6"
+      },
+      "lineCount": 78,
+      "weight": 78
     },
     "src/activity-watcher.js": {
       "path": "src/activity-watcher.js",
@@ -5031,8 +5052,8 @@
         "lat": 54.918755498159996,
         "geohash": "v9v2kjxhfqp9"
       },
-      "lineCount": 240,
-      "weight": 240
+      "lineCount": 236,
+      "weight": 236
     },
     "src/source.js": {
       "path": "src/source.js",
@@ -5148,6 +5169,25 @@
       "lineCount": 30,
       "weight": 30
     },
+    "test/activity-store.test.js": {
+      "path": "test/activity-store.test.js",
+      "name": "activity-store.test.js",
+      "extension": ".js",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.43327892653,
+        "y": 0.959336557385,
+        "width": 0.019898878845,
+        "height": 0.006179362756
+      },
+      "geo": {
+        "lon": -20.43778825710001,
+        "lat": -83.23672297734001,
+        "geohash": "591qqzjwvn0w"
+      },
+      "lineCount": 31,
+      "weight": 31
+    },
     "test/activity-watcher.test.js": {
       "path": "test/activity-watcher.test.js",
       "name": "activity-watcher.test.js",
@@ -5183,8 +5223,8 @@
         "lat": -76.87281871025999,
         "geohash": "4dr6stdpk7gy"
       },
-      "lineCount": 90,
-      "weight": 90
+      "lineCount": 91,
+      "weight": 91
     },
     "test/generator.test.js": {
       "path": "test/generator.test.js",
@@ -5259,8 +5299,8 @@
         "lat": -65.89464040359002,
         "geohash": "5s615u0zyhwx"
       },
-      "lineCount": 278,
-      "weight": 278
+      "lineCount": 292,
+      "weight": 292
     },
     "test/resolver.test.js": {
       "path": "test/resolver.test.js",
@@ -5316,8 +5356,8 @@
         "lat": -63.40938527844,
         "geohash": "1kepq0tt83u7"
       },
-      "lineCount": 160,
-      "weight": 160
+      "lineCount": 177,
+      "weight": 177
     },
     "test/source.test.js": {
       "path": "test/source.test.js",
@@ -5392,8 +5432,8 @@
         "lat": -60.21330343173,
         "geohash": "ht736qe25fsy"
       },
-      "lineCount": 319,
-      "weight": 319
+      "lineCount": 323,
+      "weight": 323
     },
     "package.json": {
       "path": "package.json",

@@ -25,8 +25,12 @@ The persisted collection of Named Places, Drawn Selections, and Covering Sets. I
 _Avoid_: Map sidecar section, label cache
 
 **Activity Stream**:
-The timeline of Agent Positions and Activity States. It is separate from the Map Sidecar because agent activity changes without changing the Code Map.
+The in-memory timeline of Agent Positions and Activity States that powers the real-time map overlay. It is separate from the Map Sidecar because agent activity changes without changing the Code Map. Codemaps may periodically append Activity Stream events to a JSONL Activity Archive, but the archive is not read on the hot path.
 _Avoid_: Map layout history, cursor log
+
+**Activity Archive**:
+A JSONL append-only record of Activity Stream events written from time to time outside the real-time request path. The Activity Archive is allowed to grow until the developer chooses to rotate or delete it; Codemaps does not put a hard file-size gate in front of telemetry.
+_Avoid_: Real-time source of truth, capped activity database
 
 **Activity Producer**:
 A tool, hook, watcher, or agent integration that reports Agent Positions into the Activity Stream. Activity Producers are best-effort and must never block code reading, editing, testing, or serving when telemetry cannot be delivered.

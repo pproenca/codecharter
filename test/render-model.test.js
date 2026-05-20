@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   MAP_MAX_SCALE,
   activityStateStyle,
+  activityVisualEncoding,
   canRenderSourceText,
   detailBand,
   fileVisualState,
@@ -227,6 +228,19 @@ test("sorts activity events and keeps the latest visible state by agent", () => 
   assert.equal(latestActivityByAgent(events).get("codex").activityState, "editing");
   assert.equal(activityStateStyle("reviewing").fill, "#f59e0b");
   assert.equal(activityStateStyle("blocked").fill, activityStateStyle("reviewing").fill);
+});
+
+test("encodes activity as recency-faded biological markers", () => {
+  const now = Date.parse("2026-05-20T12:00:00.000Z");
+  const fresh = activityVisualEncoding(activity("codex", "editing", "2026-05-20T12:00:00.000Z"), { latest: true, now });
+  const older = activityVisualEncoding(activity("codex", "editing", "2026-05-20T09:00:00.000Z"), { latest: false, now });
+  const selected = activityVisualEncoding(activity("codex", "blocked", "2026-05-20T09:00:00.000Z"), { selected: true, now });
+
+  assert.equal(fresh.activityState, "editing");
+  assert.equal(selected.activityState, "reviewing");
+  assert.equal(fresh.alpha > older.alpha, true);
+  assert.equal(selected.haloRadius > fresh.haloRadius, true);
+  assert.equal(fresh.coreRadius > older.coreRadius, true);
 });
 
 function codeFile(overrides = {}) {

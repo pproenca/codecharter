@@ -2,11 +2,12 @@
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve as resolvePath } from "node:path";
 import { createActivityEvent } from "../src/activity.js";
+import { appendActivityEvents, ensureActivityArchive } from "../src/activity-store.js";
 import { startActivityWatcher } from "../src/activity-watcher.js";
 import { generateCodemap } from "../src/generator.js";
 import { resolveAddress } from "../src/resolver.js";
 import { startServer } from "../src/server.js";
-import { readJson, writeJson } from "../src/store.js";
+import { writeJson } from "../src/store.js";
 
 function usage() {
   return `Usage:
@@ -14,7 +15,7 @@ function usage() {
   codemap setup [--root <dir>] [--out <file>] [--fresh]
   codemap dev [--root <dir>] [--map <file>] [--port <port>] [--agent <id>] [--no-watch] [--fresh]
   codemap resolve <path> [lineStart] [lineEnd] [--map <file>]
-  codemap activity <path> [lineStart] [lineEnd] [--agent <id>] [--state <state>] [--note <text>] [--map <file>] [--out <file>]
+  codemap activity <path> [lineStart] [lineEnd] [--agent <id>] [--state <state>] [--note <text>] [--map <file>] [--out <file.jsonl>]
   codemap serve [--root <dir>] [--map <file>] [--port <port>]
 `;
 }
@@ -113,7 +114,7 @@ async function main() {
   if (command === "activity") {
     try {
       const mapPath = resolvePath(takeOption(args, "--map", "codemap.json"));
-      const outPath = resolvePath(takeOption(args, "--out", ".scratch/activity-stream.json"));
+      const outPath = resolvePath(takeOption(args, "--out", ".scratch/activity-stream.jsonl"));
       const agentId = takeOption(args, "--agent", "codex");
       const activityState = takeOption(args, "--state", "editing");
       const note = takeOption(args, "--note", "");
@@ -125,9 +126,7 @@ async function main() {
       const lineEnd = lineEndRaw === undefined ? lineStart : Number(lineEndRaw);
       const address = resolveAddress(codemap, { path, lineStart, lineEnd });
       const event = createActivityEvent(address, { agentId, activityState, note });
-      const stream = await readJson(outPath, { events: [] });
-      stream.events.push(event);
-      await writeJson(outPath, stream);
+      await appendActivityEvents(outPath, [event]);
       console.log(JSON.stringify({ accepted: true, event }, null, 2));
     } catch (error) {
       console.log(JSON.stringify({ accepted: false, error: error.message }, null, 2));
@@ -171,8 +170,7 @@ async function writeCodemap({ root, out, fresh = false, quiet = false }) {
 }
 
 async function ensureActivityStream(root) {
-  const activityPath = join(root, ".scratch", "activity-stream.json");
-  await writeJson(activityPath, await readJson(activityPath, { events: [] }));
+  await ensureActivityArchive(join(root, ".scratch", "activity-stream.jsonl"));
 }
 
 function resolveMapPath(root, path) {

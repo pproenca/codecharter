@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile, mkdir } from "node:fs/promises";
+import { mkdtemp, writeFile, mkdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
@@ -14,7 +14,7 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
   await writeFile(join(root, "src", "app.ts"), "const app = true;\nexport default app;\n");
   await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
 
-  const server = await startServer({ root, mapPath: join(root, "codemap.json"), port: 0 });
+  const server = await startServer({ root, mapPath: join(root, "codemap.json"), port: 0, activityFlushIntervalMs: 20 });
   const address = server.address();
   const baseUrl = `http://127.0.0.1:${address.port}`;
 
@@ -61,6 +61,9 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     const activity = activityStream.events.at(-1);
     assert.equal(activity.agentId, "codex");
     assert.equal(activity.address.targetType, "lineRange");
+    const archivedActivity = await waitForActivityArchive(root);
+    assert.equal(archivedActivity.at(-1).agentId, "codex");
+    assert.equal(archivedActivity.at(-1).address.targetType, "lineRange");
 
     const badActivity = await postJson(`${baseUrl}/api/activity`, {
       agentId: "codex",
@@ -98,7 +101,21 @@ async function waitForActivityEvent(baseUrl) {
     if (activity.events.length > 0) return activity;
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
-  assert.fail("Activity event was not persisted");
+  assert.fail("Activity event was not visible in memory");
+}
+
+async function waitForActivityArchive(root) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      const raw = await readFile(join(root, ".scratch", "activity-stream.jsonl"), "utf8");
+      const events = raw.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+      if (events.length > 0) return events;
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.fail("Activity event was not archived to JSONL");
 }
 
 async function waitForMapVersion(baseUrl, previousVersion) {

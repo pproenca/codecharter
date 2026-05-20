@@ -1,5 +1,6 @@
 import { geohashForBoundsCenter } from "./geohash.js";
 import { precisionForLevel } from "./levels.js";
+import { createCodemapDeepLink } from "./deep-links.js";
 
 export function resolveAddress(codemap, request) {
   const path = normalizePathForMap(request.path);
@@ -186,12 +187,7 @@ function breadcrumbForPath(path) {
 }
 
 function deepLink(level, geohash, metadata) {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(metadata)) {
-    if (value !== undefined && value !== "") params.set(key, value);
-  }
-  const query = params.toString();
-  return `codemap://${level}/${geohash}${query ? `?${query}` : ""}`;
+  return createCodemapDeepLink(level, geohash, metadata);
 }
 
 function round(value) {

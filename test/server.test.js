@@ -57,10 +57,14 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     });
     assert.equal(annotationResponse.annotation.kind, "mapAnnotation");
     assert.equal(annotationResponse.annotation.comment, "hey explore this area");
+    assert.equal(annotationResponse.annotation.deepLink, `codemap://annotation/${annotationResponse.annotation.id}`);
+    assert.equal(annotationResponse.annotation.browserHash, `#/annotation/${annotationResponse.annotation.id}`);
     assert.match(annotationResponse.annotation.codexPrompt, /src\/app\.ts/);
     const annotations = await getJson(`${baseUrl}/api/annotations`);
     assert.equal(annotations.annotations.length, 1);
     assert.equal(annotations.annotations[0].resolvedTargets.length, 1);
+    const annotationById = await getJson(`${baseUrl}/api/annotations/${annotationResponse.annotation.id}`);
+    assert.equal(annotationById.annotation.id, annotationResponse.annotation.id);
 
     await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap({ includeExtraFile: true })));
     const nextMapVersion = await waitForMapVersion(baseUrl, mapVersion.version);

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createAnnotationHashRoute, createCodemapDeepLink } from "./deep-links.js";
 import { clampBounds, intersects, normalizeRect } from "./geometry.js";
 import { precisionForLevel } from "./levels.js";
 import { resolveAddress } from "./resolver.js";
@@ -178,9 +179,14 @@ function clampRatio(value) {
 }
 
 function withAnnotationPrompt(annotation) {
-  return {
+  const linked = {
     ...annotation,
-    codexPrompt: codexPromptForAnnotation(annotation),
+    deepLink: createCodemapDeepLink("annotation", annotation.id),
+    browserHash: createAnnotationHashRoute(annotation.id),
+  };
+  return {
+    ...linked,
+    codexPrompt: codexPromptForAnnotation(linked),
   };
 }
 
@@ -193,7 +199,7 @@ function codexPromptForAnnotation(annotation) {
     : "no resolved targets";
   const coveringSet = annotation.coveringSet.length ? annotation.coveringSet.join(", ") : "no geohash coverage";
   const comment = annotation.comment ? ` User note: ${annotation.comment}` : "";
-  return `Explore codemap annotation "${annotation.name}" at ${coveringSet}. Targets: ${targetSummary}.${comment}`;
+  return `Explore codemap annotation "${annotation.name}" (${annotation.deepLink}) at ${coveringSet}. Browser route: ${annotation.browserHash}. Targets: ${targetSummary}.${comment}`;
 }
 
 function targetReference(target) {

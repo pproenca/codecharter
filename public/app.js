@@ -41,6 +41,13 @@ import {
   worldToScreenPoint,
   zoomViewAt,
 } from "./render-model.js";
+import {
+  boundsFromRouteParams,
+  createAnnotationHashRoute,
+  createMapHashRoute,
+  createSelectionHashRoute,
+  parseHashRoute,
+} from "./deep-links.js";
 
 const canvas = document.querySelector("#mapCanvas");
 const ctx = canvas.getContext("2d");
@@ -50,6 +57,7 @@ const DEFAULT_MAP_LEVEL = "file";
 let frameLabels = [];
 let activityPollTimer = null;
 let mapPollTimer = null;
+let applyingRoute = false;
 
 const state = {
   map: null,
@@ -114,6 +122,7 @@ async function boot() {
   startMapPolling();
   startActivityPolling();
   resize();
+  await applyHashRoute();
   render();
 }
 
@@ -144,6 +153,9 @@ function bindEvents() {
   window.addEventListener("resize", () => {
     resize();
     render();
+  });
+  window.addEventListener("hashchange", () => {
+    void applyHashRoute();
   });
 
   for (const control of [
@@ -220,6 +232,104 @@ async function refreshActivity() {
 function activitySignature(events) {
   const latest = events.at(-1);
   return `${events.length}:${latest?.id ?? ""}:${latest?.timestamp ?? ""}`;
+}
+
+async function applyHashRoute() {
+  const route = parseHashRoute(window.location.hash);
+  if (!route || !state.map) return;
+
+  applyingRoute = true;
+  try {
+    if (route.type === "annotation") {
+      await focusAnnotationRoute(route.id);
+      return;
+    }
+    if (route.type === "selection") {
+      await focusSelectionRoute(route.params);
+      return;
+    }
+    if (route.type === "map") {
+      await focusMapRoute(route);
+    }
+  } finally {
+    applyingRoute = false;
+  }
+}
+
+async function focusAnnotationRoute(id) {
+  let annotation = state.namedPlaces.find((place) => place.kind === "mapAnnotation" && place.id === id);
+  if (!annotation) {
+    try {
+      annotation = (await fetchJson(`/api/annotations/${encodeURIComponent(id)}`)).annotation;
+    } catch {
+      return;
+    }
+  }
+  if (!annotation?.geometry?.bounds) return;
+  zoomToBounds(annotation.geometry.bounds, 1.35);
+  selectAnnotation(annotation);
+}
+
+async function focusSelectionRoute(params) {
+  const bounds = boundsFromRouteParams(params);
+  if (!bounds) return;
+  state.drawing = true;
+  controls.drawTool?.classList.add("active");
+  controls.drawTool?.setAttribute("aria-pressed", "true");
+  state.selectedTarget = null;
+  state.draftSelection = { type: "rect", bounds };
+  zoomToBounds(bounds, 1.35);
+  await previewSelection();
+}
+
+async function focusMapRoute(route) {
+  const path = route.params.get("path");
+  const target = path ? targetForPath(path) : targetForGeohash(route.locator, route.kind);
+  if (!target) return;
+
+  zoomToBounds(target.bounds, target.targetType === "folder" ? 1.6 : 1.35);
+  state.selectedTarget = target;
+
+  if (target.targetType === "file") {
+    await showFileForRoute(target, route.params);
+    return;
+  }
+
+  clearAnnotationForm();
+  setText(controls.inspectorTitle, labelForFolder(target));
+  setText(controls.inspectorSubtitle, `folder: ${target.path || "."} | ${target.geo.geohash}`);
+  render();
+}
+
+async function showFileForRoute(file, params) {
+  clearAnnotationForm();
+  setText(controls.inspectorTitle, file.name);
+  setText(controls.inspectorSubtitle, `file: ${file.path} | ${file.geo.geohash}`);
+
+  const lineRange = parseLineRange(params.get("lines"));
+  if (!lineRange) {
+    setText(controls.sourceTitle, file.path);
+    setText(controls.sourceOutput, "");
+    render();
+    return;
+  }
+
+  const query = `path=${encodeURIComponent(file.path)}&lineStart=${lineRange.start}&lineEnd=${lineRange.end}`;
+  const [address, source] = await Promise.all([
+    fetchJson(`/api/resolve?${query}`),
+    fetchJson(`/api/source?${query}`),
+  ]);
+  setText(controls.sourceTitle, `${file.path} · ${address.deepLink}`);
+  setText(controls.sourceOutput, source.lines
+    .map((item) => `${String(item.number).padStart(4, " ")}  ${item.text}`)
+    .join("\n"));
+  if (controls.sourceOutput) controls.sourceOutput.scrollTop = 0;
+  render();
+}
+
+function syncHashRoute(hash) {
+  if (applyingRoute || !hash || window.location.hash === hash) return;
+  window.history.replaceState(null, "", hash);
 }
 
 function setDrawMode(enabled) {
@@ -1012,6 +1122,7 @@ async function selectMapTarget(worldPoint) {
 
   setText(controls.inspectorTitle, hit.targetType === "file" ? hit.name : labelForFolder(hit));
   setText(controls.inspectorSubtitle, `${hit.targetType}: ${hit.path || "."} | ${hit.geo.geohash}`);
+  syncHashRoute(createMapHashRoute(hit.targetType, hit.geo.geohash, { path: hit.path }));
 
   if (hit.targetType !== "file") {
     setText(controls.sourceTitle, hit.path || ".");
@@ -1033,6 +1144,7 @@ async function selectMapTarget(worldPoint) {
     fetchJson(`/api/resolve?${query}`),
     fetchJson(`/api/source?${query}`),
   ]);
+  syncHashRoute(createMapHashRoute(address.targetType, address.geohash, { path: hit.path, lines: `${lineStart}-${lineEnd}` }));
 
   setText(controls.sourceTitle, `${hit.path} · ${address.deepLink}`);
   setText(controls.sourceOutput, source.lines
@@ -1071,6 +1183,7 @@ function selectAnnotation(annotation) {
   state.selectedTarget = { ...annotation, targetType: "annotation" };
   state.draftSelection = null;
   state.resolvedSelection = null;
+  syncHashRoute(createAnnotationHashRoute(annotation.id));
   if (controls.selectionName) controls.selectionName.value = annotation.name ?? "";
   if (controls.selectionComment) controls.selectionComment.value = annotation.comment ?? "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
@@ -1136,6 +1249,32 @@ function setText(element, value) {
   if (element) element.textContent = value;
 }
 
+function targetForPath(path) {
+  const normalized = path.replaceAll("\\", "/").replace(/^\.\//, "");
+  if (state.map.files[normalized]) return { ...state.map.files[normalized], targetType: "file" };
+  if (state.map.folders[normalized]) return { ...state.map.folders[normalized], targetType: "folder" };
+  return null;
+}
+
+function targetForGeohash(geohash, kind) {
+  const candidates = kind === "folder"
+    ? Object.values(state.map.folders).filter((folder) => folder.path)
+    : Object.values(state.map.files);
+  const target = candidates.find((candidate) => candidate.geo.geohash.startsWith(geohash))
+    ?? candidates.find((candidate) => geohash.startsWith(candidate.geo.geohash));
+  return target ? { ...target, targetType: kind === "folder" ? "folder" : "file" } : null;
+}
+
+function parseLineRange(value) {
+  if (!value) return null;
+  const match = value.match(/^(\d+)(?:-(\d+))?$/);
+  if (!match) return null;
+  return {
+    start: Number(match[1]),
+    end: Number(match[2] ?? match[1]),
+  };
+}
+
 async function previewSelection() {
   const draftSelection = state.draftSelection;
   if (!draftSelection) return;
@@ -1147,6 +1286,7 @@ async function previewSelection() {
   const resolvedSelection = await postJson("/api/selections/resolve", body);
   if (state.draftSelection !== draftSelection) return;
   state.resolvedSelection = resolvedSelection;
+  syncHashRoute(createSelectionHashRoute({ level: DEFAULT_MAP_LEVEL, bounds: resolvedSelection.geometry.bounds }));
   if (controls.saveSelection) controls.saveSelection.disabled = false;
   setText(controls.selectionOutput, selectionSummary(state.resolvedSelection));
   updateSelectionPopover();
@@ -1164,6 +1304,7 @@ async function saveSelection() {
   state.namedPlaces.push(saved.annotation);
   setText(controls.selectionOutput, annotationSummary(saved.annotation));
   state.selectedTarget = { ...saved.annotation, targetType: "annotation" };
+  syncHashRoute(createAnnotationHashRoute(saved.annotation.id));
   state.draftSelection = null;
   state.resolvedSelection = null;
   if (controls.saveSelection) controls.saveSelection.disabled = true;

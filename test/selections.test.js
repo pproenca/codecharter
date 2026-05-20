@@ -44,8 +44,12 @@ test("creates map annotations with a Codex-ready spatial prompt", () => {
 
   assert.equal(annotation.kind, "mapAnnotation");
   assert.equal(annotation.comment, "hey explore this area");
+  assert.equal(annotation.deepLink, `codemap://annotation/${annotation.id}`);
+  assert.equal(annotation.browserHash, `#/annotation/${annotation.id}`);
   assert.equal(annotation.resolvedTargets.length, 1);
   assert.match(annotation.codexPrompt, /Explore codemap annotation "Search review"/);
+  assert.match(annotation.codexPrompt, /codemap:\/\/annotation\//);
+  assert.match(annotation.codexPrompt, /#\/annotation\//);
   assert.match(annotation.codexPrompt, /src\/a\.ts/);
   assert.match(annotation.codexPrompt, /hey explore this area/);
 });

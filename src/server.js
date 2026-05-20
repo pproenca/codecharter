@@ -178,6 +178,16 @@ async function handleApi(state, request, response, url) {
     return;
   }
 
+  if (request.method === "GET" && url.pathname.startsWith("/api/annotations/")) {
+    const codemap = await loadCodemap(state);
+    const id = decodeURIComponent(url.pathname.slice("/api/annotations/".length));
+    const store = refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }));
+    const annotation = store.places.find((place) => place.kind === "mapAnnotation" && place.id === id);
+    if (!annotation) throw httpError(404, `No annotation found for id: ${id}`);
+    sendJson(response, 200, { annotation });
+    return;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/annotations") {
     const codemap = await loadCodemap(state);
     const body = await readBody(request);

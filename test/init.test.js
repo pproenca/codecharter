@@ -425,6 +425,51 @@ test("codecharter codex-hook maps Bash read commands as reading activity", async
   assert.match(event.address.deepLink, /path=src%2Fapp\.ts/);
 });
 
+test("codecharter codex-hook maps sed reads under plural path segments", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-codex-hook-packages-read-"));
+  await mkdir(join(root, "packages", "feature"), { recursive: true });
+  await writeFile(join(root, "packages", "feature", "AGENTS.md"), [
+    "# Feature",
+    "Read me",
+    "",
+  ].join("\n"));
+  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileAsync("git", ["add", "packages/feature/AGENTS.md"], { cwd: root });
+  await execFileAsync("git", ["-c", "user.name=CodeCharter", "-c", "user.email=codecharter@example.invalid", "commit", "-m", "init"], { cwd: root });
+  await execFileAsync("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "generate",
+    "--root",
+    root,
+    "--out",
+    join(root, "codecharter.json"),
+    "--quiet",
+  ], { cwd: root });
+
+  const payload = {
+    session_id: "session-packages-read",
+    turn_id: "turn-packages-read",
+    cwd: root,
+    hook_event_name: "PostToolUse",
+    tool_name: "exec_command",
+    tool_input: { cmd: "sed -n '1,2p' packages/feature/AGENTS.md" },
+    model: "gpt-test",
+  };
+
+  await execFileWithInput("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "codex-hook",
+  ], { cwd: root, input: JSON.stringify(payload) });
+
+  const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
+  assert.equal(lines.length, 1);
+  const event = JSON.parse(lines[0]);
+  assert.equal(event.activityState, "reading");
+  assert.equal(event.note, "Codex read packages/feature/AGENTS.md");
+  assert.deepEqual(event.address.lineRange, { start: 1, end: 2 });
+  assert.match(event.address.deepLink, /path=packages%2Ffeature%2FAGENTS\.md/);
+});
+
 test("codecharter codex-hook maps Codex app shell reads as reading activity", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-codex-hook-app-read-"));
   await mkdir(join(root, "src"), { recursive: true });

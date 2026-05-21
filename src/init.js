@@ -299,7 +299,7 @@ description: Use when a prompt contains a CodeCharter annotation, codecharter://
 
 Use the CodeCharter CLI as the communication path. Do not use browser automation to inspect annotations unless the user explicitly asks for visual UI testing.
 
-If \`command -v codecharter\` fails, run the same command through \`${npxCommand}\`. For example, \`${npxCommand} annotation <id-or-url>\`.
+If \`command -v codecharter\` fails, run the same command through \`${npxCommand}\`. For example, \`${npxCommand} --json annotation <id-or-url>\`.
 
 ## Annotation Prompts
 
@@ -315,17 +315,17 @@ CodeCharter annotation prompts may include:
 
 1. Run \`codecharter --json doctor\` when setup state, hooks, skill installation, map storage, or server reachability is unclear.
 2. If the binary is missing, rerun the prior command as \`${npxCommand} ...\`.
-3. Run \`codecharter annotation <id-or-url>\` for pasted annotation prompts. Pass the full CodeCharter URL when available.
+3. Run \`codecharter --json annotation <id-or-url>\` for pasted annotation prompts. Pass the full CodeCharter URL when available.
 4. Use \`resolvedTargets\` from the command output as the authoritative target list.
-5. Read only needed ranges with \`codecharter source <path> [lineStart] [lineEnd]\`.
+5. Read only needed ranges with \`codecharter --json source <path> [lineStart] [lineEnd]\`.
 6. Treat \`Corner geohashes\` as the selected rectangle's spatial frame, not as files to expand or scan.
 7. If a target is too broad, inspect annotation names, bounds, and target metadata before reading source.
 
 ## Fallbacks
 
-- \`codecharter annotation\` uses the local server when the URL includes one, otherwise it reads \`.codecharter/named-places.json\` and refreshes against \`.codecharter/codecharter.json\`.
-- Use \`codecharter annotations\` to list known annotations.
-- Use \`codecharter api /api/...\` with \`--server <url>\` only as a read-only GET escape hatch when a high-level command is missing.
+- \`codecharter --json annotation\` uses the local server when the URL includes one, otherwise it reads \`.codecharter/named-places.json\` and refreshes against \`.codecharter/codecharter.json\`.
+- Use \`codecharter --json annotations\` to list known annotations.
+- Use \`codecharter --json api /api/...\` with \`--server <url>\` only as a read-only GET escape hatch when a high-level command is missing.
 - If both map and annotation storage are unavailable, ask the user to start CodeCharter with \`codecharter dev\` or paste the annotation JSON.
 
 ## Do Not
@@ -340,12 +340,12 @@ CodeCharter annotation prompts may include:
 \`\`\`sh
 codecharter --json doctor
 npx --yes codecharter@${version} --json doctor
-codecharter annotation codecharter://annotation/<id>
-npx --yes codecharter@${version} annotation codecharter://annotation/<id>
-codecharter annotation 'http://127.0.0.1:4173/#/annotation/<id>'
-codecharter annotation <id> --root /path/to/repo
-codecharter source src/app.ts 1 80
-codecharter annotations --server http://127.0.0.1:4173 --limit 10
+codecharter --json annotation codecharter://annotation/<id>
+npx --yes codecharter@${version} --json annotation codecharter://annotation/<id>
+codecharter --json annotation 'http://127.0.0.1:4173/#/annotation/<id>'
+codecharter --json annotation <id> --root /path/to/repo
+codecharter --json source src/app.ts 1 80
+codecharter --json annotations --server http://127.0.0.1:4173 --limit 10
 \`\`\`
 `;
 }

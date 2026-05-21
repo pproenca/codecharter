@@ -23,15 +23,15 @@ Codex can resolve annotation prompts without browser automation:
 ```sh
 codecharter --json doctor
 npx --yes codecharter@latest --json doctor
-codecharter annotation 'http://127.0.0.1:4173/#/annotation/<id>'
-codecharter annotation codecharter://annotation/<id>
-npx --yes codecharter@latest annotation codecharter://annotation/<id>
-codecharter source src/app.ts 1 80
+codecharter --json annotation 'http://127.0.0.1:4173/#/annotation/<id>'
+codecharter --json annotation codecharter://annotation/<id>
+npx --yes codecharter@latest --json annotation codecharter://annotation/<id>
+codecharter --json source src/app.ts 1 80
 ```
 
-The agent contract is CLI-first. `doctor` prints setup, auth, map, hook, skill, package-version, command fallback, and optional server reachability diagnostics. `annotation` prints JSON with the refreshed annotation, `resolvedTargets`, and `targetCount`. If the URL includes a local server origin, CodeCharter reads `/api/annotations/<id>`; otherwise it falls back to `.codecharter/named-places.json` and `.codecharter/codecharter.json`. `source` reads a bounded file range from the map. `api` is a read-only raw escape hatch for local `/api/...` endpoints. Copied annotation prompts include the exact `codecharter annotation ...` command and an `npx --yes codecharter ...` fallback, so Codex does not need browser automation for normal annotation work.
+The agent contract is CLI-first. `doctor` prints setup, auth, map, hook, skill, package-version, command fallback, and optional server reachability diagnostics. Under `--json`, `annotation` prints a stable JSON object with the refreshed annotation, `resolvedTargets`, and `targetCount`. Without `--json`, read commands print terse line-oriented output for humans. If the URL includes a local server origin, CodeCharter reads `/api/annotations/<id>`; otherwise it falls back to `.codecharter/named-places.json` and `.codecharter/codecharter.json`. `source` reads a bounded file range from the map. `api` is a read-only raw escape hatch for local `/api/...` endpoints. Copied annotation prompts include the exact `codecharter --json annotation ...` command and an `npx --yes codecharter --json ...` fallback, so Codex does not need browser automation for normal annotation work.
 
-JSON policy: read commands print stable JSON objects. Errors under `--json` use `{ "ok": false, "error": { "message": "..." } }`. CodeCharter does not require auth; `doctor` reports `auth.required: false`.
+JSON policy: read commands print stable JSON objects only under `--json`; otherwise they print terse line-oriented output. Errors under `--json` use `{ "ok": false, "error": { "message": "..." } }`. CodeCharter does not require auth; `doctor` reports `auth.required: false`.
 
 If you only want to prepare files and hooks without starting the viewer:
 
@@ -63,11 +63,11 @@ While `codecharter dev` is running, changed code files refresh `.codecharter/cod
 codecharter init
 codecharter dev --setup
 codecharter --json doctor
-codecharter annotations --server http://127.0.0.1:4173
-codecharter annotation codecharter://annotation/<id>
-codecharter source public/app.js 1 20
-codecharter resolve public/app.js 1 20
-codecharter api /api/annotations --server http://127.0.0.1:4173
+codecharter --json annotations --server http://127.0.0.1:4173
+codecharter --json annotation codecharter://annotation/<id>
+codecharter --json source public/app.js 1 20
+codecharter --json resolve public/app.js 1 20
+codecharter --json api /api/annotations --server http://127.0.0.1:4173
 ```
 
 `codecharter init` prepares the Map Sidecar and local Activity Archive without serving the app. `codecharter dev --setup` is equivalent to initializing first and then starting the viewer. `annotation` is the agent-safe read path for turning a pasted CodeCharter annotation prompt into JSON. `annotations` lists saved annotations, `source` reads bounded source ranges, `resolve` turns paths and ranges into geohash-backed Map Addresses, and `api` performs read-only GETs against local CodeCharter API endpoints.

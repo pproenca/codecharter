@@ -91,6 +91,7 @@ test("CLI resolve prints token-range map addresses", async () => {
 
   const { stdout } = await execFileAsync("node", [
     join(process.cwd(), "bin/codemap.mjs"),
+    "--json",
     "resolve",
     "src/app.ts",
     "2",
@@ -112,6 +113,7 @@ test("CLI activity telemetry never exits non-zero for an unmapped path", async (
 
   const { stdout } = await execFileAsync("node", [
     join(process.cwd(), "bin/codemap.mjs"),
+    "--json",
     "activity",
     "src/missing.ts",
     "1",

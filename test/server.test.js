@@ -64,7 +64,7 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.equal(annotationResponse.annotation.deepLink, `codecharter://annotation/${annotationResponse.annotation.id}`);
     assert.equal(annotationResponse.annotation.browserHash, `#/annotation/${annotationResponse.annotation.id}`);
     assert.match(annotationResponse.annotation.codexPrompt, /CodeCharter annotation: codecharter:\/\/annotation\//);
-    assert.match(annotationResponse.annotation.codexPrompt, /CLI: codecharter annotation codecharter:\/\/annotation\//);
+    assert.match(annotationResponse.annotation.codexPrompt, /CLI: codecharter --json annotation codecharter:\/\/annotation\//);
     assert.match(annotationResponse.annotation.codexPrompt, /Note: hey explore this area/);
     assert.doesNotMatch(annotationResponse.annotation.codexPrompt, /Browser route/);
     assert.doesNotMatch(annotationResponse.annotation.codexPrompt, /Corner geohashes/);
@@ -87,6 +87,19 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.equal(cliAnnotations.source, "server");
     assert.equal(cliAnnotations.count, 1);
     assert.equal(cliAnnotations.annotations[0].id, annotationResponse.annotation.id);
+
+    const { stdout: plainAnnotation } = await execFileAsync(process.execPath, [
+      join(process.cwd(), "bin", "codemap.mjs"),
+      "annotation",
+      `${baseUrl}/#/annotation/${annotationResponse.annotation.id}`,
+      "--root",
+      root,
+      "--map",
+      join(root, "codecharter.json"),
+    ]);
+    assert.match(plainAnnotation, /^annotation: /m);
+    assert.match(plainAnnotation, /^targets: 1$/m);
+    assert.doesNotMatch(plainAnnotation.trim(), /^\{/);
 
     const cliSource = await runCliJson([
       "source",
@@ -270,6 +283,7 @@ test("CLI reads annotations from a CodeCharter URL or local storage without brow
 
     const { stdout } = await execFileAsync(process.execPath, [
       join(process.cwd(), "bin", "codemap.mjs"),
+      "--json",
       "annotation",
       `${baseUrl}/#/annotation/${created.annotation.id}`,
       "--root",
@@ -291,6 +305,7 @@ test("CLI reads annotations from a CodeCharter URL or local storage without brow
 
   const { stdout } = await execFileAsync(process.execPath, [
     join(process.cwd(), "bin", "codemap.mjs"),
+    "--json",
     "annotation",
     created.annotation.deepLink,
     "--root",
@@ -356,6 +371,7 @@ async function deleteJson(url) {
 async function runCliJson(args) {
   const { stdout } = await execFileAsync(process.execPath, [
     join(process.cwd(), "bin", "codemap.mjs"),
+    "--json",
     ...args,
   ]);
   return JSON.parse(stdout);

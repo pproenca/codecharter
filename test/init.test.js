@@ -40,9 +40,9 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
   assert.match(skill, /CodeCharter annotation/);
   assert.match(skill, /Corner geohashes/);
   assert.match(skill, /resolvedTargets/);
-  assert.match(skill, /codecharter annotation <id-or-url>/);
-  assert.match(skill, /npx --yes codecharter@\d+\.\d+\.\d+ annotation <id-or-url>/);
-  assert.match(skill, /codecharter source <path>/);
+  assert.match(skill, /codecharter --json annotation <id-or-url>/);
+  assert.match(skill, /npx --yes codecharter@\d+\.\d+\.\d+ --json annotation <id-or-url>/);
+  assert.match(skill, /codecharter --json source <path>/);
   assert.match(skill, /Do not bulk-read every file/);
   assert.match(skill, /Do not prefer browser automation over CLI reads/);
   const skillUi = await readFile(join(root, ".agents", "skills", "codecharter", "agents", "openai.yaml"), "utf8");

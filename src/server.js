@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createActivityEvent } from "./activity.js";
 import { createActivityStore } from "./activity-store.js";
 import { findNamedPlaceOverlaps } from "./overlaps.js";
-import { resolveAddress } from "./resolver.js";
+import { normalizePathForMap, resolveAddress } from "./resolver.js";
 import { createMapAnnotation, createNamedAddress, createNamedSelection, refreshPlaceResolution, resolveSelection } from "./selections.js";
 import { readSourceRange } from "./source.js";
 import { readJson, writeJson } from "./store.js";
@@ -201,7 +201,7 @@ async function getResolveApi(state, request, response, url) {
 async function getSourceApi(state, request, response, url) {
   const codemap = await loadCodemap(state);
   const path = requiredParam(url, "path");
-  const file = codemap.files[path];
+  const file = codemap.files[normalizePathForMap(path)];
   if (!file) throw httpError(404, `No source file found for path: ${path}`);
   sendJson(response, 200, await readSourceRange(state.root, file, {
     lineStart: optionalNumber(url.searchParams.get("lineStart")) ?? 1,
@@ -218,10 +218,22 @@ async function postNamedPlacesApi(state, request, response) {
   const codemap = await loadCodemap(state);
   const body = await readBody(request);
   const store = await readJson(state.namedPlacesPath, { places: [] });
-  const place = body.kind === "mapAddress" ? createNamedAddress(body) : createNamedSelection(codemap, body);
+  const place = createNamedPlace(codemap, body);
   store.places.push(place);
   await writeJson(state.namedPlacesPath, store);
   sendJson(response, 201, { place, overlaps: findNamedPlaceOverlaps(store.places) });
+}
+
+const NAMED_PLACE_CREATORS = Object.freeze({
+  drawnSelection: (codemap, body) => createNamedSelection(codemap, body),
+  mapAddress: (_codemap, body) => createNamedAddress(body),
+});
+
+function createNamedPlace(codemap, body) {
+  const kind = body.kind ?? "drawnSelection";
+  const creator = NAMED_PLACE_CREATORS[kind];
+  if (!creator) throw httpError(400, `Unknown named-place kind: ${kind}`);
+  return creator(codemap, body);
 }
 
 async function getAnnotationsApi(state, request, response) {

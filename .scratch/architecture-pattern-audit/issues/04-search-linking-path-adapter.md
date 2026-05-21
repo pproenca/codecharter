@@ -15,3 +15,5 @@ Adapter applies because the boundary translates caller-facing filesystem path sp
 ## Progress
 
 Implemented the first path-adapter slice in `src/resolver.js` and `public/render-model.js`. `resolveAddress` and browser `targetForPath` now normalize `.` to the root sidecar key, strip a leading `./`, convert backslashes, and strip trailing slashes.
+
+Extended the same adapter boundary to `/api/source` so source-context reads accept ordinary path spellings such as `./src/app.ts` instead of requiring the exact sidecar map key.

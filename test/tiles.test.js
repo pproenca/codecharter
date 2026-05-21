@@ -28,6 +28,28 @@ test("returns one tile by prefix", () => {
   assert.equal(tile.targets[0].path, "src");
 });
 
+test("orders tile targets deterministically by map target kind and path", () => {
+  const unorderedCodemap = {
+    folders: {
+      "src/utils": target("src/utils", "s12345678901", { x: 0.2, y: 0, width: 0.2, height: 1 }),
+      src: target("src", "s12345678901", { x: 0, y: 0, width: 0.4, height: 1 }),
+    },
+    files: {
+      "src/b.ts": target("src/b.ts", "s12345678901", { x: 0.3, y: 0, width: 0.1, height: 1 }),
+      "src/a.ts": target("src/a.ts", "s12345678901", { x: 0.2, y: 0, width: 0.1, height: 1 }),
+    },
+  };
+
+  const tile = getTile(unorderedCodemap, { level: "folder", prefix: "s123" });
+
+  assert.deepEqual(tile.targets.map((target) => target.path), [
+    "src",
+    "src/utils",
+    "src/a.ts",
+    "src/b.ts",
+  ]);
+});
+
 function target(path, geohash, bounds) {
   return {
     path,

@@ -10,17 +10,31 @@ import {
   activityTissueBox,
   activityVisualEncoding,
   activityActorKey,
+  annotationClipboardText,
+  cachedSourceRange,
   canRenderSourceText,
   detailBand,
+  draftSelectionFromDrag,
   fileVisualState,
   hitTestTargets,
+  hashRouteFocusIntent,
+  interactionModeUiState,
+  isUsableDraftSelection,
+  canvasKeyboardAction,
+  documentKeyboardAction,
+  doubleClickMapAction,
   isLiveActivityEvent,
   labelBoxesOverlap,
   landmarkScore,
   lineAtWorldPoint,
+  mapRouteTarget,
+  mapSearchMatch,
+  mapSelectionPanel,
+  mapTargetSelectionAction,
   maxFolderDepthForScale,
   organicRegionPoints,
   organicTrailSegments,
+  panViewForDrag,
   latestActivityByAgent,
   normalizeMapPath,
   panViewByScreenDelta,
@@ -30,7 +44,10 @@ import {
   shouldDrawOrganicRegion,
   shouldLabelFile,
   simplifyTrailPoints,
+  rememberSourceRange,
   sourceContextRequest,
+  sourcePanelState,
+  sourceRangeCacheKey,
   formatSourceLines,
   sourcePanelLineRangeForBox,
   sortedActivityEvents,
@@ -174,6 +191,66 @@ test("pans camera by screen-space deltas for wheel and keyboard navigation", () 
   assert.deepEqual(roundPoint(view), { x: 0.133333333333, y: 0.166666666667, scale: 3 });
 });
 
+test("pans camera from a pointer drag without using the live view as the anchor", () => {
+  const viewport = { width: 900, height: 600 };
+  const drag = {
+    start: { x: 120, y: 160 },
+    view: { x: 0.1, y: 0.2, scale: 3 },
+  };
+  const view = panViewForDrag(drag, { x: 210, y: 100 }, viewport);
+
+  assert.deepEqual(roundPoint(view), { x: 0.066666666667, y: 0.233333333333, scale: 3 });
+});
+
+test("decodes keyboard actions without coupling to browser effects", () => {
+  assert.deepEqual(canvasKeyboardAction({ key: "ArrowRight" }), {
+    type: "pan",
+    delta: { x: 72, y: 0 },
+  });
+  assert.deepEqual(canvasKeyboardAction({ key: "=" }), { type: "zoomIn" });
+  assert.deepEqual(canvasKeyboardAction({ key: "0" }), { type: "fitCodebase" });
+  assert.deepEqual(canvasKeyboardAction({ key: "Enter" }), { type: "selectCenter" });
+  assert.equal(canvasKeyboardAction({ key: "a" }), null);
+
+  assert.deepEqual(documentKeyboardAction({
+    code: "Space",
+    key: " ",
+    repeat: false,
+  }, {
+    textEntry: false,
+    buttonTarget: false,
+  }), { type: "startSpacePan" });
+  assert.deepEqual(documentKeyboardAction({
+    key: "Enter",
+    metaKey: true,
+  }, {
+    hasResolvedSelection: true,
+  }), { type: "saveSelection" });
+  assert.deepEqual(documentKeyboardAction({
+    key: "c",
+    ctrlKey: true,
+  }, {
+    textEntry: false,
+    hasSelectedAnnotation: true,
+  }), { type: "copyAnnotationPrompt" });
+});
+
+test("derives double-click map navigation actions without binding to browser effects", () => {
+  assert.equal(doubleClickMapAction(null), null);
+  assert.equal(doubleClickMapAction({ targetType: "file", path: "src/app.ts" }).type, "selectFile");
+  assert.equal(doubleClickMapAction({ targetType: "folder", path: "src" }).type, "selectFolder");
+  assert.equal(doubleClickMapAction({ targetType: "annotation", id: "a1" }).type, "focusAnnotation");
+  assert.deepEqual(doubleClickMapAction({ targetType: "activity", id: "event-1" }), { type: "selectActivity" });
+});
+
+test("derives map target selection actions without binding to source panel effects", () => {
+  assert.deepEqual(mapTargetSelectionAction(null), { type: "clearSelection" });
+  assert.deepEqual(mapTargetSelectionAction({ targetType: "annotation", id: "a1" }), { type: "focusAnnotation" });
+  assert.deepEqual(mapTargetSelectionAction({ targetType: "activity", id: "event-1" }), { type: "selectActivity" });
+  assert.deepEqual(mapTargetSelectionAction({ targetType: "folder", path: "src" }), { type: "inspectFolder" });
+  assert.deepEqual(mapTargetSelectionAction({ targetType: "file", path: "src/app.ts" }), { type: "inspectFile" });
+});
+
 test("fits bounds and readable files into a deterministic camera view", () => {
   const viewport = { width: 1000, height: 800 };
   const bounds = { x: 0.2, y: 0.25, width: 0.2, height: 0.1 };
@@ -191,6 +268,55 @@ test("fits bounds and readable files into a deterministic camera view", () => {
   const readableBox = screenBoundsForView(file.bounds, readableView, viewport);
 
   assert.equal(canRenderSourceText(file, readableBox), true);
+});
+
+test("derives interaction mode UI state from controller flags", () => {
+  assert.deepEqual(interactionModeUiState({
+    drawing: false,
+    panning: false,
+    spacePanning: false,
+    dragging: null,
+  }), {
+    selectActive: true,
+    panActive: false,
+    drawActive: false,
+    panningMode: false,
+    drawingMode: false,
+    spacePanningMode: false,
+    panning: false,
+  });
+
+  assert.deepEqual(interactionModeUiState({
+    drawing: true,
+    panning: false,
+    spacePanning: true,
+    dragging: { type: "pan" },
+  }), {
+    selectActive: false,
+    panActive: true,
+    drawActive: true,
+    panningMode: false,
+    drawingMode: false,
+    spacePanningMode: true,
+    panning: true,
+  });
+});
+
+test("derives draft selection geometry and screen-pixel usability", () => {
+  const selection = draftSelectionFromDrag({ x: 0.2, y: 0.3 }, { x: 0.24, y: 0.38 });
+
+  assert.equal(selection.type, "rect");
+  assert.deepEqual(roundPoint(selection.bounds), { x: 0.2, y: 0.3, width: 0.04, height: 0.08 });
+  assert.equal(isUsableDraftSelection(selection, {
+    viewport: { width: 200, height: 100 },
+    scale: 1,
+    minPixels: 4,
+  }), true);
+  assert.equal(isUsableDraftSelection(selection, {
+    viewport: { width: 80, height: 40 },
+    scale: 1,
+    minPixels: 4,
+  }), false);
 });
 
 test("derives visible source ranges and selected lines from rendered geometry", () => {
@@ -223,10 +349,212 @@ test("builds source-context requests and formats panel lines consistently", () =
   }), "   7  const app = true;\n  12  export default app;");
 });
 
+test("derives source panel state for code context and activity fallbacks", () => {
+  assert.deepEqual(sourcePanelState({
+    path: "src/app.ts",
+    deepLink: "codecharter://lineRange/s000?path=src%2Fapp.ts&lines=7-12",
+    source: {
+      lines: [
+        { number: 7, text: "const app = true;" },
+        { number: 12, text: "export default app;" },
+      ],
+    },
+  }), {
+    sourceTitle: "src/app.ts · codecharter://lineRange/s000?path=src%2Fapp.ts&lines=7-12",
+    sourceOutput: "   7  const app = true;\n  12  export default app;",
+    scrollTop: 0,
+  });
+
+  assert.deepEqual(sourcePanelState({
+    deepLink: "codecharter://activity/s000",
+    fallbackOutput: "Activity selected.",
+  }), {
+    sourceTitle: "codecharter://activity/s000",
+    sourceOutput: "Activity selected.",
+  });
+});
+
+test("caches source ranges as an LRU proxy for source reads", () => {
+  const cache = new Map();
+  const appSource = {
+    path: "src/app.ts",
+    lineRange: { start: 1, end: 10 },
+    lines: [{ number: 1, text: "one" }],
+  };
+  const otherSource = {
+    path: "src/other.ts",
+    lineRange: { start: 1, end: 5 },
+    lines: [{ number: 1, text: "other" }],
+  };
+
+  rememberSourceRange(cache, sourceRangeCacheKey("src/app.ts", 1, 10), appSource, 2);
+  rememberSourceRange(cache, sourceRangeCacheKey("src/other.ts", 1, 5), otherSource, 2);
+
+  assert.equal(cachedSourceRange(cache, "./src/app.ts", 3, 4), appSource);
+  assert.deepEqual([...cache.keys()], [
+    sourceRangeCacheKey("src/other.ts", 1, 5),
+    sourceRangeCacheKey("src/app.ts", 1, 10),
+  ]);
+
+  rememberSourceRange(cache, sourceRangeCacheKey("src/third.ts", 1, 2), {
+    path: "src/third.ts",
+    lineRange: { start: 1, end: 2 },
+    lines: [],
+  }, 2);
+
+  assert.equal(cachedSourceRange(cache, "src/other.ts", 1, 1), null);
+});
+
+test("formats annotation clipboard text with deep links and browser URLs", () => {
+  const text = annotationClipboardText({
+    id: "annotation-1",
+    deepLink: "codecharter://annotation/annotation-1",
+    browserHash: "#/annotation/annotation-1",
+    comment: "Check this region",
+    resolvedTargets: [{ path: "src/app.ts" }, { path: "src/server.ts" }],
+  }, {
+    origin: "http://127.0.0.1:3000",
+    href: "http://127.0.0.1:3000/#/map/file/s000000?path=src%2Fapp.ts",
+  });
+
+  assert.match(text, /CodeCharter annotation: codecharter:\/\/annotation\/annotation-1/);
+  assert.match(text, /Targets: 2/);
+  assert.match(text, /Note: Check this region/);
+  assert.match(text, /CLI: codecharter --json resolve "codecharter:\/\/annotation\/annotation-1" --server "http:\/\/127\.0\.0\.1:3000"/);
+  assert.match(text, /CodeCharter URL: http:\/\/127\.0\.0\.1:3000\/#\/annotation\/annotation-1/);
+  assert.doesNotMatch(text, /src\/app\.ts/);
+});
+
 test("normalizes ordinary paths to sidecar map keys", () => {
   assert.equal(normalizeMapPath("."), "");
   assert.equal(normalizeMapPath("./src/"), "src");
   assert.equal(normalizeMapPath("src\\app.ts"), "src/app.ts");
+});
+
+test("resolves browser map route targets through path metadata or geohash prefix", () => {
+  const codemap = {
+    files: {
+      "src/app.ts": codeFile({
+        path: "src/app.ts",
+        name: "app.ts",
+        bounds: { x: 0.2, y: 0.2, width: 0.2, height: 0.2 },
+        geo: { geohash: "s00000000000", lat: 0, lon: 0 },
+      }),
+    },
+    folders: {
+      src: {
+        path: "src",
+        name: "src",
+        bounds: { x: 0.1, y: 0.1, width: 0.4, height: 0.4 },
+        geo: { geohash: "s0000000zzzz", lat: 0, lon: 0 },
+      },
+    },
+  };
+
+  const byPath = mapRouteTarget(codemap, {
+    kind: "file",
+    locator: "ignored",
+    params: new URLSearchParams("path=.%2Fsrc%2Fapp.ts"),
+  });
+  const byPrefix = mapRouteTarget(codemap, {
+    kind: "folder",
+    locator: "s000000",
+    params: new URLSearchParams(),
+  });
+
+  assert.equal(byPath.targetType, "file");
+  assert.equal(byPath.path, "src/app.ts");
+  assert.equal(byPrefix.targetType, "folder");
+  assert.equal(byPrefix.path, "src");
+});
+
+test("derives browser hash route focus intents without binding to controller effects", () => {
+  const params = new URLSearchParams("path=src%2Fapp.ts");
+  assert.deepEqual(hashRouteFocusIntent({
+    type: "annotation",
+    id: "annotation-1",
+    params,
+  }), { type: "annotation", id: "annotation-1" });
+
+  assert.deepEqual(hashRouteFocusIntent({
+    type: "selection",
+    params,
+  }), { type: "selection", params });
+
+  const mapRoute = {
+    type: "map",
+    kind: "file",
+    locator: "s000000",
+    params,
+  };
+  assert.deepEqual(hashRouteFocusIntent(mapRoute), { type: "map", route: mapRoute });
+  assert.equal(hashRouteFocusIntent(mapRoute, { hasMap: false }), null);
+  assert.equal(hashRouteFocusIntent({ type: "unknown" }), null);
+});
+
+test("resolves map search matches by navigation priority", () => {
+  const codemap = {
+    files: {
+      "src/app.ts": codeFile({
+        path: "src/app.ts",
+        name: "app.ts",
+        geo: { geohash: "s00000000000", lat: 0, lon: 0 },
+      }),
+    },
+    folders: {
+      "src/features": {
+        path: "src/features",
+        name: "features",
+        bounds: { x: 0.1, y: 0.1, width: 0.4, height: 0.4 },
+        geo: { geohash: "u12345000000", lat: 0, lon: 0 },
+      },
+    },
+  };
+  const namedPlaces = [{
+    id: "annotation-1",
+    kind: "mapAnnotation",
+    name: "App note",
+    geometry: { bounds: { x: 0.3, y: 0.3, width: 0.1, height: 0.1 } },
+  }];
+
+  const annotation = mapSearchMatch(codemap, namedPlaces, "app");
+  const folder = mapSearchMatch(codemap, namedPlaces, "u12345");
+
+  assert.equal(annotation.type, "annotation");
+  assert.equal(annotation.label, "Annotation: App note");
+  assert.equal(annotation.target.targetType, "annotation");
+  assert.equal(folder.type, "folder");
+  assert.equal(folder.label, "Folder: src/features");
+});
+
+test("derives map selection panel copy for empty, folder, and file targets", () => {
+  assert.deepEqual(mapSelectionPanel(null), {
+    inspectorTitle: "No place selected",
+    inspectorSubtitle: "Click a district, parcel, or activity marker.",
+    sourceTitle: "No file selected",
+    sourceOutput: "",
+  });
+
+  assert.deepEqual(mapSelectionPanel({
+    targetType: "folder",
+    path: "",
+    geo: { geohash: "s000000" },
+  }), {
+    inspectorTitle: "Codebase",
+    inspectorSubtitle: "folder: . | s000000",
+    sourceTitle: ".",
+    sourceOutput: "Folder selected.",
+  });
+
+  assert.deepEqual(mapSelectionPanel({
+    targetType: "file",
+    path: "src/app.ts",
+    name: "app.ts",
+    geo: { geohash: "s000001" },
+  }), {
+    inspectorTitle: "app.ts",
+    inspectorSubtitle: "file: src/app.ts | s000001",
+  });
 });
 
 test("hit-testing prefers the smallest containing file before enclosing folders", () => {

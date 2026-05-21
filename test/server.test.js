@@ -44,6 +44,9 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     const source = await getJson(`${baseUrl}/api/source?path=src/app.ts&lineStart=1&lineEnd=2`);
     assert.deepEqual(source.lines.map((line) => line.text), ["const app = true;", "export default app;"]);
 
+    const sourceViaOrdinaryPath = await getJson(`${baseUrl}/api/source?path=./src/app.ts&lineStart=1&lineEnd=2`);
+    assert.deepEqual(sourceViaOrdinaryPath.lines.map((line) => line.text), ["const app = true;", "export default app;"]);
+
     const namedPlaceResponse = await postJson(`${baseUrl}/api/named-places`, {
       name: "App Area",
       level: "file",
@@ -211,6 +214,36 @@ test("distinguishes unknown API routes from unsupported methods on known routes"
   } finally {
     server.close();
     await once(server, "close");
+  }
+});
+
+test("rejects unknown named-place creation kinds before storing them", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-named-place-kind-"));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
+  const server = await startServer({
+    root,
+    mapPath: join(root, "codecharter.json"),
+    port: 0,
+  });
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  try {
+    const response = await postJsonResponse(`${baseUrl}/api/named-places`, {
+      kind: "unknownPlace",
+      name: "Wrong kind",
+      level: "file",
+      geometry: { type: "rect", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    });
+
+    assert.equal(response.status, 400);
+    assert.match(response.body.error, /Unknown named-place kind: unknownPlace/);
+
+    const namedPlaces = await getJson(`${baseUrl}/api/named-places`);
+    assert.equal(namedPlaces.places.length, 0);
+  } finally {
+    const closed = once(server, "close");
+    server.close();
+    await closed;
   }
 });
 
@@ -425,13 +458,23 @@ async function getJson(url) {
 }
 
 async function postJson(url, body) {
+  const response = await postJsonResponse(url, body);
+  if (!response.ok) assert.fail(JSON.stringify(response.body));
+  return response.body;
+}
+
+async function postJsonResponse(url, body) {
   const response = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!response.ok) assert.fail(await response.text());
-  return response.json();
+  const responseBody = await response.json();
+  return {
+    ok: response.ok,
+    status: response.status,
+    body: responseBody,
+  };
 }
 
 async function deleteJson(url) {

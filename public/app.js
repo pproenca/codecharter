@@ -1,5 +1,4 @@
 import {
-  SOURCE_CACHE_LIMIT,
   SOURCE_TEXT_MAX_LINES_PER_FRAME,
   SOURCE_TEXT_PREFETCH_LINES,
   activityFragmentBounds,
@@ -10,16 +9,27 @@ import {
   activityTissueBox,
   activityVisualEncoding,
   activityActorKey,
+  annotationClipboardText,
   boundsCenter as modelBoundsCenter,
+  cachedSourceRange,
+  canvasKeyboardAction,
   canRenderSourceText,
   containsBoundsPoint,
+  documentKeyboardAction,
+  doubleClickMapAction,
+  draftSelectionFromDrag,
   fileLabelPriority,
   fileVisualState,
   folderDepth,
+  folderDisplayName,
   folderLabelPriority,
   folderStyle,
   hashString,
+  hashRouteFocusIntent,
   hitTestTargets,
+  interactionModeUiState,
+  isSpaceKeyEvent,
+  isUsableDraftSelection,
   isScreenBoxVisible,
   KEYBOARD_PAN_PIXELS,
   KEYBOARD_ZOOM_FACTOR,
@@ -27,11 +37,15 @@ import {
   lineHeightForFile,
   lineAtWorldPoint,
   latestActivityByAgent,
-  normalizeMapPath,
+  mapRouteTarget,
+  mapSearchMatch,
+  mapSelectionPanel,
+  mapTargetSelectionAction,
   normalizeActivityState,
   organicTrailSegments,
   organicRegionPoints,
   organicRegionStyle,
+  panViewForDrag,
   panViewByScreenDelta,
   screenBoundsForView,
   screenToWorldPoint,
@@ -39,9 +53,11 @@ import {
   shouldDrawOrganicRegion,
   shouldLabelFile,
   shouldLabelFolder,
-  formatSourceLines,
+  rememberSourceRange,
   sourceContextRequest,
   sourcePanelLineRangeForBox,
+  sourcePanelState,
+  sourceRangeCacheKey,
   sortedActivityEvents,
   viewForBounds,
   viewForReadableFile,
@@ -63,7 +79,6 @@ const mapArea = document.querySelector(".map-area");
 const DEFAULT_MAP_LEVEL = "file";
 const SAVE_AND_COPY_LABEL = "Save and copy Codex prompt";
 const COPY_PROMPT_LABEL = "Copy Codex prompt";
-const MIN_SELECTION_SCREEN_PIXELS = 4;
 const CAMERA_ANIMATION_MS = 280;
 const DOUBLE_CLICK_ZOOM_FACTOR = 2;
 const CLICK_SELECT_DELAY_MS = 220;
@@ -288,24 +303,49 @@ function activitySignature(events) {
   return `${events.length}:${latest?.id ?? ""}:${latest?.timestamp ?? ""}`;
 }
 
+const HASH_ROUTE_FOCUS_HANDLERS = {
+  annotation: (intent, routeToken) => focusAnnotationRoute(intent.id, routeToken),
+  selection: (intent, routeToken) => focusSelectionRoute(intent.params, routeToken),
+  map: (intent, routeToken) => focusMapRoute(intent.route, routeToken),
+};
+
+const DOUBLE_CLICK_ACTION_HANDLERS = {
+  focusAnnotation: (hit) => {
+    zoomToBounds(hit.geometry.bounds, 1.28);
+    selectAnnotation(hit);
+  },
+  selectFolder: (hit, world) => {
+    void selectMapTarget(world);
+    zoomToBounds(hit.bounds, 1.35);
+  },
+  selectFile: (_hit, world) => {
+    void selectMapTarget(world);
+  },
+  selectActivity: (hit) => {
+    void selectActivityEvent(hit);
+  },
+};
+
+const MAP_TARGET_SELECTION_HANDLERS = {
+  clearSelection: clearMapSelection,
+  focusAnnotation: (hit) => {
+    zoomToBounds(hit.geometry.bounds, 1.35);
+    selectAnnotation(hit);
+  },
+  selectActivity: (hit) => selectActivityEvent(hit),
+  inspectFolder: inspectFolderTarget,
+  inspectFile: inspectFileTarget,
+};
+
 async function applyHashRoute() {
   const routeToken = ++routeSequence;
   const route = parseHashRoute(window.location.hash);
-  if (!route || !state.map) return;
+  const intent = hashRouteFocusIntent(route, { hasMap: Boolean(state.map) });
+  if (!intent) return;
 
   applyingRoute = true;
   try {
-    if (route.type === "annotation") {
-      await focusAnnotationRoute(route.id, routeToken);
-      return;
-    }
-    if (route.type === "selection") {
-      await focusSelectionRoute(route.params, routeToken);
-      return;
-    }
-    if (route.type === "map") {
-      await focusMapRoute(route, routeToken);
-    }
+    await HASH_ROUTE_FOCUS_HANDLERS[intent.type]?.(intent, routeToken);
   } finally {
     if (routeToken === routeSequence) applyingRoute = false;
   }
@@ -343,8 +383,7 @@ async function focusSelectionRoute(params, routeToken) {
 }
 
 async function focusMapRoute(route, routeToken) {
-  const path = route.params.get("path");
-  const target = path ? targetForPath(path) : targetForGeohash(route.locator, route.kind);
+  const target = mapRouteTarget(state.map, route);
   if (!target) return;
 
   resetSelectionOverlay();
@@ -357,7 +396,7 @@ async function focusMapRoute(route, routeToken) {
   }
 
   clearAnnotationForm();
-  setText(controls.inspectorTitle, labelForFolder(target));
+  setText(controls.inspectorTitle, folderDisplayName(target));
   setText(controls.inspectorSubtitle, `folder: ${target.path || "."} | ${target.geo.geohash}`);
   render();
 }
@@ -369,8 +408,7 @@ async function showFileForRoute(file, params, routeToken) {
 
   const lineRange = parseLineRange(params.get("lines"));
   if (!lineRange) {
-    setText(controls.sourceTitle, file.path);
-    setText(controls.sourceOutput, "");
+    applySourcePanel(sourcePanelState({ path: file.path }));
     render();
     return;
   }
@@ -381,9 +419,7 @@ async function showFileForRoute(file, params, routeToken) {
     fetchJson(sourceContext.sourceUrl),
   ]);
   if (!isCurrentRoute(routeToken)) return;
-  setText(controls.sourceTitle, `${file.path} · ${address.deepLink}`);
-  setText(controls.sourceOutput, formatSourceLines(source));
-  if (controls.sourceOutput) controls.sourceOutput.scrollTop = 0;
+  applySourcePanel(sourcePanelState({ path: file.path, deepLink: address.deepLink, source }));
   render();
 }
 
@@ -431,18 +467,17 @@ function setSpacePanMode(enabled) {
 }
 
 function updateInteractionModeUi() {
-  const panActive = state.panning || state.spacePanning || state.dragging?.type === "pan";
-  const selectActive = !state.drawing && !state.panning && !state.spacePanning && state.dragging?.type !== "pan";
-  controls.selectTool?.classList.toggle("active", selectActive);
-  controls.selectTool?.setAttribute("aria-pressed", String(selectActive));
-  controls.panTool?.classList.toggle("active", panActive);
-  controls.panTool?.setAttribute("aria-pressed", String(panActive));
-  controls.drawTool?.classList.toggle("active", state.drawing);
-  controls.drawTool?.setAttribute("aria-pressed", String(state.drawing));
-  canvas.classList.toggle("is-panning-mode", state.panning && !state.spacePanning && state.dragging?.type !== "pan");
-  canvas.classList.toggle("is-drawing", state.drawing && !state.spacePanning);
-  canvas.classList.toggle("is-space-panning", state.spacePanning);
-  canvas.classList.toggle("is-panning", state.dragging?.type === "pan");
+  const mode = interactionModeUiState(state);
+  controls.selectTool?.classList.toggle("active", mode.selectActive);
+  controls.selectTool?.setAttribute("aria-pressed", String(mode.selectActive));
+  controls.panTool?.classList.toggle("active", mode.panActive);
+  controls.panTool?.setAttribute("aria-pressed", String(mode.panActive));
+  controls.drawTool?.classList.toggle("active", mode.drawActive);
+  controls.drawTool?.setAttribute("aria-pressed", String(mode.drawActive));
+  canvas.classList.toggle("is-panning-mode", mode.panningMode);
+  canvas.classList.toggle("is-drawing", mode.drawingMode);
+  canvas.classList.toggle("is-space-panning", mode.spacePanningMode);
+  canvas.classList.toggle("is-panning", mode.panning);
 }
 
 function clearDraftSelection() {
@@ -568,7 +603,7 @@ function drawFolders() {
     drawRect(box);
     if (shouldLabelFolder(state.view.scale, depth, box)) {
       queueLabelInBox({
-        text: labelForFolder(folder),
+        text: folderDisplayName(folder),
         box,
         color: style.label,
         size: 13,
@@ -661,8 +696,8 @@ function drawSourceText(file, box, remainingBudget) {
   const budgetedEnd = Math.min(visibleRange.end, visibleRange.start + remainingBudget - 1);
   const fetchStart = Math.max(1, visibleRange.start - SOURCE_TEXT_PREFETCH_LINES);
   const fetchEnd = Math.min(file.lineCount, budgetedEnd + SOURCE_TEXT_PREFETCH_LINES);
-  const cacheKey = sourceCacheKey(file.path, fetchStart, fetchEnd);
-  const cached = getCachedSourceRange(file.path, fetchStart, fetchEnd);
+  const cacheKey = sourceRangeCacheKey(file.path, fetchStart, fetchEnd);
+  const cached = cachedSourceRange(state.sourceCache, file.path, fetchStart, fetchEnd);
 
   if (!cached) {
     requestSourceRange(file.path, fetchStart, fetchEnd, cacheKey);
@@ -712,9 +747,9 @@ function visibleLineRange(file, box) {
 function requestSourceRange(path, lineStart, lineEnd, cacheKey) {
   if (state.pendingSourceRequests.has(cacheKey)) return;
   state.pendingSourceRequests.add(cacheKey);
-  fetchJson(`/api/source?path=${encodeURIComponent(path)}&lineStart=${lineStart}&lineEnd=${lineEnd}`)
+  fetchJson(sourceContextRequest(path, { start: lineStart, end: lineEnd }).sourceUrl)
     .then((source) => {
-      rememberSource(cacheKey, source);
+      rememberSourceRange(state.sourceCache, cacheKey, source);
       render();
     })
     .catch((error) => {
@@ -723,29 +758,6 @@ function requestSourceRange(path, lineStart, lineEnd, cacheKey) {
     .finally(() => {
       state.pendingSourceRequests.delete(cacheKey);
     });
-}
-
-function rememberSource(cacheKey, source) {
-  if (state.sourceCache.has(cacheKey)) state.sourceCache.delete(cacheKey);
-  state.sourceCache.set(cacheKey, source);
-  while (state.sourceCache.size > SOURCE_CACHE_LIMIT) {
-    state.sourceCache.delete(state.sourceCache.keys().next().value);
-  }
-}
-
-function getCachedSourceRange(path, lineStart, lineEnd) {
-  for (const [cacheKey, source] of state.sourceCache) {
-    if (source.path !== path) continue;
-    if (source.lineRange.start > lineStart || source.lineRange.end < lineEnd) continue;
-    state.sourceCache.delete(cacheKey);
-    state.sourceCache.set(cacheKey, source);
-    return source;
-  }
-  return null;
-}
-
-function sourceCacheKey(path, lineStart, lineEnd) {
-  return `${path}:${lineStart}-${lineEnd}`;
 }
 
 function truncateLine(text, maxChars) {
@@ -1202,88 +1214,79 @@ function normalizeWheelDelta(delta, deltaMode) {
 
 function onCanvasKeyDown(event) {
   canvas.classList.remove("pointer-focused");
-  const keyDeltas = {
-    ArrowRight: { x: KEYBOARD_PAN_PIXELS, y: 0 },
-    ArrowLeft: { x: -KEYBOARD_PAN_PIXELS, y: 0 },
-    ArrowDown: { x: 0, y: KEYBOARD_PAN_PIXELS },
-    ArrowUp: { x: 0, y: -KEYBOARD_PAN_PIXELS },
-  };
-  const delta = keyDeltas[event.key];
-  if (delta) {
-    event.preventDefault();
-    animateViewTo(panViewByScreenDelta(state.view, delta, viewportSize()));
+  const action = canvasKeyboardAction(event);
+  if (!action) return;
+  event.preventDefault();
+
+  if (action.type === "pan") {
+    animateViewTo(panViewByScreenDelta(state.view, action.delta, viewportSize()));
     return;
   }
 
-  if (event.key === "+" || event.key === "=") {
-    event.preventDefault();
+  if (action.type === "zoomIn") {
     zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true });
     return;
   }
 
-  if (event.key === "-" || event.key === "_") {
-    event.preventDefault();
+  if (action.type === "zoomOut") {
     zoomAt(viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR, { animate: true });
     return;
   }
 
-  if (event.key === "0") {
-    event.preventDefault();
+  if (action.type === "fitCodebase") {
     fitCodebaseView({ animate: true });
     return;
   }
 
-  if (event.key === "Enter") {
-    event.preventDefault();
+  if (action.type === "selectCenter") {
     selectMapTarget(screenToWorld(viewportCenter()));
   }
 }
 
 function onDocumentKeyDown(event) {
-  const commandModifier = event.metaKey || event.ctrlKey;
-  const textEntry = isTextEntryTarget(event.target);
+  const action = documentKeyboardAction(event, {
+    textEntry: isTextEntryTarget(event.target),
+    buttonTarget: isButtonTarget(event.target),
+    hasResolvedSelection: Boolean(state.resolvedSelection),
+    hasSelectedAnnotation: state.selectedTarget?.targetType === "annotation",
+  });
+  if (!action) return;
 
-  if (!textEntry && !isButtonTarget(event.target) && isSpaceKey(event) && !event.repeat) {
+  if (action.type === "startSpacePan") {
     event.preventDefault();
     setSpacePanMode(true);
     return;
   }
 
-  if (event.key === "Escape") {
+  if (action.type === "cancelInteraction") {
     event.preventDefault();
     cancelCurrentInteraction();
     return;
   }
 
-  if (commandModifier && event.key === "Enter") {
-    if (state.resolvedSelection || state.selectedTarget?.targetType === "annotation") {
-      event.preventDefault();
-      void saveSelection();
-    }
+  if (action.type === "saveSelection") {
+    event.preventDefault();
+    void saveSelection();
     return;
   }
 
-  if (!textEntry && commandModifier && event.key.toLowerCase() === "c" && state.selectedTarget?.targetType === "annotation") {
+  if (action.type === "copyAnnotationPrompt") {
     event.preventDefault();
     void copySelectedAnnotationPrompt();
     return;
   }
 
-  if (!textEntry && (event.key === "Delete" || event.key === "Backspace") && state.selectedTarget?.targetType === "annotation") {
+  if (action.type === "deleteAnnotation") {
     event.preventDefault();
     void deleteSelectedAnnotation();
   }
 }
 
 function onDocumentKeyUp(event) {
-  if (isSpaceKey(event) && state.spacePanning) {
+  if (isSpaceKeyEvent(event) && state.spacePanning) {
     event.preventDefault();
     setSpacePanMode(false);
   }
-}
-
-function isSpaceKey(event) {
-  return event.code === "Space" || event.key === " " || event.key === "Spacebar";
 }
 
 function isTextEntryTarget(target) {
@@ -1354,10 +1357,7 @@ function onPointerMove(event) {
   if (!state.dragging) return;
   if (state.dragging.type === "select") return;
   if (state.dragging.type === "pan") {
-    const dx = (screen.x - state.dragging.start.x) / (canvas.clientWidth * state.view.scale);
-    const dy = (screen.y - state.dragging.start.y) / (canvas.clientHeight * state.view.scale);
-    state.view.x = state.dragging.view.x - dx;
-    state.view.y = state.dragging.view.y - dy;
+    state.view = panViewForDrag(state.dragging, screen, viewportSize());
   } else {
     updateDraftSelection(world);
   }
@@ -1393,19 +1393,10 @@ function onCanvasDoubleClick(event) {
   const screen = screenPoint(event);
   const world = screenToWorld(screen);
   const hit = hitTestDrillTarget(world) ?? hitTestAnnotation(world);
+  const action = doubleClickMapAction(hit);
 
-  if (hit?.targetType === "annotation") {
-    zoomToBounds(hit.geometry.bounds, 1.28);
-    selectAnnotation(hit);
-    return;
-  }
-  if (hit?.targetType === "folder") {
-    void selectMapTarget(world);
-    zoomToBounds(hit.bounds, 1.35);
-    return;
-  }
-  if (hit?.targetType === "file") {
-    void selectMapTarget(world);
+  if (action) {
+    DOUBLE_CLICK_ACTION_HANDLERS[action.type]?.(hit, world);
     return;
   }
 
@@ -1433,61 +1424,53 @@ function hitTestDrillTarget(world) {
 function updateDraftSelection(world) {
   if (state.dragging?.type !== "draw") return;
   state.dragging.current = world;
-  state.draftSelection = {
-    type: "rect",
-    bounds: {
-      x: state.dragging.start.x,
-      y: state.dragging.start.y,
-      width: world.x - state.dragging.start.x,
-      height: world.y - state.dragging.start.y,
-    },
-  };
+  state.draftSelection = draftSelectionFromDrag(state.dragging.start, world);
 }
 
 function hasUsableDraftSelection() {
-  if (!state.draftSelection) return false;
-  const bounds = state.draftSelection.bounds;
-  const width = Math.abs(bounds.width) * canvas.clientWidth * state.view.scale;
-  const height = Math.abs(bounds.height) * canvas.clientHeight * state.view.scale;
-  return width >= MIN_SELECTION_SCREEN_PIXELS && height >= MIN_SELECTION_SCREEN_PIXELS;
+  return isUsableDraftSelection(state.draftSelection, {
+    viewport: viewportSize(),
+    scale: state.view.scale,
+  });
 }
 
 async function selectMapTarget(worldPoint) {
   const hit = hitTest(worldPoint);
-  if (!hit) {
-    state.selectedTarget = null;
-    setText(controls.inspectorTitle, "No place selected");
-    setText(controls.inspectorSubtitle, "Click a district, parcel, or activity marker.");
-    setText(controls.sourceTitle, "No file selected");
-    setText(controls.sourceOutput, "");
-    updateSelectionPopover();
-    render();
-    return;
-  }
+  const action = mapTargetSelectionAction(hit);
+  await MAP_TARGET_SELECTION_HANDLERS[action.type]?.(hit, worldPoint);
+}
 
-  state.selectedTarget = hit;
-  if (hit.targetType === "annotation") {
-    zoomToBounds(hit.geometry.bounds, 1.35);
-    selectAnnotation(hit);
-    return;
-  }
-  if (hit.targetType === "activity") {
-    await selectActivityEvent(hit);
-    return;
-  }
+function clearMapSelection() {
+  const panel = mapSelectionPanel(null);
+  state.selectedTarget = null;
+  setText(controls.inspectorTitle, panel.inspectorTitle);
+  setText(controls.inspectorSubtitle, panel.inspectorSubtitle);
+  setText(controls.sourceTitle, panel.sourceTitle);
+  setText(controls.sourceOutput, panel.sourceOutput);
+  updateSelectionPopover();
+  render();
+}
+
+function inspectMapTarget(hit) {
   clearAnnotationForm();
+  state.selectedTarget = hit;
 
-  setText(controls.inspectorTitle, hit.targetType === "file" ? hit.name : labelForFolder(hit));
-  setText(controls.inspectorSubtitle, `${hit.targetType}: ${hit.path || "."} | ${hit.geo.geohash}`);
+  const panel = mapSelectionPanel(hit);
+  setText(controls.inspectorTitle, panel.inspectorTitle);
+  setText(controls.inspectorSubtitle, panel.inspectorSubtitle);
   syncHashRoute(createMapHashRoute(hit.targetType, hit.geo.geohash, { path: hit.path }));
+  return panel;
+}
 
-  if (hit.targetType !== "file") {
-    setText(controls.sourceTitle, hit.path || ".");
-    setText(controls.sourceOutput, "Folder selected.");
-    render();
-    return;
-  }
+function inspectFolderTarget(hit) {
+  const panel = inspectMapTarget(hit);
+  setText(controls.sourceTitle, panel.sourceTitle);
+  setText(controls.sourceOutput, panel.sourceOutput);
+  render();
+}
 
+async function inspectFileTarget(hit, worldPoint) {
+  inspectMapTarget(hit);
   const line = lineAtPoint(hit, worldPoint);
   const lineRatio = lineRatioForLine(hit, line);
   let box = screenBounds(hit.bounds);
@@ -1503,9 +1486,7 @@ async function selectMapTarget(worldPoint) {
   ]);
   syncHashRoute(createMapHashRoute(address.targetType, address.geohash, { path: hit.path, lines: sourceContext.lines }));
 
-  setText(controls.sourceTitle, `${hit.path} · ${address.deepLink}`);
-  setText(controls.sourceOutput, formatSourceLines(source));
-  if (controls.sourceOutput) controls.sourceOutput.scrollTop = 0;
+  applySourcePanel(sourcePanelState({ path: hit.path, deepLink: address.deepLink, source }));
   render();
 }
 
@@ -1517,8 +1498,10 @@ async function selectActivityEvent(event) {
 
   const path = pathFromActivity(event);
   if (!path) {
-    setText(controls.sourceTitle, event.address.deepLink);
-    setText(controls.sourceOutput, event.note || "Activity selected.");
+    applySourcePanel(sourcePanelState({
+      deepLink: event.address.deepLink,
+      fallbackOutput: event.note || "Activity selected.",
+    }));
     render();
     return;
   }
@@ -1526,9 +1509,7 @@ async function selectActivityEvent(event) {
   const lineRange = event.address.lineRange ?? { start: 1, end: undefined };
   const sourceContext = sourceContextRequest(path, lineRange);
   const source = await fetchJson(sourceContext.sourceUrl);
-  setText(controls.sourceTitle, `${path} · ${event.address.deepLink}`);
-  setText(controls.sourceOutput, formatSourceLines(source));
-  if (controls.sourceOutput) controls.sourceOutput.scrollTop = 0;
+  applySourcePanel(sourcePanelState({ path, deepLink: event.address.deepLink, source }));
   render();
 }
 
@@ -1562,43 +1543,38 @@ function sourcePanelLineRange(file, focusLine, box) {
 
 async function searchMap(event) {
   event.preventDefault();
-  const query = controls.searchInput?.value.trim().toLowerCase();
-  if (!query) return;
+  const query = controls.searchInput?.value;
+  if (!String(query ?? "").trim()) return;
+  const match = mapSearchMatch(state.map, state.namedPlaces, query);
+  if (!match) {
+    setSearchResult("No matching place found.");
+    return;
+  }
 
-  const namedPlace = state.namedPlaces.find((place) => place.name.toLowerCase().includes(query));
-  if (namedPlace?.geometry?.bounds) {
-    zoomToBounds(namedPlace.geometry.bounds, 1.35);
-    setSearchResult(namedPlace.kind === "mapAnnotation" ? `Annotation: ${namedPlace.name}` : `Named place: ${namedPlace.name}`);
-    state.selectedTarget = namedPlace.kind === "mapAnnotation" ? { ...namedPlace, targetType: "annotation" } : null;
+  if (match.type === "annotation" || match.type === "namedPlace") {
+    zoomToBounds(match.place.geometry.bounds, 1.35);
+    setSearchResult(match.label);
+    state.selectedTarget = match.target;
     if (state.selectedTarget?.targetType === "annotation") selectAnnotation(state.selectedTarget);
     render();
     return;
   }
 
-  const file = Object.values(state.map.files).find((candidate) =>
-    candidate.path.toLowerCase().includes(query) || candidate.geo.geohash.startsWith(query)
-  );
-  if (file) {
-    zoomToReadableFile(file);
-    await selectMapTarget(boundsCenter(file.bounds));
-    setSearchResult(`File: ${file.path}`);
+  if (match.type === "file") {
+    zoomToReadableFile(match.file);
+    await selectMapTarget(boundsCenter(match.file.bounds));
+    setSearchResult(match.label);
     return;
   }
 
-  const folder = Object.values(state.map.folders).find((candidate) =>
-    candidate.path.toLowerCase().includes(query) || candidate.geo.geohash.startsWith(query)
-  );
-  if (folder) {
-    zoomToBounds(folder.bounds, 1.6);
-    state.selectedTarget = { ...folder, targetType: "folder" };
-    setText(controls.inspectorTitle, labelForFolder(folder));
-    setText(controls.inspectorSubtitle, `folder: ${folder.path || "."} | ${folder.geo.geohash}`);
-    setSearchResult(`Folder: ${folder.path || "."}`);
+  if (match.type === "folder") {
+    zoomToBounds(match.folder.bounds, 1.6);
+    state.selectedTarget = { ...match.folder, targetType: "folder" };
+    setText(controls.inspectorTitle, folderDisplayName(match.folder));
+    setText(controls.inspectorSubtitle, `folder: ${match.folder.path || "."} | ${match.folder.geo.geohash}`);
+    setSearchResult(match.label);
     render();
-    return;
   }
-
-  setSearchResult("No matching place found.");
 }
 
 function setSearchResult(message) {
@@ -1609,20 +1585,10 @@ function setText(element, value) {
   if (element) element.textContent = value;
 }
 
-function targetForPath(path) {
-  const normalized = normalizeMapPath(path);
-  if (state.map.files[normalized]) return { ...state.map.files[normalized], targetType: "file" };
-  if (state.map.folders[normalized]) return { ...state.map.folders[normalized], targetType: "folder" };
-  return null;
-}
-
-function targetForGeohash(geohash, kind) {
-  const candidates = kind === "folder"
-    ? Object.values(state.map.folders).filter((folder) => folder.path)
-    : Object.values(state.map.files);
-  const target = candidates.find((candidate) => candidate.geo.geohash.startsWith(geohash))
-    ?? candidates.find((candidate) => geohash.startsWith(candidate.geo.geohash));
-  return target ? { ...target, targetType: kind === "folder" ? "folder" : "file" } : null;
+function applySourcePanel(panel) {
+  setText(controls.sourceTitle, panel.sourceTitle);
+  setText(controls.sourceOutput, panel.sourceOutput);
+  if (Number.isFinite(panel.scrollTop) && controls.sourceOutput) controls.sourceOutput.scrollTop = panel.scrollTop;
 }
 
 function parseLineRange(value) {
@@ -1670,7 +1636,10 @@ async function saveSelection() {
     geometry: state.resolvedSelection.geometry,
   });
   state.namedPlaces.push(saved.annotation);
-  const copied = await copyToClipboard(annotationClipboardText(saved.annotation));
+  const copied = await copyToClipboard(annotationClipboardText(saved.annotation, {
+    origin: window.location.origin,
+    href: window.location.href,
+  }));
   state.selectedTarget = { ...saved.annotation, targetType: "annotation" };
   syncHashRoute(createAnnotationHashRoute(saved.annotation.id));
   state.drawing = false;
@@ -1721,7 +1690,10 @@ async function deleteSelectedAnnotation() {
 async function copySelectedAnnotationPrompt() {
   const annotation = state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null;
   if (!annotation) return false;
-  const copied = await copyToClipboard(annotationClipboardText(annotation));
+  const copied = await copyToClipboard(annotationClipboardText(annotation, {
+    origin: window.location.origin,
+    href: window.location.href,
+  }));
   setSaveButtonLabel(copied ? "Codex prompt copied" : "Copy failed");
   setSelectionStatus(copied ? "Codex prompt copied." : "Copy failed.");
   return copied;
@@ -1734,35 +1706,6 @@ function focusSelectionComment() {
 
 function setSelectionStatus(message) {
   if (controls.selectionStatus) controls.selectionStatus.textContent = message;
-}
-
-function annotationShareLink(annotation) {
-  const url = new URL(window.location.href);
-  url.hash = annotation.browserHash;
-  return url.toString();
-}
-
-function annotationClipboardText(annotation) {
-  const reference = annotation.deepLink || `codecharter://annotation/${annotation.id}`;
-  const server = window.location.origin;
-  const comment = annotation.comment?.trim() || "<empty>";
-  const prompt = [
-    `CodeCharter annotation: ${reference}`,
-    `Targets: ${annotation.resolvedTargets?.length ?? annotation.targetCount ?? 0}`,
-    `Note: ${comment}`,
-    `CLI: codecharter --json resolve ${doubleQuote(reference)} --server ${doubleQuote(server)}`,
-    `Fallback: npx --yes codecharter --json resolve ${doubleQuote(reference)} --server ${doubleQuote(server)}`,
-    "Use resolve output; read only needed resolvedTargets. If resolved target paths are not present in this workspace, report a CodeCharter map/workspace mismatch instead of guessing. Do not use browser automation unless asked.",
-  ].join("\n");
-  return [
-    prompt,
-    "",
-    `CodeCharter URL: ${annotationShareLink(annotation)}`,
-  ].join("\n");
-}
-
-function doubleQuote(value) {
-  return `"${String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
 async function copyToClipboard(text) {
@@ -1927,11 +1870,6 @@ function interpolateView(fromView, toView, t) {
 
 function easeCamera(t) {
   return 1 - (1 - t) ** 3;
-}
-
-function labelForFolder(folder) {
-  if (!folder.path) return "Codebase";
-  return folder.path.split("/").at(-1);
 }
 
 function hoverLabel(hit) {

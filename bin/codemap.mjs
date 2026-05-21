@@ -318,10 +318,11 @@ async function resolveDeepLink({ root, mapPath, reference, server }) {
 
   if (parsed.metadata.path) {
     const codemap = JSON.parse(await readFile(mapPath, "utf8"));
+    const address = resolveAddress(codemap, requestFromDeepLink(parsed));
     return {
-      kind: parsed.kind,
+      kind: address.targetType,
       reference,
-      address: resolveAddress(codemap, requestFromDeepLink(parsed)),
+      address,
     };
   }
 

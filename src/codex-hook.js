@@ -7,7 +7,7 @@ import { changedCodeChanges, changedLineRange } from "./activity-watcher.js";
 import { appendActivityEvents, ensureActivityArchive } from "./activity-store.js";
 import { createActivityEvent } from "./activity.js";
 import { generateCodemap } from "./generator.js";
-import { resolveAddress } from "./resolver.js";
+import { normalizePathForMap, resolveAddress } from "./resolver.js";
 import { readJson, writeJson } from "./store.js";
 
 const execFileAsync = promisify(execFile);
@@ -16,7 +16,25 @@ const DEFAULT_MAP_PATH = ".codecharter/codecharter.json";
 const ROOT_MAP_PATH = "codecharter.json";
 const LEGACY_MAP_PATH = "codemap.json";
 const DEFAULT_ACTIVITY_PATH = ".codecharter/activity.jsonl";
-const READ_COMMANDS = new Set(["cat", "nl", "less", "head", "tail", "sed", "rg"]);
+const READ_COMMAND_STRATEGIES = Object.freeze({
+  cat: { pathCandidates: genericReadPathCandidates, lineRange: emptyLineRange },
+  nl: { pathCandidates: genericReadPathCandidates, lineRange: emptyLineRange },
+  less: { pathCandidates: genericReadPathCandidates, lineRange: emptyLineRange },
+  head: { pathCandidates: optionAwareReadPathCandidates, lineRange: headLineRange },
+  tail: { pathCandidates: optionAwareReadPathCandidates, lineRange: tailLineRange },
+  sed: { pathCandidates: sedPathCandidates, lineRange: sedLineRange },
+  rg: { pathCandidates: ripgrepPathCandidates, lineRange: emptyLineRange },
+});
+const TOOL_INPUT_PATH_STRATEGIES = [
+  {
+    matches: (toolName) => toolName.includes("apply_patch"),
+    paths: (input) => applyPatchPaths(toolInputText(input)),
+  },
+  {
+    matches: isStructuredWriteTool,
+    paths: structuredToolPaths,
+  },
+];
 
 export async function runCodexHook({ input = "", cwd = process.cwd() } = {}) {
   const payload = parseHookPayload(input);
@@ -170,10 +188,11 @@ function readCommandChanges(root, codemap, payload) {
     const tokens = shellWords(segment);
     if (tokens.length === 0) continue;
     const commandName = basename(tokens[0]);
-    if (!READ_COMMANDS.has(commandName)) continue;
+    const strategy = readCommandStrategy(commandName);
+    if (!strategy) continue;
 
-    const lineRange = readLineRange(commandName, tokens, codemap);
-    for (const candidate of readCommandPathCandidates(commandName, tokens, codemap)) {
+    const lineRange = strategy.lineRange({ root, tokens, codemap });
+    for (const candidate of strategy.pathCandidates({ root, commandName, tokens, codemap })) {
       const path = normalizeCommandPath(root, candidate);
       if (!codemap.files?.[path] && !codemap.folders?.[path]) continue;
       const key = `${path}:${lineRange.lineStart ?? ""}:${lineRange.lineEnd ?? ""}`;
@@ -243,7 +262,7 @@ function isReadShellCommand(payload) {
   for (const segment of command.split(/\n|&&|;/)) {
     const tokens = shellWords(segment);
     if (tokens.length === 0) continue;
-    if (READ_COMMANDS.has(basename(tokens[0]))) return true;
+    if (readCommandStrategy(basename(tokens[0]))) return true;
   }
   return false;
 }
@@ -265,19 +284,27 @@ function toolInputPaths(root, payload) {
   const input = payload.tool_input ?? {};
   const paths = new Set();
 
-  if (toolName.includes("apply_patch")) {
-    for (const path of applyPatchPaths(toolInputText(input))) {
-      paths.add(normalizeCommandPath(root, path));
-    }
-  }
-
-  if (toolName === "edit" || toolName.endsWith(".edit") || toolName === "write" || toolName.endsWith(".write") || toolName.includes("multiedit")) {
-    for (const path of structuredToolPaths(input)) {
+  for (const strategy of TOOL_INPUT_PATH_STRATEGIES) {
+    if (!strategy.matches(toolName)) continue;
+    for (const path of strategy.paths(input)) {
       paths.add(normalizeCommandPath(root, path));
     }
   }
 
   return [...paths].filter(Boolean);
+}
+
+function isStructuredWriteTool(toolName) {
+  return toolName === "edit"
+    || toolName.endsWith(".edit")
+    || toolName === "edit_file"
+    || toolName.endsWith(".edit_file")
+    || toolName === "write"
+    || toolName.endsWith(".write")
+    || toolName === "write_file"
+    || toolName.endsWith(".write_file")
+    || toolName.includes("multiedit")
+    || toolName.includes("multi_edit");
 }
 
 function toolInputText(input) {
@@ -329,20 +356,57 @@ function shellWords(segment) {
   return words;
 }
 
-function readCommandPathCandidates(commandName, tokens, codemap) {
-  if (commandName === "rg") return ripgrepPathCandidates(tokens, codemap);
+function readCommandStrategy(commandName) {
+  return READ_COMMAND_STRATEGIES[commandName] ?? null;
+}
 
+function readCommandPathCandidates(commandName, tokens, codemap, root = "") {
+  const strategy = readCommandStrategy(commandName);
+  return strategy ? strategy.pathCandidates({ root, commandName, tokens, codemap }) : [];
+}
+
+function genericReadPathCandidates({ tokens }) {
   const candidates = [];
   for (let index = 1; index < tokens.length; index += 1) {
     const token = tokens[index];
     if (!token || token.startsWith("-") || token === "|" || token === ">" || token === "2>") continue;
-    if (commandName === "sed" && (looksLikeSedScript(token) || tokens[index - 1] === "-e")) continue;
     candidates.push(token);
   }
   return candidates;
 }
 
-function ripgrepPathCandidates(tokens, codemap) {
+function optionAwareReadPathCandidates({ tokens }) {
+  const candidates = [];
+  for (let index = 1; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (!token || token === "|" || token === ">" || token === "2>") continue;
+    if (readOptionConsumesNext(token)) {
+      index += 1;
+      continue;
+    }
+    if (token.startsWith("-")) continue;
+    candidates.push(token);
+  }
+  return candidates;
+}
+
+function sedPathCandidates({ tokens }) {
+  const candidates = [];
+  for (let index = 1; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (!token || token === "|" || token === ">" || token === "2>") continue;
+    if (readOptionConsumesNext(token)) {
+      index += 1;
+      continue;
+    }
+    if (token.startsWith("-")) continue;
+    if (looksLikeSedScript(token)) continue;
+    candidates.push(token);
+  }
+  return candidates;
+}
+
+function ripgrepPathCandidates({ tokens, codemap }) {
   const candidates = [];
   const positionals = [];
   let patternConsumed = false;
@@ -375,6 +439,10 @@ function ripgrepPathCandidates(tokens, codemap) {
   return candidates;
 }
 
+function readOptionConsumesNext(token) {
+  return ["-n", "--lines", "-e", "--expression"].includes(token);
+}
+
 function rgOptionConsumesNext(token) {
   return [
     "-e",
@@ -396,28 +464,34 @@ function rgOptionConsumesNext(token) {
   ].includes(token);
 }
 
-function readLineRange(commandName, tokens, codemap) {
-  if (commandName === "sed") {
-    for (const token of tokens) {
-      const range = token.match(/^(\d+)(?:,(\d+))?p$/);
-      if (range) {
-        const lineStart = Number(range[1]);
-        return { lineStart, lineEnd: Number(range[2] ?? range[1]) };
-      }
+function emptyLineRange() {
+  return {};
+}
+
+function sedLineRange({ tokens }) {
+  for (const token of tokens) {
+    const range = token.match(/^(\d+)(?:,(\d+))?p$/);
+    if (range) {
+      const lineStart = Number(range[1]);
+      return { lineStart, lineEnd: Number(range[2] ?? range[1]) };
     }
   }
+  return {};
+}
 
-  if (commandName === "head") {
-    const count = numericOption(tokens, "-n");
-    if (count) return { lineStart: 1, lineEnd: count };
-  }
+function headLineRange({ tokens }) {
+  const count = numericOption(tokens, "-n");
+  if (count) return { lineStart: 1, lineEnd: count };
+  return {};
+}
 
-  if (commandName === "tail") {
-    const path = readCommandPathCandidates(commandName, tokens, codemap).find((candidate) => codemap.files?.[candidate]);
-    const count = numericOption(tokens, "-n");
-    const lineCount = path ? codemap.files[path]?.lineCount : undefined;
-    if (count && lineCount) return { lineStart: Math.max(1, lineCount - count + 1), lineEnd: lineCount };
-  }
+function tailLineRange({ root, tokens, codemap }) {
+  const path = readCommandPathCandidates("tail", tokens, codemap, root)
+    .map((candidate) => normalizeCommandPath(root, candidate))
+    .find((candidate) => codemap.files?.[candidate]);
+  const count = numericOption(tokens, "-n");
+  const lineCount = path ? codemap.files[path]?.lineCount : undefined;
+  if (count && lineCount) return { lineStart: Math.max(1, lineCount - count + 1), lineEnd: lineCount };
 
   return {};
 }
@@ -436,7 +510,7 @@ function looksLikeSedScript(token) {
 function normalizeCommandPath(root, candidate) {
   const stripped = candidate.replace(/^['"]|['"]$/g, "");
   const normalized = isAbsolute(stripped) ? relative(root, stripped) : stripped;
-  return normalized.replaceAll("\\", "/");
+  return normalizePathForMap(normalized);
 }
 
 function parseHookPayload(input) {

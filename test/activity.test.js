@@ -124,6 +124,23 @@ test("CLI resolve prints token-range map addresses", async () => {
   assert.deepEqual(address.tokenRange, { start: 3, end: 8 });
 });
 
+test("CLI resolve reports the resolved address kind for deep links with range metadata", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-resolve-link-kind-"));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
+
+  const { stdout } = await execFileAsync("node", [
+    join(process.cwd(), "bin/codemap.mjs"),
+    "--json",
+    "resolve",
+    "codecharter://file/s000000?path=src%2Fapp.ts&lines=2-4",
+  ], { cwd: root });
+  const result = JSON.parse(stdout);
+
+  assert.equal(result.kind, "lineRange");
+  assert.equal(result.address.targetType, "lineRange");
+  assert.deepEqual(result.address.lineRange, { start: 2, end: 4 });
+});
+
 test("CLI activity telemetry never exits non-zero for an unmapped path", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-activity-missing-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));

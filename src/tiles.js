@@ -7,12 +7,8 @@ export function tilePrefixForTarget(target, level) {
 export function buildTileIndex(codemap, level = "file") {
   const tiles = new Map();
 
-  for (const folder of Object.values(codemap.folders)) {
-    addTarget(tiles, tilePrefixForTarget(folder, level), serializeTarget(folder, "folder"));
-  }
-
-  for (const file of Object.values(codemap.files)) {
-    addTarget(tiles, tilePrefixForTarget(file, level), serializeTarget(file, "file"));
+  for (const target of mapTargets(codemap)) {
+    addTarget(tiles, tilePrefixForTarget(target, level), target);
   }
 
   return [...tiles.entries()]
@@ -23,12 +19,8 @@ export function buildTileIndex(codemap, level = "file") {
 export function getTile(codemap, { level = "file", prefix }) {
   const targets = [];
 
-  for (const folder of Object.values(codemap.folders)) {
-    if (tilePrefixForTarget(folder, level) === prefix) targets.push(serializeTarget(folder, "folder"));
-  }
-
-  for (const file of Object.values(codemap.files)) {
-    if (tilePrefixForTarget(file, level) === prefix) targets.push(serializeTarget(file, "file"));
+  for (const target of mapTargets(codemap)) {
+    if (tilePrefixForTarget(target, level) === prefix) targets.push(target);
   }
 
   return { prefix, level, targets };
@@ -41,6 +33,20 @@ export function visiblePrefixes(codemap, level = "file") {
 function addTarget(tiles, prefix, target) {
   if (!tiles.has(prefix)) tiles.set(prefix, []);
   tiles.get(prefix).push(target);
+}
+
+function* mapTargets(codemap) {
+  for (const folder of sortedTargets(codemap.folders)) {
+    yield serializeTarget(folder, "folder");
+  }
+
+  for (const file of sortedTargets(codemap.files)) {
+    yield serializeTarget(file, "file");
+  }
+}
+
+function sortedTargets(targets) {
+  return Object.values(targets).sort((left, right) => left.path.localeCompare(right.path));
 }
 
 function serializeTarget(target, targetType) {

@@ -258,6 +258,65 @@ export function panViewByScreenDelta(view, delta, viewport) {
   };
 }
 
+export function panViewForDrag(drag, screen, viewport) {
+  return panViewByScreenDelta(drag.view, {
+    x: drag.start.x - screen.x,
+    y: drag.start.y - screen.y,
+  }, viewport);
+}
+
+export function canvasKeyboardAction(event) {
+  const keyDeltas = {
+    ArrowRight: { x: KEYBOARD_PAN_PIXELS, y: 0 },
+    ArrowLeft: { x: -KEYBOARD_PAN_PIXELS, y: 0 },
+    ArrowDown: { x: 0, y: KEYBOARD_PAN_PIXELS },
+    ArrowUp: { x: 0, y: -KEYBOARD_PAN_PIXELS },
+  };
+  const delta = keyDeltas[event.key];
+  if (delta) return { type: "pan", delta };
+  if (event.key === "+" || event.key === "=") return { type: "zoomIn" };
+  if (event.key === "-" || event.key === "_") return { type: "zoomOut" };
+  if (event.key === "0") return { type: "fitCodebase" };
+  if (event.key === "Enter") return { type: "selectCenter" };
+  return null;
+}
+
+export function documentKeyboardAction(event, context = {}) {
+  const commandModifier = event.metaKey || event.ctrlKey;
+  const textEntry = Boolean(context.textEntry);
+  const hasSelectedAnnotation = Boolean(context.hasSelectedAnnotation);
+  const hasResolvedSelection = Boolean(context.hasResolvedSelection);
+
+  if (!textEntry && !context.buttonTarget && isSpaceKeyEvent(event) && !event.repeat) return { type: "startSpacePan" };
+  if (event.key === "Escape") return { type: "cancelInteraction" };
+  if (commandModifier && event.key === "Enter" && (hasResolvedSelection || hasSelectedAnnotation)) return { type: "saveSelection" };
+  if (!textEntry && commandModifier && event.key?.toLowerCase() === "c" && hasSelectedAnnotation) return { type: "copyAnnotationPrompt" };
+  if (!textEntry && (event.key === "Delete" || event.key === "Backspace") && hasSelectedAnnotation) return { type: "deleteAnnotation" };
+  return null;
+}
+
+export function doubleClickMapAction(hit) {
+  if (!hit) return null;
+  if (hit.targetType === "annotation") return { type: "focusAnnotation" };
+  if (hit.targetType === "folder") return { type: "selectFolder" };
+  if (hit.targetType === "file") return { type: "selectFile" };
+  if (hit.targetType === "activity") return { type: "selectActivity" };
+  return null;
+}
+
+export function mapTargetSelectionAction(hit) {
+  if (!hit) return { type: "clearSelection" };
+  if (hit.targetType === "annotation") return { type: "focusAnnotation" };
+  if (hit.targetType === "activity") return { type: "selectActivity" };
+  if (hit.targetType === "folder") return { type: "inspectFolder" };
+  if (hit.targetType === "file") return { type: "inspectFile" };
+  return { type: "clearSelection" };
+}
+
+export function isSpaceKeyEvent(event) {
+  return event.code === "Space" || event.key === " " || event.key === "Spacebar";
+}
+
 export function viewForBounds(bounds, viewport, paddingFactor = 1.2, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE) {
   const scaleX = 1 / Math.max(bounds.width * paddingFactor, 0.001);
   const scaleY = 1 / Math.max(bounds.height * paddingFactor, 0.001);
@@ -314,6 +373,39 @@ export function sourcePanelLineRangeForBox(file, focusLine, box, viewportHeight)
   );
 }
 
+export function interactionModeUiState({ drawing = false, panning = false, spacePanning = false, dragging = null } = {}) {
+  const draggingPan = dragging?.type === "pan";
+  return {
+    selectActive: !drawing && !panning && !spacePanning && !draggingPan,
+    panActive: panning || spacePanning || draggingPan,
+    drawActive: drawing,
+    panningMode: panning && !spacePanning && !draggingPan,
+    drawingMode: drawing && !spacePanning,
+    spacePanningMode: spacePanning,
+    panning: draggingPan,
+  };
+}
+
+export function draftSelectionFromDrag(start, current) {
+  return {
+    type: "rect",
+    bounds: {
+      x: start.x,
+      y: start.y,
+      width: current.x - start.x,
+      height: current.y - start.y,
+    },
+  };
+}
+
+export function isUsableDraftSelection(selection, { viewport, scale, minPixels = 4 }) {
+  if (!selection) return false;
+  const bounds = selection.bounds;
+  const width = Math.abs(bounds.width) * viewport.width * scale;
+  const height = Math.abs(bounds.height) * viewport.height * scale;
+  return width >= minPixels && height >= minPixels;
+}
+
 export function sourceContextRequest(path, lineRange = {}) {
   const lineStart = lineRange.start ?? 1;
   const lineEnd = lineRange.end ?? lineStart;
@@ -336,9 +428,170 @@ export function formatSourceLines(source) {
     .join("\n");
 }
 
+export function sourcePanelState({ path = "", deepLink = "", source = null, fallbackOutput = "" } = {}) {
+  if (source) {
+    return {
+      sourceTitle: [path, deepLink].filter(Boolean).join(" · "),
+      sourceOutput: formatSourceLines(source),
+      scrollTop: 0,
+    };
+  }
+
+  return {
+    sourceTitle: path || deepLink,
+    sourceOutput: fallbackOutput,
+  };
+}
+
+export function annotationClipboardText(annotation, { origin = "", href = "" } = {}) {
+  const reference = annotation.deepLink || `codecharter://annotation/${annotation.id}`;
+  const serverFlag = origin ? ` --server ${doubleQuote(origin)}` : "";
+  const comment = annotation.comment?.trim() || "<empty>";
+  const prompt = [
+    `CodeCharter annotation: ${reference}`,
+    `Targets: ${annotation.resolvedTargets?.length ?? annotation.targetCount ?? 0}`,
+    `Note: ${comment}`,
+    `CLI: codecharter --json resolve ${doubleQuote(reference)}${serverFlag}`,
+    `Fallback: npx --yes codecharter --json resolve ${doubleQuote(reference)}${serverFlag}`,
+    "Use resolve output; read only needed resolvedTargets. If resolved target paths are not present in this workspace, report a CodeCharter map/workspace mismatch instead of guessing. Do not use browser automation unless asked.",
+  ].join("\n");
+  const shareUrl = annotationShareUrl(annotation, href);
+  if (!shareUrl) return prompt;
+  return [
+    prompt,
+    "",
+    `CodeCharter URL: ${shareUrl}`,
+  ].join("\n");
+}
+
+function annotationShareUrl(annotation, href) {
+  if (!href || !annotation.browserHash) return "";
+  const url = new URL(href);
+  url.hash = annotation.browserHash;
+  return url.toString();
+}
+
+function doubleQuote(value) {
+  return `"${String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+}
+
+export function sourceRangeCacheKey(path, lineStart, lineEnd) {
+  return `${normalizeMapPath(path)}:${lineStart}-${lineEnd}`;
+}
+
+export function rememberSourceRange(cache, cacheKey, source, limit = SOURCE_CACHE_LIMIT) {
+  if (cache.has(cacheKey)) cache.delete(cacheKey);
+  cache.set(cacheKey, source);
+  while (cache.size > limit) {
+    cache.delete(cache.keys().next().value);
+  }
+}
+
+export function cachedSourceRange(cache, path, lineStart, lineEnd) {
+  const normalized = normalizeMapPath(path);
+  for (const [cacheKey, source] of cache) {
+    if (normalizeMapPath(source.path) !== normalized) continue;
+    if (source.lineRange.start > lineStart || source.lineRange.end < lineEnd) continue;
+    cache.delete(cacheKey);
+    cache.set(cacheKey, source);
+    return source;
+  }
+  return null;
+}
+
 export function normalizeMapPath(path) {
   const normalized = String(path ?? "").replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+$/, "");
   return normalized === "." ? "" : normalized;
+}
+
+export function mapRouteTarget(codemap, route) {
+  const path = route.params?.get("path");
+  if (path) return mapTargetForPath(codemap, path);
+  return mapTargetForGeohash(codemap, route.locator, route.kind);
+}
+
+export function hashRouteFocusIntent(route, { hasMap = true } = {}) {
+  if (!route || !hasMap) return null;
+  if (route.type === "annotation") return { type: "annotation", id: route.id };
+  if (route.type === "selection") return { type: "selection", params: route.params };
+  if (route.type === "map") return { type: "map", route };
+  return null;
+}
+
+export function mapSearchMatch(codemap, namedPlaces, query) {
+  const normalized = String(query ?? "").trim().toLowerCase();
+  if (!normalized) return null;
+
+  const namedPlace = namedPlaces.find((place) => place.name?.toLowerCase().includes(normalized));
+  if (namedPlace?.geometry?.bounds) {
+    const annotation = namedPlace.kind === "mapAnnotation";
+    return {
+      type: annotation ? "annotation" : "namedPlace",
+      label: `${annotation ? "Annotation" : "Named place"}: ${namedPlace.name}`,
+      place: namedPlace,
+      target: annotation ? { ...namedPlace, targetType: "annotation" } : null,
+    };
+  }
+
+  const file = Object.values(codemap.files).find((candidate) =>
+    candidate.path.toLowerCase().includes(normalized) || candidate.geo.geohash.startsWith(normalized)
+  );
+  if (file) return { type: "file", label: `File: ${file.path}`, file };
+
+  const folder = Object.values(codemap.folders).find((candidate) =>
+    candidate.path.toLowerCase().includes(normalized) || candidate.geo.geohash.startsWith(normalized)
+  );
+  if (folder) return { type: "folder", label: `Folder: ${folder.path || "."}`, folder };
+
+  return null;
+}
+
+export function mapSelectionPanel(target) {
+  if (!target) {
+    return {
+      inspectorTitle: "No place selected",
+      inspectorSubtitle: "Click a district, parcel, or activity marker.",
+      sourceTitle: "No file selected",
+      sourceOutput: "",
+    };
+  }
+
+  const inspectorTitle = target.targetType === "file" ? target.name : folderDisplayName(target);
+  const inspectorSubtitle = `${target.targetType}: ${target.path || "."} | ${target.geo.geohash}`;
+  if (target.targetType === "folder") {
+    return {
+      inspectorTitle,
+      inspectorSubtitle,
+      sourceTitle: target.path || ".",
+      sourceOutput: "Folder selected.",
+    };
+  }
+
+  return {
+    inspectorTitle,
+    inspectorSubtitle,
+  };
+}
+
+export function folderDisplayName(folder) {
+  if (!folder.path) return "Codebase";
+  return folder.path.split("/").at(-1);
+}
+
+function mapTargetForPath(codemap, path) {
+  const normalized = normalizeMapPath(path);
+  if (codemap.files[normalized]) return { ...codemap.files[normalized], targetType: "file" };
+  if (codemap.folders[normalized]) return { ...codemap.folders[normalized], targetType: "folder" };
+  return null;
+}
+
+function mapTargetForGeohash(codemap, geohash, kind) {
+  const candidates = kind === "folder"
+    ? Object.values(codemap.folders).filter((folder) => folder.path)
+    : Object.values(codemap.files);
+  const target = candidates.find((candidate) => candidate.geo.geohash.startsWith(geohash))
+    ?? candidates.find((candidate) => geohash.startsWith(candidate.geo.geohash));
+  return target ? { ...target, targetType: kind === "folder" ? "folder" : "file" } : null;
 }
 
 export function boundsCenter(bounds) {

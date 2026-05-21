@@ -78,7 +78,7 @@ function resolveCodeRangeAddress(file, request) {
   };
 }
 
-function normalizePathForMap(path) {
+export function normalizePathForMap(path) {
   const normalized = path.replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+$/, "");
   return normalized === "." ? "" : normalized;
 }

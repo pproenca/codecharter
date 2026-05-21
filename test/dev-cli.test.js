@@ -100,6 +100,7 @@ test("codecharter setup --dev initializes a fresh repo and prints the viewer URL
     const skill = await readFile(join(root, ".agents", "skills", "codecharter", "SKILL.md"), "utf8");
     assert.match(skill, /CodeCharter annotation/);
     assert.match(skill, /Corner geohashes/);
+    assert.match(skill, /npx --yes codecharter@\d+\.\d+\.\d+/);
     const skillUi = await readFile(join(root, ".agents", "skills", "codecharter", "agents", "openai.yaml"), "utf8");
     assert.match(skillUi, /short_description: "Inspect CodeCharter map annotations via CLI"/);
 
@@ -163,6 +164,7 @@ test("packed package supports the npx one-command setup-dev path", { timeout: 20
     assert.match(output, /Codex hook installed\. In Codex, run `\/hooks`/);
     const skill = await readFile(join(root, ".agents", "skills", "codecharter", "SKILL.md"), "utf8");
     assert.match(skill, /resolvedTargets/);
+    assert.match(skill, /If `command -v codecharter` fails/);
     const skillUi = await readFile(join(root, ".agents", "skills", "codecharter", "agents", "openai.yaml"), "utf8");
     assert.match(skillUi, /allow_implicit_invocation: true/);
 
@@ -182,6 +184,8 @@ test("packed package supports the npx one-command setup-dev path", { timeout: 20
     ], { cwd: root });
     const doctor = JSON.parse(doctorStdout);
     assert.equal(doctor.ok, true);
+    assert.equal(doctor.checks.cli.packageDependency.ok, true);
+    assert.match(doctor.checks.cli.recommendedCommand, /^npx --yes codecharter@\d+\.\d+\.\d+$/);
     assert.equal(doctor.checks.server.ok, true);
   } finally {
     killProcessGroup(cli);

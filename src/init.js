@@ -56,14 +56,27 @@ export async function ensurePackageDevDependency(root) {
   if (!packageJson || packageJson.name === "codecharter") return { skipped: true };
 
   const version = await currentPackageVersion();
-  const devDependencies = packageJson.devDependencies ?? {};
-  if (devDependencies.codecharter) return { skipped: false, changed: false };
+  const desiredSpec = `^${version}`;
+  const dependencySections = ["devDependencies", "dependencies", "optionalDependencies", "peerDependencies"];
+  const existingSection = dependencySections.find((section) => packageJson[section]?.codecharter);
+
+  if (existingSection) {
+    if (packageJson[existingSection].codecharter === desiredSpec) return { skipped: false, changed: false };
+    await writeJson(packagePath, {
+      ...packageJson,
+      [existingSection]: {
+        ...packageJson[existingSection],
+        codecharter: desiredSpec,
+      },
+    });
+    return { skipped: false, changed: true };
+  }
 
   await writeJson(packagePath, {
     ...packageJson,
     devDependencies: {
-      ...devDependencies,
-      codecharter: `^${version}`,
+      ...(packageJson.devDependencies ?? {}),
+      codecharter: desiredSpec,
     },
   });
   return { skipped: false, changed: true };
@@ -104,9 +117,10 @@ export async function ensureCodecharterSkill(root) {
   const skillPath = join(skillDir, "SKILL.md");
   const agentsDir = join(skillDir, "agents");
   const openaiYamlPath = join(agentsDir, "openai.yaml");
+  const version = await currentPackageVersion();
   await mkdir(skillDir, { recursive: true });
   await mkdir(agentsDir, { recursive: true });
-  await writeFile(skillPath, codecharterSkillMarkdown());
+  await writeFile(skillPath, codecharterSkillMarkdown(version));
   await writeFile(openaiYamlPath, codecharterSkillOpenaiYaml());
   return { skillPath, openaiYamlPath };
 }
@@ -274,7 +288,8 @@ process.exit(0);
 `;
 }
 
-function codecharterSkillMarkdown() {
+function codecharterSkillMarkdown(version = "latest") {
+  const npxCommand = `npx --yes codecharter@${version}`;
   return `---
 name: codecharter
 description: Use when a prompt contains a CodeCharter annotation, codecharter:// annotation link, local CodeCharter URL, browser annotation route, corner geohashes, resolved target count, or asks Codex to inspect a mapped code area through the CodeCharter CLI.
@@ -283,6 +298,8 @@ description: Use when a prompt contains a CodeCharter annotation, codecharter://
 # CodeCharter
 
 Use the CodeCharter CLI as the communication path. Do not use browser automation to inspect annotations unless the user explicitly asks for visual UI testing.
+
+If \`command -v codecharter\` fails, run the same command through \`${npxCommand}\`. For example, \`${npxCommand} annotation <id-or-url>\`.
 
 ## Annotation Prompts
 
@@ -297,11 +314,12 @@ CodeCharter annotation prompts may include:
 ## Workflow
 
 1. Run \`codecharter --json doctor\` when setup state, hooks, skill installation, map storage, or server reachability is unclear.
-2. Run \`codecharter annotation <id-or-url>\` for pasted annotation prompts. Pass the full CodeCharter URL when available.
-3. Use \`resolvedTargets\` from the command output as the authoritative target list.
-4. Read only needed ranges with \`codecharter source <path> [lineStart] [lineEnd]\`.
-5. Treat \`Corner geohashes\` as the selected rectangle's spatial frame, not as files to expand or scan.
-6. If a target is too broad, inspect annotation names, bounds, and target metadata before reading source.
+2. If the binary is missing, rerun the prior command as \`${npxCommand} ...\`.
+3. Run \`codecharter annotation <id-or-url>\` for pasted annotation prompts. Pass the full CodeCharter URL when available.
+4. Use \`resolvedTargets\` from the command output as the authoritative target list.
+5. Read only needed ranges with \`codecharter source <path> [lineStart] [lineEnd]\`.
+6. Treat \`Corner geohashes\` as the selected rectangle's spatial frame, not as files to expand or scan.
+7. If a target is too broad, inspect annotation names, bounds, and target metadata before reading source.
 
 ## Fallbacks
 
@@ -321,7 +339,9 @@ CodeCharter annotation prompts may include:
 
 \`\`\`sh
 codecharter --json doctor
+npx --yes codecharter@${version} --json doctor
 codecharter annotation codecharter://annotation/<id>
+npx --yes codecharter@${version} annotation codecharter://annotation/<id>
 codecharter annotation 'http://127.0.0.1:4173/#/annotation/<id>'
 codecharter annotation <id> --root /path/to/repo
 codecharter source src/app.ts 1 80

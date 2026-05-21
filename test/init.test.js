@@ -41,6 +41,7 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
   assert.match(skill, /Corner geohashes/);
   assert.match(skill, /resolvedTargets/);
   assert.match(skill, /codecharter annotation <id-or-url>/);
+  assert.match(skill, /npx --yes codecharter@\d+\.\d+\.\d+ annotation <id-or-url>/);
   assert.match(skill, /codecharter source <path>/);
   assert.match(skill, /Do not bulk-read every file/);
   assert.match(skill, /Do not prefer browser automation over CLI reads/);
@@ -73,6 +74,81 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
   assert.equal(doctor.ok, true);
   assert.equal(doctor.auth.required, false);
   assert.equal(doctor.setup.ready, true);
+  assert.equal(doctor.checks.cli.packageDependency.ok, true);
+  assert.match(doctor.checks.cli.recommendedCommand, /^npx --yes codecharter@\d+\.\d+\.\d+$/);
+  assert.equal(doctor.checks.codexSkill.exists, true);
+  assert.equal(doctor.checks.codexSkillUi.exists, true);
+});
+
+test("codecharter init repairs old package dependency installs and missing skill files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-init-repair-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await mkdir(join(root, ".codex", "hooks"), { recursive: true });
+  await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
+  await writeFile(join(root, "package.json"), JSON.stringify({
+    name: "sample-app",
+    version: "1.0.0",
+    devDependencies: { codecharter: "^0.1.1" },
+  }));
+  await writeFile(join(root, ".codex", "hooks.json"), JSON.stringify({
+    hooks: {
+      PostToolUse: [
+        {
+          matcher: "Bash",
+          hooks: [
+            {
+              type: "command",
+              command: "node .codex/hooks/existing-post.mjs",
+              statusMessage: "Existing post hook",
+            },
+          ],
+        },
+      ],
+    },
+  }));
+  await execFileAsync("git", ["init"], { cwd: root });
+
+  const { stdout: beforeDoctorStdout } = await execFileAsync("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "--json",
+    "doctor",
+    "--root",
+    root,
+  ], { cwd: root });
+  const beforeDoctor = JSON.parse(beforeDoctorStdout);
+  assert.equal(beforeDoctor.ok, false);
+  assert.equal(beforeDoctor.checks.cli.packageDependency.ok, false);
+  assert.match(beforeDoctor.setup.missing.join(","), /codexSkill/);
+  assert.match(beforeDoctor.setup.missing.join(","), /packageDependency/);
+
+  await execFileAsync("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "init",
+    "--root",
+    root,
+    "--yes",
+  ], { cwd: root });
+
+  const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  assert.notEqual(packageJson.devDependencies.codecharter, "^0.1.1");
+  assert.match(packageJson.devDependencies.codecharter, /^\^0\.1\.\d+$/);
+
+  const skill = await readFile(join(root, ".agents", "skills", "codecharter", "SKILL.md"), "utf8");
+  assert.match(skill, /If `command -v codecharter` fails/);
+  assert.match(skill, /npx --yes codecharter@\d+\.\d+\.\d+/);
+
+  const { stdout: doctorStdout } = await execFileAsync("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "--json",
+    "doctor",
+    "--root",
+    root,
+  ], { cwd: root });
+  const doctor = JSON.parse(doctorStdout);
+  assert.equal(doctor.ok, true);
+  assert.equal(doctor.setup.ready, true);
+  assert.equal(doctor.checks.cli.packageDependency.ok, true);
+  assert.equal(doctor.checks.cli.packageDependency.section, "devDependencies");
   assert.equal(doctor.checks.codexSkill.exists, true);
   assert.equal(doctor.checks.codexSkillUi.exists, true);
 });

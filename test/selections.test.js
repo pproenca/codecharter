@@ -60,10 +60,13 @@ test("creates map annotations with a Codex-ready spatial prompt", () => {
   assert.match(annotation.codexPrompt, /CodeCharter annotation: codecharter:\/\/annotation\//);
   assert.match(annotation.codexPrompt, /codecharter:\/\/annotation\//);
   assert.match(annotation.codexPrompt, /#\/annotation\//);
+  assert.match(annotation.codexPrompt, /CLI retrieval: codecharter annotation codecharter:\/\/annotation\//);
+  assert.match(annotation.codexPrompt, /CLI fallback: npx --yes codecharter annotation codecharter:\/\/annotation\//);
   assert.match(annotation.codexPrompt, /Spatial frame: level=file, precision=7, bounds=x=0.1, y=0.1, width=0.2, height=0.2/);
   assert.match(annotation.codexPrompt, /Corner geohashes: nw=/);
   assert.match(annotation.codexPrompt, /Resolved target count: 1/);
   assert.match(annotation.codexPrompt, /User note: hey explore this area/);
+  assert.match(annotation.codexPrompt, /do not use browser automation unless the user explicitly asks for visual UI testing/i);
   assert.doesNotMatch(annotation.codexPrompt, /Geohash coverage/);
   assert.doesNotMatch(annotation.codexPrompt, /Resolved targets/);
   assert.doesNotMatch(annotation.codexPrompt, /src\/a\.ts/);
@@ -124,7 +127,7 @@ test("keeps large annotation prompts compact by not dumping resolved target geoh
   assert.match(annotation.codexPrompt, /Resolved target count: 40/);
   assert.doesNotMatch(annotation.codexPrompt, /s00000000000/);
   assert.doesNotMatch(annotation.codexPrompt, /src\/file-0\.ts/);
-  assert.ok(annotation.codexPrompt.length < 700);
+  assert.ok(annotation.codexPrompt.length < 1000);
 });
 
 test("resolves detailed drawn selections to line coordinates", () => {

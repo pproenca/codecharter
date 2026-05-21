@@ -289,6 +289,7 @@ async function doctor({ root, mapPath, server }) {
   const serverStatus = endpoint ? await probeServer(endpoint) : { configured: false };
   const checks = {
     root: await pathStatus(root, "directory"),
+    cli: await cliStatus(root, packageJson.version),
     map: await jsonFileStatus(mapPath),
     config: await jsonFileStatus(configPath),
     namedPlaces: await jsonFileStatus(namedPlacesPath),
@@ -305,6 +306,7 @@ async function doctor({ root, mapPath, server }) {
     codexHookShim: checks.codexHookShim.exists,
     codexSkill: checks.codexSkill.exists,
     codexSkillUi: checks.codexSkillUi.exists,
+    packageDependency: checks.cli.packageDependency.ok !== false,
   })
     .filter(([, exists]) => !exists)
     .map(([name]) => name);
@@ -322,6 +324,48 @@ async function doctor({ root, mapPath, server }) {
       nextStep: missingSetup.length ? "Run `codecharter setup --dev` from the target repo." : undefined,
     },
     checks,
+  };
+}
+
+async function cliStatus(root, currentVersion) {
+  const localBinName = process.platform === "win32" ? "codecharter.cmd" : "codecharter";
+  const packagePath = join(root, "package.json");
+  const packageJson = await readOptionalJson(packagePath);
+  const expectedSpec = `^${currentVersion}`;
+  return {
+    command: "codecharter",
+    currentVersion,
+    invocation: process.argv[1],
+    recommendedCommand: `npx --yes codecharter@${currentVersion}`,
+    localBin: await pathStatus(join(root, "node_modules", ".bin", localBinName), "file"),
+    packageDependency: packageDependencyStatus(packageJson, packagePath, expectedSpec),
+  };
+}
+
+function packageDependencyStatus(packageJson, packagePath, expectedSpec) {
+  if (!packageJson) {
+    return { path: packagePath, packageJson: false, expected: expectedSpec, ok: true };
+  }
+
+  if (packageJson.name === "codecharter") {
+    return { path: packagePath, packageJson: true, skipped: "self-package", expected: expectedSpec, ok: true };
+  }
+
+  const sections = ["devDependencies", "dependencies", "optionalDependencies", "peerDependencies"];
+  const section = sections.find((name) => packageJson[name]?.codecharter);
+  if (!section) {
+    return { path: packagePath, packageJson: true, found: false, expected: expectedSpec, ok: true };
+  }
+
+  const spec = packageJson[section].codecharter;
+  return {
+    path: packagePath,
+    packageJson: true,
+    found: true,
+    section,
+    spec,
+    expected: expectedSpec,
+    ok: spec === expectedSpec,
   };
 }
 
@@ -639,6 +683,7 @@ function printDoctor(result) {
   console.log(`Root: ${result.root}`);
   console.log(`Map: ${result.mapPath}`);
   console.log(`Setup ready: ${result.setup.ready ? "yes" : "no"}`);
+  console.log(`CLI fallback: ${result.checks.cli.recommendedCommand}`);
   if (result.setup.nextStep) console.log(result.setup.nextStep);
 }
 

@@ -5,7 +5,7 @@ CodeCharter turns a repository into a deterministic 2D Code Map. Files and folde
 ## Setup
 
 ```sh
-npx codecharter setup --dev
+npx --yes codecharter@latest setup --dev
 ```
 
 `setup --dev` is the first-run path. It writes CodeCharter artifacts under `.codecharter/`, adds `.codecharter/` plus legacy root sidecar names to `.gitignore`, safely installs or merges local Git hooks that refresh the map after branch/merge/rewrite events, installs a repo-local CodeCharter skill under `.agents/skills/codecharter/`, installs or merges a repo-local Codex lifecycle hook adapter under `.codex/`, starts the CodeCharter web app, and prints the exact local viewer URL.
@@ -13,7 +13,7 @@ npx codecharter setup --dev
 Pass `--open` if you want the command to ask your OS to open the viewer:
 
 ```sh
-npx codecharter setup --dev --open
+npx --yes codecharter@latest setup --dev --open
 ```
 
 The Codex adapter is zero-token and daemon-free: Codex invokes the hook, the hook delegates to `codecharter codex-hook`, and one JSONL event is appended to `.codecharter/activity.jsonl`. CodeCharter preserves existing `.codex/hooks.json` entries when it adds its own hook. The installed skill teaches Codex how to interpret CodeCharter annotation prompts, local viewer URLs, and corner geohashes without bulk-reading every mapped target. Open `/hooks` in Codex to review and trust the repo-local hook.
@@ -22,19 +22,21 @@ Codex can resolve annotation prompts without browser automation:
 
 ```sh
 codecharter --json doctor
+npx --yes codecharter@latest --json doctor
 codecharter annotation 'http://127.0.0.1:4173/#/annotation/<id>'
 codecharter annotation codecharter://annotation/<id>
+npx --yes codecharter@latest annotation codecharter://annotation/<id>
 codecharter source src/app.ts 1 80
 ```
 
-The agent contract is CLI-first. `doctor` prints setup, auth, map, hook, skill, and optional server reachability diagnostics. `annotation` prints JSON with the refreshed annotation, `resolvedTargets`, and `targetCount`. If the URL includes a local server origin, CodeCharter reads `/api/annotations/<id>`; otherwise it falls back to `.codecharter/named-places.json` and `.codecharter/codecharter.json`. `source` reads a bounded file range from the map. `api` is a read-only raw escape hatch for local `/api/...` endpoints.
+The agent contract is CLI-first. `doctor` prints setup, auth, map, hook, skill, package-version, command fallback, and optional server reachability diagnostics. `annotation` prints JSON with the refreshed annotation, `resolvedTargets`, and `targetCount`. If the URL includes a local server origin, CodeCharter reads `/api/annotations/<id>`; otherwise it falls back to `.codecharter/named-places.json` and `.codecharter/codecharter.json`. `source` reads a bounded file range from the map. `api` is a read-only raw escape hatch for local `/api/...` endpoints. Copied annotation prompts include the exact `codecharter annotation ...` command and an `npx --yes codecharter ...` fallback, so Codex does not need browser automation for normal annotation work.
 
 JSON policy: read commands print stable JSON objects. Errors under `--json` use `{ "ok": false, "error": { "message": "..." } }`. CodeCharter does not require auth; `doctor` reports `auth.required: false`.
 
 If you only want to prepare files and hooks without starting the viewer:
 
 ```sh
-npx codecharter init
+npx --yes codecharter@latest init
 ```
 
 ## One-command dev

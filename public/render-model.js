@@ -599,6 +599,26 @@ export function reconciledSelectedTarget(codemap, target) {
   return target;
 }
 
+export function mapHoverLabel(hit) {
+  if (hit.targetType === "annotation") {
+    return `annotation: ${hit.name} | ${hit.coveringSet?.[0] ?? "unresolved"}`;
+  }
+  if (hit.targetType === "activity") {
+    return `activity: ${activityActorLabel(hit)} ${normalizeActivityState(hit.activityState)} | ${hit.address.geohash}`;
+  }
+  return `${hit.targetType}: ${hit.path} | ${hit.geo.geohash}`;
+}
+
+export function activityActorLabel(event) {
+  const thread = event.threadId ?? event.sessionId;
+  if (!thread) return event.agentId ?? "agent";
+  return `${event.agentId ?? "agent"} ${shortActivityId(thread)}`;
+}
+
+function shortActivityId(value) {
+  return String(value).slice(0, 8);
+}
+
 export function folderDisplayName(folder) {
   if (!folder.path) return "Codebase";
   return folder.path.split("/").at(-1);

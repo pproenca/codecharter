@@ -33,6 +33,7 @@ import {
   mapSearchMatch,
   mapSelectionPanel,
   mapTargetSelectionAction,
+  mapHoverLabel,
   maxFolderDepthForScale,
   organicRegionPoints,
   organicTrailSegments,
@@ -608,6 +609,28 @@ test("reconciles selected map targets against refreshed sidecar state", () => {
   assert.equal(reconciledSelectedTarget(codemap, { targetType: "file", path: "src/missing.ts" }), null);
   assert.equal(reconciledSelectedTarget(codemap, activity), activity);
   assert.equal(reconciledSelectedTarget(codemap, null), null);
+});
+
+test("formats map hover labels without binding to browser state", () => {
+  assert.equal(mapHoverLabel({
+    targetType: "annotation",
+    name: "Review area",
+    coveringSet: ["s123"],
+  }), "annotation: Review area | s123");
+
+  assert.equal(mapHoverLabel({
+    targetType: "activity",
+    agentId: "codex",
+    threadId: "019e4c43-dd59",
+    activityState: "blocked",
+    address: { geohash: "u987" },
+  }), "activity: codex 019e4c43 reviewing | u987");
+
+  assert.equal(mapHoverLabel({
+    targetType: "file",
+    path: "src/app.ts",
+    geo: { geohash: "s999" },
+  }), "file: src/app.ts | s999");
 });
 
 test("hit-testing prefers the smallest containing file before enclosing folders", () => {

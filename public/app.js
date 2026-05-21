@@ -9,6 +9,7 @@ import {
   activityTissueBox,
   activityVisualEncoding,
   activityActorKey,
+  activityActorLabel,
   annotationClipboardText,
   boundsCenter as modelBoundsCenter,
   cachedSourceRange,
@@ -37,6 +38,7 @@ import {
   lineHeightForFile,
   lineAtWorldPoint,
   latestActivityByAgent,
+  mapHoverLabel,
   mapRouteFocusAction,
   mapRouteTarget,
   mapSearchAction,
@@ -1376,7 +1378,7 @@ function onPointerMove(event) {
   const screen = screenPoint(event);
   const world = screenToWorld(screen);
   const hit = hitTest(world);
-  controls.hover.textContent = hit ? hoverLabel(hit) : `x ${world.x.toFixed(4)}, y ${world.y.toFixed(4)}`;
+  controls.hover.textContent = hit ? mapHoverLabel(hit) : `x ${world.x.toFixed(4)}, y ${world.y.toFixed(4)}`;
 
   if (!state.dragging) return;
   if (state.dragging.type === "select") return;
@@ -1869,31 +1871,11 @@ function easeCamera(t) {
   return 1 - (1 - t) ** 3;
 }
 
-function hoverLabel(hit) {
-  if (hit.targetType === "annotation") {
-    return `annotation: ${hit.name} | ${hit.coveringSet?.[0] ?? "unresolved"}`;
-  }
-  if (hit.targetType === "activity") {
-    return `activity: ${activityActorLabel(hit)} ${normalizeActivityState(hit.activityState)} | ${hit.address.geohash}`;
-  }
-  return `${hit.targetType}: ${hit.path} | ${hit.geo.geohash}`;
-}
-
 function activityPathLabel(event) {
   const path = pathFromActivity(event);
   const lines = event.address.lineRange ? `:${event.address.lineRange.start}-${event.address.lineRange.end}` : "";
   const columns = event.address.tokenRange ? `@${event.address.tokenRange.start}-${event.address.tokenRange.end}` : "";
   return `${path || event.address.deepLink}${lines}${columns}`;
-}
-
-function activityActorLabel(event) {
-  const thread = event.threadId ?? event.sessionId;
-  if (!thread) return event.agentId ?? "agent";
-  return `${event.agentId ?? "agent"} ${shortActivityId(thread)}`;
-}
-
-function shortActivityId(value) {
-  return String(value).slice(0, 8);
 }
 
 function pathFromActivity(event) {

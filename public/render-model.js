@@ -518,6 +518,13 @@ export function hashRouteFocusIntent(route, { hasMap = true } = {}) {
   return null;
 }
 
+export function mapRouteFocusAction(target) {
+  if (!target) return null;
+  if (target.targetType === "file") return { type: "focusFile", zoomPadding: 1.35 };
+  if (target.targetType === "folder") return { type: "focusFolder", zoomPadding: 1.6 };
+  return null;
+}
+
 export function mapSearchMatch(codemap, namedPlaces, query) {
   const normalized = String(query ?? "").trim().toLowerCase();
   if (!normalized) return null;

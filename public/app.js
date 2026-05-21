@@ -37,6 +37,7 @@ import {
   lineHeightForFile,
   lineAtWorldPoint,
   latestActivityByAgent,
+  mapRouteFocusAction,
   mapRouteTarget,
   mapSearchAction,
   mapSearchMatch,
@@ -310,6 +311,16 @@ const HASH_ROUTE_FOCUS_HANDLERS = {
   map: (intent, routeToken) => focusMapRoute(intent.route, routeToken),
 };
 
+const MAP_ROUTE_FOCUS_HANDLERS = {
+  focusFile: (target, route, routeToken) => showFileForRoute(target, route.params, routeToken),
+  focusFolder: (target) => {
+    clearAnnotationForm();
+    setText(controls.inspectorTitle, folderDisplayName(target));
+    setText(controls.inspectorSubtitle, `folder: ${target.path || "."} | ${target.geo.geohash}`);
+    render();
+  },
+};
+
 const DOUBLE_CLICK_ACTION_HANDLERS = {
   focusAnnotation: (hit) => {
     zoomToBounds(hit.geometry.bounds, 1.28);
@@ -411,21 +422,13 @@ async function focusSelectionRoute(params, routeToken) {
 
 async function focusMapRoute(route, routeToken) {
   const target = mapRouteTarget(state.map, route);
-  if (!target) return;
+  const action = mapRouteFocusAction(target);
+  if (!action) return;
 
   resetSelectionOverlay();
-  zoomToBounds(target.bounds, target.targetType === "folder" ? 1.6 : 1.35);
+  zoomToBounds(target.bounds, action.zoomPadding);
   state.selectedTarget = target;
-
-  if (target.targetType === "file") {
-    await showFileForRoute(target, route.params, routeToken);
-    return;
-  }
-
-  clearAnnotationForm();
-  setText(controls.inspectorTitle, folderDisplayName(target));
-  setText(controls.inspectorSubtitle, `folder: ${target.path || "."} | ${target.geo.geohash}`);
-  render();
+  await MAP_ROUTE_FOCUS_HANDLERS[action.type]?.(target, route, routeToken);
 }
 
 async function showFileForRoute(file, params, routeToken) {

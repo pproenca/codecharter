@@ -1,8 +1,21 @@
 {
   "name": "codecharter",
   "version": "0.1.0",
+  "description": "Turn a codebase into a deterministic 2D map with geohash addresses and agent activity hooks.",
   "packageManager": "pnpm@10.33.4",
   "type": "module",
+  "keywords": [
+    "code-map",
+    "codemap",
+    "codebase",
+    "geohash",
+    "agent",
+    "codex",
+    "cli"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "bin",
     "src",
@@ -10,8 +23,8 @@
     "README.md"
   ],
   "bin": {
-    "codecharter": "./bin/codemap.mjs",
-    "codemap": "./bin/codemap.mjs"
+    "codecharter": "bin/codemap.mjs",
+    "codemap": "bin/codemap.mjs"
   },
   "scripts": {
     "codecharter": "node ./bin/codemap.mjs",

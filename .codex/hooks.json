@@ -1,0 +1,42 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/codecharter-codex-hook.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Recording CodeCharter activity"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/codecharter-codex-hook.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Recording CodeCharter activity"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/codecharter-codex-hook.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Recording CodeCharter activity"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -336,6 +336,11 @@ export function formatSourceLines(source) {
     .join("\n");
 }
 
+export function normalizeMapPath(path) {
+  const normalized = String(path ?? "").replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+$/, "");
+  return normalized === "." ? "" : normalized;
+}
+
 export function boundsCenter(bounds) {
   return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
 }

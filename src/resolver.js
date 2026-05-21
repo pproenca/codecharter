@@ -79,7 +79,8 @@ function resolveCodeRangeAddress(file, request) {
 }
 
 function normalizePathForMap(path) {
-  return path.replaceAll("\\", "/").replace(/^\.\//, "");
+  const normalized = path.replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+$/, "");
+  return normalized === "." ? "" : normalized;
 }
 
 function geoForBounds(bounds, level) {

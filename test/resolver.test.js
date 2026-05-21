@@ -6,6 +6,11 @@ const codemap = {
   version: 1,
   mapLevels: { world: 1, region: 2, folder: 4, file: 7, code: 10, lineRange: 12, tokenRange: 12 },
   folders: {
+    "": {
+      path: "",
+      bounds: { x: 0, y: 0, width: 1, height: 1 },
+      geo: { lat: 0, lon: 0, geohash: "s00000000000" },
+    },
     src: {
       path: "src",
       bounds: { x: 0, y: 0, width: 1, height: 1 },
@@ -31,6 +36,18 @@ test("resolves a file path to a file-level map address", () => {
   assert.equal(address.geohash, "s000000");
   assert.equal(address.deepLink, "codecharter://file/s000000?path=src%2Fapp.ts");
   assert.equal(address.breadcrumb, "src > app.ts");
+});
+
+test("adapts ordinary folder path spellings to sidecar map keys", () => {
+  const root = resolveAddress(codemap, { path: "." });
+  const folder = resolveAddress(codemap, { path: "./src/" });
+
+  assert.equal(root.targetType, "folder");
+  assert.equal(root.path, "");
+  assert.equal(root.breadcrumb, ".");
+  assert.equal(folder.targetType, "folder");
+  assert.equal(folder.path, "src");
+  assert.equal(folder.deepLink, "codecharter://folder/s000?path=src");
 });
 
 test("resolves a file path and lines to a lineRange-level map address", () => {

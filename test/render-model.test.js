@@ -22,6 +22,7 @@ import {
   organicRegionPoints,
   organicTrailSegments,
   latestActivityByAgent,
+  normalizeMapPath,
   panViewByScreenDelta,
   screenBoundsForView,
   screenToWorldPoint,
@@ -220,6 +221,12 @@ test("builds source-context requests and formats panel lines consistently", () =
       { number: 12, text: "export default app;" },
     ],
   }), "   7  const app = true;\n  12  export default app;");
+});
+
+test("normalizes ordinary paths to sidecar map keys", () => {
+  assert.equal(normalizeMapPath("."), "");
+  assert.equal(normalizeMapPath("./src/"), "src");
+  assert.equal(normalizeMapPath("src\\app.ts"), "src/app.ts");
 });
 
 test("hit-testing prefers the smallest containing file before enclosing folders", () => {

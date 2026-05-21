@@ -27,6 +27,7 @@ import {
   lineHeightForFile,
   lineAtWorldPoint,
   latestActivityByAgent,
+  normalizeMapPath,
   normalizeActivityState,
   organicTrailSegments,
   organicRegionPoints,
@@ -1609,7 +1610,7 @@ function setText(element, value) {
 }
 
 function targetForPath(path) {
-  const normalized = path.replaceAll("\\", "/").replace(/^\.\//, "");
+  const normalized = normalizeMapPath(path);
   if (state.map.files[normalized]) return { ...state.map.files[normalized], targetType: "file" };
   if (state.map.folders[normalized]) return { ...state.map.folders[normalized], targetType: "folder" };
   return null;

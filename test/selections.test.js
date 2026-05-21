@@ -60,8 +60,11 @@ test("creates map annotations with a Codex-ready spatial prompt", () => {
   assert.match(annotation.codexPrompt, /CodeCharter annotation: codecharter:\/\/annotation\//);
   assert.match(annotation.codexPrompt, /codecharter:\/\/annotation\//);
   assert.match(annotation.codexPrompt, /#\/annotation\//);
-  assert.match(annotation.codexPrompt, /Geohash coverage: s123456/);
+  assert.match(annotation.codexPrompt, /Spatial frame: level=file, precision=7, bounds=x=0.1, y=0.1, width=0.2, height=0.2/);
+  assert.match(annotation.codexPrompt, /Corner geohashes: nw=/);
+  assert.match(annotation.codexPrompt, /Resolved target count: 1/);
   assert.match(annotation.codexPrompt, /User note: hey explore this area/);
+  assert.doesNotMatch(annotation.codexPrompt, /Geohash coverage/);
   assert.doesNotMatch(annotation.codexPrompt, /Resolved targets/);
   assert.doesNotMatch(annotation.codexPrompt, /src\/a\.ts/);
 });
@@ -97,8 +100,31 @@ test("refreshes map annotations against current geometry without changing identi
 
   assert.equal(refreshed.id, "annotation-1");
   assert.deepEqual(refreshed.resolvedTargets.map((target) => target.path), ["src/a.ts", "src/c.ts"]);
-  assert.match(refreshed.codexPrompt, /s123456/);
-  assert.match(refreshed.codexPrompt, /s999999/);
+  assert.match(refreshed.codexPrompt, /Resolved target count: 2/);
+  assert.doesNotMatch(refreshed.codexPrompt, /s123456/);
+  assert.doesNotMatch(refreshed.codexPrompt, /s999999/);
+});
+
+test("keeps large annotation prompts compact by not dumping resolved target geohashes", () => {
+  const files = Object.fromEntries(Array.from({ length: 40 }, (_, index) => {
+    const width = 1 / 40;
+    return [
+      `src/file-${index}.ts`,
+      target(`src/file-${index}.ts`, `s${index.toString().padStart(11, "0")}`, { x: index * width, y: 0, width, height: 1 }),
+    ];
+  }));
+  const annotation = createMapAnnotation({ folders: {}, files }, {
+    comment: "scan this wide area",
+    level: "file",
+    geometry: { type: "rect", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+  });
+
+  assert.equal(annotation.resolvedTargets.length, 40);
+  assert.match(annotation.codexPrompt, /Corner geohashes:/);
+  assert.match(annotation.codexPrompt, /Resolved target count: 40/);
+  assert.doesNotMatch(annotation.codexPrompt, /s00000000000/);
+  assert.doesNotMatch(annotation.codexPrompt, /src\/file-0\.ts/);
+  assert.ok(annotation.codexPrompt.length < 700);
 });
 
 test("resolves detailed drawn selections to line coordinates", () => {

@@ -8,7 +8,7 @@ CodeCharter turns a repository into a deterministic 2D Code Map. Files and folde
 npx codecharter setup --dev
 ```
 
-`setup --dev` is the first-run path. It writes CodeCharter artifacts under `.codecharter/`, adds `.codecharter/` plus legacy root sidecar names to `.gitignore`, safely installs or merges local Git hooks that refresh the map after branch/merge/rewrite events, installs or merges a repo-local Codex lifecycle hook adapter under `.codex/`, starts the CodeCharter web app, and prints the exact local viewer URL.
+`setup --dev` is the first-run path. It writes CodeCharter artifacts under `.codecharter/`, adds `.codecharter/` plus legacy root sidecar names to `.gitignore`, safely installs or merges local Git hooks that refresh the map after branch/merge/rewrite events, installs a repo-local CodeCharter skill under `.agents/skills/codecharter/`, installs or merges a repo-local Codex lifecycle hook adapter under `.codex/`, starts the CodeCharter web app, and prints the exact local viewer URL.
 
 Pass `--open` if you want the command to ask your OS to open the viewer:
 
@@ -16,7 +16,7 @@ Pass `--open` if you want the command to ask your OS to open the viewer:
 npx codecharter setup --dev --open
 ```
 
-The Codex adapter is zero-token and daemon-free: Codex invokes the hook, the hook delegates to `codecharter codex-hook`, and one JSONL event is appended to `.codecharter/activity.jsonl`. CodeCharter preserves existing `.codex/hooks.json` entries when it adds its own hook. Open `/hooks` in Codex to review and trust the repo-local hook.
+The Codex adapter is zero-token and daemon-free: Codex invokes the hook, the hook delegates to `codecharter codex-hook`, and one JSONL event is appended to `.codecharter/activity.jsonl`. CodeCharter preserves existing `.codex/hooks.json` entries when it adds its own hook. The installed skill teaches Codex how to interpret CodeCharter annotation prompts, local viewer URLs, and corner geohashes without bulk-reading every mapped target. Open `/hooks` in Codex to review and trust the repo-local hook.
 
 If you only want to prepare files and hooks without starting the viewer:
 

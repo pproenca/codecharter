@@ -14,6 +14,7 @@ const DEFAULT_EXCLUDE_PATHS = [
   ".codecharter/named-places.json",
   ".codex/hooks.json",
   ".codex/hooks/codecharter-codex-hook.mjs",
+  ".agents/skills/codecharter/SKILL.md",
 ];
 
 export async function generateCodemap({ root, excludePaths = DEFAULT_EXCLUDE_PATHS, previousCodemap } = {}) {

@@ -26,6 +26,7 @@ const METADATA_EXCLUDE_PATHS = [
   ".codecharter/config.json",
   ".codex/hooks.json",
   ".codex/hooks/codecharter-codex-hook.mjs",
+  ".agents/skills/codecharter/SKILL.md",
 ];
 
 function usage() {

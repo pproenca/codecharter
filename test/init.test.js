@@ -36,6 +36,11 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
   assert.ok(hooksJson.hooks.PostToolUse);
   await access(join(root, ".codex", "hooks", "codecharter-codex-hook.mjs"), constants.X_OK);
 
+  const skill = await readFile(join(root, ".agents", "skills", "codecharter", "SKILL.md"), "utf8");
+  assert.match(skill, /CodeCharter annotation/);
+  assert.match(skill, /Corner geohashes/);
+  assert.match(skill, /resolvedTargets/);
+
   const postMergeHook = await readFile(join(root, ".git", "hooks", "post-merge"), "utf8");
   assert.match(postMergeHook, /codecharter generate/);
 

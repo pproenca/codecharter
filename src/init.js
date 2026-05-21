@@ -9,6 +9,8 @@ const execFileAsync = promisify(execFile);
 
 const CODECHARTER_DIR = ".codecharter";
 const CODEX_DIR = ".codex";
+const AGENTS_SKILLS_DIR = ".agents/skills";
+const CODECHARTER_SKILL_DIR = `${AGENTS_SKILLS_DIR}/codecharter`;
 const DEFAULT_ACTIVITY_PATH = `${CODECHARTER_DIR}/activity.jsonl`;
 const DEFAULT_MAP_PATH = `${CODECHARTER_DIR}/codecharter.json`;
 const ROOT_MAP_PATH = "codecharter.json";
@@ -32,13 +34,17 @@ export async function initializeCodecharter({
 
   const codemap = writeCodemap ? await writeCodemap({ root, out: resolvedMapPath, fresh }) : undefined;
   await ensurePackageDevDependency(root);
-  if (installCodex) await ensureCodexAdapter(root);
+  if (installCodex) {
+    await ensureCodecharterSkill(root);
+    await ensureCodexAdapter(root);
+  }
   if (installGitHooks) await ensureGitMapHooks(root, resolvedMapPath);
 
   return {
     mapPath: resolvedMapPath,
     configPath: join(root, CODECHARTER_DIR, "config.json"),
     codexAdapterInstalled: installCodex,
+    codexSkillPath: installCodex ? join(root, CODECHARTER_SKILL_DIR, "SKILL.md") : undefined,
     gitHooksInstalled: installGitHooks,
     codemap,
   };
@@ -91,6 +97,14 @@ export async function ensureCodexAdapter(root) {
   await chmod(hookPath, 0o755);
   await writeJson(hooksJsonPath, mergeCodexHooks(await readJson(hooksJsonPath, {}), codexHooksJson()));
   return { hookPath, hooksJsonPath };
+}
+
+export async function ensureCodecharterSkill(root) {
+  const skillDir = join(root, CODECHARTER_SKILL_DIR);
+  const skillPath = join(skillDir, "SKILL.md");
+  await mkdir(skillDir, { recursive: true });
+  await writeFile(skillPath, codecharterSkillMarkdown());
+  return { skillPath };
 }
 
 export async function ensureGitMapHooks(root, mapPath) {
@@ -253,6 +267,42 @@ for (const candidate of candidates) {
   if (result.error?.code !== "ENOENT") process.exit(0);
 }
 process.exit(0);
+`;
+}
+
+function codecharterSkillMarkdown() {
+  return `---
+name: codecharter
+description: Use when a prompt contains a CodeCharter annotation, codecharter:// link, CodeCharter URL, browser annotation route, corner geohashes, or asks Codex to inspect a mapped code area.
+---
+
+# CodeCharter
+
+Use this skill when the user gives you a CodeCharter annotation or asks you to inspect an area from the CodeCharter map.
+
+## Annotation Prompts
+
+CodeCharter annotation prompts may include:
+
+- a \`codecharter://annotation/<id>\` deep link
+- a browser route like \`#/annotation/<id>\`
+- a local CodeCharter URL like \`http://127.0.0.1:<port>/#/annotation/<id>\`
+- a spatial frame with four corner geohashes
+- a user note describing what to investigate
+
+## Workflow
+
+1. If a CodeCharter URL is present, use it as the source of truth. The annotation JSON is available at \`<origin>/api/annotations/<id>\`.
+2. If the server is not running, read \`.codecharter/named-places.json\` and find the annotation by id.
+3. Use the annotation's \`resolvedTargets\` as the authoritative target list.
+4. Read only the files or ranges needed to answer the user note.
+5. Treat \`Corner geohashes\` as the selected rectangle's spatial frame. They are not a file list and should not be expanded into a broad repo scan.
+6. If a resolved target is too broad, start with names, bounds, and nearby target metadata before opening source files.
+
+## Fallbacks
+
+- If no annotation JSON is available, use \`.codecharter/codecharter.json\` to resolve geohash-backed map addresses.
+- If both map and annotation storage are unavailable, ask the user to start CodeCharter with \`codecharter dev\` or paste the annotation JSON.
 `;
 }
 

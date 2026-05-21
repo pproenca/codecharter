@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createAnnotationHashRoute, createCodemapDeepLink } from "./deep-links.js";
+import { codePointToGeo, encodeGeohash } from "./geohash.js";
 import { clampBounds, intersects, normalizeRect } from "./geometry.js";
 import { precisionForLevel } from "./levels.js";
 import { resolveAddress } from "./resolver.js";
@@ -42,6 +43,7 @@ export function resolveSelection(codemap, selection) {
 
   return {
     geometry,
+    spatialFrame: spatialFrameForGeometry(geometry, level),
     coveringSet,
     resolvedTargets: targets.sort((a, b) => a.path.localeCompare(b.path)),
   };
@@ -184,6 +186,29 @@ function clampRatio(value) {
   return Math.min(1, Math.max(0, value));
 }
 
+function spatialFrameForGeometry(geometry, level) {
+  const { x, y, width, height } = geometry.bounds;
+  const precision = precisionForLevel(level);
+  const points = {
+    northWest: { x, y },
+    northEast: { x: x + width, y },
+    southWest: { x, y: y + height },
+    southEast: { x: x + width, y: y + height },
+  };
+
+  return {
+    level,
+    precision,
+    bounds: geometry.bounds,
+    corners: Object.fromEntries(
+      Object.entries(points).map(([corner, point]) => {
+        const geo = codePointToGeo(point);
+        return [corner, encodeGeohash(geo.lat, geo.lon, precision)];
+      }),
+    ),
+  };
+}
+
 function withAnnotationPrompt(annotation) {
   const linked = {
     ...annotation,
@@ -197,15 +222,25 @@ function withAnnotationPrompt(annotation) {
 }
 
 function codexPromptForAnnotation(annotation) {
-  const coveringSet = annotation.coveringSet.length ? annotation.coveringSet.join(", ") : "no geohash coverage";
   const comment = annotation.comment?.trim() || "<empty>";
+  const frame = annotation.spatialFrame;
   return [
     `CodeCharter annotation: ${annotation.deepLink}`,
     `Browser route: ${annotation.browserHash}`,
-    `Geohash coverage: ${coveringSet}`,
+    `Spatial frame: level=${frame.level}, precision=${frame.precision}, bounds=${formatBounds(frame.bounds)}`,
+    `Corner geohashes: nw=${frame.corners.northWest}, ne=${frame.corners.northEast}, sw=${frame.corners.southWest}, se=${frame.corners.southEast}`,
+    `Resolved target count: ${annotation.resolvedTargets.length}`,
     `User note: ${comment}`,
-    "Inspect this geohash area in CodeCharter. Read only the files needed to answer the note; do not bulk-read every resolved target.",
+    "Inspect this CodeCharter annotation. Treat the corner geohashes as the selected rectangle, not as a list of files; read only the resolved targets needed to answer the note.",
   ].join("\n");
+}
+
+function formatBounds(bounds) {
+  return `x=${formatNumber(bounds.x)}, y=${formatNumber(bounds.y)}, width=${formatNumber(bounds.width)}, height=${formatNumber(bounds.height)}`;
+}
+
+function formatNumber(value) {
+  return Number.parseFloat(value.toFixed(6)).toString();
 }
 
 function annotationName(input) {

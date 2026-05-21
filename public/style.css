@@ -114,7 +114,7 @@ select:focus-visible {
   width: 100%;
 }
 
-#mapCanvas:focus-visible {
+#mapCanvas:focus-visible:not(.pointer-focused) {
   outline: 3px solid rgba(37, 99, 235, 0.72);
   outline-offset: -3px;
 }

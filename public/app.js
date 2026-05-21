@@ -58,6 +58,7 @@ const SAVE_AND_COPY_LABEL = "Save and copy Codex prompt";
 const COPY_PROMPT_LABEL = "Copy Codex prompt";
 const MIN_SELECTION_SCREEN_PIXELS = 4;
 const CAMERA_ANIMATION_MS = 280;
+const DOUBLE_CLICK_ZOOM_FACTOR = 2;
 
 let frameLabels = [];
 let activityPollTimer = null;
@@ -201,6 +202,7 @@ function bindEvents() {
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointerleave", onPointerUp);
   canvas.addEventListener("dblclick", onCanvasDoubleClick);
+  canvas.addEventListener("blur", () => canvas.classList.remove("pointer-focused"));
   canvas.tabIndex = 0;
   canvas.setAttribute("role", "application");
   canvas.setAttribute("aria-label", "CodeCharter map canvas. Drag to pan, use arrow keys to pan, plus and minus to zoom, double click to zoom in, 0 to fit the codebase, Enter to select the center, and Escape to cancel the current action.");
@@ -413,7 +415,7 @@ function updateSelectionPopover() {
   if (!controls.selectionPopover) return;
   const selectedAnnotation = state.selectedTarget?.targetType === "annotation";
   const hasDraft = Boolean(state.draftSelection || state.resolvedSelection);
-  controls.selectionPopover.hidden = !(hasDraft || selectedAnnotation);
+  controls.selectionPopover.hidden = !hasDraft;
   if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = !selectedAnnotation;
   if (controls.saveSelection) {
     controls.saveSelection.disabled = !(state.resolvedSelection || selectedAnnotation);
@@ -1129,6 +1131,7 @@ function normalizeWheelDelta(delta, deltaMode) {
 }
 
 function onCanvasKeyDown(event) {
+  canvas.classList.remove("pointer-focused");
   const keyDeltas = {
     ArrowRight: { x: KEYBOARD_PAN_PIXELS, y: 0 },
     ArrowLeft: { x: -KEYBOARD_PAN_PIXELS, y: 0 },
@@ -1224,6 +1227,7 @@ function cancelCurrentInteraction() {
 
 function onPointerDown(event) {
   cancelCameraAnimation();
+  canvas.classList.add("pointer-focused");
   canvas.setPointerCapture(event.pointerId);
   canvas.focus({ preventScroll: true });
   const screen = screenPoint(event);
@@ -1279,7 +1283,28 @@ async function onPointerUp(event) {
 function onCanvasDoubleClick(event) {
   if (state.drawing) return;
   event.preventDefault();
-  zoomAt(screenPoint(event), KEYBOARD_ZOOM_FACTOR, { animate: true });
+  const screen = screenPoint(event);
+  const world = screenToWorld(screen);
+  const hit = hitTestDrillTarget(world) ?? hitTestAnnotation(world);
+
+  if (hit?.targetType === "annotation") {
+    zoomToBounds(hit.geometry.bounds, 1.28);
+    return;
+  }
+  if (hit?.targetType === "folder") {
+    zoomToBounds(hit.bounds, 1.35);
+    return;
+  }
+  if (hit?.targetType === "file") {
+    zoomToReadableFile(hit, lineRatioAtPoint(hit, world));
+    return;
+  }
+
+  zoomAt(screen, DOUBLE_CLICK_ZOOM_FACTOR, { animate: true });
+}
+
+function hitTestDrillTarget(world) {
+  return hitTestActivity(world) ?? hitTestTargets(state.map, world);
 }
 
 function updateDraftSelection(world) {
@@ -1341,7 +1366,7 @@ async function selectMapTarget(worldPoint) {
   }
 
   const line = lineAtPoint(hit, worldPoint);
-  const lineRatio = (line - 0.5) / Math.max(1, hit.lineCount);
+  const lineRatio = lineRatioForLine(hit, line);
   let box = screenBounds(hit.bounds);
   if (!canRenderSourceText(hit, box)) {
     const readableView = zoomToReadableFile(hit, lineRatio);
@@ -1393,7 +1418,7 @@ function selectAnnotation(annotation) {
   state.draftSelection = null;
   state.resolvedSelection = null;
   syncHashRoute(createAnnotationHashRoute(annotation.id));
-  if (controls.selectionComment) controls.selectionComment.value = annotation.comment ?? "";
+  if (controls.selectionComment) controls.selectionComment.value = "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
   setSaveButtonLabel();
   updateSelectionPopover();
@@ -1402,6 +1427,14 @@ function selectAnnotation(annotation) {
 
 function lineAtPoint(file, worldPoint) {
   return lineAtWorldPoint(file, worldPoint);
+}
+
+function lineRatioAtPoint(file, worldPoint) {
+  return lineRatioForLine(file, lineAtPoint(file, worldPoint));
+}
+
+function lineRatioForLine(file, line) {
+  return (line - 0.5) / Math.max(1, file.lineCount);
 }
 
 function sourcePanelLineRange(file, focusLine, box) {

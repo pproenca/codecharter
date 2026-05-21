@@ -101,22 +101,26 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.match(plainAnnotation, /^targets: 1$/m);
     assert.doesNotMatch(plainAnnotation.trim(), /^\{/);
 
-    const cliSource = await runCliJson([
-      "source",
-      "src/app.ts",
-      "1",
-      "2",
-      "--root",
-      root,
-      "--map",
-      join(root, "codecharter.json"),
-    ]);
-    assert.deepEqual(cliSource.lines.map((line) => line.text), ["const app = true;", "export default app;"]);
-
     const cliApi = await runCliJson(["api", "/api/annotations", "--server", baseUrl]);
     assert.equal(cliApi.method, "GET");
     assert.equal(cliApi.status, 200);
     assert.equal(cliApi.body.annotations.length, 1);
+
+    try {
+      await execFileAsync(process.execPath, [
+        join(process.cwd(), "bin", "codemap.mjs"),
+        "--json",
+        "api",
+        "/api/source?path=src/app.ts&lineStart=1&lineEnd=2",
+        "--server",
+        baseUrl,
+      ]);
+      assert.fail("Expected CLI API source reads to be rejected");
+    } catch (error) {
+      const body = JSON.parse(error.stdout);
+      assert.equal(body.ok, false);
+      assert.match(body.error.message, /api does not expose \/api\/source/);
+    }
 
     await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap({ includeExtraFile: true })));
     const nextMapVersion = await waitForMapVersion(baseUrl, mapVersion.version);

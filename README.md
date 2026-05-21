@@ -79,7 +79,7 @@ codecharter --json annotation codecharter://annotation/<id>
 
 `setup` is the opinionated first-run command. `init` prepares the Map Sidecar and local Activity Archive without serving the app. `dev` starts the viewer for an already prepared repo. `annotation` is the agent-safe read path for turning a pasted CodeCharter annotation prompt into JSON.
 
-Advanced commands are still available when needed: `annotations` lists saved annotations, `source` reads bounded source ranges for scripts or non-local agents, `resolve` turns paths and ranges into geohash-backed Map Addresses, `api` performs read-only GETs against local CodeCharter API endpoints, and `activity` appends explicit local activity events.
+Advanced commands are still available when needed: `annotations` lists saved annotations, `resolve` turns paths and ranges into geohash-backed Map Addresses, `api` performs read-only GETs against local CodeCharter API endpoints except `/api/source`, and `activity` appends explicit local activity events.
 
 To map another repository from this checkout:
 

@@ -325,13 +325,14 @@ CodeCharter annotation prompts may include:
 
 - \`codecharter --json annotation\` uses the local server when the URL includes one, otherwise it reads \`.codecharter/named-places.json\` and refreshes against \`.codecharter/codecharter.json\`.
 - Use \`codecharter --json annotations\` to list known annotations.
-- Use \`codecharter --json api /api/...\` with \`--server <url>\` only as a read-only GET escape hatch when a high-level command is missing.
+- Use \`codecharter --json api /api/...\` with \`--server <url>\` only as a read-only GET escape hatch when a high-level command is missing. Do not use it to read source files.
 - If both map and annotation storage are unavailable, ask the user to start CodeCharter with \`codecharter dev\` or paste the annotation JSON.
 
 ## Do Not
 
 - Do not bulk-read every file under a selected area.
 - Do not expand corner geohashes into broad repository scans.
+- Do not use CodeCharter as a source-file reader; Codex should read resolved target files directly.
 - Do not write or delete annotations through raw API calls without explicit user approval.
 - Do not prefer browser automation over CLI reads for normal annotation work.
 

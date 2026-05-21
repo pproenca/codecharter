@@ -16,7 +16,6 @@ import { ensureCodecharterGitignore, ensureLocalGitExcludes } from "../src/local
 import { resolveAddress } from "../src/resolver.js";
 import { refreshPlaceResolution } from "../src/selections.js";
 import { startServer } from "../src/server.js";
-import { readSourceRange } from "../src/source.js";
 import { writeJson } from "../src/store.js";
 
 const DEFAULT_MAP_FILE = ".codecharter/codecharter.json";
@@ -45,7 +44,6 @@ function usage() {
 
 Advanced:
   codecharter annotations [--json] [--root <dir>] [--server <url>] [--limit <n>]
-  codecharter source <path> [lineStart] [lineEnd] [--json] [--root <dir>]
   codecharter resolve <path> [lineStart] [lineEnd] [--json] [--map <file>]
   codecharter activity <path> [lineStart] [lineEnd] [--json] [--agent <id>] [--state <state>] [--note <text>]
   codecharter api <api-path-or-url> --server <url> [--json]
@@ -208,25 +206,6 @@ async function main() {
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
     printResult(await listAnnotations({ root, mapPath, server, limit }), jsonOutput, printAnnotations);
-    return;
-  }
-
-  if (command === "source") {
-    const root = resolvePath(takeOption(args, "--root", "."));
-    const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
-    const [path, lineStartRaw, lineEndRaw] = args;
-    if (!path) throw new Error("source requires a path");
-    if (args.length > 3) throw new Error(`Unknown arguments: ${args.slice(3).join(" ")}`);
-
-    const codemap = JSON.parse(await readFile(mapPath, "utf8"));
-    const file = codemap.files[path];
-    if (!file) throw new Error(`No source file found for path: ${path}`);
-    const lineStart = optionalNumber(lineStartRaw);
-    const lineEnd = lineEndRaw === undefined ? lineStart : optionalNumber(lineEndRaw);
-    printResult({
-      source: "storage",
-      ...await readSourceRange(root, file, { lineStart, lineEnd }),
-    }, jsonOutput, printSource);
     return;
   }
 
@@ -586,6 +565,7 @@ function annotationEnvelope(annotation, metadata) {
 
 async function readApi({ reference, server }) {
   const url = apiUrl(reference, server);
+  if (new URL(url).pathname === "/api/source") throw new Error("api does not expose /api/source; use Codex file-reading tools for source files");
   const response = await fetch(url);
   const text = await response.text();
   let body;
@@ -747,14 +727,6 @@ function printAnnotations(result) {
   if (result.totalCount !== result.count) console.log(`total: ${result.totalCount}`);
   for (const annotation of result.annotations) {
     console.log(`annotation: ${annotation.id} targets=${annotation.resolvedTargets?.length ?? 0} note=${singleLine(annotation.comment ?? annotation.name ?? "")}`);
-  }
-}
-
-function printSource(result) {
-  console.log(`source: ${result.path}`);
-  console.log(`lines: ${result.lineRange.start}-${result.lineRange.end}`);
-  for (const line of result.lines ?? []) {
-    console.log(`${line.number}: ${line.text}`);
   }
 }
 

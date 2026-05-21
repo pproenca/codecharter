@@ -6,6 +6,7 @@ import {
   activityPrimaryBounds,
   activityStateStyle,
   activityTrailGroups,
+  activityTrailPointGroups,
   activityTissueBox,
   activityVisualEncoding,
   boundsCenter as modelBoundsCenter,
@@ -933,8 +934,8 @@ function drawActivityTrails(events, latestByAgent) {
     const encoding = activityVisualEncoding(trailLatest, { latest, selected });
     const style = activityStateStyle(encoding.activityState);
     const fillColor = activityFillColor(style, encoding);
-    const points = activityTrailPoints(agentEvents);
-    if (points.length < 2) continue;
+    const pointGroups = activityTrailPointGroups(activityTrailPoints(agentEvents));
+    if (pointGroups.length === 0) continue;
 
     ctx.save();
     ctx.lineCap = "round";
@@ -943,19 +944,23 @@ function drawActivityTrails(events, latestByAgent) {
     ctx.shadowColor = hexToRgba(fillColor, encoding.trailAlpha * 0.3);
     ctx.shadowBlur = encoding.dormant ? 0 : selected ? 12 : 7;
 
-    strokeOrganicTrail(points, {
-      color: hexToRgba(fillColor, encoding.trailAlpha * 0.16),
-      lineWidth: encoding.lineWidth * 5.4,
-    });
+    for (const points of pointGroups) {
+      strokeOrganicTrail(points, {
+        color: hexToRgba(fillColor, encoding.trailAlpha * 0.16),
+        lineWidth: encoding.lineWidth * 5.4,
+      });
+    }
     ctx.shadowBlur = 0;
-    strokeOrganicTrail(points, {
-      color: hexToRgba(fillColor, encoding.trailAlpha * 0.38),
-      lineWidth: encoding.lineWidth * 2.25,
-    });
-    strokeOrganicTrail(points, {
-      color: hexToRgba(fillColor, Math.min(0.9, encoding.trailAlpha * 0.95)),
-      lineWidth: encoding.lineWidth,
-    });
+    for (const points of pointGroups) {
+      strokeOrganicTrail(points, {
+        color: hexToRgba(fillColor, encoding.trailAlpha * 0.38),
+        lineWidth: encoding.lineWidth * 2.25,
+      });
+      strokeOrganicTrail(points, {
+        color: hexToRgba(fillColor, Math.min(0.9, encoding.trailAlpha * 0.95)),
+        lineWidth: encoding.lineWidth,
+      });
+    }
     ctx.restore();
   }
 }

@@ -6,6 +6,7 @@ import {
   activityPrimaryBounds,
   activityStateStyle,
   activityTrailGroups,
+  activityTrailPointGroups,
   activityTissueBox,
   activityVisualEncoding,
   canRenderSourceText,
@@ -293,6 +294,20 @@ test("splits activity trails by Codex session and time gap", () => {
   });
 
   assert.deepEqual(groups.map((group) => group.map((event) => event.id)), [["a1", "a2"]]);
+});
+
+test("splits activity trail strokes before distant map jumps", () => {
+  const pointGroups = activityTrailPointGroups([
+    { x: 0, y: 0 },
+    { x: 22, y: 4 },
+    { x: 400, y: 260 },
+    { x: 420, y: 262 },
+  ], { maxSegmentDistance: 120 });
+
+  assert.deepEqual(pointGroups, [
+    [{ x: 0, y: 0 }, { x: 22, y: 4 }],
+    [{ x: 400, y: 260 }, { x: 420, y: 262 }],
+  ]);
 });
 
 test("sorts activity events and keeps the latest visible state by agent", () => {

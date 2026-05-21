@@ -17,6 +17,7 @@ export const ACTIVITY_DECAY_HALF_LIFE_MINUTES = 90;
 export const ACTIVITY_LIVE_WINDOW_MINUTES = 360;
 export const ACTIVITY_MIN_ALPHA = 0.18;
 export const ACTIVITY_TRAIL_MIN_SEGMENT_PX = 8;
+export const ACTIVITY_TRAIL_MAX_SEGMENT_PX = 220;
 export const ACTIVITY_TRAIL_TENSION = 0.72;
 export const ACTIVITY_TRAIL_MAX_GAP_MINUTES = 20;
 
@@ -469,6 +470,25 @@ export function activityTrailGroups(events, {
   }
 
   return groups.sort(compareActivityGroupsByTime);
+}
+
+export function activityTrailPointGroups(points, {
+  maxSegmentDistance = ACTIVITY_TRAIL_MAX_SEGMENT_PX,
+} = {}) {
+  const groups = [];
+  let current = [];
+
+  for (const point of points) {
+    const previous = current.at(-1);
+    if (previous && pointDistance(previous, point) > maxSegmentDistance) {
+      if (current.length > 1) groups.push(current);
+      current = [];
+    }
+    current.push(point);
+  }
+
+  if (current.length > 1) groups.push(current);
+  return groups;
 }
 
 export function organicTrailSegments(points, {

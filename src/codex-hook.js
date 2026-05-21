@@ -3,11 +3,12 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
-import { changedCodeChanges } from "./activity-watcher.js";
+import { changedCodeChanges, changedLineRange } from "./activity-watcher.js";
 import { appendActivityEvents, ensureActivityArchive } from "./activity-store.js";
 import { createActivityEvent } from "./activity.js";
+import { generateCodemap } from "./generator.js";
 import { resolveAddress } from "./resolver.js";
-import { readJson } from "./store.js";
+import { readJson, writeJson } from "./store.js";
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_CONFIG_PATH = ".codecharter/config.json";
@@ -48,13 +49,21 @@ async function codexHookEvents({ root, mapPath, payload }) {
   if (payload.hook_event_name !== "PostToolUse") return [];
 
   const activityState = inferActivityState(payload);
-  const codemap = await readCodemap(mapPath);
+  let codemap = await readCodemap(mapPath);
   const readChanges = activityState === "testing" ? [] : readCommandChanges(root, codemap, payload);
-  const changes = [...readChanges, ...await changedCodeChanges(root)];
+  let writeChanges = activityState === "testing" ? [] : await toolInputChanges(root, payload);
+  if (writeChanges.length === 0 && readChanges.length === 0) {
+    writeChanges = await changedCodeChanges(root);
+  }
+  const previousCodemap = codemap;
+  if (writeChanges.length > 0) {
+    codemap = await refreshCodemap(root, mapPath, previousCodemap);
+  }
+  const changes = [...readChanges, ...writeChanges];
   const events = [];
   for (const change of changes) {
     try {
-      const address = resolveAddress(codemap, change);
+      const address = resolveChangeAddress(codemap, previousCodemap, change);
       events.push(createActivityEvent(address, {
         id: randomUUID(),
         agentId: "codex",
@@ -75,6 +84,23 @@ async function codexHookEvents({ root, mapPath, payload }) {
   return events;
 }
 
+async function refreshCodemap(root, mapPath, previousCodemap) {
+  const codemap = await generateCodemap({ root, previousCodemap });
+  await writeJson(mapPath, codemap);
+  return codemap;
+}
+
+function resolveChangeAddress(codemap, previousCodemap, change) {
+  try {
+    return resolveAddress(codemap, change);
+  } catch (error) {
+    if (previousCodemap && previousCodemap !== codemap) {
+      return resolveAddress(previousCodemap, change);
+    }
+    throw error;
+  }
+}
+
 function heartbeatEvent(input) {
   return {
     id: randomUUID(),
@@ -90,15 +116,15 @@ function heartbeatEvent(input) {
 }
 
 function inferActivityState(payload) {
-  if (payload.tool_name !== "Bash") return "editing";
-  const command = payload.tool_input?.command ?? "";
+  if (!isShellTool(payload)) return "editing";
+  const command = payload.tool_input?.command ?? payload.tool_input?.cmd ?? "";
   if (/\b(pnpm|npm|yarn|bun)\s+(test|vitest|jest)\b/.test(command)) return "testing";
   if (/\b(vitest|jest|pytest|cargo\s+test|go\s+test|swift\s+test|xcodebuild\s+test)\b/.test(command)) return "testing";
   return "editing";
 }
 
 function readCommandChanges(root, codemap, payload) {
-  if (payload.tool_name !== "Bash") return [];
+  if (!isShellTool(payload)) return [];
   const command = payload.tool_input?.command ?? payload.tool_input?.cmd ?? "";
   if (!command) return [];
 
@@ -126,6 +152,84 @@ function readCommandChanges(root, codemap, payload) {
     }
   }
   return changes;
+}
+
+function isShellTool(payload) {
+  const toolName = String(payload.tool_name ?? "");
+  return toolName === "Bash" || toolName === "functions.exec_command";
+}
+
+async function toolInputChanges(root, payload) {
+  const paths = toolInputPaths(root, payload);
+  const changes = [];
+  for (const path of paths) {
+    changes.push({
+      path,
+      ...await changedLineRange(root, path),
+    });
+  }
+  return changes;
+}
+
+function toolInputPaths(root, payload) {
+  const toolName = String(payload.tool_name ?? "").toLowerCase();
+  const input = payload.tool_input ?? {};
+  const paths = new Set();
+
+  if (toolName.includes("apply_patch")) {
+    for (const path of applyPatchPaths(toolInputText(input))) {
+      paths.add(normalizeCommandPath(root, path));
+    }
+  }
+
+  if (toolName === "edit" || toolName.endsWith(".edit") || toolName === "write" || toolName.endsWith(".write") || toolName.includes("multiedit")) {
+    for (const path of structuredToolPaths(input)) {
+      paths.add(normalizeCommandPath(root, path));
+    }
+  }
+
+  return [...paths].filter(Boolean);
+}
+
+function toolInputText(input) {
+  return [
+    input.command,
+    input.cmd,
+    input.patch,
+    input.input,
+  ].filter((value) => typeof value === "string").join("\n");
+}
+
+function applyPatchPaths(text) {
+  return [...text.matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm)]
+    .map((match) => match[1].trim())
+    .filter(Boolean);
+}
+
+function structuredToolPaths(value) {
+  const paths = [];
+  collectStructuredToolPaths(value, paths);
+  return paths;
+}
+
+function collectStructuredToolPaths(value, paths) {
+  if (!value || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    for (const item of value) collectStructuredToolPaths(item, paths);
+    return;
+  }
+
+  for (const [key, child] of Object.entries(value)) {
+    if (isPathKey(key) && typeof child === "string") {
+      paths.push(child);
+      continue;
+    }
+    if (child && typeof child === "object") collectStructuredToolPaths(child, paths);
+  }
+}
+
+function isPathKey(key) {
+  return /^(file_?path|path|filename)$/i.test(key);
 }
 
 function shellWords(segment) {

@@ -185,7 +185,7 @@ function codexHooksJson() {
       ],
       PostToolUse: [
         {
-          matcher: "Bash|apply_patch|Edit|Write",
+          matcher: "Bash|apply_patch|Edit|Write|MultiEdit|functions.apply_patch|functions.exec_command",
           hooks: [handler],
         },
       ],

@@ -138,7 +138,7 @@ async function changedGitPaths(root) {
   return parseGitStatusPorcelain(stdout);
 }
 
-async function changedLineRange(root, path) {
+export async function changedLineRange(root, path) {
   const diffs = await Promise.all([
     gitDiff(root, ["diff", "--unified=0", "--", path]),
     gitDiff(root, ["diff", "--cached", "--unified=0", "--", path]),

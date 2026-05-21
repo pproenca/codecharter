@@ -247,6 +247,92 @@ test("codecharter codex-hook appends mapped Codex activity without a daemon", as
   assert.match(event.address.deepLink, /^codecharter:\/\//);
 });
 
+test("codecharter codex-hook scopes write activity to tool input paths", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-codex-hook-scoped-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
+  await writeFile(join(root, "src", "other.ts"), "export const other = true;\n");
+  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileAsync("git", ["add", "src/app.ts", "src/other.ts"], { cwd: root });
+  await execFileAsync("git", ["-c", "user.name=CodeCharter", "-c", "user.email=codecharter@example.invalid", "commit", "-m", "init"], { cwd: root });
+  await execFileAsync("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "generate",
+    "--root",
+    root,
+    "--out",
+    join(root, "codecharter.json"),
+    "--quiet",
+  ], { cwd: root });
+
+  await writeFile(join(root, "src", "app.ts"), "export const app = false;\n");
+  await writeFile(join(root, "src", "other.ts"), "export const other = false;\n");
+
+  const payload = {
+    session_id: "session-scoped",
+    turn_id: "turn-scoped",
+    cwd: root,
+    hook_event_name: "PostToolUse",
+    tool_name: "apply_patch",
+    tool_input: { command: "*** Begin Patch\n*** Update File: src/app.ts\n@@\n-export const app = true;\n+export const app = false;\n*** End Patch\n" },
+    model: "gpt-test",
+  };
+
+  await execFileWithInput("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "codex-hook",
+  ], { cwd: root, input: JSON.stringify(payload) });
+
+  const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
+  assert.equal(lines.length, 1);
+  const event = JSON.parse(lines[0]);
+  assert.equal(event.address.path, "src/app.ts");
+  assert.equal(event.sessionId, "session-scoped");
+});
+
+test("codecharter codex-hook refreshes the map before resolving new file activity", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-codex-hook-new-file-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
+  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileAsync("git", ["add", "src/app.ts"], { cwd: root });
+  await execFileAsync("git", ["-c", "user.name=CodeCharter", "-c", "user.email=codecharter@example.invalid", "commit", "-m", "init"], { cwd: root });
+  await execFileAsync("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "generate",
+    "--root",
+    root,
+    "--out",
+    join(root, "codecharter.json"),
+    "--quiet",
+  ], { cwd: root });
+
+  await writeFile(join(root, "src", "new.ts"), "export const created = true;\n");
+
+  const payload = {
+    session_id: "session-new-file",
+    turn_id: "turn-new-file",
+    cwd: root,
+    hook_event_name: "PostToolUse",
+    tool_name: "apply_patch",
+    tool_input: { command: "*** Begin Patch\n*** Add File: src/new.ts\n+export const created = true;\n*** End Patch\n" },
+    model: "gpt-test",
+  };
+
+  await execFileWithInput("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "codex-hook",
+  ], { cwd: root, input: JSON.stringify(payload) });
+
+  const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
+  const event = JSON.parse(lines[0]);
+  assert.equal(event.address.path, "src/new.ts");
+  assert.equal(event.address.targetType, "lineRange");
+
+  const sidecar = JSON.parse(await readFile(join(root, "codecharter.json"), "utf8"));
+  assert.ok(sidecar.files["src/new.ts"]);
+});
+
 test("codecharter codex-hook maps Bash read commands as reading activity", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-codex-hook-read-"));
   await mkdir(join(root, "src"), { recursive: true });
@@ -293,6 +379,50 @@ test("codecharter codex-hook maps Bash read commands as reading activity", async
   assert.equal(event.address.targetType, "lineRange");
   assert.deepEqual(event.address.lineRange, { start: 1, end: 2 });
   assert.match(event.address.deepLink, /path=src%2Fapp\.ts/);
+});
+
+test("codecharter codex-hook maps Codex app shell reads as reading activity", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-codex-hook-app-read-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.ts"), [
+    "export const app = true;",
+    "export const other = false;",
+    "",
+  ].join("\n"));
+  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileAsync("git", ["add", "src/app.ts"], { cwd: root });
+  await execFileAsync("git", ["-c", "user.name=CodeCharter", "-c", "user.email=codecharter@example.invalid", "commit", "-m", "init"], { cwd: root });
+  await execFileAsync("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "generate",
+    "--root",
+    root,
+    "--out",
+    join(root, "codecharter.json"),
+    "--quiet",
+  ], { cwd: root });
+
+  const payload = {
+    session_id: "session-app-read",
+    turn_id: "turn-app-read",
+    cwd: root,
+    hook_event_name: "PostToolUse",
+    tool_name: "functions.exec_command",
+    tool_input: { cmd: "sed -n '1,2p' src/app.ts" },
+    model: "gpt-test",
+  };
+
+  await execFileWithInput("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "codex-hook",
+  ], { cwd: root, input: JSON.stringify(payload) });
+
+  const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
+  const event = JSON.parse(lines[0]);
+  assert.equal(event.activityState, "reading");
+  assert.equal(event.note, "Codex read src/app.ts");
+  assert.equal(event.sessionId, "session-app-read");
+  assert.deepEqual(event.address.lineRange, { start: 1, end: 2 });
 });
 
 async function execFileWithInput(command, args, { cwd, input }) {

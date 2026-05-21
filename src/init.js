@@ -102,9 +102,13 @@ export async function ensureCodexAdapter(root) {
 export async function ensureCodecharterSkill(root) {
   const skillDir = join(root, CODECHARTER_SKILL_DIR);
   const skillPath = join(skillDir, "SKILL.md");
+  const agentsDir = join(skillDir, "agents");
+  const openaiYamlPath = join(agentsDir, "openai.yaml");
   await mkdir(skillDir, { recursive: true });
+  await mkdir(agentsDir, { recursive: true });
   await writeFile(skillPath, codecharterSkillMarkdown());
-  return { skillPath };
+  await writeFile(openaiYamlPath, codecharterSkillOpenaiYaml());
+  return { skillPath, openaiYamlPath };
 }
 
 export async function ensureGitMapHooks(root, mapPath) {
@@ -273,12 +277,12 @@ process.exit(0);
 function codecharterSkillMarkdown() {
   return `---
 name: codecharter
-description: Use when a prompt contains a CodeCharter annotation, codecharter:// link, CodeCharter URL, browser annotation route, corner geohashes, or asks Codex to inspect a mapped code area.
+description: Use when a prompt contains a CodeCharter annotation, codecharter:// annotation link, local CodeCharter URL, browser annotation route, corner geohashes, resolved target count, or asks Codex to inspect a mapped code area through the CodeCharter CLI.
 ---
 
 # CodeCharter
 
-Use this skill when the user gives you a CodeCharter annotation or asks you to inspect an area from the CodeCharter map.
+Use the CodeCharter CLI as the communication path. Do not use browser automation to inspect annotations unless the user explicitly asks for visual UI testing.
 
 ## Annotation Prompts
 
@@ -292,19 +296,26 @@ CodeCharter annotation prompts may include:
 
 ## Workflow
 
-1. Run \`codecharter --json doctor\` if setup state, hook state, skill installation, or server reachability is unclear.
-2. Run \`codecharter annotation <id-or-url>\` for pasted annotation prompts. It accepts a raw id, a \`codecharter://annotation/<id>\` link, or a local CodeCharter URL.
-3. Use the command's \`resolvedTargets\` as the authoritative target list.
-4. Read only the needed file ranges with \`codecharter source <path> [lineStart] [lineEnd]\`.
-5. Treat \`Corner geohashes\` as the selected rectangle's spatial frame. They are not a file list and should not be expanded into a broad repo scan.
-6. If a resolved target is too broad, start with names, bounds, and nearby target metadata before opening source files.
+1. Run \`codecharter --json doctor\` when setup state, hooks, skill installation, map storage, or server reachability is unclear.
+2. Run \`codecharter annotation <id-or-url>\` for pasted annotation prompts. Pass the full CodeCharter URL when available.
+3. Use \`resolvedTargets\` from the command output as the authoritative target list.
+4. Read only needed ranges with \`codecharter source <path> [lineStart] [lineEnd]\`.
+5. Treat \`Corner geohashes\` as the selected rectangle's spatial frame, not as files to expand or scan.
+6. If a target is too broad, inspect annotation names, bounds, and target metadata before reading source.
 
 ## Fallbacks
 
 - \`codecharter annotation\` uses the local server when the URL includes one, otherwise it reads \`.codecharter/named-places.json\` and refreshes against \`.codecharter/codecharter.json\`.
 - Use \`codecharter annotations\` to list known annotations.
-- Use \`codecharter api /api/<path> --server <url>\` only as a read-only GET escape hatch when a high-level command is missing.
+- Use \`codecharter api /api/...\` with \`--server <url>\` only as a read-only GET escape hatch when a high-level command is missing.
 - If both map and annotation storage are unavailable, ask the user to start CodeCharter with \`codecharter dev\` or paste the annotation JSON.
+
+## Do Not
+
+- Do not bulk-read every file under a selected area.
+- Do not expand corner geohashes into broad repository scans.
+- Do not write or delete annotations through raw API calls without explicit user approval.
+- Do not prefer browser automation over CLI reads for normal annotation work.
 
 ## Examples
 
@@ -314,7 +325,18 @@ codecharter annotation codecharter://annotation/<id>
 codecharter annotation 'http://127.0.0.1:4173/#/annotation/<id>'
 codecharter annotation <id> --root /path/to/repo
 codecharter source src/app.ts 1 80
+codecharter annotations --server http://127.0.0.1:4173 --limit 10
 \`\`\`
+`;
+}
+
+function codecharterSkillOpenaiYaml() {
+  return `interface:
+  display_name: "CodeCharter"
+  short_description: "Inspect CodeCharter map annotations via CLI"
+  default_prompt: "Use $codecharter to inspect a pasted CodeCharter annotation through the CLI."
+policy:
+  allow_implicit_invocation: true
 `;
 }
 

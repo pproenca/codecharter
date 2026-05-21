@@ -31,6 +31,7 @@ const METADATA_EXCLUDE_PATHS = [
   ".codex/hooks.json",
   ".codex/hooks/codecharter-codex-hook.mjs",
   ".agents/skills/codecharter/SKILL.md",
+  ".agents/skills/codecharter/agents/openai.yaml",
 ];
 
 function usage() {
@@ -282,6 +283,7 @@ async function doctor({ root, mapPath, server }) {
   const hooksJsonPath = join(root, ".codex", "hooks.json");
   const hookShimPath = join(root, ".codex", "hooks", "codecharter-codex-hook.mjs");
   const skillPath = join(root, ".agents", "skills", "codecharter", "SKILL.md");
+  const skillUiPath = join(root, ".agents", "skills", "codecharter", "agents", "openai.yaml");
   const packageJson = await packageMetadata();
   const endpoint = server ? normalizeOrigin(server) : undefined;
   const serverStatus = endpoint ? await probeServer(endpoint) : { configured: false };
@@ -293,6 +295,7 @@ async function doctor({ root, mapPath, server }) {
     codexHooks: await jsonFileStatus(hooksJsonPath),
     codexHookShim: await pathStatus(hookShimPath, "file"),
     codexSkill: await pathStatus(skillPath, "file"),
+    codexSkillUi: await pathStatus(skillUiPath, "file"),
     server: serverStatus,
   };
   const missingSetup = Object.entries({
@@ -301,6 +304,7 @@ async function doctor({ root, mapPath, server }) {
     codexHooks: checks.codexHooks.exists,
     codexHookShim: checks.codexHookShim.exists,
     codexSkill: checks.codexSkill.exists,
+    codexSkillUi: checks.codexSkillUi.exists,
   })
     .filter(([, exists]) => !exists)
     .map(([name]) => name);

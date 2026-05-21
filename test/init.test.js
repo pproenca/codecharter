@@ -42,6 +42,11 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
   assert.match(skill, /resolvedTargets/);
   assert.match(skill, /codecharter annotation <id-or-url>/);
   assert.match(skill, /codecharter source <path>/);
+  assert.match(skill, /Do not bulk-read every file/);
+  assert.match(skill, /Do not prefer browser automation over CLI reads/);
+  const skillUi = await readFile(join(root, ".agents", "skills", "codecharter", "agents", "openai.yaml"), "utf8");
+  assert.match(skillUi, /display_name: "CodeCharter"/);
+  assert.match(skillUi, /default_prompt: "Use \$codecharter/);
 
   const postMergeHook = await readFile(join(root, ".git", "hooks", "post-merge"), "utf8");
   assert.match(postMergeHook, /codecharter generate/);
@@ -69,6 +74,7 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
   assert.equal(doctor.auth.required, false);
   assert.equal(doctor.setup.ready, true);
   assert.equal(doctor.checks.codexSkill.exists, true);
+  assert.equal(doctor.checks.codexSkillUi.exists, true);
 });
 
 test("codecharter init merges Codex hooks without clobbering existing repo hooks", async () => {

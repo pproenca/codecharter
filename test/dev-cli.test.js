@@ -100,6 +100,8 @@ test("codecharter setup --dev initializes a fresh repo and prints the viewer URL
     const skill = await readFile(join(root, ".agents", "skills", "codecharter", "SKILL.md"), "utf8");
     assert.match(skill, /CodeCharter annotation/);
     assert.match(skill, /Corner geohashes/);
+    const skillUi = await readFile(join(root, ".agents", "skills", "codecharter", "agents", "openai.yaml"), "utf8");
+    assert.match(skillUi, /short_description: "Inspect CodeCharter map annotations via CLI"/);
 
     const config = JSON.parse(await readFile(join(root, ".codecharter", "config.json"), "utf8"));
     assert.equal(config.mapPath, ".codecharter/codecharter.json");
@@ -161,6 +163,8 @@ test("packed package supports the npx one-command setup-dev path", { timeout: 20
     assert.match(output, /Codex hook installed\. In Codex, run `\/hooks`/);
     const skill = await readFile(join(root, ".agents", "skills", "codecharter", "SKILL.md"), "utf8");
     assert.match(skill, /resolvedTargets/);
+    const skillUi = await readFile(join(root, ".agents", "skills", "codecharter", "agents", "openai.yaml"), "utf8");
+    assert.match(skillUi, /allow_implicit_invocation: true/);
 
     const { stdout: doctorStdout } = await execFileAsync("npm", [
       "exec",

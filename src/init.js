@@ -106,7 +106,8 @@ export async function ensureCodexAdapter(root) {
   await mkdir(hooksDir, { recursive: true });
   const hookPath = join(hooksDir, "codecharter-codex-hook.mjs");
   const hooksJsonPath = join(root, CODEX_DIR, "hooks.json");
-  await writeFile(hookPath, codexHookShim(), { mode: 0o755 });
+  const version = await currentPackageVersion();
+  await writeFile(hookPath, codexHookShim(version), { mode: 0o755 });
   await chmod(hookPath, 0o755);
   await writeJson(hooksJsonPath, mergeCodexHooks(await readJson(hooksJsonPath, {}), codexHooksJson()));
   return { hookPath, hooksJsonPath };
@@ -127,10 +128,11 @@ export async function ensureCodecharterSkill(root) {
 
 export async function ensureGitMapHooks(root, mapPath) {
   const installed = [];
+  const version = await currentPackageVersion();
   for (const hookName of MAP_HOOKS) {
     const hookPath = await gitPath(root, `hooks/${hookName}`);
     if (!hookPath) return { skipped: true, hooks: installed };
-    await installManagedHookBlock(hookPath, gitMapHookBlock(root, mapPath));
+    await installManagedHookBlock(hookPath, gitMapHookBlock(root, mapPath, version));
     installed.push(hookName);
   }
   return { skipped: false, hooks: installed };
@@ -152,8 +154,9 @@ async function installManagedHookBlock(hookPath, block) {
   await chmod(hookPath, 0o755);
 }
 
-function gitMapHookBlock(root, mapPath) {
+function gitMapHookBlock(root, mapPath, version = "latest") {
   const mapRelative = normalizeRelative(root, mapPath);
+  const npxPackage = version === "latest" ? "codecharter" : `codecharter@${version}`;
   return `${MANAGED_START}
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 map_path="$repo_root/${mapRelative}"
@@ -162,7 +165,7 @@ if [ -x "$repo_root/node_modules/.bin/codecharter" ]; then
 elif command -v codecharter >/dev/null 2>&1; then
   codecharter generate --root "$repo_root" --out "$map_path" --quiet >/dev/null 2>&1 || true
 else
-  npx --yes codecharter generate --root "$repo_root" --out "$map_path" --quiet >/dev/null 2>&1 || true
+  npx --yes ${npxPackage} generate --root "$repo_root" --out "$map_path" --quiet >/dev/null 2>&1 || true
 fi
 ${MANAGED_END}`;
 }
@@ -185,7 +188,7 @@ function codexHooksJson() {
       ],
       PostToolUse: [
         {
-          matcher: "Bash|apply_patch|Edit|Write|MultiEdit|functions.apply_patch|functions.exec_command",
+          matcher: "Bash|exec_command|apply_patch|Edit|Write|MultiEdit|functions.apply_patch|functions.exec_command",
           hooks: [handler],
         },
       ],
@@ -260,7 +263,8 @@ function objectOrEmpty(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
-function codexHookShim() {
+function codexHookShim(version = "latest") {
+  const npxPackage = version === "latest" ? "codecharter" : `codecharter@${version}`;
   return `#!/usr/bin/env node
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -271,8 +275,8 @@ const gitRoot = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "
 const root = gitRoot.status === 0 ? gitRoot.stdout.trim() : process.cwd();
 const localBin = join(root, "node_modules", ".bin", process.platform === "win32" ? "codecharter.cmd" : "codecharter");
 const candidates = existsSync(localBin)
-  ? [{ command: localBin, args: ["codex-hook"] }, { command: "codecharter", args: ["codex-hook"] }, { command: "npx", args: ["--yes", "codecharter", "codex-hook"] }]
-  : [{ command: "codecharter", args: ["codex-hook"] }, { command: "npx", args: ["--yes", "codecharter", "codex-hook"] }];
+  ? [{ command: localBin, args: ["codex-hook"] }, { command: "codecharter", args: ["codex-hook"] }, { command: "npx", args: ["--yes", "${npxPackage}", "codex-hook"] }]
+  : [{ command: "codecharter", args: ["codex-hook"] }, { command: "npx", args: ["--yes", "${npxPackage}", "codex-hook"] }];
 
 for (const candidate of candidates) {
   const result = spawnSync(candidate.command, candidate.args, {

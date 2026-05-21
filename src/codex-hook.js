@@ -16,6 +16,7 @@ const DEFAULT_MAP_PATH = ".codecharter/codecharter.json";
 const ROOT_MAP_PATH = "codecharter.json";
 const LEGACY_MAP_PATH = "codemap.json";
 const DEFAULT_ACTIVITY_PATH = ".codecharter/activity.jsonl";
+const READ_COMMANDS = new Set(["cat", "nl", "less", "head", "tail", "sed", "rg"]);
 
 export async function runCodexHook({ input = "", cwd = process.cwd() } = {}) {
   const payload = parseHookPayload(input);
@@ -56,7 +57,7 @@ async function codexHookEvents({ root, mapPath, payload }) {
   let codemap = await readCodemap(mapPath);
   const readChanges = activityState === "testing" ? [] : readCommandChanges(root, codemap, payload);
   let writeChanges = activityState === "testing" ? [] : await toolInputChanges(root, payload);
-  if (writeChanges.length === 0 && readChanges.length === 0) {
+  if (writeChanges.length === 0 && readChanges.length === 0 && !isReadShellCommand(payload)) {
     writeChanges = await changedCodeChanges(root);
   }
   const previousCodemap = codemap;
@@ -152,7 +153,7 @@ function normalizeCodexThreadId(value) {
 
 function inferActivityState(payload) {
   if (!isShellTool(payload)) return "editing";
-  const command = payload.tool_input?.command ?? payload.tool_input?.cmd ?? "";
+  const command = shellCommand(payload);
   if (/\b(pnpm|npm|yarn|bun)\s+(test|vitest|jest)\b/.test(command)) return "testing";
   if (/\b(vitest|jest|pytest|cargo\s+test|go\s+test|swift\s+test|xcodebuild\s+test)\b/.test(command)) return "testing";
   return "editing";
@@ -160,7 +161,7 @@ function inferActivityState(payload) {
 
 function readCommandChanges(root, codemap, payload) {
   if (!isShellTool(payload)) return [];
-  const command = payload.tool_input?.command ?? payload.tool_input?.cmd ?? "";
+  const command = shellCommand(payload);
   if (!command) return [];
 
   const changes = [];
@@ -169,12 +170,12 @@ function readCommandChanges(root, codemap, payload) {
     const tokens = shellWords(segment);
     if (tokens.length === 0) continue;
     const commandName = basename(tokens[0]);
-    if (!["cat", "nl", "less", "head", "tail", "sed", "rg"].includes(commandName)) continue;
+    if (!READ_COMMANDS.has(commandName)) continue;
 
     const lineRange = readLineRange(commandName, tokens, codemap);
-    for (const candidate of readCommandPathCandidates(commandName, tokens)) {
+    for (const candidate of readCommandPathCandidates(commandName, tokens, codemap)) {
       const path = normalizeCommandPath(root, candidate);
-      if (!codemap.files?.[path]) continue;
+      if (!codemap.files?.[path] && !codemap.folders?.[path]) continue;
       const key = `${path}:${lineRange.lineStart ?? ""}:${lineRange.lineEnd ?? ""}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -191,7 +192,60 @@ function readCommandChanges(root, codemap, payload) {
 
 function isShellTool(payload) {
   const toolName = String(payload.tool_name ?? "");
-  return toolName === "Bash" || toolName === "functions.exec_command";
+  return toolName === "Bash"
+    || toolName === "bash"
+    || toolName === "shell"
+    || toolName === "exec_command"
+    || toolName === "functions.exec_command"
+    || toolName.endsWith(".exec_command");
+}
+
+function shellCommand(payload) {
+  return findShellCommand(payload.tool_input);
+}
+
+function findShellCommand(value) {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object") return "";
+
+  for (const key of ["command", "cmd", "script"]) {
+    if (typeof value[key] === "string") return value[key];
+  }
+
+  for (const key of ["input", "arguments", "args"]) {
+    const nested = value[key];
+    if (typeof nested === "string") {
+      const parsed = parseHookPayload(nested);
+      if (parsed && typeof parsed === "object" && Object.keys(parsed).length > 0) {
+        const parsedCommand = findShellCommand(parsed);
+        if (parsedCommand) return parsedCommand;
+      }
+      return nested;
+    }
+
+    const nestedCommand = findShellCommand(nested);
+    if (nestedCommand) return nestedCommand;
+  }
+
+  for (const child of Object.values(value)) {
+    const nestedCommand = findShellCommand(child);
+    if (nestedCommand) return nestedCommand;
+  }
+
+  return "";
+}
+
+function isReadShellCommand(payload) {
+  if (!isShellTool(payload)) return false;
+  const command = shellCommand(payload);
+  if (!command) return false;
+
+  for (const segment of command.split(/\n|&&|;/)) {
+    const tokens = shellWords(segment);
+    if (tokens.length === 0) continue;
+    if (READ_COMMANDS.has(basename(tokens[0]))) return true;
+  }
+  return false;
 }
 
 async function toolInputChanges(root, payload) {
@@ -275,16 +329,71 @@ function shellWords(segment) {
   return words;
 }
 
-function readCommandPathCandidates(commandName, tokens) {
+function readCommandPathCandidates(commandName, tokens, codemap) {
+  if (commandName === "rg") return ripgrepPathCandidates(tokens, codemap);
+
   const candidates = [];
   for (let index = 1; index < tokens.length; index += 1) {
     const token = tokens[index];
     if (!token || token.startsWith("-") || token === "|" || token === ">" || token === "2>") continue;
     if (commandName === "sed" && (looksLikeSedScript(token) || tokens[index - 1] === "-e")) continue;
-    if (commandName === "rg" && !token.includes("/") && !token.includes(".")) continue;
     candidates.push(token);
   }
   return candidates;
+}
+
+function ripgrepPathCandidates(tokens, codemap) {
+  const candidates = [];
+  const positionals = [];
+  let patternConsumed = false;
+  let filesMode = false;
+
+  for (let index = 1; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (!token || token === "|" || token === ">" || token === "2>") continue;
+    if (token === "--files" || token === "--files-with-matches") {
+      filesMode = true;
+      continue;
+    }
+    if (rgOptionConsumesNext(token)) {
+      index += 1;
+      continue;
+    }
+    if (token.startsWith("-")) continue;
+    positionals.push(token);
+  }
+
+  for (const positional of positionals) {
+    const path = normalizeCommandPath("", positional);
+    if (!filesMode && !patternConsumed && !codemap.files?.[path] && !codemap.folders?.[path]) {
+      patternConsumed = true;
+      continue;
+    }
+    candidates.push(positional);
+  }
+
+  return candidates;
+}
+
+function rgOptionConsumesNext(token) {
+  return [
+    "-e",
+    "--regexp",
+    "-g",
+    "--glob",
+    "-t",
+    "--type",
+    "-T",
+    "--type-not",
+    "-m",
+    "--max-count",
+    "-A",
+    "--after-context",
+    "-B",
+    "--before-context",
+    "-C",
+    "--context",
+  ].includes(token);
 }
 
 function readLineRange(commandName, tokens, codemap) {
@@ -304,7 +413,7 @@ function readLineRange(commandName, tokens, codemap) {
   }
 
   if (commandName === "tail") {
-    const path = readCommandPathCandidates(commandName, tokens).find((candidate) => codemap.files?.[candidate]);
+    const path = readCommandPathCandidates(commandName, tokens, codemap).find((candidate) => codemap.files?.[candidate]);
     const count = numericOption(tokens, "-n");
     const lineCount = path ? codemap.files[path]?.lineCount : undefined;
     if (count && lineCount) return { lineStart: Math.max(1, lineCount - count + 1), lineEnd: lineCount };

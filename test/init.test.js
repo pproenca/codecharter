@@ -208,6 +208,7 @@ test("codecharter init merges Codex hooks without clobbering existing repo hooks
   assert.equal(hooksJson.custom.preserved, true);
   assert.equal(hooksJson.hooks.PreToolUse[0].hooks[0].command, "node .codex/hooks/existing-pre.mjs");
   assert.equal(hooksJson.hooks.PostToolUse[0].hooks[0].command, "node .codex/hooks/existing-post.mjs");
+  assert.equal(hooksJson.hooks.PostToolUse.some((group) => (group.hooks ?? []).length === 0), false);
   assert.equal(countCodecharterHooks(hooksJson), 3);
 });
 

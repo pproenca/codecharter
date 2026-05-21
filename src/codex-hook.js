@@ -430,7 +430,7 @@ function numericOption(tokens, name) {
 }
 
 function looksLikeSedScript(token) {
-  return /^\d+(?:,\d+)?p$/.test(token) || token.includes("s/");
+  return /^\d+(?:,\d+)?p$/.test(token) || /^s([^A-Za-z0-9\s]).*\1/.test(token);
 }
 
 function normalizeCommandPath(root, candidate) {

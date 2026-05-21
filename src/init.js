@@ -19,6 +19,11 @@ const MANAGED_START = "# >>> codecharter >>>";
 const MANAGED_END = "# <<< codecharter <<<";
 const MAP_HOOKS = ["post-checkout", "post-merge", "post-rewrite"];
 const CODECHARTER_HOOK_COMMAND = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/codecharter-codex-hook.mjs"';
+const MANAGED_POST_TOOL_MATCHERS = new Set([
+  "Bash|apply_patch|Edit|Write",
+  "Bash|apply_patch|Edit|Write|MultiEdit|functions.apply_patch|functions.exec_command",
+  "Bash|exec_command|apply_patch|Edit|Write|MultiEdit|functions.apply_patch|functions.exec_command",
+]);
 
 export async function initializeCodecharter({
   root,
@@ -209,7 +214,7 @@ export function mergeCodexHooks(existing, desired) {
 
   for (const [eventName, groups] of Object.entries(next.hooks)) {
     next.hooks[eventName] = Array.isArray(groups)
-      ? groups.map(withoutCodecharterHandlers)
+      ? groups.map(withoutCodecharterHandlers).filter((group) => !isEmptyManagedHookGroup(eventName, group))
       : groups;
   }
 
@@ -249,6 +254,13 @@ function mergeHookGroups(existingGroups, desiredGroups) {
 function withoutCodecharterHandlers(group) {
   const hooks = Array.isArray(group.hooks) ? group.hooks.filter((hook) => !isCodecharterHook(hook)) : [];
   return { ...group, hooks };
+}
+
+function isEmptyManagedHookGroup(eventName, group) {
+  return eventName === "PostToolUse"
+    && Array.isArray(group.hooks)
+    && group.hooks.length === 0
+    && MANAGED_POST_TOOL_MATCHERS.has(group.matcher ?? "");
 }
 
 function isCodecharterHook(hook) {

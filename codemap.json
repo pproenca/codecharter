@@ -54,8 +54,8 @@
         "lat": 0,
         "geohash": "s00000000000"
       },
-      "lineCount": 16358,
-      "weight": 188342,
+      "lineCount": 16359,
+      "weight": 188430,
       "children": {
         "folders": [
           ".agents",
@@ -69,7 +69,6 @@
           "AGENTS.md",
           "CONTEXT.md",
           "package.json",
-          "pnpm-lock.yaml",
           "README.md",
           "skills-lock.json"
         ]
@@ -1125,8 +1124,8 @@
         "lat": -64.06612271226001,
         "geohash": "4h97ec1ggc0g"
       },
-      "lineCount": 2131,
-      "weight": 17340,
+      "lineCount": 2139,
+      "weight": 17400,
       "children": {
         "folders": [],
         "files": [
@@ -1175,8 +1174,8 @@
         "lat": 43.46201057175,
         "geohash": "wrdpk0h8s1gz"
       },
-      "lineCount": 1916,
-      "weight": 20720,
+      "lineCount": 1918,
+      "weight": 20767,
       "children": {
         "folders": [],
         "files": [
@@ -5283,9 +5282,9 @@
         "lat": -49.27825748331,
         "geohash": "4rhr8jpm7g58"
       },
-      "lineCount": 62,
+      "lineCount": 70,
       "maxLineLength": 109,
-      "weight": 584
+      "weight": 644
     },
     "src/selections.js": {
       "path": "src/selections.js",
@@ -5563,9 +5562,9 @@
         "lat": 63.174999957119994,
         "geohash": "yenzqket018c"
       },
-      "lineCount": 126,
+      "lineCount": 128,
       "maxLineLength": 115,
-      "weight": 1718
+      "weight": 1765
     },
     "test/geohash.test.js": {
       "path": "test/geohash.test.js",
@@ -5826,26 +5825,6 @@
       "lineCount": 26,
       "maxLineLength": 44,
       "weight": 185
-    },
-    "pnpm-lock.yaml": {
-      "path": "pnpm-lock.yaml",
-      "name": "pnpm-lock.yaml",
-      "extension": ".yaml",
-      "contentType": "code",
-      "bounds": {
-        "x": 0.9314896,
-        "y": 0.0140496,
-        "width": 0.0544608,
-        "height": 0.7767008
-      },
-      "geo": {
-        "lon": 165.13920000000002,
-        "lat": 17.567999999999998,
-        "geohash": "xej7vy4tn286"
-      },
-      "lineCount": 9,
-      "maxLineLength": 33,
-      "weight": 19
     },
     "README.md": {
       "path": "README.md",

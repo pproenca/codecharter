@@ -5,6 +5,13 @@ import { promisify } from "node:util";
 import { isCodeFile } from "./extensions.js";
 
 const execFileAsync = promisify(execFile);
+const DEFAULT_EXCLUDED_FILES = new Set([
+  "bun.lock",
+  "bun.lockb",
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "yarn.lock",
+]);
 
 export async function listIncludedFiles(root, { excludePaths = [] } = {}) {
   const excluded = new Set(excludePaths.map((path) => normalizeRepoPath(root, path)));
@@ -18,6 +25,7 @@ export async function listIncludedFiles(root, { excludePaths = [] } = {}) {
     .map((path) => path.trim())
     .filter(Boolean)
     .filter((path) => !excluded.has(path))
+    .filter((path) => !DEFAULT_EXCLUDED_FILES.has(path))
     .filter(isCodeFile)
     .sort((a, b) => a.localeCompare(b));
 }

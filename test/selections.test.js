@@ -4,6 +4,7 @@ import { createMapAnnotation, createNamedSelection, refreshPlaceResolution, reso
 
 const codemap = {
   folders: {
+    "": target("", "s00000000000", { x: 0, y: 0, width: 1, height: 1 }),
     src: target("src", "s12345678901", { x: 0, y: 0, width: 0.5, height: 1 }),
   },
   files: {
@@ -20,6 +21,17 @@ test("resolves drawn selections with geohash coverage and geometry refinement", 
 
   assert.deepEqual(result.coveringSet, ["s123456"]);
   assert.deepEqual(result.resolvedTargets.map((target) => target.path), ["src/a.ts"]);
+});
+
+test("resolves world-level selections to the root code map region", () => {
+  const result = resolveSelection(codemap, {
+    level: "world",
+    geometry: { type: "rect", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+  });
+
+  assert.deepEqual(result.coveringSet, ["s"]);
+  assert.deepEqual(result.resolvedTargets.map((target) => target.path), [""]);
+  assert.equal(result.resolvedTargets[0].targetType, "folder");
 });
 
 test("rejects degenerate drawn selections before resolving map targets", () => {

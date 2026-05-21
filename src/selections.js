@@ -9,34 +9,20 @@ import { resolveAddress } from "./resolver.js";
 const DEFAULT_ANNOTATION_NAME = "Map annotation";
 const ANNOTATION_NAME_MAX_LENGTH = 72;
 
+const SELECTION_RESOLVERS = Object.freeze({
+  world: (codemap, geometry, level) => resolveFolderTargets(codemap, geometry, level, { includeRoot: true, rootOnly: true }),
+  region: (codemap, geometry, level) => resolveFolderTargets(codemap, geometry, level),
+  folder: (codemap, geometry, level) => resolveFolderTargets(codemap, geometry, level),
+  file: (codemap, geometry, level) => resolveFileTargets(codemap, geometry, level),
+  code: (codemap, geometry, level) => resolveCodeTargets(codemap, geometry, level, "lineRange"),
+  lineRange: (codemap, geometry, level) => resolveCodeTargets(codemap, geometry, level, "lineRange"),
+  tokenRange: (codemap, geometry, level) => resolveCodeTargets(codemap, geometry, level, "tokenRange"),
+});
+
 export function resolveSelection(codemap, selection) {
   const level = selection.level ?? "file";
   const geometry = normalizeSelectionGeometry(selection.geometry);
-  const targetMode = targetModeForLevel(level);
-  const targets = [];
-
-  if (targetMode === "folder") {
-    for (const folder of Object.values(codemap.folders)) {
-      if (folder.path !== "" && intersects(geometry.bounds, folder.bounds)) {
-        targets.push(resolvedTarget(folder, "folder", level));
-      }
-    }
-  }
-
-  if (targetMode === "file") {
-    for (const file of Object.values(codemap.files)) {
-      if (intersects(geometry.bounds, file.bounds)) {
-        targets.push(resolvedTarget(file, "file", level));
-      }
-    }
-  }
-
-  if (targetMode === "lineRange" || targetMode === "tokenRange") {
-    for (const file of Object.values(codemap.files)) {
-      if (!intersects(geometry.bounds, file.bounds)) continue;
-      targets.push(resolvedCodeTarget(codemap, file, geometry.bounds, level, targetMode));
-    }
-  }
+  const targets = selectionResolverForLevel(level)(codemap, geometry, level);
 
   const coveringSet = [...new Set(targets.map((target) => target.geohash))]
     .sort((a, b) => a.localeCompare(b));
@@ -144,11 +130,41 @@ function resolvedCodeTarget(codemap, file, selectionBounds, level, targetMode) {
   };
 }
 
-function targetModeForLevel(level) {
-  if (level === "world" || level === "region" || level === "folder") return "folder";
-  if (level === "code" || level === "lineRange") return "lineRange";
-  if (level === "tokenRange") return "tokenRange";
-  return "file";
+function selectionResolverForLevel(level) {
+  const resolver = SELECTION_RESOLVERS[level];
+  if (!resolver) throw new Error(`Unknown map level: ${level}`);
+  return resolver;
+}
+
+function resolveFolderTargets(codemap, geometry, level, { includeRoot = false, rootOnly = false } = {}) {
+  const targets = [];
+  for (const folder of Object.values(codemap.folders)) {
+    if (!includeRoot && folder.path === "") continue;
+    if (rootOnly && folder.path !== "") continue;
+    if (intersects(geometry.bounds, folder.bounds)) {
+      targets.push(resolvedTarget(folder, "folder", level));
+    }
+  }
+  return targets;
+}
+
+function resolveFileTargets(codemap, geometry, level) {
+  const targets = [];
+  for (const file of Object.values(codemap.files)) {
+    if (intersects(geometry.bounds, file.bounds)) {
+      targets.push(resolvedTarget(file, "file", level));
+    }
+  }
+  return targets;
+}
+
+function resolveCodeTargets(codemap, geometry, level, targetMode) {
+  const targets = [];
+  for (const file of Object.values(codemap.files)) {
+    if (!intersects(geometry.bounds, file.bounds)) continue;
+    targets.push(resolvedCodeTarget(codemap, file, geometry.bounds, level, targetMode));
+  }
+  return targets;
 }
 
 function spatialFrameForGeometry(geometry, level) {

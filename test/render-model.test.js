@@ -29,6 +29,8 @@ import {
   shouldDrawOrganicRegion,
   shouldLabelFile,
   simplifyTrailPoints,
+  sourceContextRequest,
+  formatSourceLines,
   sourcePanelLineRangeForBox,
   sortedActivityEvents,
   viewForBounds,
@@ -203,6 +205,21 @@ test("derives visible source ranges and selected lines from rendered geometry", 
     sourcePanelLineRangeForBox(file, 51, { width: 100, height: 100 }, 600),
     { start: 39, end: 75 },
   );
+});
+
+test("builds source-context requests and formats panel lines consistently", () => {
+  const request = sourceContextRequest("src/app.ts", { start: 7, end: 12 });
+
+  assert.equal(request.query, "path=src%2Fapp.ts&lineStart=7&lineEnd=12");
+  assert.equal(request.resolveUrl, "/api/resolve?path=src%2Fapp.ts&lineStart=7&lineEnd=12");
+  assert.equal(request.sourceUrl, "/api/source?path=src%2Fapp.ts&lineStart=7&lineEnd=12");
+  assert.equal(request.lines, "7-12");
+  assert.equal(formatSourceLines({
+    lines: [
+      { number: 7, text: "const app = true;" },
+      { number: 12, text: "export default app;" },
+    ],
+  }), "   7  const app = true;\n  12  export default app;");
 });
 
 test("hit-testing prefers the smallest containing file before enclosing folders", () => {

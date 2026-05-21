@@ -314,6 +314,28 @@ export function sourcePanelLineRangeForBox(file, focusLine, box, viewportHeight)
   );
 }
 
+export function sourceContextRequest(path, lineRange = {}) {
+  const lineStart = lineRange.start ?? 1;
+  const lineEnd = lineRange.end ?? lineStart;
+  const query = new URLSearchParams({
+    path,
+    lineStart: String(lineStart),
+    lineEnd: String(lineEnd),
+  }).toString();
+  return {
+    query,
+    resolveUrl: `/api/resolve?${query}`,
+    sourceUrl: `/api/source?${query}`,
+    lines: `${lineStart}-${lineEnd}`,
+  };
+}
+
+export function formatSourceLines(source) {
+  return (source.lines ?? [])
+    .map((item) => `${String(item.number).padStart(4, " ")}  ${item.text}`)
+    .join("\n");
+}
+
 export function boundsCenter(bounds) {
   return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
 }

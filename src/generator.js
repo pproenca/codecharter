@@ -1,5 +1,6 @@
 import { PROJECTION_AREA_WEIGHT, PROJECTION_LAYOUT_VERSION, PROJECTION_ORDER, PROJECTION_TYPE } from "./district-layout.js";
 import { MAP_LEVELS } from "./levels.js";
+import { codePlaneDescriptor } from "./geohash.js";
 import { scanCodeFiles } from "./scan.js";
 import { stabilizeTreeLayout } from "./stability.js";
 import { buildFileTree, flattenTree, sortedFiles, sortedFolders } from "./tree.js";
@@ -35,17 +36,7 @@ export async function generateCodemap({ root, excludePaths = DEFAULT_EXCLUDE_PAT
       tileAddressing: "geohash-prefix",
     },
     mapLevels: MAP_LEVELS,
-    codePlane: {
-      bounds: { x: 0, y: 0, width: 1, height: 1 },
-      internalGeoDomain: {
-        lat: { min: -90, max: 90 },
-        lon: { min: -180, max: 180 },
-      },
-      transform: {
-        xToLon: "x >= 1 ? 179.999999999999 : x * 360 - 180",
-        yToLat: "90 - y * 180",
-      },
-    },
+    codePlane: codePlaneDescriptor(),
     folders: Object.fromEntries(
       Object.entries(folders).map(([path, folder]) => [path, serializeFolder(folder)]),
     ),

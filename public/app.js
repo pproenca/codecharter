@@ -38,6 +38,8 @@ import {
   shouldDrawOrganicRegion,
   shouldLabelFile,
   shouldLabelFolder,
+  formatSourceLines,
+  sourceContextRequest,
   sourcePanelLineRangeForBox,
   sortedActivityEvents,
   viewForBounds,
@@ -372,16 +374,14 @@ async function showFileForRoute(file, params, routeToken) {
     return;
   }
 
-  const query = `path=${encodeURIComponent(file.path)}&lineStart=${lineRange.start}&lineEnd=${lineRange.end}`;
+  const sourceContext = sourceContextRequest(file.path, lineRange);
   const [address, source] = await Promise.all([
-    fetchJson(`/api/resolve?${query}`),
-    fetchJson(`/api/source?${query}`),
+    fetchJson(sourceContext.resolveUrl),
+    fetchJson(sourceContext.sourceUrl),
   ]);
   if (!isCurrentRoute(routeToken)) return;
   setText(controls.sourceTitle, `${file.path} · ${address.deepLink}`);
-  setText(controls.sourceOutput, source.lines
-    .map((item) => `${String(item.number).padStart(4, " ")}  ${item.text}`)
-    .join("\n"));
+  setText(controls.sourceOutput, formatSourceLines(source));
   if (controls.sourceOutput) controls.sourceOutput.scrollTop = 0;
   render();
 }
@@ -1494,18 +1494,16 @@ async function selectMapTarget(worldPoint) {
     const readableView = zoomToReadableFile(hit, lineRatio);
     box = screenBoundsForView(hit.bounds, readableView, viewportSize());
   }
-  const { start: lineStart, end: lineEnd } = sourcePanelLineRange(hit, line, box);
-  const query = `path=${encodeURIComponent(hit.path)}&lineStart=${lineStart}&lineEnd=${lineEnd}`;
+  const lineRange = sourcePanelLineRange(hit, line, box);
+  const sourceContext = sourceContextRequest(hit.path, lineRange);
   const [address, source] = await Promise.all([
-    fetchJson(`/api/resolve?${query}`),
-    fetchJson(`/api/source?${query}`),
+    fetchJson(sourceContext.resolveUrl),
+    fetchJson(sourceContext.sourceUrl),
   ]);
-  syncHashRoute(createMapHashRoute(address.targetType, address.geohash, { path: hit.path, lines: `${lineStart}-${lineEnd}` }));
+  syncHashRoute(createMapHashRoute(address.targetType, address.geohash, { path: hit.path, lines: sourceContext.lines }));
 
   setText(controls.sourceTitle, `${hit.path} · ${address.deepLink}`);
-  setText(controls.sourceOutput, source.lines
-    .map((item) => `${String(item.number).padStart(4, " ")}  ${item.text}`)
-    .join("\n"));
+  setText(controls.sourceOutput, formatSourceLines(source));
   if (controls.sourceOutput) controls.sourceOutput.scrollTop = 0;
   render();
 }
@@ -1525,12 +1523,10 @@ async function selectActivityEvent(event) {
   }
 
   const lineRange = event.address.lineRange ?? { start: 1, end: undefined };
-  const query = `path=${encodeURIComponent(path)}&lineStart=${lineRange.start}&lineEnd=${lineRange.end ?? lineRange.start}`;
-  const source = await fetchJson(`/api/source?${query}`);
+  const sourceContext = sourceContextRequest(path, lineRange);
+  const source = await fetchJson(sourceContext.sourceUrl);
   setText(controls.sourceTitle, `${path} · ${event.address.deepLink}`);
-  setText(controls.sourceOutput, source.lines
-    .map((item) => `${String(item.number).padStart(4, " ")}  ${item.text}`)
-    .join("\n"));
+  setText(controls.sourceOutput, formatSourceLines(source));
   if (controls.sourceOutput) controls.sourceOutput.scrollTop = 0;
   render();
 }

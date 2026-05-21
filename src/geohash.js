@@ -1,6 +1,20 @@
 const BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz";
 const GEOHASH_EAST_EDGE_EPSILON = 1e-12;
 
+export function codePlaneDescriptor() {
+  return {
+    bounds: { x: 0, y: 0, width: 1, height: 1 },
+    internalGeoDomain: {
+      lat: { min: -90, max: 90 },
+      lon: { min: -180, max: 180 },
+    },
+    transform: {
+      xToLon: `x >= 1 ? ${180 - GEOHASH_EAST_EDGE_EPSILON} : x * 360 - 180`,
+      yToLat: "90 - y * 180",
+    },
+  };
+}
+
 export function encodeGeohash(lat, lon, precision = 12) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
     throw new Error("Latitude and longitude must be finite numbers");

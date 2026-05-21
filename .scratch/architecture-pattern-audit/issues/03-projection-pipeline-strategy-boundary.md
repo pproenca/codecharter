@@ -1,5 +1,5 @@
 Title: Add a projection strategy boundary when a second projection exists
-Status: needs-triage
+Status: ready-for-agent
 Labels: architecture, follow-up
 
 ## Problem
@@ -15,3 +15,7 @@ Strategy does not apply yet because there is only one production projection algo
 ## Suggested Slice
 
 When introducing the next projection, write one public `generateCodemap` behavior test proving the selected projection preserves the existing sidecar contract. Then extract the current filesystem district map as the first projection strategy and add the new projection as the second.
+
+## Progress
+
+Implemented a code-plane descriptor facade in `src/geohash.js` and wired `generateCodemap` through it. The Map Sidecar no longer duplicates the geohash-domain transform literals inside `src/generator.js`; tests now verify that the published descriptor transform matches `codePointToGeo`.

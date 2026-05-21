@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { codePointToGeo, decodeGeohashBounds, encodeGeohash } from "../src/geohash.js";
+import { codePlaneDescriptor, codePointToGeo, decodeGeohashBounds, encodeGeohash } from "../src/geohash.js";
 
 test("encodes geohashes with the standard alphabet and longitude-first interleaving", () => {
   assert.equal(encodeGeohash(42.6, -5.6, 5), "ezs42");
@@ -26,6 +26,25 @@ test("maps the code plane into the standard geohash domain", () => {
   assert.equal(eastEdge.lat, -90);
   assert.ok(eastEdge.lon < 180);
   assert.ok(eastEdge.lon > 179.999999999);
+});
+
+test("exposes a sidecar code-plane descriptor that matches the coordinate transform", () => {
+  const descriptor = codePlaneDescriptor();
+  const xToLon = new Function("x", `return ${descriptor.transform.xToLon};`);
+  const yToLat = new Function("y", `return ${descriptor.transform.yToLat};`);
+
+  for (const point of [
+    { x: 0, y: 0 },
+    { x: 0.5, y: 0.5 },
+    { x: 1, y: 1 },
+  ]) {
+    const geo = codePointToGeo(point);
+    assert.equal(xToLon(point.x), geo.lon);
+    assert.equal(yToLat(point.y), geo.lat);
+  }
+
+  descriptor.bounds.x = 99;
+  assert.equal(codePlaneDescriptor().bounds.x, 0);
 });
 
 test("keeps the code plane east edge out of the antimeridian alias", () => {

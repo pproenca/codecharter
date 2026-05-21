@@ -1,5 +1,5 @@
 Title: Split browser map UI into focused interaction and rendering controllers
-Status: needs-triage
+Status: ready-for-agent
 Labels: architecture, follow-up
 
 ## Problem
@@ -15,3 +15,7 @@ Mediator partially applies because the file is an implicit coordination hub. It 
 ## Suggested Slice
 
 Start with one behavior-preserving extraction around interaction mode transitions or hash-route focusing. Add public browser-facing tests around the extracted behavior through `render-model`-style pure functions where possible, then move only the corresponding controller code.
+
+## Progress
+
+Implemented a first focused facade slice for Source Content preservation: `public/render-model.js` now owns source-context API request construction and source-line formatting, and `public/app.js` uses that boundary from route focusing, map selection, and activity selection.

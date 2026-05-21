@@ -36,7 +36,7 @@ test("codecharter dev is a one-command dogfood workflow", { timeout: 8000 }, asy
   cli.stderr.on("data", (chunk) => { output += chunk.toString(); });
 
   try {
-    await waitFor(() => output.includes(`CodeCharter running at http://127.0.0.1:${port}`), () => output);
+    await waitFor(() => output.includes(`viewer: http://127.0.0.1:${port}`), () => output);
 
     const html = await fetchText(`http://127.0.0.1:${port}/`);
     assert.match(html, /<canvas id="mapCanvas"/);
@@ -61,7 +61,7 @@ test("codecharter dev is a one-command dogfood workflow", { timeout: 8000 }, asy
   }
 });
 
-test("codecharter setup --dev initializes a fresh repo and prints the viewer URL", { timeout: 8000 }, async () => {
+test("codecharter setup initializes a fresh repo and prints the viewer URL", { timeout: 8000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-setup-dev-"));
   const port = await freePort();
   await mkdir(join(root, "src"), { recursive: true });
@@ -71,7 +71,6 @@ test("codecharter setup --dev initializes a fresh repo and prints the viewer URL
   const cli = spawn(process.execPath, [
     join(process.cwd(), "bin", "codemap.mjs"),
     "setup",
-    "--dev",
     "--root",
     root,
     "--port",
@@ -87,9 +86,12 @@ test("codecharter setup --dev initializes a fresh repo and prints the viewer URL
   cli.stderr.on("data", (chunk) => { output += chunk.toString(); });
 
   try {
-    await waitFor(() => output.includes(`Open CodeCharter: http://127.0.0.1:${port}`), () => output);
-    assert.match(output, /CodeCharter setup complete/);
-    assert.match(output, /Codex hook installed\. In Codex, run `\/hooks`/);
+    await waitFor(() => output.includes(`viewer: http://127.0.0.1:${port}`), () => output);
+    assert.match(output, /^setup: ok$/m);
+    assert.match(output, /^map: \.codecharter\/codecharter\.json$/m);
+    assert.match(output, /^files: 1$/m);
+    assert.match(output, /^hooks: codex,git$/m);
+    assert.match(output, /^next: \/hooks$/m);
 
     const html = await fetchText(`http://127.0.0.1:${port}/`);
     assert.match(html, /<canvas id="mapCanvas"/);
@@ -123,7 +125,7 @@ test("codecharter setup --dev initializes a fresh repo and prints the viewer URL
   }
 });
 
-test("packed package supports the npx one-command setup-dev path", { timeout: 20000 }, async () => {
+test("packed package supports the npx one-command setup path", { timeout: 20000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-packed-"));
   const packDir = await mkdtemp(join(tmpdir(), "codecharter-pack-"));
   const port = await freePort();
@@ -141,7 +143,6 @@ test("packed package supports the npx one-command setup-dev path", { timeout: 20
     "--",
     "codecharter",
     "setup",
-    "--dev",
     "--root",
     root,
     "--port",
@@ -158,10 +159,11 @@ test("packed package supports the npx one-command setup-dev path", { timeout: 20
   cli.stderr.on("data", (chunk) => { output += chunk.toString(); });
 
   try {
-    await waitFor(() => output.includes(`Open CodeCharter: http://127.0.0.1:${port}`), () => output);
+    await waitFor(() => output.includes(`viewer: http://127.0.0.1:${port}`), () => output);
     const codemap = await getJson(`http://127.0.0.1:${port}/api/map`);
     assert.equal(codemap.files["src/app.js"].path, "src/app.js");
-    assert.match(output, /Codex hook installed\. In Codex, run `\/hooks`/);
+    assert.match(output, /^setup: ok$/m);
+    assert.match(output, /^next: \/hooks$/m);
     const skill = await readFile(join(root, ".agents", "skills", "codecharter", "SKILL.md"), "utf8");
     assert.match(skill, /resolvedTargets/);
     assert.match(skill, /If `command -v codecharter` fails/);

@@ -45,7 +45,7 @@ export function startActivityWatcher({
       try {
         payload = createActivityPayload(change, { agentId, activityState });
       } catch (error) {
-        console.warn(`Activity watcher skipped ${path}: ${error.message}`);
+        console.warn(`warning: activity-watcher-skipped path=${path} error=${error.message}`);
         continue;
       }
       if (!payload) continue;
@@ -55,12 +55,12 @@ export function startActivityWatcher({
 
   const initialPoll = setTimeout(() => {
     poll().catch((error) => {
-      console.warn(`Activity watcher skipped initial poll: ${error.message}`);
+      console.warn(`warning: activity-watcher-initial-poll-skipped error=${error.message}`);
     });
   }, 0);
   const timer = setInterval(() => {
     poll().catch((error) => {
-      console.warn(`Activity watcher skipped poll: ${error.message}`);
+      console.warn(`warning: activity-watcher-poll-skipped error=${error.message}`);
     });
   }, intervalMs);
 

@@ -5,15 +5,15 @@ CodeCharter turns a repository into a deterministic 2D Code Map. Files and folde
 ## Setup
 
 ```sh
-npx --yes codecharter@latest setup --dev
+npx --yes codecharter@latest setup
 ```
 
-`setup --dev` is the first-run path. It writes CodeCharter artifacts under `.codecharter/`, adds `.codecharter/` plus legacy root sidecar names to `.gitignore`, safely installs or merges local Git hooks that refresh the map after branch/merge/rewrite events, installs a repo-local CodeCharter skill under `.agents/skills/codecharter/`, installs or merges a repo-local Codex lifecycle hook adapter under `.codex/`, starts the CodeCharter web app, and prints the exact local viewer URL.
+`setup` is the first-run path. It writes CodeCharter artifacts under `.codecharter/`, adds `.codecharter/` plus legacy root sidecar names to `.gitignore`, safely installs or merges local Git hooks that refresh the map after branch/merge/rewrite events, installs a repo-local CodeCharter skill under `.agents/skills/codecharter/`, installs or merges a repo-local Codex lifecycle hook adapter under `.codex/`, starts the CodeCharter web app, and prints the exact local viewer URL.
 
 Pass `--open` if you want the command to ask your OS to open the viewer:
 
 ```sh
-npx --yes codecharter@latest setup --dev --open
+npx --yes codecharter@latest setup --open
 ```
 
 The Codex adapter is zero-token and daemon-free: Codex invokes the hook, the hook delegates to `codecharter codex-hook`, and one JSONL event is appended to `.codecharter/activity.jsonl`. CodeCharter preserves existing `.codex/hooks.json` entries when it adds its own hook. The installed skill teaches Codex how to interpret CodeCharter annotation prompts, local viewer URLs, and corner geohashes without bulk-reading every mapped target. Open `/hooks` in Codex to review and trust the repo-local hook.
@@ -52,25 +52,36 @@ That command:
 - starts a best-effort Activity Producer that watches local git changes and streams file or line-range positions to the in-memory `/api/activity` feed
 
 If `4173` is already in use, CodeCharter automatically binds the next available local port and points the Activity Producer at that actual server.
-The running command always prints `Open CodeCharter: http://127.0.0.1:<port>` so the viewer URL is unambiguous.
+The running command always prints `viewer: http://127.0.0.1:<port>` so the viewer URL is unambiguous.
 Activity telemetry is deliberately non-blocking. `codecharter dev` resolves changed paths to Map Addresses before posting activity, so the normal real-time stream does not read or write the sidecar on the server request path. If the server cannot resolve a legacy path-based activity event, code work continues and the event is dropped. Accepted real-time events live in memory first and are periodically appended to `.codecharter/activity.jsonl` as a JSONL archive, without a hard file-size check. The archive backlog is bounded in memory, so slow disk can drop old archive candidates without blocking live work.
 While `codecharter dev` is running, changed code files refresh `.codecharter/codecharter.json` before activity is posted, so newly created files can receive stable Map Addresses without restarting the server.
 `init` and `dev` add CodeCharter artifacts to the target repo's `.gitignore` and local `.git/info/exclude`, so telemetry does not show up as untracked work.
 
-## Useful commands
+Human output follows a stable line-oriented pattern:
 
-```sh
-codecharter init
-codecharter dev --setup
-codecharter --json doctor
-codecharter --json annotations --server http://127.0.0.1:4173
-codecharter --json annotation codecharter://annotation/<id>
-codecharter --json source public/app.js 1 20
-codecharter --json resolve public/app.js 1 20
-codecharter --json api /api/annotations --server http://127.0.0.1:4173
+```text
+setup: ok
+map: .codecharter/codecharter.json
+files: 18
+folders: 7
+viewer: http://127.0.0.1:4173
+next: /hooks
 ```
 
-`codecharter init` prepares the Map Sidecar and local Activity Archive without serving the app. `codecharter dev --setup` is equivalent to initializing first and then starting the viewer. `annotation` is the agent-safe read path for turning a pasted CodeCharter annotation prompt into JSON. `annotations` lists saved annotations, `source` reads bounded source ranges, `resolve` turns paths and ranges into geohash-backed Map Addresses, and `api` performs read-only GETs against local CodeCharter API endpoints.
+## Commands
+
+```sh
+npx --yes codecharter@latest setup
+codecharter init
+codecharter dev
+codecharter --json doctor
+codecharter --json annotation codecharter://annotation/<id>
+codecharter --json source public/app.js 1 20
+```
+
+`setup` is the opinionated first-run command. `init` prepares the Map Sidecar and local Activity Archive without serving the app. `dev` starts the viewer for an already prepared repo. `annotation` is the agent-safe read path for turning a pasted CodeCharter annotation prompt into JSON. `source` reads bounded source ranges.
+
+Advanced commands are still available when needed: `annotations` lists saved annotations, `resolve` turns paths and ranges into geohash-backed Map Addresses, `api` performs read-only GETs against local CodeCharter API endpoints, and `activity` appends explicit local activity events.
 
 To map another repository from this checkout:
 

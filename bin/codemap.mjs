@@ -36,19 +36,20 @@ const METADATA_EXCLUDE_PATHS = [
 
 function usage() {
   return `Usage:
-  codecharter [--json|--plain] <command>
-  codecharter --json doctor [--root <dir>] [--map <file>] [--server <url>]
-  codecharter setup [--root <dir>] [--out <file>] [--fresh] [--dev] [--open] [--port <port>] [--agent <id>] [--no-watch] [--no-codex] [--no-git-hooks]
-  codecharter init [--root <dir>] [--out <file>] [--fresh] [--yes] [--dev] [--open] [--port <port>] [--agent <id>] [--no-watch] [--no-codex] [--no-git-hooks]
+  codecharter setup [--root <dir>] [--port <port>] [--open]
+  codecharter init [--root <dir>]
+  codecharter dev [--root <dir>] [--port <port>] [--open]
+  codecharter doctor [--json] [--root <dir>] [--server <url>]
+  codecharter annotation <id-or-url> [--json] [--root <dir>] [--server <url>]
+  codecharter source <path> [lineStart] [lineEnd] [--json] [--root <dir>]
+  codecharter --version
+
+Advanced:
+  codecharter annotations [--json] [--root <dir>] [--server <url>] [--limit <n>]
+  codecharter resolve <path> [lineStart] [lineEnd] [--json] [--map <file>]
+  codecharter activity <path> [lineStart] [lineEnd] [--json] [--agent <id>] [--state <state>] [--note <text>]
+  codecharter api <api-path-or-url> --server <url> [--json]
   codecharter generate [--root <dir>] [--out <file>] [--fresh] [--quiet]
-  codecharter dev [--root <dir>] [--map <file>] [--port <port>] [--agent <id>] [--no-watch] [--fresh] [--setup] [--open]
-  codecharter resolve <path> [lineStart] [lineEnd] [--column-start <n>] [--column-end <n>] [--map <file>]
-  codecharter annotation <id-or-url> [--root <dir>] [--map <file>] [--server <url>]
-  codecharter annotations [--root <dir>] [--map <file>] [--server <url>] [--limit <n>]
-  codecharter source <path> [lineStart] [lineEnd] [--root <dir>] [--map <file>]
-  codecharter api <api-path-or-url> [--server <url>]
-  codecharter activity <path> [lineStart] [lineEnd] [--column-start <n>] [--column-end <n>] [--agent <id>] [--state <state>] [--note <text>] [--map <file>] [--out <file.jsonl>]
-  codecharter codex-hook
   codecharter serve [--root <dir>] [--map <file>] [--port <port>] [--open]
 `;
 }
@@ -71,13 +72,20 @@ function takeFlag(args, name) {
 
 async function main() {
   const args = process.argv.slice(2);
-  const jsonOutput = takeFlag(args, "--json");
+  let jsonOutput = takeFlag(args, "--json");
   takeFlag(args, "--plain");
   const command = args.shift();
   stripArgumentSeparator(args);
+  jsonOutput = takeFlag(args, "--json") || jsonOutput;
+  takeFlag(args, "--plain");
 
   if (!command || command === "--help" || command === "-h" || command === "help") {
     console.log(usage());
+    return;
+  }
+
+  if (command === "--version" || command === "-V" || command === "version") {
+    console.log((await packageMetadata()).version);
     return;
   }
 
@@ -108,7 +116,7 @@ async function main() {
     const out = resolveMapPath(root, takeOption(args, "--out", DEFAULT_MAP_FILE));
     const fresh = takeFlag(args, "--fresh");
     const yes = takeFlag(args, "--yes") || command === "setup";
-    const startDev = takeFlag(args, "--dev");
+    const startDev = command === "setup" ? !takeFlag(args, "--no-dev") : takeFlag(args, "--dev");
     const open = takeFlag(args, "--open");
     const port = Number(takeOption(args, "--port", "4173"));
     const agentId = takeOption(args, "--agent", process.env.CODEMAP_AGENT_ID ?? "codex");
@@ -130,8 +138,9 @@ async function main() {
 
     if (startDev) {
       await runDevServer({ root, mapPath: out, port, agentId, watch, fresh: false, open, initialCodemap: setupResult.codemap });
+      if (installCodex) console.log("next: /hooks");
     } else {
-      console.log("Run `codecharter dev` to serve the map and stream local activity.");
+      console.log("next: codecharter dev");
     }
     return;
   }
@@ -157,6 +166,7 @@ async function main() {
         installGitHooks: true,
       });
       await runDevServer({ root, mapPath, port, agentId, watch, fresh: false, open, initialCodemap: setupResult.codemap });
+      console.log("next: /hooks");
     } else {
       await runDevServer({ root, mapPath, port, agentId, watch, fresh, open });
     }
@@ -323,7 +333,7 @@ async function doctor({ root, mapPath, server }) {
     setup: {
       ready: missingSetup.length === 0,
       missing: missingSetup,
-      nextStep: missingSetup.length ? "Run `codecharter setup --dev` from the target repo." : undefined,
+      nextStep: missingSetup.length ? "Run `codecharter setup` from the target repo." : undefined,
     },
     checks,
   };
@@ -380,20 +390,18 @@ async function setupCodecharter({ root, out, fresh, installCodex, installGitHook
     fresh,
     installCodex,
     installGitHooks,
-    writeCodemap,
+    writeCodemap: (options) => writeCodemap({ ...options, quiet: true }),
   });
   await ensureActivityStream(root);
-  console.log("CodeCharter setup complete.");
-  if (installCodex) {
-    console.log("Codex hook installed. In Codex, run `/hooks` to review and trust the repo-local hook.");
-  }
+  printSetupResult(root, result, { installCodex, installGitHooks });
   return result;
 }
 
 async function runDevServer({ root, mapPath, port, agentId, watch, fresh, open, initialCodemap }) {
   await ensureCodecharterGitignore(root);
   await ensureLocalGitExcludes(root);
-  let currentCodemap = initialCodemap ?? await writeCodemap({ root, out: mapPath, fresh });
+  let currentCodemap = initialCodemap ?? await writeCodemap({ root, out: mapPath, fresh, quiet: true });
+  if (!initialCodemap) printMapResult(root, mapPath, currentCodemap);
   await ensureActivityStream(root);
   const server = await startServer({ root, mapPath, port });
   const actualPort = server.address().port;
@@ -425,7 +433,7 @@ async function runDevServer({ root, mapPath, port, agentId, watch, fresh, open, 
         };
       },
     });
-    console.log(`Activity watcher streaming git changes as ${agentId}`);
+    console.log(`activity: watching agent=${agentId}`);
   }
 
   return server;
@@ -433,7 +441,7 @@ async function runDevServer({ root, mapPath, port, agentId, watch, fresh, open, 
 
 async function printViewerReady(server, { open }) {
   const url = viewerUrl(server);
-  console.log(`Open CodeCharter: ${url}`);
+  console.log(`viewer: ${url}`);
   if (open) await openBrowser(url);
 }
 
@@ -447,13 +455,13 @@ async function openBrowser(url) {
   await new Promise((resolve) => {
     const child = spawn(command, args, { detached: true, stdio: "ignore" });
     child.once("error", (error) => {
-      console.warn(`Could not open a browser automatically: ${error.message}`);
-      console.warn(`Open CodeCharter manually: ${url}`);
+      console.warn(`warning: browser-open-failed ${error.message}`);
+      console.warn(`viewer: ${url}`);
       resolve();
     });
     child.once("spawn", () => {
       child.unref();
-      console.log(`Opening CodeCharter viewer in your browser: ${url}`);
+      console.log("opened: true");
       resolve();
     });
   });
@@ -481,10 +489,25 @@ async function writeCodemap({ root, out, fresh = false, quiet = false }) {
   });
   await writeJson(out, codemap);
   if (!quiet) {
-    console.log(`Wrote ${out}`);
-    console.log(`Mapped ${Object.keys(codemap.files).length} files and ${Object.keys(codemap.folders).length} folders`);
+    printMapResult(root, out, codemap);
   }
   return codemap;
+}
+
+function printSetupResult(root, result, { installCodex, installGitHooks }) {
+  console.log("setup: ok");
+  if (result.codemap) printMapResult(root, result.mapPath, result.codemap);
+  else console.log(`map: ${displayPath(root, result.mapPath)}`);
+  console.log(`config: ${displayPath(root, result.configPath)}`);
+  console.log(`skill: ${installCodex && result.codexSkillPath ? displayPath(root, result.codexSkillPath) : "skipped"}`);
+  console.log(`hooks: ${[installCodex && "codex", installGitHooks && "git"].filter(Boolean).join(",") || "skipped"}`);
+  console.log(`activity: ${DEFAULT_ACTIVITY_ARCHIVE}`);
+}
+
+function printMapResult(root, mapPath, codemap) {
+  console.log(`map: ${displayPath(root, mapPath)}`);
+  console.log(`files: ${Object.keys(codemap.files).length}`);
+  console.log(`folders: ${Object.keys(codemap.folders).length}`);
 }
 
 function sortedUnique(values) {
@@ -681,12 +704,13 @@ async function probeServer(origin) {
 }
 
 function printDoctor(result) {
-  console.log(`CodeCharter ${result.version}`);
-  console.log(`Root: ${result.root}`);
-  console.log(`Map: ${result.mapPath}`);
-  console.log(`Setup ready: ${result.setup.ready ? "yes" : "no"}`);
-  console.log(`CLI fallback: ${result.checks.cli.recommendedCommand}`);
-  if (result.setup.nextStep) console.log(result.setup.nextStep);
+  console.log(`version: ${result.version}`);
+  console.log(`root: ${result.root}`);
+  console.log(`map: ${displayPath(result.root, result.mapPath)}`);
+  console.log(`setup: ${result.setup.ready ? "ready" : "missing"}`);
+  if (result.setup.missing.length) console.log(`missing: ${result.setup.missing.join(",")}`);
+  console.log(`fallback: ${result.checks.cli.recommendedCommand}`);
+  if (result.setup.nextStep) console.log(`next: ${result.setup.nextStep.replace(/^Run `(.+)` from the target repo\.$/, "$1")}`);
 }
 
 function printResult(value, jsonOutput, printPlain) {
@@ -761,6 +785,11 @@ function printJson(value) {
 
 function singleLine(value) {
   return String(value).replace(/\s+/g, " ").trim();
+}
+
+function displayPath(root, path) {
+  const relativePath = relative(root, path);
+  return relativePath && !relativePath.startsWith("..") && !isAbsolute(relativePath) ? relativePath : path;
 }
 
 function resolveMapPath(root, path) {

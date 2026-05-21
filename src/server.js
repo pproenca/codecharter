@@ -53,11 +53,11 @@ export async function startServer({
 
   server.on("close", () => {
     state.activityStore.close().catch((error) => {
-      console.warn(`Activity archive close flush skipped: ${error.message}`);
+      console.warn(`warning: activity-archive-close-flush-skipped error=${error.message}`);
     });
   });
 
-  console.log(`CodeCharter running at http://127.0.0.1:${actualPort}`);
+  console.error(`server: http://127.0.0.1:${actualPort}`);
   return server;
 }
 
@@ -265,7 +265,7 @@ function acceptActivityRequest(state, request) {
       state.activityStore.add(createActivityEvent(address, body));
     })
     .catch((error) => {
-      console.warn(`Dropped activity event: ${error.message}`);
+      console.warn(`warning: activity-event-dropped error=${error.message}`);
     });
 }
 

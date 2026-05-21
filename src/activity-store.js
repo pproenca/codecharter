@@ -18,7 +18,7 @@ export function createActivityStore({
 
   const timer = setInterval(() => {
     flush().catch((error) => {
-      console.warn(`Activity archive flush skipped: ${error.message}`);
+      console.warn(`warning: activity-archive-flush-skipped error=${error.message}`);
     });
   }, flushIntervalMs);
   timer.unref?.();
@@ -40,7 +40,7 @@ export function createActivityStore({
     const batch = pending.splice(0);
     writeQueue = writeQueue
       .catch((error) => {
-        console.warn(`Activity archive queue recovered: ${error.message}`);
+        console.warn(`warning: activity-archive-queue-recovered error=${error.message}`);
       })
       .then(async () => {
         await appendActivityEvents(archivePath, batch);

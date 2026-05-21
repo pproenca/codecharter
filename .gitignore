@@ -1,4 +1,6 @@
 node_modules/
 .codecharter/
+.scratch/
+.codenuke/
 codecharter.json
 codemap.json

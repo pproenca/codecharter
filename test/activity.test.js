@@ -124,6 +124,44 @@ test("CLI resolve prints token-range map addresses", async () => {
   assert.deepEqual(address.tokenRange, { start: 3, end: 8 });
 });
 
+test("CLI resolve and activity default omitted range ends for token addresses", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-cli-token-default-"));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
+
+  const { stdout: resolveStdout } = await execFileAsync("node", [
+    join(process.cwd(), "bin/codemap.mjs"),
+    "--json",
+    "resolve",
+    "src/app.ts",
+    "2",
+    "--column-start",
+    "3",
+    "--column-end",
+    "8",
+  ], { cwd: root });
+  const resolvedAddress = JSON.parse(resolveStdout);
+
+  const { stdout: activityStdout } = await execFileAsync("node", [
+    join(process.cwd(), "bin/codemap.mjs"),
+    "--json",
+    "activity",
+    "src/app.ts",
+    "2",
+    "--column-start",
+    "3",
+    "--column-end",
+    "8",
+  ], { cwd: root });
+  const activityResult = JSON.parse(activityStdout);
+
+  assert.equal(resolvedAddress.targetType, "tokenRange");
+  assert.deepEqual(resolvedAddress.lineRange, { start: 2, end: 2 });
+  assert.deepEqual(resolvedAddress.tokenRange, { start: 3, end: 8 });
+  assert.equal(activityResult.accepted, true);
+  assert.deepEqual(activityResult.event.address.lineRange, resolvedAddress.lineRange);
+  assert.deepEqual(activityResult.event.address.tokenRange, resolvedAddress.tokenRange);
+});
+
 test("CLI resolve reports the resolved address kind for deep links with range metadata", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-resolve-link-kind-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
@@ -167,6 +205,24 @@ test("CLI activity clear truncates the local activity archive", async () => {
   const { stdout } = await execFileAsync("node", [
     join(process.cwd(), "bin/codemap.mjs"),
     "--json",
+    "clear",
+  ], { cwd: root });
+  const result = JSON.parse(stdout);
+
+  assert.equal(result.cleared, true);
+  assert.equal(result.source, "archive");
+  assert.equal(await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8"), "");
+});
+
+test("CLI nested activity clear truncates the local activity archive", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-nested-clear-"));
+  await mkdir(join(root, ".codecharter"), { recursive: true });
+  await writeFile(join(root, ".codecharter", "activity.jsonl"), `${JSON.stringify({ id: "event-1" })}\n`);
+
+  const { stdout } = await execFileAsync("node", [
+    join(process.cwd(), "bin/codemap.mjs"),
+    "--json",
+    "activity",
     "clear",
   ], { cwd: root });
   const result = JSON.parse(stdout);

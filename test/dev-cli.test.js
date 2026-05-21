@@ -127,6 +127,50 @@ test("codecharter init can initialize a fresh repo and start the viewer", { time
   }
 });
 
+test("codecharter dev --setup initializes a fresh repo and starts the viewer", { timeout: 8000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-dev-setup-"));
+  const port = await freePort();
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.js"), "export const app = true;\n");
+  await execFileAsync("git", ["init"], { cwd: root });
+
+  const cli = spawn(process.execPath, [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "dev",
+    "--setup",
+    "--root",
+    root,
+    "--port",
+    String(port),
+    "--agent",
+    "setup-dev",
+  ], {
+    cwd: process.cwd(),
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let output = "";
+  cli.stdout.on("data", (chunk) => { output += chunk.toString(); });
+  cli.stderr.on("data", (chunk) => { output += chunk.toString(); });
+
+  try {
+    await waitFor(() => output.includes(`viewer: http://127.0.0.1:${port}`), () => output);
+    assert.match(output, /^init: ok$/m);
+    assert.match(output, /^map: \.codecharter\/codecharter\.json$/m);
+    assert.match(output, /^files: 1$/m);
+    assert.match(output, /^hooks: codex,git$/m);
+    assert.match(output, /^next: \/hooks$/m);
+
+    const codemap = await getJson(`http://127.0.0.1:${port}/api/map`);
+    assert.equal(codemap.files["src/app.js"].path, "src/app.js");
+
+    const activity = await waitForActivity(port, "src/app.js");
+    assert.equal(activity.agentId, "setup-dev");
+  } finally {
+    cli.kill("SIGTERM");
+    await waitForExit(cli);
+  }
+});
+
 test("packed package supports the npx init and resolve path", { timeout: 20000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-packed-"));
   const packDir = await mkdtemp(join(tmpdir(), "codecharter-pack-"));

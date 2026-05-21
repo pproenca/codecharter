@@ -121,18 +121,28 @@ async function main() {
 
     const installCodex = noCodex ? false : yes ? true : await confirm("Install Codex activity tracking hooks?", true);
     const installGitHooks = noGitHooks ? false : yes ? true : await confirm("Install local Git hooks to refresh the map?", true);
-    const setupResult = await setupCodecharter({
-      root,
-      out,
-      fresh,
-      installCodex,
-      installGitHooks,
-    });
 
     if (startDev) {
-      await runDevServer({ root, mapPath: out, port, agentId, watch, fresh: false, open, initialCodemap: setupResult.codemap });
-      if (installCodex) console.log("next: /hooks");
+      await setupAndRunDev({
+        root,
+        mapPath: out,
+        fresh,
+        installCodex,
+        installGitHooks,
+        port,
+        agentId,
+        watch,
+        open,
+        printHooksNext: installCodex,
+      });
     } else {
+      await setupCodecharter({
+        root,
+        out,
+        fresh,
+        installCodex,
+        installGitHooks,
+      });
       console.log("next: codecharter dev");
     }
     return;
@@ -151,15 +161,18 @@ async function main() {
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
     if (setup) {
-      const setupResult = await setupCodecharter({
+      await setupAndRunDev({
         root,
-        out: mapPath,
+        mapPath,
         fresh,
         installCodex: true,
         installGitHooks: true,
+        port,
+        agentId,
+        watch,
+        open,
+        printHooksNext: true,
       });
-      await runDevServer({ root, mapPath, port, agentId, watch, fresh: false, open, initialCodemap: setupResult.codemap });
-      console.log("next: /hooks");
     } else {
       await runDevServer({ root, mapPath, port, agentId, watch, fresh, open });
     }
@@ -167,12 +180,7 @@ async function main() {
   }
 
   if (command === "clear") {
-    const root = resolvePath(takeOption(args, "--root", "."));
-    const outPath = resolvePath(root, takeOption(args, "--out", DEFAULT_ACTIVITY_ARCHIVE));
-    const server = takeOption(args, "--server", undefined);
-    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
-
-    printResult(await clearActivity({ outPath, server }), jsonOutput, printActivityClearResult);
+    await runClearActivityCommand(args, jsonOutput);
     return;
   }
 
@@ -180,8 +188,8 @@ async function main() {
     const root = resolvePath(takeOption(args, "--root", "."));
     const mapPath = await resolveCliMapPath(takeOption(args, "--map", undefined), root);
     const server = takeOption(args, "--server", undefined);
-    const columnStart = optionalNumber(takeOption(args, "--column-start", undefined));
-    const columnEnd = optionalNumber(takeOption(args, "--column-end", undefined));
+    const columnStartRaw = takeOption(args, "--column-start", undefined);
+    const columnEndRaw = takeOption(args, "--column-end", undefined);
     const [reference, lineStartRaw, lineEndRaw] = args;
     if (!reference) throw new Error("resolve requires a CodeCharter deep link or path");
     if (args.length > 3) throw new Error(`Unknown arguments: ${args.slice(3).join(" ")}`);
@@ -192,10 +200,7 @@ async function main() {
       return;
     }
 
-    const codemap = JSON.parse(await readFile(mapPath, "utf8"));
-    const lineStart = optionalNumber(lineStartRaw);
-    const lineEnd = lineEndRaw === undefined ? lineStart : optionalNumber(lineEndRaw);
-    const address = resolveAddress(codemap, { path: reference, lineStart, lineEnd, columnStart, columnEnd });
+    const address = await resolveCliAddress(mapPath, { path: reference, lineStartRaw, lineEndRaw, columnStartRaw, columnEndRaw });
     printResult(address, jsonOutput, printResolvedAddress);
     return;
   }
@@ -237,12 +242,7 @@ async function main() {
     try {
       if (args[0] === "clear") {
         args.shift();
-        const root = resolvePath(takeOption(args, "--root", "."));
-        const outPath = resolvePath(root, takeOption(args, "--out", DEFAULT_ACTIVITY_ARCHIVE));
-        const server = takeOption(args, "--server", undefined);
-        if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
-
-        printResult(await clearActivity({ outPath, server }), jsonOutput, printActivityClearResult);
+        await runClearActivityCommand(args, jsonOutput);
         return;
       }
 
@@ -251,15 +251,12 @@ async function main() {
       const agentId = takeOption(args, "--agent", "codex");
       const activityState = takeOption(args, "--state", "editing");
       const note = takeOption(args, "--note", "");
-      const columnStart = optionalNumber(takeOption(args, "--column-start", undefined));
-      const columnEnd = optionalNumber(takeOption(args, "--column-end", undefined));
+      const columnStartRaw = takeOption(args, "--column-start", undefined);
+      const columnEndRaw = takeOption(args, "--column-end", undefined);
       const [path, lineStartRaw, lineEndRaw] = args;
       if (!path) throw new Error("activity requires a path");
 
-      const codemap = JSON.parse(await readFile(mapPath, "utf8"));
-      const lineStart = optionalNumber(lineStartRaw);
-      const lineEnd = lineEndRaw === undefined ? lineStart : optionalNumber(lineEndRaw);
-      const address = resolveAddress(codemap, { path, lineStart, lineEnd, columnStart, columnEnd });
+      const address = await resolveCliAddress(mapPath, { path, lineStartRaw, lineEndRaw, columnStartRaw, columnEndRaw });
       const event = createActivityEvent(address, { agentId, activityState, note });
       await appendActivityEvents(outPath, [event]);
       printResult({ accepted: true, event }, jsonOutput, printActivityResult);
@@ -291,6 +288,38 @@ async function main() {
   if (jsonOutput) throw new Error(`Unknown command: ${command}`);
   console.error(usage());
   process.exitCode = 1;
+}
+
+async function setupAndRunDev({
+  root,
+  mapPath,
+  fresh,
+  installCodex,
+  installGitHooks,
+  port,
+  agentId,
+  watch,
+  open,
+  printHooksNext,
+}) {
+  const setupResult = await setupCodecharter({
+    root,
+    out: mapPath,
+    fresh,
+    installCodex,
+    installGitHooks,
+  });
+  await runDevServer({ root, mapPath, port, agentId, watch, fresh: false, open, initialCodemap: setupResult.codemap });
+  if (printHooksNext) console.log("next: /hooks");
+}
+
+async function runClearActivityCommand(args, jsonOutput) {
+  const root = resolvePath(takeOption(args, "--root", "."));
+  const outPath = resolvePath(root, takeOption(args, "--out", DEFAULT_ACTIVITY_ARCHIVE));
+  const server = takeOption(args, "--server", undefined);
+  if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+
+  printResult(await clearActivity({ outPath, server }), jsonOutput, printActivityClearResult);
 }
 
 async function clearActivity({ outPath, server }) {
@@ -327,6 +356,15 @@ async function resolveDeepLink({ root, mapPath, reference, server }) {
   }
 
   throw new Error(`Cannot resolve ${reference}: ${parsed.kind} links require a path in link metadata`);
+}
+
+async function resolveCliAddress(mapPath, { path, lineStartRaw, lineEndRaw, columnStartRaw, columnEndRaw }) {
+  const columnStart = optionalNumber(columnStartRaw);
+  const columnEnd = optionalNumber(columnEndRaw);
+  const codemap = JSON.parse(await readFile(mapPath, "utf8"));
+  const lineStart = optionalNumber(lineStartRaw);
+  const lineEnd = lineEndRaw === undefined ? lineStart : optionalNumber(lineEndRaw);
+  return resolveAddress(codemap, { path, lineStart, lineEnd, columnStart, columnEnd });
 }
 
 function requestFromDeepLink(parsed) {

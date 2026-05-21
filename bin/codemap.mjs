@@ -40,6 +40,7 @@ function takeFlag(args, name) {
 async function main() {
   const args = process.argv.slice(2);
   const command = args.shift();
+  stripArgumentSeparator(args);
 
   if (command === "generate") {
     const root = resolvePath(takeOption(args, "--root", "."));
@@ -61,7 +62,7 @@ async function main() {
     await writeCodemap({ root, out, fresh });
     await ensureActivityStream(root);
     console.log("Setup complete.");
-    console.log("Run `npm run dev` to serve the map and stream local Codex activity.");
+    console.log("Run `pnpm dev` to serve the map and stream local Codex activity.");
     return;
   }
 
@@ -164,6 +165,10 @@ async function main() {
 
   console.error(usage());
   process.exitCode = 1;
+}
+
+function stripArgumentSeparator(args) {
+  if (args[0] === "--") args.shift();
 }
 
 async function readOptionalJson(path) {

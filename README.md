@@ -5,7 +5,7 @@ Codemaps turns a repository into a deterministic 2D Code Map. Files and folders 
 ## One-command dev
 
 ```sh
-npm run dev
+pnpm dev
 ```
 
 That command:
@@ -16,18 +16,18 @@ That command:
 
 If `4173` is already in use, Codemaps automatically binds the next available local port and points the Activity Producer at that actual server.
 Activity telemetry is deliberately non-blocking. `codemap dev` resolves changed paths to Map Addresses before posting activity, so the normal real-time stream does not read or write the sidecar on the server request path. If the server cannot resolve a legacy path-based activity event, code work continues and the event is dropped. Accepted real-time events live in memory first and are periodically appended to `.scratch/activity-stream.jsonl` as a JSONL archive, without a hard file-size check. The archive backlog is bounded in memory, so slow disk can drop old archive candidates without blocking live work.
-While `npm run dev` is running, changed code files refresh `codemap.json` before activity is posted, so newly created files can receive stable Map Addresses without restarting the server.
+While `pnpm dev` is running, changed code files refresh `codemap.json` before activity is posted, so newly created files can receive stable Map Addresses without restarting the server.
 `setup` and `dev` add Codemaps scratch files to the target repo's local `.git/info/exclude`, so telemetry does not show up as untracked work.
 
 ## Useful commands
 
 ```sh
-npm run setup
-npm run test
+pnpm setup
+pnpm test
 node ./bin/codemap.mjs resolve public/app.js 1 20
 ```
 
-`npm run setup` prepares the Map Sidecar and local Activity Archive without serving the app. `resolve` is the stable interface for turning paths, line ranges, and optional column ranges into geohash-backed Map Addresses.
+`pnpm setup` prepares the Map Sidecar and local Activity Archive without serving the app. `resolve` is the stable interface for turning paths, line ranges, and optional column ranges into geohash-backed Map Addresses.
 
 To map another repository from this checkout:
 

@@ -54,8 +54,8 @@
         "lat": 0,
         "geohash": "s00000000000"
       },
-      "lineCount": 16343,
-      "weight": 188285,
+      "lineCount": 16358,
+      "weight": 188342,
       "children": {
         "folders": [
           ".agents",
@@ -69,15 +69,16 @@
           "AGENTS.md",
           "CONTEXT.md",
           "package.json",
+          "pnpm-lock.yaml",
           "README.md",
           "skills-lock.json"
         ]
       },
       "growthArea": {
         "x": 0.92944,
-        "y": 0.012,
+        "y": 0.7928,
         "width": 0.05856,
-        "height": 0.976
+        "height": 0.1952
       }
     },
     ".agents": {
@@ -968,8 +969,8 @@
         "lat": -16.144891543710003,
         "geohash": "kv0kpuutpqn4"
       },
-      "lineCount": 204,
-      "weight": 2258,
+      "lineCount": 209,
+      "weight": 2289,
       "children": {
         "folders": [],
         "files": [
@@ -4742,9 +4743,9 @@
         "lat": -16.14489154361999,
         "geohash": "ktnupkzm0q0d"
       },
-      "lineCount": 204,
+      "lineCount": 209,
       "maxLineLength": 172,
-      "weight": 2258
+      "weight": 2289
     },
     "docs/adr/0001-stable-code-map-addresses.md": {
       "path": "docs/adr/0001-stable-code-map-addresses.md",
@@ -5822,9 +5823,29 @@
         "lat": -75.41073239895002,
         "geohash": "nfw4yxvu8u9g"
       },
-      "lineCount": 25,
+      "lineCount": 26,
       "maxLineLength": 44,
-      "weight": 173
+      "weight": 185
+    },
+    "pnpm-lock.yaml": {
+      "path": "pnpm-lock.yaml",
+      "name": "pnpm-lock.yaml",
+      "extension": ".yaml",
+      "contentType": "code",
+      "bounds": {
+        "x": 0.9314896,
+        "y": 0.0140496,
+        "width": 0.0544608,
+        "height": 0.7767008
+      },
+      "geo": {
+        "lon": 165.13920000000002,
+        "lat": 17.567999999999998,
+        "geohash": "xej7vy4tn286"
+      },
+      "lineCount": 9,
+      "maxLineLength": 33,
+      "weight": 19
     },
     "README.md": {
       "path": "README.md",
@@ -5844,7 +5865,7 @@
       },
       "lineCount": 38,
       "maxLineLength": 612,
-      "weight": 494
+      "weight": 489
     },
     "skills-lock.json": {
       "path": "skills-lock.json",

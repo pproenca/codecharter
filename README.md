@@ -4,7 +4,7 @@ Codebase maps that agents and humans can navigate.
 
 `codecharter` turns a repo into a deterministic 2D map. Files and folders become stable geography, geohash prefixes become map addresses, and local agent activity can be shown as a live overlay.
 
-Current status: early CLI and local web viewer. Setup, map generation, stable address resolution, annotation lookup, Codex hooks, and activity telemetry are implemented. The map starts from files and folders today; deeper symbol and domain-object projection are future layers.
+Current status: early CLI and local web viewer. Init, map generation, stable address resolution, Codex hooks, activity clearing, and activity telemetry are implemented. The map starts from files and folders today; deeper symbol and domain-object projection are future layers.
 
 ## Install
 
@@ -15,7 +15,7 @@ pnpm add -g codecharter
 One-shot usage without installing globally:
 
 ```sh
-npx --yes codecharter@latest setup
+npx --yes codecharter@latest init
 ```
 
 From source:
@@ -30,18 +30,17 @@ CodeCharter requires Node.js 22 or newer.
 ## Workflow
 
 ```sh
-codecharter setup
+codecharter init
+codecharter --json resolve "codecharter://annotation/<id>"
 codecharter dev
-codecharter --json doctor
-codecharter --json annotation codecharter://annotation/<id>
-codecharter annotations --json --limit 10
-codecharter resolve src/index.js 1 40 --json
-codecharter activity clear
+codecharter clear
 ```
 
-`setup` is the opinionated first-run command. It prepares `.codecharter/`, installs or merges local Git hooks, installs or merges the repo-local Codex hook adapter under `.codex/`, installs the CodeCharter Codex skill, starts the viewer, and prints the local viewer URL.
+`init` is the opinionated first-run command. It prepares `.codecharter/`, installs or merges local Git hooks, installs or merges the repo-local Codex hook adapter under `.codex/`, and installs the CodeCharter Codex skill.
 
 `dev` regenerates the map, serves the bundled viewer, and starts a best-effort activity producer that watches local Git changes and streams map positions to the in-memory activity feed.
+
+`clear` clears activity history from the local archive, or from a running viewer when passed `--server <url>`.
 
 ## What It Maps Today
 
@@ -58,40 +57,32 @@ The first stable unit is the file. Files are easy to extract, stable enough for 
 
 ## Codex Integration
 
-The default agent integration is local Codex.
+The default agent integration is local Codex. For agents, the CodeCharter CLI contract is one command: `resolve`.
 
 ```sh
-codecharter setup
-codecharter --json doctor
+codecharter --json resolve "codecharter://annotation/<id>"
 ```
 
 The installed Codex adapter is zero-token and daemon-free: Codex invokes the lifecycle hook, the hook delegates to `codecharter codex-hook`, and one JSONL event is appended to `.codecharter/activity.jsonl`.
 
-Copied annotation prompts include the exact CLI command Codex should run:
+Copied CodeCharter prompts include a direct `resolve` command for the annotation deep link:
 
 ```sh
-codecharter --json annotation codecharter://annotation/<id>
-npx --yes codecharter@latest --json annotation codecharter://annotation/<id>
+codecharter --json resolve "codecharter://annotation/<id>"
+npx --yes codecharter@latest --json resolve "codecharter://annotation/<id>"
 ```
 
-Codex should use the JSON response to read only the resolved target files and line ranges with normal file-reading tools. It does not need browser automation or bulk source reads for normal annotation work.
+Codex should use `resolvedTargets` from the JSON response to read only the selected files and line ranges with normal file-reading tools. It does not need browser automation or bulk source reads for normal CodeCharter prompt work.
 
-Open `/hooks` in Codex to review and trust the repo-local hook after setup.
+Open `/hooks` in Codex to review and trust the repo-local hook after init.
 
 ## Commands
 
-- `codecharter setup`: initialize the repo, install hooks and skill files, start the viewer
 - `codecharter init`: prepare map files and hooks without starting the viewer
 - `codecharter dev`: regenerate the map, serve the viewer, and stream local activity
-- `codecharter doctor`: check setup, CLI version, map files, hooks, skill files, and optional server reachability
-- `codecharter annotation <id-or-url>`: resolve an annotation URL or `codecharter://annotation/<id>` into target files and ranges
-- `codecharter annotations`: list saved annotations
+- `codecharter resolve <codecharter://...>`: resolve a CodeCharter deep link into agent-readable targets
 - `codecharter resolve <path> [lineStart] [lineEnd]`: resolve a file or line range into a Map Address
-- `codecharter activity <path> [lineStart] [lineEnd]`: append an explicit activity event
-- `codecharter activity clear`: clear the local Activity Archive, and optionally the live server feed
-- `codecharter api <api-path-or-url> --server <url>`: perform read-only GETs against local CodeCharter API endpoints
-- `codecharter generate`: write a map JSON file
-- `codecharter serve`: serve the bundled viewer for an existing map
+- `codecharter clear`: clear the local Activity Archive, and optionally the live server feed
 
 Useful flags:
 
@@ -102,12 +93,10 @@ Useful flags:
 - `--server <url>`
 - `--map <file>`
 - `--out <file>`
-- `--fresh`
-- `--quiet`
-- `--limit <n>`
 - `--agent <id>`
-- `--state <state>`
-- `--note <text>`
+- `--fresh`
+- `--column-start <n>`
+- `--column-end <n>`
 
 ## JSON Output
 
@@ -124,9 +113,7 @@ Errors under `--json` use:
 }
 ```
 
-`doctor --json` reports setup, auth, map, hook, skill, package-version, command fallback, and optional server reachability diagnostics. CodeCharter does not require auth; `doctor` reports `auth.required: false`.
-
-`annotation --json` returns the refreshed annotation, `resolvedTargets`, and `targetCount`. If the input includes a local server origin, CodeCharter reads `/api/annotations/<id>`; otherwise it falls back to `.codecharter/named-places.json` and `.codecharter/codecharter.json`.
+For agents, use JSON with `resolve`. Human commands keep the same terse key-value response style as plain `resolve` output.
 
 ## State
 
@@ -144,7 +131,7 @@ State is project-local by default:
 
 `activity.jsonl` is the local Activity Archive. Accepted real-time events live in memory first and are periodically appended to the archive. Slow disk can drop old archive candidates without blocking live code work.
 
-Setup also writes local integration files when needed:
+Init also writes local integration files when needed:
 
 ```text
 .agents/skills/codecharter/
@@ -155,12 +142,11 @@ Setup also writes local integration files when needed:
 ## Safety
 
 - CodeCharter does not require auth.
-- `setup` preserves existing `.codex/hooks.json` entries when adding its own hook.
+- `init` preserves existing `.codex/hooks.json` entries when adding its own hook.
 - `init` and `dev` add CodeCharter artifacts to `.gitignore` and local `.git/info/exclude`.
 - Activity telemetry is best-effort and non-blocking.
 - The normal activity stream resolves paths before posting events, so server requests do not read or write the sidecar on the hot path.
-- `api` is read-only and blocks raw source endpoints.
-- Annotation resolution is CLI-first, so agents can inspect only the files and ranges selected by the map.
+- Agent resolution is CLI-first, so agents can inspect only the files and ranges selected by the map.
 - If port `4173` is busy, the server binds the next available local port and prints the exact viewer URL.
 
 See `CONTEXT.md` and `docs/adr/` for the product context and architecture decisions.

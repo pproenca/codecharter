@@ -6,7 +6,7 @@ import { access, readFile, stat } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createActivityEvent } from "../src/activity.js";
-import { appendActivityEvents, ensureActivityArchive } from "../src/activity-store.js";
+import { appendActivityEvents, clearActivityArchive, ensureActivityArchive } from "../src/activity-store.js";
 import { startActivityWatcher } from "../src/activity-watcher.js";
 import { runCodexHook } from "../src/codex-hook.js";
 import { parseCodemapDeepLink } from "../src/deep-links.js";
@@ -35,20 +35,15 @@ const METADATA_EXCLUDE_PATHS = [
 
 function usage() {
   return `Usage:
-  codecharter setup [--root <dir>] [--port <port>] [--open]
+  codecharter resolve <codecharter://...> [--json] [--root <dir>] [--map <file>] [--server <url>]
+  codecharter resolve <path> [lineStart] [lineEnd] [--json] [--root <dir>] [--map <file>]
   codecharter init [--root <dir>]
   codecharter dev [--root <dir>] [--port <port>] [--open]
-  codecharter doctor [--json] [--root <dir>] [--server <url>]
-  codecharter annotation <id-or-url> [--json] [--root <dir>] [--server <url>]
+  codecharter clear [--json] [--server <url>] [--root <dir>] [--out <file.jsonl>]
   codecharter --version
 
-Advanced:
-  codecharter annotations [--json] [--root <dir>] [--server <url>] [--limit <n>]
-  codecharter resolve <path> [lineStart] [lineEnd] [--json] [--map <file>]
-  codecharter activity <path> [lineStart] [lineEnd] [--json] [--agent <id>] [--state <state>] [--note <text>]
-  codecharter api <api-path-or-url> --server <url> [--json]
-  codecharter generate [--root <dir>] [--out <file>] [--fresh] [--quiet]
-  codecharter serve [--root <dir>] [--map <file>] [--port <port>] [--open]
+For agents:
+  Use resolve only. Humans use init, dev, and clear.
 `;
 }
 
@@ -171,17 +166,36 @@ async function main() {
     return;
   }
 
+  if (command === "clear") {
+    const root = resolvePath(takeOption(args, "--root", "."));
+    const outPath = resolvePath(root, takeOption(args, "--out", DEFAULT_ACTIVITY_ARCHIVE));
+    const server = takeOption(args, "--server", undefined);
+    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+
+    printResult(await clearActivity({ outPath, server }), jsonOutput, printActivityClearResult);
+    return;
+  }
+
   if (command === "resolve") {
-    const mapPath = await resolveCliMapPath(takeOption(args, "--map", undefined));
+    const root = resolvePath(takeOption(args, "--root", "."));
+    const mapPath = await resolveCliMapPath(takeOption(args, "--map", undefined), root);
+    const server = takeOption(args, "--server", undefined);
     const columnStart = optionalNumber(takeOption(args, "--column-start", undefined));
     const columnEnd = optionalNumber(takeOption(args, "--column-end", undefined));
-    const [path, lineStartRaw, lineEndRaw] = args;
-    if (!path) throw new Error("resolve requires a path");
+    const [reference, lineStartRaw, lineEndRaw] = args;
+    if (!reference) throw new Error("resolve requires a CodeCharter deep link or path");
+    if (args.length > 3) throw new Error(`Unknown arguments: ${args.slice(3).join(" ")}`);
+
+    if (isCodecharterDeepLink(reference)) {
+      const resolved = await resolveDeepLink({ root, mapPath, reference, server });
+      printResult(resolved, jsonOutput, printResolvedDeepLink);
+      return;
+    }
 
     const codemap = JSON.parse(await readFile(mapPath, "utf8"));
     const lineStart = optionalNumber(lineStartRaw);
     const lineEnd = lineEndRaw === undefined ? lineStart : optionalNumber(lineEndRaw);
-    const address = resolveAddress(codemap, { path, lineStart, lineEnd, columnStart, columnEnd });
+    const address = resolveAddress(codemap, { path: reference, lineStart, lineEnd, columnStart, columnEnd });
     printResult(address, jsonOutput, printResolvedAddress);
     return;
   }
@@ -221,6 +235,17 @@ async function main() {
 
   if (command === "activity") {
     try {
+      if (args[0] === "clear") {
+        args.shift();
+        const root = resolvePath(takeOption(args, "--root", "."));
+        const outPath = resolvePath(root, takeOption(args, "--out", DEFAULT_ACTIVITY_ARCHIVE));
+        const server = takeOption(args, "--server", undefined);
+        if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+
+        printResult(await clearActivity({ outPath, server }), jsonOutput, printActivityClearResult);
+        return;
+      }
+
       const mapPath = await resolveCliMapPath(takeOption(args, "--map", undefined));
       const outPath = resolvePath(takeOption(args, "--out", DEFAULT_ACTIVITY_ARCHIVE));
       const agentId = takeOption(args, "--agent", "codex");
@@ -268,6 +293,67 @@ async function main() {
   process.exitCode = 1;
 }
 
+async function clearActivity({ outPath, server }) {
+  const origin = normalizeOrigin(server);
+  if (origin) {
+    const response = await fetch(`${origin}/api/activity`, { method: "DELETE" });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error ?? `${response.status} ${response.statusText}`);
+    return { source: "server", origin, ...body };
+  }
+
+  await clearActivityArchive(outPath);
+  return { source: "archive", path: outPath, cleared: true };
+}
+
+async function resolveDeepLink({ root, mapPath, reference, server }) {
+  const parsed = parseCodemapDeepLink(reference);
+  if (parsed.kind === "annotation") {
+    return {
+      kind: "annotation",
+      reference,
+      ...await readAnnotation({ root, mapPath, reference, server }),
+    };
+  }
+
+  if (parsed.metadata.path) {
+    const codemap = JSON.parse(await readFile(mapPath, "utf8"));
+    return {
+      kind: parsed.kind,
+      reference,
+      address: resolveAddress(codemap, requestFromDeepLink(parsed)),
+    };
+  }
+
+  throw new Error(`Cannot resolve ${reference}: ${parsed.kind} links require a path in link metadata`);
+}
+
+function requestFromDeepLink(parsed) {
+  const request = { path: parsed.metadata.path };
+  const lineRange = parseRange(parsed.metadata.lines);
+  const columnRange = parseRange(parsed.metadata.columns);
+  if (lineRange) {
+    request.lineStart = lineRange.start;
+    request.lineEnd = lineRange.end;
+  }
+  if (columnRange) {
+    request.columnStart = columnRange.start;
+    request.columnEnd = columnRange.end;
+  }
+  return request;
+}
+
+function parseRange(value) {
+  if (!value) return undefined;
+  const match = String(value).match(/^(\d+)(?:-(\d+))?$/);
+  if (!match) throw new Error(`Invalid range in deep link metadata: ${value}`);
+  return { start: Number(match[1]), end: Number(match[2] ?? match[1]) };
+}
+
+function isCodecharterDeepLink(value) {
+  return value.startsWith("codecharter://") || value.startsWith("codemap://");
+}
+
 async function doctor({ root, mapPath, server }) {
   const configPath = join(root, ".codecharter", "config.json");
   const namedPlacesPath = join(root, ".codecharter", "named-places.json");
@@ -312,7 +398,7 @@ async function doctor({ root, mapPath, server }) {
     setup: {
       ready: missingSetup.length === 0,
       missing: missingSetup,
-      nextStep: missingSetup.length ? "Run `codecharter setup` from the target repo." : undefined,
+      nextStep: missingSetup.length ? "Run `codecharter init` from the target repo." : undefined,
     },
     checks,
   };
@@ -474,7 +560,7 @@ async function writeCodemap({ root, out, fresh = false, quiet = false }) {
 }
 
 function printSetupResult(root, result, { installCodex, installGitHooks }) {
-  console.log("setup: ok");
+  console.log("init: ok");
   if (result.codemap) printMapResult(root, result.mapPath, result.codemap);
   else console.log(`map: ${displayPath(root, result.mapPath)}`);
   console.log(`config: ${displayPath(root, result.configPath)}`);
@@ -707,6 +793,16 @@ function printResolvedAddress(address) {
   console.log(`link: ${address.deepLink}`);
 }
 
+function printResolvedDeepLink(result) {
+  if (result.kind === "annotation") {
+    printAnnotation(result);
+    return;
+  }
+  console.log(`kind: ${result.kind}`);
+  console.log(`reference: ${result.reference}`);
+  printResolvedAddress(result.address);
+}
+
 function printAnnotation(result) {
   console.log(`annotation: ${result.annotation.id}`);
   console.log(`source: ${result.source}`);
@@ -717,7 +813,7 @@ function printAnnotation(result) {
     console.log(`target: ${target.path}${target.lineRange ? `:${target.lineRange.start}-${target.lineRange.end}` : ""}`);
   }
   if (result.targetCount > 12) console.log(`more: ${result.targetCount - 12}`);
-  console.log(`json: codecharter --json annotation ${result.annotation.deepLink}`);
+  console.log(`json: codecharter --json resolve "${result.annotation.deepLink}"`);
 }
 
 function printAnnotations(result) {
@@ -751,6 +847,14 @@ function printActivityResult(result) {
   if (result.error) console.log(`error: ${result.error}`);
 }
 
+function printActivityClearResult(result) {
+  console.log(`cleared: ${result.cleared ? "true" : "false"}`);
+  console.log(`source: ${result.source}`);
+  if (result.origin) console.log(`origin: ${result.origin}`);
+  if (result.path) console.log(`path: ${result.path}`);
+  if (Number.isInteger(result.events)) console.log(`events: ${result.events}`);
+}
+
 function printJson(value) {
   console.log(JSON.stringify(value, null, 2));
 }
@@ -781,11 +885,14 @@ async function readPreviousCodemap(root, out) {
   return undefined;
 }
 
-async function resolveCliMapPath(option) {
-  if (option) return resolvePath(option);
-  if (await readOptionalJson(resolvePath(DEFAULT_MAP_FILE))) return resolvePath(DEFAULT_MAP_FILE);
-  if (await readOptionalJson(resolvePath(ROOT_MAP_FILE))) return resolvePath(ROOT_MAP_FILE);
-  return resolvePath(LEGACY_MAP_FILE);
+async function resolveCliMapPath(option, root = ".") {
+  const resolvedRoot = resolvePath(root);
+  if (option) return resolveMapPath(resolvedRoot, option);
+  const defaultMapPath = resolvePath(resolvedRoot, DEFAULT_MAP_FILE);
+  const rootMapPath = resolvePath(resolvedRoot, ROOT_MAP_FILE);
+  if (await readOptionalJson(defaultMapPath)) return defaultMapPath;
+  if (await readOptionalJson(rootMapPath)) return rootMapPath;
+  return resolvePath(resolvedRoot, LEGACY_MAP_FILE);
 }
 
 async function confirm(question, fallback) {

@@ -21,6 +21,7 @@ function resolveFolderAddress(codemap, folder) {
   return {
     level,
     targetType: "folder",
+    path: folder.path,
     geohash,
     deepLink: deepLink(level, geohash, { path: folder.path }),
     breadcrumb: breadcrumbForPath(folder.path || "."),
@@ -44,6 +45,7 @@ function resolveFileAddress(codemap, file, request) {
   return {
     level,
     targetType: "file",
+    path: file.path,
     geohash,
     deepLink: deepLink(level, geohash, { path: file.path }),
     breadcrumb: breadcrumbForPath(file.path),
@@ -71,6 +73,7 @@ function resolveCodeRangeAddress(file, request) {
   return {
     level,
     targetType: level,
+    path: file.path,
     geohash: geo.geohash,
     deepLink: deepLink(level, geo.geohash, { path: file.path, lines, columns: tokenRange ? `${tokenRange.start}-${tokenRange.end}` : undefined }),
     breadcrumb: `${breadcrumbForPath(file.path)}:${lines}${tokenRange ? `@${tokenRange.start}-${tokenRange.end}` : ""}`,

@@ -225,6 +225,13 @@ async function handleApi(state, request, response, url) {
     return;
   }
 
+  if (request.method === "DELETE" && url.pathname === "/api/activity") {
+    const before = await activitySnapshot(state);
+    await state.activityStore.clear();
+    sendJson(response, 200, { cleared: true, events: before.events.length });
+    return;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/activity") {
     acceptActivityRequest(state, request);
     sendJson(response, 202, { accepted: true });

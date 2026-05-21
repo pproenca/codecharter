@@ -125,6 +125,23 @@ test("CLI activity telemetry never exits non-zero for an unmapped path", async (
   assert.match(response.error, /No map target found/);
 });
 
+test("CLI activity clear truncates the local activity archive", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-clear-"));
+  await mkdir(join(root, ".codecharter"), { recursive: true });
+  await writeFile(join(root, ".codecharter", "activity.jsonl"), `${JSON.stringify({ id: "event-1" })}\n`);
+
+  const { stdout } = await execFileAsync("node", [
+    join(process.cwd(), "bin/codemap.mjs"),
+    "--json",
+    "clear",
+  ], { cwd: root });
+  const result = JSON.parse(stdout);
+
+  assert.equal(result.cleared, true);
+  assert.equal(result.source, "archive");
+  assert.equal(await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8"), "");
+});
+
 function sampleCodemap() {
   return {
     version: 1,

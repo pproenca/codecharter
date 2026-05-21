@@ -58,9 +58,8 @@ test("creates map annotations with a Codex-ready spatial prompt", () => {
   assert.equal(annotation.browserHash, `#/annotation/${annotation.id}`);
   assert.equal(annotation.resolvedTargets.length, 1);
   assert.match(annotation.codexPrompt, /CodeCharter annotation: codecharter:\/\/annotation\//);
-  assert.match(annotation.codexPrompt, /codecharter:\/\/annotation\//);
-  assert.match(annotation.codexPrompt, /CLI: codecharter --json annotation codecharter:\/\/annotation\//);
-  assert.match(annotation.codexPrompt, /Fallback: npx --yes codecharter --json annotation codecharter:\/\/annotation\//);
+  assert.match(annotation.codexPrompt, /CLI: codecharter --json resolve "codecharter:\/\/annotation\//);
+  assert.match(annotation.codexPrompt, /Fallback: npx --yes codecharter --json resolve "codecharter:\/\/annotation\//);
   assert.match(annotation.codexPrompt, /Targets: 1/);
   assert.match(annotation.codexPrompt, /Note: hey explore this area/);
   assert.match(annotation.codexPrompt, /Do not use browser automation unless asked/);

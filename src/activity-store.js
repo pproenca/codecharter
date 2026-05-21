@@ -1,4 +1,4 @@
-import { appendFile, mkdir } from "node:fs/promises";
+import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 const DEFAULT_FLUSH_INTERVAL_MS = 5000;
@@ -54,6 +54,19 @@ export function createActivityStore({
     return writeQueue;
   }
 
+  async function clear() {
+    events.length = 0;
+    pending.length = 0;
+    writeQueue = writeQueue
+      .catch((error) => {
+        console.warn(`warning: activity-archive-queue-recovered error=${error.message}`);
+      })
+      .then(async () => {
+        if (archivePath) await clearActivityArchive(archivePath);
+      });
+    return writeQueue;
+  }
+
   async function close() {
     if (closed) return;
     closed = true;
@@ -66,6 +79,7 @@ export function createActivityStore({
     add,
     snapshot,
     flush,
+    clear,
     close,
   };
 
@@ -83,4 +97,9 @@ export async function appendActivityEvents(archivePath, events) {
 export async function ensureActivityArchive(archivePath) {
   await mkdir(dirname(archivePath), { recursive: true });
   await appendFile(archivePath, "");
+}
+
+export async function clearActivityArchive(archivePath) {
+  await mkdir(dirname(archivePath), { recursive: true });
+  await writeFile(archivePath, "");
 }

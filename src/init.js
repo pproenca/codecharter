@@ -292,60 +292,51 @@ function codecharterSkillMarkdown(version = "latest") {
   const npxCommand = `npx --yes codecharter@${version}`;
   return `---
 name: codecharter
-description: Use when a prompt contains a CodeCharter annotation, codecharter:// annotation link, local CodeCharter URL, browser annotation route, corner geohashes, resolved target count, or asks Codex to inspect a mapped code area through the CodeCharter CLI.
+description: Use when a prompt asks Codex to inspect a CodeCharter map annotation, includes a codecharter:// deep link, includes a CodeCharter resolve command, or asks for code context from a CodeCharter selection.
 ---
 
 # CodeCharter
 
-Use the CodeCharter CLI as the communication path. Do not use browser automation to inspect annotations unless the user explicitly asks for visual UI testing.
+Use the CodeCharter CLI as the communication path. For agents, the CLI contract is one command: \`resolve\`.
 
-If \`command -v codecharter\` fails, run the same command through \`${npxCommand}\`. For example, \`${npxCommand} --json annotation <id-or-url>\`.
+If \`command -v codecharter\` fails, run the same command through \`${npxCommand}\`. For example, \`${npxCommand} --json resolve "codecharter://annotation/<id>"\`.
 
-## Annotation Prompts
+## CodeCharter Prompts
 
-CodeCharter annotation prompts may include:
+CodeCharter prompts may include:
 
+- one or more \`codecharter --json resolve ...\` commands
 - a \`codecharter://annotation/<id>\` deep link
-- a browser route like \`#/annotation/<id>\`
-- a local CodeCharter URL like \`http://127.0.0.1:<port>/#/annotation/<id>\`
-- a spatial frame with four corner geohashes
+- a target count
 - a user note describing what to investigate
 
 ## Workflow
 
-1. Run \`codecharter --json doctor\` when setup state, hooks, skill installation, map storage, or server reachability is unclear.
-2. If the binary is missing, rerun the prior command as \`${npxCommand} ...\`.
-3. Run \`codecharter --json annotation <id-or-url>\` for pasted annotation prompts. Pass the full CodeCharter URL when available.
-4. Use \`resolvedTargets\` from the command output as the authoritative target list.
-5. Read only the needed resolved target files and ranges with normal Codex file-reading tools.
-6. Treat \`Corner geohashes\` as the selected rectangle's spatial frame, not as files to expand or scan.
-7. If a target is too broad, inspect annotation names, bounds, and target metadata before reading source.
+1. Run \`codecharter --json resolve "codecharter://annotation/<id>"\` for the pasted CodeCharter annotation.
+2. If the binary is missing, rerun the same command as \`${npxCommand} --json resolve ...\`.
+3. Treat \`resolvedTargets\` from the resolve output as the authoritative target list.
+4. Read only the needed resolved target files and ranges with normal Codex file-reading tools.
+5. If no deep link or resolve command is present, ask the user to copy a fresh CodeCharter prompt from the viewer.
 
 ## Fallbacks
 
-- \`codecharter --json annotation\` uses the local server when the URL includes one, otherwise it reads \`.codecharter/named-places.json\` and refreshes against \`.codecharter/codecharter.json\`.
-- Use \`codecharter --json annotations\` to list known annotations.
-- Use \`codecharter --json api /api/...\` with \`--server <url>\` only as a read-only GET escape hatch when a high-level command is missing. Do not use it to read source files.
-- If both map and annotation storage are unavailable, ask the user to start CodeCharter with \`codecharter dev\` or paste the annotation JSON.
+- Use \`${npxCommand} --json resolve ...\` when the local binary is unavailable.
+- Ask the user to run \`codecharter init\` if the map sidecar is missing.
+- Ask the user to run \`codecharter dev\` only when they need the local viewer or live activity overlay.
 
 ## Do Not
 
+- Do not use any agent-facing CodeCharter command except \`resolve\`.
 - Do not bulk-read every file under a selected area.
-- Do not expand corner geohashes into broad repository scans.
 - Do not use CodeCharter as a source-file reader; Codex should read resolved target files directly.
-- Do not write or delete annotations through raw API calls without explicit user approval.
-- Do not prefer browser automation over CLI reads for normal annotation work.
+- Do not use browser automation for normal CodeCharter prompt handling.
+- Do not run human commands such as \`init\`, \`dev\`, or \`clear\` unless the user asks.
 
 ## Examples
 
 \`\`\`sh
-codecharter --json doctor
-npx --yes codecharter@${version} --json doctor
-codecharter --json annotation codecharter://annotation/<id>
-npx --yes codecharter@${version} --json annotation codecharter://annotation/<id>
-codecharter --json annotation 'http://127.0.0.1:4173/#/annotation/<id>'
-codecharter --json annotation <id> --root /path/to/repo
-codecharter --json annotations --server http://127.0.0.1:4173 --limit 10
+codecharter --json resolve "codecharter://annotation/<id>"
+npx --yes codecharter@${version} --json resolve "codecharter://annotation/<id>"
 \`\`\`
 `;
 }
@@ -353,8 +344,8 @@ codecharter --json annotations --server http://127.0.0.1:4173 --limit 10
 function codecharterSkillOpenaiYaml() {
   return `interface:
   display_name: "CodeCharter"
-  short_description: "Inspect CodeCharter map annotations via CLI"
-  default_prompt: "Use $codecharter to inspect a pasted CodeCharter annotation through the CLI."
+  short_description: "Resolve CodeCharter map targets via CLI"
+  default_prompt: "Use $codecharter to resolve mapped CodeCharter targets through the CLI."
 policy:
   allow_implicit_invocation: true
 `;

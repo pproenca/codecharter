@@ -64,7 +64,7 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.equal(annotationResponse.annotation.deepLink, `codecharter://annotation/${annotationResponse.annotation.id}`);
     assert.equal(annotationResponse.annotation.browserHash, `#/annotation/${annotationResponse.annotation.id}`);
     assert.match(annotationResponse.annotation.codexPrompt, /CodeCharter annotation: codecharter:\/\/annotation\//);
-    assert.match(annotationResponse.annotation.codexPrompt, /CLI: codecharter --json annotation codecharter:\/\/annotation\//);
+    assert.match(annotationResponse.annotation.codexPrompt, /CLI: codecharter --json resolve "codecharter:\/\/annotation\//);
     assert.match(annotationResponse.annotation.codexPrompt, /Note: hey explore this area/);
     assert.doesNotMatch(annotationResponse.annotation.codexPrompt, /Browser route/);
     assert.doesNotMatch(annotationResponse.annotation.codexPrompt, /Corner geohashes/);
@@ -148,6 +148,13 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     const archivedActivity = await waitForActivityArchive(root);
     assert.equal(archivedActivity.at(-1).agentId, "codex");
     assert.equal(archivedActivity.at(-1).address.targetType, "tokenRange");
+
+    const clearedActivity = await runCliJson(["clear", "--server", baseUrl]);
+    assert.equal(clearedActivity.cleared, true);
+    assert.equal(clearedActivity.events > 0, true);
+    const emptyActivity = await getJson(`${baseUrl}/api/activity`);
+    assert.deepEqual(emptyActivity.events, []);
+    assert.equal(await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8"), "");
 
     const badActivity = await postJson(`${baseUrl}/api/activity`, {
       agentId: "codex",
@@ -269,7 +276,7 @@ test("deletes saved map annotations", async () => {
   }
 });
 
-test("CLI reads annotations from a CodeCharter URL or local storage without browser automation", async () => {
+test("CLI resolves annotation deep links from local storage without browser automation", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-cli-annotation-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
@@ -288,16 +295,17 @@ test("CLI reads annotations from a CodeCharter URL or local storage without brow
     const { stdout } = await execFileAsync(process.execPath, [
       join(process.cwd(), "bin", "codemap.mjs"),
       "--json",
-      "annotation",
-      `${baseUrl}/#/annotation/${created.annotation.id}`,
+      "resolve",
+      created.annotation.deepLink,
       "--root",
       root,
       "--map",
       join(root, "codecharter.json"),
     ]);
     const result = JSON.parse(stdout);
-    assert.equal(result.source, "server");
-    assert.equal(result.origin, baseUrl);
+    assert.equal(result.kind, "annotation");
+    assert.equal(result.reference, created.annotation.deepLink);
+    assert.equal(result.source, "storage");
     assert.equal(result.annotation.id, created.annotation.id);
     assert.equal(result.targetCount, 1);
     assert.deepEqual(result.resolvedTargets.map((target) => target.path), ["src/app.ts"]);
@@ -310,7 +318,7 @@ test("CLI reads annotations from a CodeCharter URL or local storage without brow
   const { stdout } = await execFileAsync(process.execPath, [
     join(process.cwd(), "bin", "codemap.mjs"),
     "--json",
-    "annotation",
+    "resolve",
     created.annotation.deepLink,
     "--root",
     root,

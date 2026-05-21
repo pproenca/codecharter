@@ -223,14 +223,19 @@ function withAnnotationPrompt(annotation) {
 
 function codexPromptForAnnotation(annotation) {
   const comment = annotation.comment?.trim() || "<empty>";
+  const reference = doubleQuote(annotation.deepLink);
   return [
     `CodeCharter annotation: ${annotation.deepLink}`,
-    `CLI: codecharter --json annotation ${annotation.deepLink}`,
-    `Fallback: npx --yes codecharter --json annotation ${annotation.deepLink}`,
     `Targets: ${annotation.resolvedTargets.length}`,
     `Note: ${comment}`,
-    "Use CLI output; read only needed resolvedTargets. Do not use browser automation unless asked.",
-  ].join("\n");
+    `CLI: codecharter --json resolve ${reference}`,
+    `Fallback: npx --yes codecharter --json resolve ${reference}`,
+    "Use resolve output; read only needed resolvedTargets. Do not use browser automation unless asked.",
+  ].filter(Boolean).join("\n");
+}
+
+function doubleQuote(value) {
+  return `"${String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
 function formatBounds(bounds) {

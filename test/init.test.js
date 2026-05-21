@@ -37,14 +37,14 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
   await access(join(root, ".codex", "hooks", "codecharter-codex-hook.mjs"), constants.X_OK);
 
   const skill = await readFile(join(root, ".agents", "skills", "codecharter", "SKILL.md"), "utf8");
-  assert.match(skill, /CodeCharter annotation/);
-  assert.match(skill, /Corner geohashes/);
+  assert.match(skill, /CodeCharter prompts/);
+  assert.match(skill, /codecharter:\/\/ deep link/);
+  assert.match(skill, /codecharter --json resolve "codecharter:\/\/annotation\/<id>"/);
+  assert.match(skill, /npx --yes codecharter@\d+\.\d+\.\d+ --json resolve "codecharter:\/\/annotation\/<id>"/);
   assert.match(skill, /resolvedTargets/);
-  assert.match(skill, /codecharter --json annotation <id-or-url>/);
-  assert.match(skill, /npx --yes codecharter@\d+\.\d+\.\d+ --json annotation <id-or-url>/);
   assert.match(skill, /normal Codex file-reading tools/);
   assert.match(skill, /Do not bulk-read every file/);
-  assert.match(skill, /Do not prefer browser automation over CLI reads/);
+  assert.match(skill, /Do not use browser automation/);
   const skillUi = await readFile(join(root, ".agents", "skills", "codecharter", "agents", "openai.yaml"), "utf8");
   assert.match(skillUi, /display_name: "CodeCharter"/);
   assert.match(skillUi, /default_prompt: "Use \$codecharter/);

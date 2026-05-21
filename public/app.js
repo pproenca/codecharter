@@ -109,6 +109,7 @@ const controls = {
   zoomOutTool: document.querySelector("#zoomOutTool"),
   resetViewTool: document.querySelector("#resetViewTool"),
   drawTool: document.querySelector("#drawTool"),
+  clearActivityTool: document.querySelector("#clearActivityTool"),
   saveSelection: document.querySelector("#saveSelection"),
   deleteAnnotation: document.querySelector("#deleteAnnotation"),
   copyAnnotationPrompt: document.querySelector("#copyAnnotationPrompt"),
@@ -217,6 +218,7 @@ function bindEvents() {
   controls.copyAnnotationPrompt?.addEventListener("click", copySelectedAnnotationPrompt);
   controls.deleteAnnotationAction?.addEventListener("click", deleteSelectedAnnotation);
   controls.activityForm?.addEventListener("submit", addActivity);
+  controls.clearActivityTool?.addEventListener("click", clearActivityHistory);
 
   mapArea.addEventListener("wheel", onWheel, { passive: false });
   canvas.addEventListener("pointerdown", onPointerDown);
@@ -1788,6 +1790,20 @@ async function addActivity(event) {
     lineEnd: Number(data.lineEnd),
   });
   setTimeout(refreshActivity, 250);
+}
+
+async function clearActivityHistory() {
+  if (controls.clearActivityTool) controls.clearActivityTool.disabled = true;
+  try {
+    await deleteJson("/api/activity");
+    state.activity = [];
+    state.activitySignature = activitySignature(state.activity);
+    if (state.selectedTarget?.targetType === "activity") state.selectedTarget = null;
+    setText(controls.hover, "Activity cleared");
+    render();
+  } finally {
+    if (controls.clearActivityTool) controls.clearActivityTool.disabled = false;
+  }
 }
 
 function hitTest(point) {

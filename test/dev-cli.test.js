@@ -61,7 +61,7 @@ test("codecharter dev is a one-command dogfood workflow", { timeout: 8000 }, asy
   }
 });
 
-test("codecharter setup initializes a fresh repo and prints the viewer URL", { timeout: 8000 }, async () => {
+test("codecharter init can initialize a fresh repo and start the viewer", { timeout: 8000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-setup-dev-"));
   const port = await freePort();
   await mkdir(join(root, "src"), { recursive: true });
@@ -70,11 +70,13 @@ test("codecharter setup initializes a fresh repo and prints the viewer URL", { t
 
   const cli = spawn(process.execPath, [
     join(process.cwd(), "bin", "codemap.mjs"),
-    "setup",
+    "init",
     "--root",
     root,
     "--port",
     String(port),
+    "--dev",
+    "--yes",
     "--agent",
     "first-run",
   ], {
@@ -87,7 +89,7 @@ test("codecharter setup initializes a fresh repo and prints the viewer URL", { t
 
   try {
     await waitFor(() => output.includes(`viewer: http://127.0.0.1:${port}`), () => output);
-    assert.match(output, /^setup: ok$/m);
+    assert.match(output, /^init: ok$/m);
     assert.match(output, /^map: \.codecharter\/codecharter\.json$/m);
     assert.match(output, /^files: 1$/m);
     assert.match(output, /^hooks: codex,git$/m);
@@ -100,11 +102,11 @@ test("codecharter setup initializes a fresh repo and prints the viewer URL", { t
     assert.ok(hooksJson.hooks.PostToolUse);
 
     const skill = await readFile(join(root, ".agents", "skills", "codecharter", "SKILL.md"), "utf8");
-    assert.match(skill, /CodeCharter annotation/);
-    assert.match(skill, /Corner geohashes/);
+    assert.match(skill, /CodeCharter prompts/);
+    assert.match(skill, /codecharter --json resolve "codecharter:\/\/annotation\/<id>"/);
     assert.match(skill, /npx --yes codecharter@\d+\.\d+\.\d+/);
     const skillUi = await readFile(join(root, ".agents", "skills", "codecharter", "agents", "openai.yaml"), "utf8");
-    assert.match(skillUi, /short_description: "Inspect CodeCharter map annotations via CLI"/);
+    assert.match(skillUi, /short_description: "Resolve CodeCharter map targets via CLI"/);
 
     const config = JSON.parse(await readFile(join(root, ".codecharter", "config.json"), "utf8"));
     assert.equal(config.mapPath, ".codecharter/codecharter.json");
@@ -125,7 +127,7 @@ test("codecharter setup initializes a fresh repo and prints the viewer URL", { t
   }
 });
 
-test("packed package supports the npx one-command setup path", { timeout: 20000 }, async () => {
+test("packed package supports the npx init and resolve path", { timeout: 20000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-packed-"));
   const packDir = await mkdtemp(join(tmpdir(), "codecharter-pack-"));
   const port = await freePort();
@@ -142,11 +144,13 @@ test("packed package supports the npx one-command setup path", { timeout: 20000 
     tarball,
     "--",
     "codecharter",
-    "setup",
+    "init",
     "--root",
     root,
     "--port",
     String(port),
+    "--dev",
+    "--yes",
     "--agent",
     "packed",
   ], {
@@ -162,15 +166,15 @@ test("packed package supports the npx one-command setup path", { timeout: 20000 
     await waitFor(() => output.includes(`viewer: http://127.0.0.1:${port}`), () => output);
     const codemap = await getJson(`http://127.0.0.1:${port}/api/map`);
     assert.equal(codemap.files["src/app.js"].path, "src/app.js");
-    assert.match(output, /^setup: ok$/m);
+    assert.match(output, /^init: ok$/m);
     assert.match(output, /^next: \/hooks$/m);
     const skill = await readFile(join(root, ".agents", "skills", "codecharter", "SKILL.md"), "utf8");
-    assert.match(skill, /resolvedTargets/);
+    assert.match(skill, /resolve "codecharter:\/\/annotation\/<id>"/);
     assert.match(skill, /If `command -v codecharter` fails/);
     const skillUi = await readFile(join(root, ".agents", "skills", "codecharter", "agents", "openai.yaml"), "utf8");
     assert.match(skillUi, /allow_implicit_invocation: true/);
 
-    const { stdout: doctorStdout } = await execFileAsync("npm", [
+    const { stdout: resolveStdout } = await execFileAsync("npm", [
       "exec",
       "--yes",
       "--package",
@@ -178,17 +182,12 @@ test("packed package supports the npx one-command setup path", { timeout: 20000 
       "--",
       "codecharter",
       "--json",
-      "doctor",
-      "--root",
-      root,
-      "--server",
-      `http://127.0.0.1:${port}`,
+      "resolve",
+      "src/app.js",
     ], { cwd: root });
-    const doctor = JSON.parse(doctorStdout);
-    assert.equal(doctor.ok, true);
-    assert.equal(doctor.checks.cli.packageDependency.ok, true);
-    assert.match(doctor.checks.cli.recommendedCommand, /^npx --yes codecharter@\d+\.\d+\.\d+$/);
-    assert.equal(doctor.checks.server.ok, true);
+    const resolved = JSON.parse(resolveStdout);
+    assert.equal(resolved.targetType, "file");
+    assert.equal(resolved.path, "src/app.js");
   } finally {
     killProcessGroup(cli);
     await waitForExit(cli);

@@ -1,5 +1,5 @@
 Title: Keep source-range cache lifecycle outside the app controller
-Status: ready-for-agent
+Status: fixed
 Labels: architecture, follow-up
 
 ## Problem

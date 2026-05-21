@@ -49,6 +49,7 @@ import {
   organicRegionStyle,
   panViewForDrag,
   panViewByScreenDelta,
+  reconciledSelectedTarget,
   screenBoundsForView,
   screenToWorldPoint,
   shouldDrawFolder,
@@ -186,14 +187,7 @@ function applyMap(map, version) {
 }
 
 function reconcileSelectedTarget(target) {
-  if (!target || target.targetType === "activity") return;
-  if (target.targetType === "file") {
-    state.selectedTarget = state.map.files[target.path] ? { ...state.map.files[target.path], targetType: "file" } : null;
-    return;
-  }
-  if (target.targetType === "folder") {
-    state.selectedTarget = state.map.folders[target.path] ? { ...state.map.folders[target.path], targetType: "folder" } : null;
-  }
+  state.selectedTarget = reconciledSelectedTarget(state.map, target);
 }
 
 function bindEvents() {

@@ -1,5 +1,7 @@
 # 21. Tile Target Iterator
 
+Status: fixed
+
 ## Gap
 
 `buildTileIndex` and `getTile` each knew how to traverse the codemap's folder and file stores. That duplicated map-target traversal and let geohash tile output depend on object insertion order inside the sidecar.

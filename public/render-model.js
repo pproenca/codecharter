@@ -588,6 +588,17 @@ export function mapSelectionPanel(target) {
   };
 }
 
+export function reconciledSelectedTarget(codemap, target) {
+  if (!target) return null;
+  if (target.targetType === "file") {
+    return codemap.files[target.path] ? { ...codemap.files[target.path], targetType: "file" } : null;
+  }
+  if (target.targetType === "folder") {
+    return codemap.folders[target.path] ? { ...codemap.folders[target.path], targetType: "folder" } : null;
+  }
+  return target;
+}
+
 export function folderDisplayName(folder) {
   if (!folder.path) return "Codebase";
   return folder.path.split("/").at(-1);

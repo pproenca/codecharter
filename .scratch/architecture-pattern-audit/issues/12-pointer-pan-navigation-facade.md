@@ -1,5 +1,5 @@
 Title: Reuse camera pan math for pointer drag navigation
-Status: ready-for-agent
+Status: fixed
 Labels: architecture, follow-up
 
 ## Problem

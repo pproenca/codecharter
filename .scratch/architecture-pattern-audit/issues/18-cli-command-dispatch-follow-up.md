@@ -1,6 +1,6 @@
 # Consider a CLI command dispatch registry
 
-Status: follow-up
+Status: wontfix
 Labels: architecture, cli, lower-priority, strategy
 
 ## Observation
@@ -22,4 +22,3 @@ Defer until another CLI feature forces a command-surface change. Then extract on
 No code change in this issue. The current full suite passed after the surrounding audit loop:
 
 - `pnpm test`
-

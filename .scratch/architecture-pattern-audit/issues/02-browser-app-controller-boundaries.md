@@ -1,5 +1,5 @@
 Title: Split browser map UI into focused interaction and rendering controllers
-Status: ready-for-agent
+Status: fixed
 Labels: architecture, follow-up
 
 ## Problem

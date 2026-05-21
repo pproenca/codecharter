@@ -1,5 +1,7 @@
 # 24. Browser Search Navigation Facade
 
+Status: fixed
+
 ## Gap
 
 `searchMap` used `mapSearchMatch` for lookup, but still interpreted every match kind in the browser controller. That mixed search/linking policy with map navigation, annotation selection, file readability zoom, folder inspection, and result-message effects.

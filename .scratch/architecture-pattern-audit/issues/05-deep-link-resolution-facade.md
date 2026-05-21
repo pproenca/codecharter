@@ -1,5 +1,5 @@
 Title: Keep deep-link resolution results aligned with resolved address semantics
-Status: ready-for-agent
+Status: fixed
 Labels: architecture, follow-up
 
 ## Problem

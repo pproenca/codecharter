@@ -1,5 +1,5 @@
 Title: Keep interaction mode UI derivation outside the app controller
-Status: ready-for-agent
+Status: fixed
 Labels: architecture, follow-up
 
 ## Problem

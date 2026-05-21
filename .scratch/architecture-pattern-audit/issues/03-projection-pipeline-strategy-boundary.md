@@ -1,5 +1,5 @@
 Title: Add a projection strategy boundary when a second projection exists
-Status: ready-for-agent
+Status: fixed
 Labels: architecture, follow-up
 
 ## Problem

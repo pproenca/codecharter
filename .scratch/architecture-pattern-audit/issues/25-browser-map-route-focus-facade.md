@@ -1,5 +1,7 @@
 # 25. Browser Map Route Focus Facade
 
+Status: fixed
+
 ## Gap
 
 `focusMapRoute` resolved a hash route target, then interpreted the target kind directly in the browser controller. That mixed geohash-prefix deep-link navigation with file source-panel loading and folder inspection effects.

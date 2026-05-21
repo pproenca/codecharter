@@ -1,5 +1,7 @@
 # 22. Browser Double-Click Navigation Facade
 
+Status: fixed
+
 ## Gap
 
 `onCanvasDoubleClick` mixed hit-type interpretation with browser effects. That kept map navigation policy in the controller and made each new map target kind another controller branch.

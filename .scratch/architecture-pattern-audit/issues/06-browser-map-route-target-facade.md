@@ -1,5 +1,5 @@
 Title: Resolve browser map route targets outside the app controller
-Status: ready-for-agent
+Status: fixed
 Labels: architecture, follow-up
 
 ## Problem

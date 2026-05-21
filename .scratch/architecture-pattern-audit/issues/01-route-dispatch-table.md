@@ -1,5 +1,5 @@
 Title: Replace API route cascade with an explicit route dispatch table
-Status: ready-for-agent
+Status: fixed
 Labels: architecture, follow-up
 
 ## Problem

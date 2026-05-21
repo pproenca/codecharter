@@ -1,5 +1,5 @@
 Title: Normalize ordinary paths before resolving map addresses
-Status: ready-for-agent
+Status: fixed
 Labels: architecture, follow-up
 
 ## Problem

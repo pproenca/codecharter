@@ -47,6 +47,7 @@ import {
   shouldLabelFile,
   simplifyTrailPoints,
   rememberSourceRange,
+  reconciledSelectedTarget,
   sourceContextRequest,
   sourcePanelState,
   sourceRangeCacheKey,
@@ -577,6 +578,36 @@ test("derives map selection panel copy for empty, folder, and file targets", () 
     inspectorTitle: "app.ts",
     inspectorSubtitle: "file: src/app.ts | s000001",
   });
+});
+
+test("reconciles selected map targets against refreshed sidecar state", () => {
+  const codemap = {
+    folders: {
+      src: {
+        path: "src",
+        name: "src",
+        bounds: { x: 0.1, y: 0.1, width: 0.8, height: 0.8 },
+        geo: { geohash: "u12345000000", lat: 0, lon: 0 },
+      },
+    },
+    files: {
+      "src/app.ts": codeFile({
+        path: "src/app.ts",
+        bounds: { x: 0.2, y: 0.2, width: 0.2, height: 0.2 },
+        geo: { geohash: "s99999000000", lat: 0, lon: 0 },
+      }),
+    },
+  };
+
+  const file = reconciledSelectedTarget(codemap, { targetType: "file", path: "src/app.ts", geo: { geohash: "old" } });
+  const folder = reconciledSelectedTarget(codemap, { targetType: "folder", path: "src", geo: { geohash: "old" } });
+  const activity = { targetType: "activity", id: "event-1" };
+
+  assert.equal(file.geo.geohash, "s99999000000");
+  assert.equal(folder.geo.geohash, "u12345000000");
+  assert.equal(reconciledSelectedTarget(codemap, { targetType: "file", path: "src/missing.ts" }), null);
+  assert.equal(reconciledSelectedTarget(codemap, activity), activity);
+  assert.equal(reconciledSelectedTarget(codemap, null), null);
 });
 
 test("hit-testing prefers the smallest containing file before enclosing folders", () => {

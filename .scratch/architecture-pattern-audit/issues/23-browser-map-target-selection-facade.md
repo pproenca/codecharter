@@ -1,5 +1,7 @@
 # 23. Browser Map Target Selection Facade
 
+Status: fixed
+
 ## Gap
 
 `selectMapTarget` interpreted raw hit targets directly in the browser controller, branching across empty space, annotations, activity markers, folders, and files before mixing in source-panel loading. That made map navigation policy and source-context preservation harder to test outside DOM effects.

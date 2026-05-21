@@ -292,17 +292,29 @@ CodeCharter annotation prompts may include:
 
 ## Workflow
 
-1. If a CodeCharter URL is present, use it as the source of truth. The annotation JSON is available at \`<origin>/api/annotations/<id>\`.
-2. If the server is not running, read \`.codecharter/named-places.json\` and find the annotation by id.
-3. Use the annotation's \`resolvedTargets\` as the authoritative target list.
-4. Read only the files or ranges needed to answer the user note.
+1. Run \`codecharter --json doctor\` if setup state, hook state, skill installation, or server reachability is unclear.
+2. Run \`codecharter annotation <id-or-url>\` for pasted annotation prompts. It accepts a raw id, a \`codecharter://annotation/<id>\` link, or a local CodeCharter URL.
+3. Use the command's \`resolvedTargets\` as the authoritative target list.
+4. Read only the needed file ranges with \`codecharter source <path> [lineStart] [lineEnd]\`.
 5. Treat \`Corner geohashes\` as the selected rectangle's spatial frame. They are not a file list and should not be expanded into a broad repo scan.
 6. If a resolved target is too broad, start with names, bounds, and nearby target metadata before opening source files.
 
 ## Fallbacks
 
-- If no annotation JSON is available, use \`.codecharter/codecharter.json\` to resolve geohash-backed map addresses.
+- \`codecharter annotation\` uses the local server when the URL includes one, otherwise it reads \`.codecharter/named-places.json\` and refreshes against \`.codecharter/codecharter.json\`.
+- Use \`codecharter annotations\` to list known annotations.
+- Use \`codecharter api /api/<path> --server <url>\` only as a read-only GET escape hatch when a high-level command is missing.
 - If both map and annotation storage are unavailable, ask the user to start CodeCharter with \`codecharter dev\` or paste the annotation JSON.
+
+## Examples
+
+\`\`\`sh
+codecharter --json doctor
+codecharter annotation codecharter://annotation/<id>
+codecharter annotation 'http://127.0.0.1:4173/#/annotation/<id>'
+codecharter annotation <id> --root /path/to/repo
+codecharter source src/app.ts 1 80
+\`\`\`
 `;
 }
 

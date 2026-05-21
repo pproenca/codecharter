@@ -161,6 +161,24 @@ test("packed package supports the npx one-command setup-dev path", { timeout: 20
     assert.match(output, /Codex hook installed\. In Codex, run `\/hooks`/);
     const skill = await readFile(join(root, ".agents", "skills", "codecharter", "SKILL.md"), "utf8");
     assert.match(skill, /resolvedTargets/);
+
+    const { stdout: doctorStdout } = await execFileAsync("npm", [
+      "exec",
+      "--yes",
+      "--package",
+      tarball,
+      "--",
+      "codecharter",
+      "--json",
+      "doctor",
+      "--root",
+      root,
+      "--server",
+      `http://127.0.0.1:${port}`,
+    ], { cwd: root });
+    const doctor = JSON.parse(doctorStdout);
+    assert.equal(doctor.ok, true);
+    assert.equal(doctor.checks.server.ok, true);
   } finally {
     killProcessGroup(cli);
     await waitForExit(cli);

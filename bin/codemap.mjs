@@ -2,17 +2,21 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { readFile } from "node:fs/promises";
+import { access, readFile, stat } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve as resolvePath } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createActivityEvent } from "../src/activity.js";
 import { appendActivityEvents, ensureActivityArchive } from "../src/activity-store.js";
 import { startActivityWatcher } from "../src/activity-watcher.js";
 import { runCodexHook } from "../src/codex-hook.js";
+import { parseCodemapDeepLink } from "../src/deep-links.js";
 import { generateCodemap } from "../src/generator.js";
 import { initializeCodecharter } from "../src/init.js";
 import { ensureCodecharterGitignore, ensureLocalGitExcludes } from "../src/local-git-exclude.js";
 import { resolveAddress } from "../src/resolver.js";
+import { refreshPlaceResolution } from "../src/selections.js";
 import { startServer } from "../src/server.js";
+import { readSourceRange } from "../src/source.js";
 import { writeJson } from "../src/store.js";
 
 const DEFAULT_MAP_FILE = ".codecharter/codecharter.json";
@@ -31,11 +35,16 @@ const METADATA_EXCLUDE_PATHS = [
 
 function usage() {
   return `Usage:
+  codecharter --json doctor [--root <dir>] [--map <file>] [--server <url>]
   codecharter setup [--root <dir>] [--out <file>] [--fresh] [--dev] [--open] [--port <port>] [--agent <id>] [--no-watch] [--no-codex] [--no-git-hooks]
   codecharter init [--root <dir>] [--out <file>] [--fresh] [--yes] [--dev] [--open] [--port <port>] [--agent <id>] [--no-watch] [--no-codex] [--no-git-hooks]
   codecharter generate [--root <dir>] [--out <file>] [--fresh] [--quiet]
   codecharter dev [--root <dir>] [--map <file>] [--port <port>] [--agent <id>] [--no-watch] [--fresh] [--setup] [--open]
   codecharter resolve <path> [lineStart] [lineEnd] [--column-start <n>] [--column-end <n>] [--map <file>]
+  codecharter annotation <id-or-url> [--root <dir>] [--map <file>] [--server <url>]
+  codecharter annotations [--root <dir>] [--map <file>] [--server <url>] [--limit <n>]
+  codecharter source <path> [lineStart] [lineEnd] [--root <dir>] [--map <file>]
+  codecharter api <api-path-or-url> [--server <url>]
   codecharter activity <path> [lineStart] [lineEnd] [--column-start <n>] [--column-end <n>] [--agent <id>] [--state <state>] [--note <text>] [--map <file>] [--out <file.jsonl>]
   codecharter codex-hook
   codecharter serve [--root <dir>] [--map <file>] [--port <port>] [--open]
@@ -60,8 +69,25 @@ function takeFlag(args, name) {
 
 async function main() {
   const args = process.argv.slice(2);
+  const jsonOutput = takeFlag(args, "--json");
   const command = args.shift();
   stripArgumentSeparator(args);
+
+  if (!command || command === "--help" || command === "-h" || command === "help") {
+    console.log(usage());
+    return;
+  }
+
+  if (command === "doctor") {
+    const root = resolvePath(takeOption(args, "--root", "."));
+    const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
+    const server = takeOption(args, "--server", undefined);
+    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+    const result = await doctor({ root, mapPath, server });
+    if (jsonOutput) printJson(result);
+    else printDoctor(result);
+    return;
+  }
 
   if (command === "generate") {
     const root = resolvePath(takeOption(args, "--root", "."));
@@ -145,7 +171,59 @@ async function main() {
     const lineStart = optionalNumber(lineStartRaw);
     const lineEnd = lineEndRaw === undefined ? lineStart : optionalNumber(lineEndRaw);
     const address = resolveAddress(codemap, { path, lineStart, lineEnd, columnStart, columnEnd });
-    console.log(JSON.stringify(address, null, 2));
+    printJson(address);
+    return;
+  }
+
+  if (command === "annotation") {
+    const root = resolvePath(takeOption(args, "--root", "."));
+    const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
+    const server = takeOption(args, "--server", undefined);
+    const [reference] = args;
+    if (!reference) throw new Error("annotation requires an id, codecharter://annotation link, or CodeCharter URL");
+    if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
+
+    printJson(await readAnnotation({ root, mapPath, reference, server }));
+    return;
+  }
+
+  if (command === "annotations") {
+    const root = resolvePath(takeOption(args, "--root", "."));
+    const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
+    const server = takeOption(args, "--server", undefined);
+    const limit = optionalNumber(takeOption(args, "--limit", undefined));
+    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+
+    printJson(await listAnnotations({ root, mapPath, server, limit }));
+    return;
+  }
+
+  if (command === "source") {
+    const root = resolvePath(takeOption(args, "--root", "."));
+    const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
+    const [path, lineStartRaw, lineEndRaw] = args;
+    if (!path) throw new Error("source requires a path");
+    if (args.length > 3) throw new Error(`Unknown arguments: ${args.slice(3).join(" ")}`);
+
+    const codemap = JSON.parse(await readFile(mapPath, "utf8"));
+    const file = codemap.files[path];
+    if (!file) throw new Error(`No source file found for path: ${path}`);
+    const lineStart = optionalNumber(lineStartRaw);
+    const lineEnd = lineEndRaw === undefined ? lineStart : optionalNumber(lineEndRaw);
+    printJson({
+      source: "storage",
+      ...await readSourceRange(root, file, { lineStart, lineEnd }),
+    });
+    return;
+  }
+
+  if (command === "api") {
+    const server = takeOption(args, "--server", undefined);
+    const [reference] = args;
+    if (!reference) throw new Error("api requires a local /api path or CodeCharter API URL");
+    if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
+
+    printJson(await readApi({ reference, server }));
     return;
   }
 
@@ -167,9 +245,9 @@ async function main() {
       const address = resolveAddress(codemap, { path, lineStart, lineEnd, columnStart, columnEnd });
       const event = createActivityEvent(address, { agentId, activityState, note });
       await appendActivityEvents(outPath, [event]);
-      console.log(JSON.stringify({ accepted: true, event }, null, 2));
+      printJson({ accepted: true, event });
     } catch (error) {
-      console.log(JSON.stringify({ accepted: false, error: error.message }, null, 2));
+      printJson({ accepted: false, error: error.message });
     }
     return;
   }
@@ -193,8 +271,54 @@ async function main() {
     return;
   }
 
+  if (jsonOutput) throw new Error(`Unknown command: ${command}`);
   console.error(usage());
   process.exitCode = 1;
+}
+
+async function doctor({ root, mapPath, server }) {
+  const configPath = join(root, ".codecharter", "config.json");
+  const namedPlacesPath = join(root, ".codecharter", "named-places.json");
+  const hooksJsonPath = join(root, ".codex", "hooks.json");
+  const hookShimPath = join(root, ".codex", "hooks", "codecharter-codex-hook.mjs");
+  const skillPath = join(root, ".agents", "skills", "codecharter", "SKILL.md");
+  const packageJson = await packageMetadata();
+  const endpoint = server ? normalizeOrigin(server) : undefined;
+  const serverStatus = endpoint ? await probeServer(endpoint) : { configured: false };
+  const checks = {
+    root: await pathStatus(root, "directory"),
+    map: await jsonFileStatus(mapPath),
+    config: await jsonFileStatus(configPath),
+    namedPlaces: await jsonFileStatus(namedPlacesPath),
+    codexHooks: await jsonFileStatus(hooksJsonPath),
+    codexHookShim: await pathStatus(hookShimPath, "file"),
+    codexSkill: await pathStatus(skillPath, "file"),
+    server: serverStatus,
+  };
+  const missingSetup = Object.entries({
+    map: checks.map.exists,
+    config: checks.config.exists,
+    codexHooks: checks.codexHooks.exists,
+    codexHookShim: checks.codexHookShim.exists,
+    codexSkill: checks.codexSkill.exists,
+  })
+    .filter(([, exists]) => !exists)
+    .map(([name]) => name);
+
+  return {
+    ok: missingSetup.length === 0 && checks.map.validJson !== false && checks.config.validJson !== false,
+    command: "codecharter",
+    version: packageJson.version,
+    auth: { required: false, source: "none" },
+    root,
+    mapPath,
+    setup: {
+      ready: missingSetup.length === 0,
+      missing: missingSetup,
+      nextStep: missingSetup.length ? "Run `codecharter setup --dev` from the target repo." : undefined,
+    },
+    checks,
+  };
 }
 
 async function setupCodecharter({ root, out, fresh, installCodex, installGitHooks }) {
@@ -321,6 +445,203 @@ async function ensureActivityStream(root) {
   await ensureActivityArchive(join(root, DEFAULT_ACTIVITY_ARCHIVE));
 }
 
+async function listAnnotations({ root, mapPath, server, limit }) {
+  const origin = normalizeOrigin(server);
+  const annotations = origin
+    ? await listAnnotationsFromServer(origin)
+    : await listAnnotationsFromStorage({ root, mapPath });
+  const bounded = Number.isInteger(limit) && limit >= 0 ? annotations.slice(0, limit) : annotations;
+  return {
+    source: origin ? "server" : "storage",
+    ...(origin ? { origin } : {}),
+    count: bounded.length,
+    totalCount: annotations.length,
+    annotations: bounded,
+  };
+}
+
+async function listAnnotationsFromServer(origin) {
+  const response = await fetch(`${origin}/api/annotations`);
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`);
+  const body = await response.json();
+  return Array.isArray(body.annotations) ? body.annotations : [];
+}
+
+async function listAnnotationsFromStorage({ root, mapPath }) {
+  const storePath = join(root, ".codecharter", "named-places.json");
+  const store = await readOptionalJson(storePath) ?? { places: [] };
+  const codemap = await readOptionalJson(mapPath);
+  return store.places
+    .filter((place) => place.kind === "mapAnnotation")
+    .map((annotation) => codemap ? refreshPlaceResolution(codemap, annotation) : annotation);
+}
+
+async function readAnnotation({ root, mapPath, reference, server }) {
+  const parsed = parseAnnotationReference(reference);
+  const origin = normalizeOrigin(parsed.origin ?? server);
+  if (origin) {
+    try {
+      const response = await fetch(`${origin}/api/annotations/${encodeURIComponent(parsed.id)}`);
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`);
+      const body = await response.json();
+      return annotationEnvelope(body.annotation, { source: "server", origin });
+    } catch {}
+  }
+
+  const annotation = await readAnnotationFromStorage({ root, mapPath, id: parsed.id });
+  return annotationEnvelope(annotation, { source: "storage" });
+}
+
+async function readAnnotationFromStorage({ root, mapPath, id }) {
+  const storePath = join(root, ".codecharter", "named-places.json");
+  const store = await readOptionalJson(storePath) ?? { places: [] };
+  const annotation = store.places.find((place) => place.kind === "mapAnnotation" && place.id === id);
+  if (!annotation) throw new Error(`No annotation found for id: ${id}`);
+
+  const codemap = await readOptionalJson(mapPath);
+  return codemap ? refreshPlaceResolution(codemap, annotation) : annotation;
+}
+
+function annotationEnvelope(annotation, metadata) {
+  return {
+    ...metadata,
+    annotation,
+    resolvedTargets: annotation.resolvedTargets ?? [],
+    targetCount: annotation.resolvedTargets?.length ?? 0,
+  };
+}
+
+async function readApi({ reference, server }) {
+  const url = apiUrl(reference, server);
+  const response = await fetch(url);
+  const text = await response.text();
+  let body;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = text;
+  }
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
+  return {
+    source: "server",
+    method: "GET",
+    url,
+    status: response.status,
+    body,
+  };
+}
+
+function apiUrl(reference, server) {
+  if (/^https?:\/\//.test(reference)) {
+    const url = new URL(reference);
+    if (!url.pathname.startsWith("/api/")) throw new Error("api only supports CodeCharter /api URLs");
+    return url.toString();
+  }
+  const origin = normalizeOrigin(server);
+  if (!origin) throw new Error("api requires --server when the reference is a path");
+  if (!reference.startsWith("/api/")) throw new Error("api path must start with /api/");
+  return `${origin}${reference}`;
+}
+
+function parseAnnotationReference(reference) {
+  if (!reference) throw new Error("Annotation reference is required");
+  if (reference.startsWith("codecharter://") || reference.startsWith("codemap://")) {
+    const parsed = parseCodemapDeepLink(reference);
+    if (parsed.kind !== "annotation") throw new Error(`Expected an annotation link, received: ${parsed.kind}`);
+    return { id: parsed.locator };
+  }
+
+  if (reference.startsWith("#/annotation/")) {
+    return { id: decodeURIComponent(reference.slice("#/annotation/".length).split(/[?#]/)[0]) };
+  }
+
+  if (/^https?:\/\//.test(reference)) {
+    const url = new URL(reference);
+    const hashMatch = url.hash.match(/^#\/annotation\/([^?]+)/);
+    if (hashMatch) return { id: decodeURIComponent(hashMatch[1]), origin: url.origin };
+    const apiMatch = url.pathname.match(/\/api\/annotations\/([^/]+)/);
+    if (apiMatch) return { id: decodeURIComponent(apiMatch[1]), origin: url.origin };
+    throw new Error("CodeCharter URL must contain #/annotation/<id> or /api/annotations/<id>");
+  }
+
+  return { id: reference };
+}
+
+function normalizeOrigin(value) {
+  if (!value) return undefined;
+  const url = new URL(value);
+  return url.origin;
+}
+
+async function packageMetadata() {
+  const packagePath = fileURLToPath(new URL("../package.json", import.meta.url));
+  return JSON.parse(await readFile(packagePath, "utf8"));
+}
+
+async function pathStatus(path, expectedType) {
+  try {
+    const stats = await stat(path);
+    return {
+      path,
+      exists: true,
+      type: stats.isDirectory() ? "directory" : stats.isFile() ? "file" : "other",
+      ok: expectedType === "directory" ? stats.isDirectory() : expectedType === "file" ? stats.isFile() : true,
+    };
+  } catch (error) {
+    if (error.code === "ENOENT") return { path, exists: false, ok: false };
+    throw error;
+  }
+}
+
+async function jsonFileStatus(path) {
+  try {
+    await access(path);
+  } catch (error) {
+    if (error.code === "ENOENT") return { path, exists: false, ok: false };
+    throw error;
+  }
+  try {
+    const value = JSON.parse(await readFile(path, "utf8"));
+    return {
+      path,
+      exists: true,
+      ok: true,
+      validJson: true,
+      keys: value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value).sort() : undefined,
+    };
+  } catch (error) {
+    return {
+      path,
+      exists: true,
+      ok: false,
+      validJson: false,
+      error: error.message,
+    };
+  }
+}
+
+async function probeServer(origin) {
+  try {
+    const response = await fetch(`${origin}/api/map-version`);
+    if (!response.ok) return { configured: true, origin, ok: false, status: response.status };
+    return { configured: true, origin, ok: true, status: response.status, mapVersion: await response.json() };
+  } catch (error) {
+    return { configured: true, origin, ok: false, error: error.message };
+  }
+}
+
+function printDoctor(result) {
+  console.log(`CodeCharter ${result.version}`);
+  console.log(`Root: ${result.root}`);
+  console.log(`Map: ${result.mapPath}`);
+  console.log(`Setup ready: ${result.setup.ready ? "yes" : "no"}`);
+  if (result.setup.nextStep) console.log(result.setup.nextStep);
+}
+
+function printJson(value) {
+  console.log(JSON.stringify(value, null, 2));
+}
+
 function resolveMapPath(root, path) {
   return isAbsolute(path) ? path : resolvePath(root, path);
 }
@@ -365,6 +686,10 @@ async function readStdin() {
 }
 
 main().catch((error) => {
-  console.error(error.message);
+  if (process.argv.slice(2).includes("--json")) {
+    printJson({ ok: false, error: { message: error.message } });
+  } else {
+    console.error(error.message);
+  }
   process.exitCode = 1;
 });

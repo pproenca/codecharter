@@ -40,6 +40,8 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
   assert.match(skill, /CodeCharter annotation/);
   assert.match(skill, /Corner geohashes/);
   assert.match(skill, /resolvedTargets/);
+  assert.match(skill, /codecharter annotation <id-or-url>/);
+  assert.match(skill, /codecharter source <path>/);
 
   const postMergeHook = await readFile(join(root, ".git", "hooks", "post-merge"), "utf8");
   assert.match(postMergeHook, /codecharter generate/);
@@ -54,6 +56,19 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
 
   const { stdout: artifactStatus } = await execFileAsync("git", ["status", "--short", "--", ".codecharter/codecharter.json"], { cwd: root });
   assert.equal(artifactStatus, "");
+
+  const { stdout: doctorStdout } = await execFileAsync("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "--json",
+    "doctor",
+    "--root",
+    root,
+  ], { cwd: root });
+  const doctor = JSON.parse(doctorStdout);
+  assert.equal(doctor.ok, true);
+  assert.equal(doctor.auth.required, false);
+  assert.equal(doctor.setup.ready, true);
+  assert.equal(doctor.checks.codexSkill.exists, true);
 });
 
 test("codecharter init merges Codex hooks without clobbering existing repo hooks", async () => {

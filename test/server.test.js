@@ -1,11 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { mkdtemp, writeFile, mkdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
 import { createServer } from "node:http";
+import { promisify } from "node:util";
 import { startServer } from "../src/server.js";
+
+const execFileAsync = promisify(execFile);
 
 test("serves map, tiles, selections, named places, and activity APIs", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-server-"));
@@ -67,6 +71,36 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.equal(annotations.annotations[0].resolvedTargets.length, 1);
     const annotationById = await getJson(`${baseUrl}/api/annotations/${annotationResponse.annotation.id}`);
     assert.equal(annotationById.annotation.id, annotationResponse.annotation.id);
+
+    const cliAnnotations = await runCliJson([
+      "annotations",
+      "--server",
+      baseUrl,
+      "--root",
+      root,
+      "--map",
+      join(root, "codecharter.json"),
+    ]);
+    assert.equal(cliAnnotations.source, "server");
+    assert.equal(cliAnnotations.count, 1);
+    assert.equal(cliAnnotations.annotations[0].id, annotationResponse.annotation.id);
+
+    const cliSource = await runCliJson([
+      "source",
+      "src/app.ts",
+      "1",
+      "2",
+      "--root",
+      root,
+      "--map",
+      join(root, "codecharter.json"),
+    ]);
+    assert.deepEqual(cliSource.lines.map((line) => line.text), ["const app = true;", "export default app;"]);
+
+    const cliApi = await runCliJson(["api", "/api/annotations", "--server", baseUrl]);
+    assert.equal(cliApi.method, "GET");
+    assert.equal(cliApi.status, 200);
+    assert.equal(cliApi.body.annotations.length, 1);
 
     await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap({ includeExtraFile: true })));
     const nextMapVersion = await waitForMapVersion(baseUrl, mapVersion.version);
@@ -183,6 +217,59 @@ test("deletes saved map annotations", async () => {
   }
 });
 
+test("CLI reads annotations from a CodeCharter URL or local storage without browser automation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-cli-annotation-"));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
+
+  const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
+  const address = server.address();
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+
+  let created;
+  try {
+    created = await postJson(`${baseUrl}/api/annotations`, {
+      comment: "read this through the CLI",
+      level: "file",
+      geometry: { type: "rect", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    });
+
+    const { stdout } = await execFileAsync(process.execPath, [
+      join(process.cwd(), "bin", "codemap.mjs"),
+      "annotation",
+      `${baseUrl}/#/annotation/${created.annotation.id}`,
+      "--root",
+      root,
+      "--map",
+      join(root, "codecharter.json"),
+    ]);
+    const result = JSON.parse(stdout);
+    assert.equal(result.source, "server");
+    assert.equal(result.origin, baseUrl);
+    assert.equal(result.annotation.id, created.annotation.id);
+    assert.equal(result.targetCount, 1);
+    assert.deepEqual(result.resolvedTargets.map((target) => target.path), ["src/app.ts"]);
+    assert.equal(result.annotation.codexPrompt.includes("Geohash coverage"), false);
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+
+  const { stdout } = await execFileAsync(process.execPath, [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "annotation",
+    created.annotation.deepLink,
+    "--root",
+    root,
+    "--map",
+    join(root, "codecharter.json"),
+  ]);
+  const offline = JSON.parse(stdout);
+  assert.equal(offline.source, "storage");
+  assert.equal(offline.annotation.id, created.annotation.id);
+  assert.equal(offline.targetCount, 1);
+  assert.deepEqual(offline.resolvedTargets.map((target) => target.path), ["src/app.ts"]);
+});
+
 test("uses the next available port when the requested port is occupied", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-port-fallback-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
@@ -229,6 +316,14 @@ async function deleteJson(url) {
   const response = await fetch(url, { method: "DELETE" });
   if (!response.ok) assert.fail(await response.text());
   return response.json();
+}
+
+async function runCliJson(args) {
+  const { stdout } = await execFileAsync(process.execPath, [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    ...args,
+  ]);
+  return JSON.parse(stdout);
 }
 
 async function waitForActivityEvent(baseUrl) {

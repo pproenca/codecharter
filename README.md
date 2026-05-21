@@ -18,6 +18,19 @@ npx codecharter setup --dev --open
 
 The Codex adapter is zero-token and daemon-free: Codex invokes the hook, the hook delegates to `codecharter codex-hook`, and one JSONL event is appended to `.codecharter/activity.jsonl`. CodeCharter preserves existing `.codex/hooks.json` entries when it adds its own hook. The installed skill teaches Codex how to interpret CodeCharter annotation prompts, local viewer URLs, and corner geohashes without bulk-reading every mapped target. Open `/hooks` in Codex to review and trust the repo-local hook.
 
+Codex can resolve annotation prompts without browser automation:
+
+```sh
+codecharter --json doctor
+codecharter annotation 'http://127.0.0.1:4173/#/annotation/<id>'
+codecharter annotation codecharter://annotation/<id>
+codecharter source src/app.ts 1 80
+```
+
+The agent contract is CLI-first. `doctor` prints setup, auth, map, hook, skill, and optional server reachability diagnostics. `annotation` prints JSON with the refreshed annotation, `resolvedTargets`, and `targetCount`. If the URL includes a local server origin, CodeCharter reads `/api/annotations/<id>`; otherwise it falls back to `.codecharter/named-places.json` and `.codecharter/codecharter.json`. `source` reads a bounded file range from the map. `api` is a read-only raw escape hatch for local `/api/...` endpoints.
+
+JSON policy: read commands print stable JSON objects. Errors under `--json` use `{ "ok": false, "error": { "message": "..." } }`. CodeCharter does not require auth; `doctor` reports `auth.required: false`.
+
 If you only want to prepare files and hooks without starting the viewer:
 
 ```sh
@@ -47,11 +60,15 @@ While `codecharter dev` is running, changed code files refresh `.codecharter/cod
 ```sh
 codecharter init
 codecharter dev --setup
-pnpm test
+codecharter --json doctor
+codecharter annotations --server http://127.0.0.1:4173
+codecharter annotation codecharter://annotation/<id>
+codecharter source public/app.js 1 20
 codecharter resolve public/app.js 1 20
+codecharter api /api/annotations --server http://127.0.0.1:4173
 ```
 
-`codecharter init` prepares the Map Sidecar and local Activity Archive without serving the app. `codecharter dev --setup` is equivalent to initializing first and then starting the viewer. `resolve` is the stable interface for turning paths, line ranges, and optional column ranges into geohash-backed Map Addresses.
+`codecharter init` prepares the Map Sidecar and local Activity Archive without serving the app. `codecharter dev --setup` is equivalent to initializing first and then starting the viewer. `annotation` is the agent-safe read path for turning a pasted CodeCharter annotation prompt into JSON. `annotations` lists saved annotations, `source` reads bounded source ranges, `resolve` turns paths and ranges into geohash-backed Map Addresses, and `api` performs read-only GETs against local CodeCharter API endpoints.
 
 To map another repository from this checkout:
 

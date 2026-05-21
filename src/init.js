@@ -317,7 +317,7 @@ CodeCharter annotation prompts may include:
 2. If the binary is missing, rerun the prior command as \`${npxCommand} ...\`.
 3. Run \`codecharter --json annotation <id-or-url>\` for pasted annotation prompts. Pass the full CodeCharter URL when available.
 4. Use \`resolvedTargets\` from the command output as the authoritative target list.
-5. Read only needed ranges with \`codecharter --json source <path> [lineStart] [lineEnd]\`.
+5. Read only the needed resolved target files and ranges with normal Codex file-reading tools.
 6. Treat \`Corner geohashes\` as the selected rectangle's spatial frame, not as files to expand or scan.
 7. If a target is too broad, inspect annotation names, bounds, and target metadata before reading source.
 
@@ -344,7 +344,6 @@ codecharter --json annotation codecharter://annotation/<id>
 npx --yes codecharter@${version} --json annotation codecharter://annotation/<id>
 codecharter --json annotation 'http://127.0.0.1:4173/#/annotation/<id>'
 codecharter --json annotation <id> --root /path/to/repo
-codecharter --json source src/app.ts 1 80
 codecharter --json annotations --server http://127.0.0.1:4173 --limit 10
 \`\`\`
 `;

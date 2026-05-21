@@ -26,10 +26,9 @@ npx --yes codecharter@latest --json doctor
 codecharter --json annotation 'http://127.0.0.1:4173/#/annotation/<id>'
 codecharter --json annotation codecharter://annotation/<id>
 npx --yes codecharter@latest --json annotation codecharter://annotation/<id>
-codecharter --json source src/app.ts 1 80
 ```
 
-The agent contract is CLI-first. `doctor` prints setup, auth, map, hook, skill, package-version, command fallback, and optional server reachability diagnostics. Under `--json`, `annotation` prints a stable JSON object with the refreshed annotation, `resolvedTargets`, and `targetCount`. Without `--json`, read commands print terse line-oriented output for humans. If the URL includes a local server origin, CodeCharter reads `/api/annotations/<id>`; otherwise it falls back to `.codecharter/named-places.json` and `.codecharter/codecharter.json`. `source` reads a bounded file range from the map. `api` is a read-only raw escape hatch for local `/api/...` endpoints. Copied annotation prompts include the exact `codecharter --json annotation ...` command and an `npx --yes codecharter --json ...` fallback, so Codex does not need browser automation for normal annotation work.
+The agent contract is CLI-first for map context. `doctor` prints setup, auth, map, hook, skill, package-version, command fallback, and optional server reachability diagnostics. Under `--json`, `annotation` prints a stable JSON object with the refreshed annotation, `resolvedTargets`, and `targetCount`. Codex should then read only the needed resolved target files and ranges with its normal file-reading tools. Without `--json`, read commands print terse line-oriented output for humans. If the URL includes a local server origin, CodeCharter reads `/api/annotations/<id>`; otherwise it falls back to `.codecharter/named-places.json` and `.codecharter/codecharter.json`. `api` is a read-only raw escape hatch for local `/api/...` endpoints. Copied annotation prompts include the exact `codecharter --json annotation ...` command and an `npx --yes codecharter --json ...` fallback, so Codex does not need browser automation for normal annotation work.
 
 JSON policy: read commands print stable JSON objects only under `--json`; otherwise they print terse line-oriented output. Errors under `--json` use `{ "ok": false, "error": { "message": "..." } }`. CodeCharter does not require auth; `doctor` reports `auth.required: false`.
 
@@ -76,12 +75,11 @@ codecharter init
 codecharter dev
 codecharter --json doctor
 codecharter --json annotation codecharter://annotation/<id>
-codecharter --json source public/app.js 1 20
 ```
 
-`setup` is the opinionated first-run command. `init` prepares the Map Sidecar and local Activity Archive without serving the app. `dev` starts the viewer for an already prepared repo. `annotation` is the agent-safe read path for turning a pasted CodeCharter annotation prompt into JSON. `source` reads bounded source ranges.
+`setup` is the opinionated first-run command. `init` prepares the Map Sidecar and local Activity Archive without serving the app. `dev` starts the viewer for an already prepared repo. `annotation` is the agent-safe read path for turning a pasted CodeCharter annotation prompt into JSON.
 
-Advanced commands are still available when needed: `annotations` lists saved annotations, `resolve` turns paths and ranges into geohash-backed Map Addresses, `api` performs read-only GETs against local CodeCharter API endpoints, and `activity` appends explicit local activity events.
+Advanced commands are still available when needed: `annotations` lists saved annotations, `source` reads bounded source ranges for scripts or non-local agents, `resolve` turns paths and ranges into geohash-backed Map Addresses, `api` performs read-only GETs against local CodeCharter API endpoints, and `activity` appends explicit local activity events.
 
 To map another repository from this checkout:
 

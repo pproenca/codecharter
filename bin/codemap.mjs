@@ -41,11 +41,11 @@ function usage() {
   codecharter dev [--root <dir>] [--port <port>] [--open]
   codecharter doctor [--json] [--root <dir>] [--server <url>]
   codecharter annotation <id-or-url> [--json] [--root <dir>] [--server <url>]
-  codecharter source <path> [lineStart] [lineEnd] [--json] [--root <dir>]
   codecharter --version
 
 Advanced:
   codecharter annotations [--json] [--root <dir>] [--server <url>] [--limit <n>]
+  codecharter source <path> [lineStart] [lineEnd] [--json] [--root <dir>]
   codecharter resolve <path> [lineStart] [lineEnd] [--json] [--map <file>]
   codecharter activity <path> [lineStart] [lineEnd] [--json] [--agent <id>] [--state <state>] [--note <text>]
   codecharter api <api-path-or-url> --server <url> [--json]

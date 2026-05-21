@@ -13,6 +13,14 @@
 
         <div class="map-tool-palette" role="toolbar" aria-label="Map tools">
           <div class="tool-group" aria-label="Navigation controls">
+            <button id="panTool" class="icon-tool active" type="button" title="Pan" aria-label="Pan" aria-pressed="true">
+              <svg class="lucide lucide-hand" xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path>
+                <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"></path>
+                <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"></path>
+                <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-6.4-2.8L2 15.6a2 2 0 0 1 2.8-2.8L7 15"></path>
+              </svg>
+            </button>
             <button id="zoomInTool" class="icon-tool" type="button" title="Zoom in" aria-label="Zoom in">
               <svg class="lucide lucide-plus" xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                 <path d="M5 12h14"></path>
@@ -58,6 +66,11 @@
             <button id="deleteAnnotation" class="danger-action" type="button" hidden>Delete</button>
           </div>
           <div id="selectionStatus" class="sr-only" role="status" aria-live="polite"></div>
+        </div>
+
+        <div id="annotationActions" class="annotation-actions" hidden>
+          <button id="copyAnnotationPrompt" type="button">Copy Codex prompt</button>
+          <button id="deleteAnnotationAction" class="danger-action" type="button">Delete</button>
         </div>
 
         <footer class="map-status">

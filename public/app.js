@@ -9,6 +9,7 @@ import {
   activityVisualEncoding,
   boundsCenter as modelBoundsCenter,
   canRenderSourceText,
+  containsBoundsPoint,
   fileLabelPriority,
   fileVisualState,
   folderDepth,
@@ -82,6 +83,7 @@ const state = {
   lastPointerDown: null,
   lastPointerType: "",
   drawing: false,
+  spacePanning: false,
   draftSelection: null,
   resolvedSelection: null,
   selectedTarget: null,
@@ -92,17 +94,21 @@ const controls = {
   hover: document.querySelector("#hoverReadout"),
   viewport: document.querySelector("#viewportReadout"),
   selectionPopover: document.querySelector("#selectionPopover"),
+  annotationActions: document.querySelector("#annotationActions"),
   inspectorTitle: document.querySelector("#inspectorTitle"),
   inspectorSubtitle: document.querySelector("#inspectorSubtitle"),
   searchForm: document.querySelector("#searchForm"),
   searchInput: document.querySelector("#searchInput"),
   searchResult: document.querySelector("#searchResult"),
+  panTool: document.querySelector("#panTool"),
   zoomInTool: document.querySelector("#zoomInTool"),
   zoomOutTool: document.querySelector("#zoomOutTool"),
   resetViewTool: document.querySelector("#resetViewTool"),
   drawTool: document.querySelector("#drawTool"),
   saveSelection: document.querySelector("#saveSelection"),
   deleteAnnotation: document.querySelector("#deleteAnnotation"),
+  copyAnnotationPrompt: document.querySelector("#copyAnnotationPrompt"),
+  deleteAnnotationAction: document.querySelector("#deleteAnnotationAction"),
   selectionComment: document.querySelector("#selectionComment"),
   selectionStatus: document.querySelector("#selectionStatus"),
   sourceTitle: document.querySelector("#sourceTitle"),
@@ -171,6 +177,8 @@ function bindEvents() {
     void applyHashRoute();
   });
   document.addEventListener("keydown", onDocumentKeyDown);
+  document.addEventListener("keyup", onDocumentKeyUp);
+  window.addEventListener("blur", () => setSpacePanMode(false));
 
   for (const control of [
     controls.showFolders,
@@ -187,6 +195,10 @@ function bindEvents() {
     setDrawMode(!state.drawing);
     render();
   });
+  controls.panTool?.addEventListener("click", () => {
+    setDrawMode(false);
+    render();
+  });
   controls.zoomInTool?.addEventListener("click", () => zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true }));
   controls.zoomOutTool?.addEventListener("click", () => zoomAt(viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR, { animate: true }));
   controls.resetViewTool?.addEventListener("click", () => fitCodebaseView({ animate: true }));
@@ -194,6 +206,8 @@ function bindEvents() {
   controls.searchForm?.addEventListener("submit", searchMap);
   controls.saveSelection?.addEventListener("click", saveSelection);
   controls.deleteAnnotation?.addEventListener("click", deleteSelectedAnnotation);
+  controls.copyAnnotationPrompt?.addEventListener("click", copySelectedAnnotationPrompt);
+  controls.deleteAnnotationAction?.addEventListener("click", deleteSelectedAnnotation);
   controls.activityForm?.addEventListener("submit", addActivity);
 
   mapArea.addEventListener("wheel", onWheel, { passive: false });
@@ -205,8 +219,9 @@ function bindEvents() {
   canvas.addEventListener("blur", () => canvas.classList.remove("pointer-focused"));
   canvas.tabIndex = 0;
   canvas.setAttribute("role", "application");
-  canvas.setAttribute("aria-label", "CodeCharter map canvas. Drag to pan, use arrow keys to pan, plus and minus to zoom, double click to zoom in, 0 to fit the codebase, Enter to select the center, and Escape to cancel the current action.");
+  canvas.setAttribute("aria-label", "CodeCharter map canvas. Drag to pan, hold Space and drag to temporarily pan while using another tool, use arrow keys to pan, plus and minus to zoom, double click to zoom in, 0 to fit the codebase, Enter to select the center, and Escape to cancel the current action.");
   canvas.addEventListener("keydown", onCanvasKeyDown);
+  updateInteractionModeUi();
 }
 
 function startActivityPolling() {
@@ -302,8 +317,7 @@ async function focusSelectionRoute(params, routeToken) {
   if (!bounds) return;
   resetSelectionOverlay();
   state.drawing = true;
-  controls.drawTool?.classList.add("active");
-  controls.drawTool?.setAttribute("aria-pressed", "true");
+  updateInteractionModeUi();
   state.selectedTarget = null;
   setText(controls.sourceTitle, "");
   setText(controls.sourceOutput, "");
@@ -370,12 +384,28 @@ function isCurrentRoute(routeToken) {
 
 function setDrawMode(enabled) {
   state.drawing = enabled;
-  controls.drawTool?.classList.toggle("active", enabled);
-  controls.drawTool?.setAttribute("aria-pressed", String(enabled));
   if (enabled) state.selectedTarget = null;
   if (!enabled) clearDraftSelection();
+  updateInteractionModeUi();
   setSelectionStatus(enabled ? "Draw mode on." : "Draw mode off.");
   updateSelectionPopover();
+}
+
+function setSpacePanMode(enabled) {
+  if (state.spacePanning === enabled) return;
+  state.spacePanning = enabled;
+  updateInteractionModeUi();
+}
+
+function updateInteractionModeUi() {
+  const panActive = !state.drawing || state.spacePanning || state.dragging?.type === "pan";
+  controls.panTool?.classList.toggle("active", panActive);
+  controls.panTool?.setAttribute("aria-pressed", String(panActive));
+  controls.drawTool?.classList.toggle("active", state.drawing);
+  controls.drawTool?.setAttribute("aria-pressed", String(state.drawing));
+  canvas.classList.toggle("is-drawing", state.drawing && !state.spacePanning);
+  canvas.classList.toggle("is-space-panning", state.spacePanning);
+  canvas.classList.toggle("is-panning", state.dragging?.type === "pan");
 }
 
 function clearDraftSelection() {
@@ -390,8 +420,6 @@ function clearDraftSelection() {
 function resetSelectionOverlay() {
   state.dragging = null;
   state.drawing = false;
-  controls.drawTool?.classList.remove("active");
-  controls.drawTool?.setAttribute("aria-pressed", "false");
   state.draftSelection = null;
   state.resolvedSelection = null;
   if (controls.selectionComment) controls.selectionComment.value = "";
@@ -399,6 +427,7 @@ function resetSelectionOverlay() {
   if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = true;
   setSaveButtonLabel();
   setSelectionStatus("");
+  updateInteractionModeUi();
   updateSelectionPopover();
 }
 
@@ -412,10 +441,10 @@ function upsertNamedPlace(place) {
 }
 
 function updateSelectionPopover() {
-  if (!controls.selectionPopover) return;
   const selectedAnnotation = state.selectedTarget?.targetType === "annotation";
   const hasDraft = Boolean(state.draftSelection || state.resolvedSelection);
-  controls.selectionPopover.hidden = !hasDraft;
+  if (controls.selectionPopover) controls.selectionPopover.hidden = !hasDraft;
+  if (controls.annotationActions) controls.annotationActions.hidden = !selectedAnnotation || hasDraft;
   if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = !selectedAnnotation;
   if (controls.saveSelection) {
     controls.saveSelection.disabled = !(state.resolvedSelection || selectedAnnotation);
@@ -1173,6 +1202,12 @@ function onDocumentKeyDown(event) {
   const commandModifier = event.metaKey || event.ctrlKey;
   const textEntry = isTextEntryTarget(event.target);
 
+  if (!textEntry && !isButtonTarget(event.target) && isSpaceKey(event) && !event.repeat) {
+    event.preventDefault();
+    setSpacePanMode(true);
+    return;
+  }
+
   if (event.key === "Escape") {
     event.preventDefault();
     cancelCurrentInteraction();
@@ -1199,11 +1234,26 @@ function onDocumentKeyDown(event) {
   }
 }
 
+function onDocumentKeyUp(event) {
+  if (isSpaceKey(event) && state.spacePanning) {
+    event.preventDefault();
+    setSpacePanMode(false);
+  }
+}
+
+function isSpaceKey(event) {
+  return event.code === "Space" || event.key === " " || event.key === "Spacebar";
+}
+
 function isTextEntryTarget(target) {
   return target instanceof HTMLInputElement
     || target instanceof HTMLTextAreaElement
     || target instanceof HTMLSelectElement
     || target?.isContentEditable;
+}
+
+function isButtonTarget(target) {
+  return target instanceof HTMLButtonElement || target?.closest?.("button");
 }
 
 function cancelCurrentInteraction() {
@@ -1232,16 +1282,22 @@ function onPointerDown(event) {
   canvas.focus({ preventScroll: true });
   const screen = screenPoint(event);
   const point = screenToWorld(screen);
+  const spacePan = isSpacePanPointerEvent(event);
   state.lastPointerDown = { screen, world: point };
   state.lastPointerType = event.pointerType;
-  if (state.drawing) {
+  if (state.drawing && !spacePan) {
     state.selectedTarget = null;
     state.dragging = { type: "draw", start: point, current: point };
     state.draftSelection = { type: "rect", bounds: { x: point.x, y: point.y, width: 0, height: 0 } };
     render();
   } else {
-    state.dragging = { type: "pan", start: screenPoint(event), view: { ...state.view } };
+    state.dragging = { type: "pan", start: screenPoint(event), view: { ...state.view }, transient: spacePan };
   }
+  updateInteractionModeUi();
+}
+
+function isSpacePanPointerEvent(event) {
+  return state.spacePanning || Boolean(event.getModifierState?.("Space"));
 }
 
 function onPointerMove(event) {
@@ -1275,9 +1331,10 @@ async function onPointerUp(event) {
   } else if (state.dragging?.type === "pan" && state.lastPointerDown && event) {
     const current = screenPoint(event);
     const moved = Math.hypot(current.x - state.lastPointerDown.screen.x, current.y - state.lastPointerDown.screen.y);
-    if (moved < 4) await selectMapTarget(state.lastPointerDown.world);
+    if (!state.dragging.transient && moved < 4) await selectMapTarget(state.lastPointerDown.world);
   }
   state.dragging = null;
+  updateInteractionModeUi();
 }
 
 function onCanvasDoubleClick(event) {
@@ -1554,8 +1611,10 @@ async function saveSelection() {
   const copied = await copyToClipboard(annotationClipboardText(saved.annotation));
   state.selectedTarget = { ...saved.annotation, targetType: "annotation" };
   syncHashRoute(createAnnotationHashRoute(saved.annotation.id));
+  state.drawing = false;
   state.draftSelection = null;
   state.resolvedSelection = null;
+  updateInteractionModeUi();
   updateSelectionPopover();
   setSaveButtonLabel(copied ? "Codex prompt copied" : "Saved. Copy failed");
   setSelectionStatus(copied ? "Annotation saved and Codex prompt copied." : "Annotation saved. Copy failed.");

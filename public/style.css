@@ -108,10 +108,20 @@ select:focus-visible {
     linear-gradient(90deg, rgba(49, 101, 69, 0.035) 1px, transparent 1px),
     var(--land);
   background-size: auto, 42px 42px, 42px 42px, auto;
+  cursor: grab;
   display: block;
   height: 100%;
   touch-action: none;
   width: 100%;
+}
+
+#mapCanvas.is-drawing {
+  cursor: crosshair;
+}
+
+#mapCanvas.is-panning,
+#mapCanvas.is-space-panning {
+  cursor: grabbing;
 }
 
 #mapCanvas:focus-visible:not(.pointer-focused) {
@@ -120,6 +130,7 @@ select:focus-visible {
 }
 
 .map-tool-palette,
+.annotation-actions,
 .selection-popover,
 .map-status {
   backdrop-filter: blur(14px);
@@ -189,6 +200,19 @@ select:focus-visible {
 }
 
 .selection-popover[hidden] {
+  display: none;
+}
+
+.annotation-actions {
+  border: 1px solid var(--line);
+  bottom: 62px;
+  display: flex;
+  gap: 8px;
+  left: 16px;
+  padding: 8px;
+}
+
+.annotation-actions[hidden] {
   display: none;
 }
 

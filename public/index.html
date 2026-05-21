@@ -12,20 +12,43 @@
         <canvas id="mapCanvas"></canvas>
 
         <div class="map-tool-palette" role="toolbar" aria-label="Map tools">
-          <button id="drawTool" class="icon-tool" type="button" title="Draw Selection" aria-label="Draw Selection" aria-pressed="false">
-            <svg class="lucide lucide-square-dashed-mouse-pointer" xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-              <path d="M12.034 12.681a.498.498 0 0 1 .647-.647l9 3.5a.5.5 0 0 1-.033.943l-3.444 1.068a1 1 0 0 0-.66.66l-1.067 3.443a.5.5 0 0 1-.943.033z"></path>
-              <path d="M5 3a2 2 0 0 0-2 2"></path>
-              <path d="M19 3a2 2 0 0 1 2 2"></path>
-              <path d="M5 21a2 2 0 0 1-2-2"></path>
-              <path d="M9 3h1"></path>
-              <path d="M9 21h2"></path>
-              <path d="M14 3h1"></path>
-              <path d="M3 9v1"></path>
-              <path d="M21 9v2"></path>
-              <path d="M3 14v1"></path>
-            </svg>
-          </button>
+          <div class="tool-group" aria-label="Navigation controls">
+            <button id="zoomInTool" class="icon-tool" type="button" title="Zoom in" aria-label="Zoom in">
+              <svg class="lucide lucide-plus" xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M5 12h14"></path>
+                <path d="M12 5v14"></path>
+              </svg>
+            </button>
+            <button id="zoomOutTool" class="icon-tool" type="button" title="Zoom out" aria-label="Zoom out">
+              <svg class="lucide lucide-minus" xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M5 12h14"></path>
+              </svg>
+            </button>
+            <button id="resetViewTool" class="icon-tool" type="button" title="Fit codebase" aria-label="Fit codebase">
+              <svg class="lucide lucide-maximize" xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+                <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
+                <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
+                <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="tool-group" aria-label="Annotation tools">
+            <button id="drawTool" class="icon-tool" type="button" title="Draw Selection" aria-label="Draw Selection" aria-pressed="false">
+              <svg class="lucide lucide-square-dashed-mouse-pointer" xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M12.034 12.681a.498.498 0 0 1 .647-.647l9 3.5a.5.5 0 0 1-.033.943l-3.444 1.068a1 1 0 0 0-.66.66l-1.067 3.443a.5.5 0 0 1-.943.033z"></path>
+                <path d="M5 3a2 2 0 0 0-2 2"></path>
+                <path d="M19 3a2 2 0 0 1 2 2"></path>
+                <path d="M5 21a2 2 0 0 1-2-2"></path>
+                <path d="M9 3h1"></path>
+                <path d="M9 21h2"></path>
+                <path d="M14 3h1"></path>
+                <path d="M3 9v1"></path>
+                <path d="M21 9v2"></path>
+                <path d="M3 14v1"></path>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div id="selectionPopover" class="selection-popover" hidden>

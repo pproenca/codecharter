@@ -132,10 +132,20 @@ select:focus-visible {
 .map-tool-palette {
   border: 1px solid var(--line);
   display: inline-grid;
-  gap: 4px;
+  gap: 6px;
   left: 16px;
   padding: 5px;
   top: 16px;
+}
+
+.tool-group {
+  display: grid;
+  gap: 4px;
+}
+
+.tool-group + .tool-group {
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
 }
 
 .icon-tool {

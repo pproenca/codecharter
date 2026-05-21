@@ -57,12 +57,14 @@ const DEFAULT_MAP_LEVEL = "file";
 const SAVE_AND_COPY_LABEL = "Save and copy Codex prompt";
 const COPY_PROMPT_LABEL = "Copy Codex prompt";
 const MIN_SELECTION_SCREEN_PIXELS = 4;
+const CAMERA_ANIMATION_MS = 280;
 
 let frameLabels = [];
 let activityPollTimer = null;
 let mapPollTimer = null;
 let applyingRoute = false;
 let routeSequence = 0;
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 const state = {
   map: null,
@@ -74,6 +76,7 @@ const state = {
   pendingSourceRequests: new Set(),
   activitySignature: "",
   view: { x: 0, y: 0, scale: 1 },
+  cameraAnimation: null,
   dragging: null,
   lastPointerDown: null,
   lastPointerType: "",
@@ -93,6 +96,9 @@ const controls = {
   searchForm: document.querySelector("#searchForm"),
   searchInput: document.querySelector("#searchInput"),
   searchResult: document.querySelector("#searchResult"),
+  zoomInTool: document.querySelector("#zoomInTool"),
+  zoomOutTool: document.querySelector("#zoomOutTool"),
+  resetViewTool: document.querySelector("#resetViewTool"),
   drawTool: document.querySelector("#drawTool"),
   saveSelection: document.querySelector("#saveSelection"),
   deleteAnnotation: document.querySelector("#deleteAnnotation"),
@@ -180,6 +186,9 @@ function bindEvents() {
     setDrawMode(!state.drawing);
     render();
   });
+  controls.zoomInTool?.addEventListener("click", () => zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true }));
+  controls.zoomOutTool?.addEventListener("click", () => zoomAt(viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR, { animate: true }));
+  controls.resetViewTool?.addEventListener("click", () => fitCodebaseView({ animate: true }));
 
   controls.searchForm?.addEventListener("submit", searchMap);
   controls.saveSelection?.addEventListener("click", saveSelection);
@@ -191,9 +200,10 @@ function bindEvents() {
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointerleave", onPointerUp);
+  canvas.addEventListener("dblclick", onCanvasDoubleClick);
   canvas.tabIndex = 0;
   canvas.setAttribute("role", "application");
-  canvas.setAttribute("aria-label", "CodeCharter map canvas. Use arrow keys to pan, plus and minus to zoom, Enter to select the center, and Escape to cancel the current action.");
+  canvas.setAttribute("aria-label", "CodeCharter map canvas. Drag to pan, use arrow keys to pan, plus and minus to zoom, double click to zoom in, 0 to fit the codebase, Enter to select the center, and Escape to cancel the current action.");
   canvas.addEventListener("keydown", onCanvasKeyDown);
 }
 
@@ -1089,6 +1099,7 @@ function labelPlacement(text, box, size = 12, weight = "400") {
 
 function onWheel(event) {
   event.preventDefault();
+  cancelCameraAnimation();
   const mouse = screenPoint(event);
   if (event.ctrlKey || event.metaKey) {
     zoomAt(mouse, Math.exp(-normalizeWheelDelta(event.deltaY, event.deltaMode) * 0.0025));
@@ -1098,8 +1109,10 @@ function onWheel(event) {
   render();
 }
 
-function zoomAt(screenAnchor, factor) {
-  state.view = zoomViewAt(state.view, screenAnchor, factor, viewportSize());
+function zoomAt(screenAnchor, factor, { animate = false } = {}) {
+  const nextView = zoomViewAt(state.view, screenAnchor, factor, viewportSize());
+  if (animate) animateViewTo(nextView);
+  else setViewImmediate(nextView);
 }
 
 function panByWheel(event) {
@@ -1125,29 +1138,25 @@ function onCanvasKeyDown(event) {
   const delta = keyDeltas[event.key];
   if (delta) {
     event.preventDefault();
-    state.view = panViewByScreenDelta(state.view, delta, viewportSize());
-    render();
+    animateViewTo(panViewByScreenDelta(state.view, delta, viewportSize()));
     return;
   }
 
   if (event.key === "+" || event.key === "=") {
     event.preventDefault();
-    zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR);
-    render();
+    zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true });
     return;
   }
 
   if (event.key === "-" || event.key === "_") {
     event.preventDefault();
-    zoomAt(viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR);
-    render();
+    zoomAt(viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR, { animate: true });
     return;
   }
 
   if (event.key === "0") {
     event.preventDefault();
-    state.view = { x: 0, y: 0, scale: 1 };
-    render();
+    fitCodebaseView({ animate: true });
     return;
   }
 
@@ -1214,6 +1223,7 @@ function cancelCurrentInteraction() {
 }
 
 function onPointerDown(event) {
+  cancelCameraAnimation();
   canvas.setPointerCapture(event.pointerId);
   canvas.focus({ preventScroll: true });
   const screen = screenPoint(event);
@@ -1266,6 +1276,12 @@ async function onPointerUp(event) {
   state.dragging = null;
 }
 
+function onCanvasDoubleClick(event) {
+  if (state.drawing) return;
+  event.preventDefault();
+  zoomAt(screenPoint(event), KEYBOARD_ZOOM_FACTOR, { animate: true });
+}
+
 function updateDraftSelection(world) {
   if (state.dragging?.type !== "draw") return;
   state.dragging.current = world;
@@ -1303,6 +1319,7 @@ async function selectMapTarget(worldPoint) {
 
   state.selectedTarget = hit;
   if (hit.targetType === "annotation") {
+    zoomToBounds(hit.geometry.bounds, 1.35);
     selectAnnotation(hit);
     return;
   }
@@ -1327,8 +1344,8 @@ async function selectMapTarget(worldPoint) {
   const lineRatio = (line - 0.5) / Math.max(1, hit.lineCount);
   let box = screenBounds(hit.bounds);
   if (!canRenderSourceText(hit, box)) {
-    zoomToReadableFile(hit, lineRatio);
-    box = screenBounds(hit.bounds);
+    const readableView = zoomToReadableFile(hit, lineRatio);
+    box = screenBoundsForView(hit.bounds, readableView, viewportSize());
   }
   const { start: lineStart, end: lineEnd } = sourcePanelLineRange(hit, line, box);
   const query = `path=${encodeURIComponent(hit.path)}&lineStart=${lineStart}&lineEnd=${lineEnd}`;
@@ -1638,6 +1655,7 @@ function hitTestAnnotation(point) {
     .filter((place) => place.kind === "mapAnnotation")
     .reverse();
   const annotation = annotations.find((place) => {
+    if (containsBoundsPoint(place.geometry.bounds, point)) return true;
     const center = boundsCenter(place.geometry.bounds);
     return Math.abs(point.x - center.x) <= radiusX && Math.abs(point.y - center.y) <= radiusY;
   });
@@ -1659,11 +1677,73 @@ function hitTestActivity(point) {
 }
 
 function zoomToBounds(bounds, paddingFactor = 1.2) {
-  state.view = viewForBounds(bounds, viewportSize(), paddingFactor);
+  animateViewTo(viewForBounds(bounds, viewportSize(), paddingFactor));
 }
 
 function zoomToReadableFile(file, lineRatio = 0.5) {
-  state.view = viewForReadableFile(file, viewportSize(), lineRatio);
+  const view = viewForReadableFile(file, viewportSize(), lineRatio);
+  animateViewTo(view);
+  return view;
+}
+
+function fitCodebaseView({ animate = false } = {}) {
+  const bounds = state.map?.folders?.[""]?.bounds ?? state.map?.codePlane?.bounds ?? { x: 0, y: 0, width: 1, height: 1 };
+  const view = viewForBounds(bounds, viewportSize(), 1.02);
+  if (animate) animateViewTo(view);
+  else setViewImmediate(view);
+}
+
+function setViewImmediate(view) {
+  cancelCameraAnimation();
+  state.view = view;
+  render();
+}
+
+function animateViewTo(targetView) {
+  cancelCameraAnimation();
+  if (reducedMotion.matches) {
+    setViewImmediate(targetView);
+    return;
+  }
+
+  const fromView = { ...state.view };
+  const startedAt = performance.now();
+  state.cameraAnimation = { frame: 0 };
+
+  const step = (now) => {
+    if (!state.cameraAnimation) return;
+    const progress = Math.min(1, (now - startedAt) / CAMERA_ANIMATION_MS);
+    const eased = easeCamera(progress);
+    state.view = interpolateView(fromView, targetView, eased);
+    render();
+    if (progress < 1) {
+      state.cameraAnimation.frame = requestAnimationFrame(step);
+    } else {
+      state.cameraAnimation = null;
+      state.view = targetView;
+      render();
+    }
+  };
+
+  state.cameraAnimation.frame = requestAnimationFrame(step);
+}
+
+function cancelCameraAnimation() {
+  if (!state.cameraAnimation) return;
+  cancelAnimationFrame(state.cameraAnimation.frame);
+  state.cameraAnimation = null;
+}
+
+function interpolateView(fromView, toView, t) {
+  return {
+    x: fromView.x + (toView.x - fromView.x) * t,
+    y: fromView.y + (toView.y - fromView.y) * t,
+    scale: fromView.scale + (toView.scale - fromView.scale) * t,
+  };
+}
+
+function easeCamera(t) {
+  return 1 - (1 - t) ** 3;
 }
 
 function labelForFolder(folder) {

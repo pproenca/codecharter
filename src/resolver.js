@@ -1,6 +1,7 @@
 import { geohashForBoundsCenter } from "./geohash.js";
 import { precisionForLevel } from "./levels.js";
 import { createCodemapDeepLink } from "./deep-links.js";
+import { codeRangeGeometry } from "./line-coordinate.js";
 
 export function resolveAddress(codemap, request) {
   const path = normalizePathForMap(request.path);
@@ -55,109 +56,25 @@ function resolveFileAddress(codemap, file, request) {
 }
 
 function resolveCodeRangeAddress(file, request) {
-  const lineStart = normalizeLine(request.lineStart ?? request.lineEnd, file.lineCount);
-  const lineEnd = normalizeLine(request.lineEnd ?? request.lineStart, file.lineCount);
-  const start = Math.min(lineStart, lineEnd);
-  const end = Math.max(lineStart, lineEnd);
-  const lineBounds = lineRangeBounds(file, start, end);
-  const tokenRange = resolveTokenRange(file, request);
-  const fragments = resolveFragments(file, request.fragments);
-  const bounds = fragments.length
-    ? unionBounds(fragments.map((fragment) => fragment.bounds))
-    : tokenRange ? tokenBounds(file, lineBounds, tokenRange) : lineBounds;
-  const hasTokenFragments = fragments.some((fragment) => fragment.tokenRange);
-  const level = tokenRange || hasTokenFragments ? "tokenRange" : "lineRange";
-  const geo = geoForBounds(fragments[0]?.bounds ?? bounds, level);
-  const lines = `${start}-${end}`;
+  const geometry = codeRangeGeometry(file, request);
+  const level = geometry.tokenRange || geometry.hasTokenFragments ? "tokenRange" : "lineRange";
+  const geo = geoForBounds(geometry.anchorBounds, level);
+  const lines = `${geometry.lineRange.start}-${geometry.lineRange.end}`;
+  const fragments = geometry.fragments ? geohashedFragments(geometry.fragments) : undefined;
 
   return {
     level,
     targetType: level,
     path: file.path,
     geohash: geo.geohash,
-    deepLink: deepLink(level, geo.geohash, { path: file.path, lines, columns: tokenRange ? `${tokenRange.start}-${tokenRange.end}` : undefined }),
-    breadcrumb: `${breadcrumbForPath(file.path)}:${lines}${tokenRange ? `@${tokenRange.start}-${tokenRange.end}` : ""}`,
-    bounds,
+    deepLink: deepLink(level, geo.geohash, { path: file.path, lines, columns: geometry.tokenRange ? `${geometry.tokenRange.start}-${geometry.tokenRange.end}` : undefined }),
+    breadcrumb: `${breadcrumbForPath(file.path)}:${lines}${geometry.tokenRange ? `@${geometry.tokenRange.start}-${geometry.tokenRange.end}` : ""}`,
+    bounds: geometry.bounds,
     geo,
-    lineRange: { start, end },
-    ...(tokenRange ? { tokenRange } : {}),
-    ...(fragments.length ? { coveringSet: sortedUnique(fragments.map((fragment) => fragment.geohash)) } : {}),
-    ...(fragments.length ? { fragments } : {}),
-  };
-}
-
-function lineRangeBounds(file, start, end) {
-  const startRatio = (start - 1) / file.lineCount;
-  const endRatio = end / file.lineCount;
-  return {
-    x: file.bounds.x,
-    y: round(file.bounds.y + file.bounds.height * startRatio),
-    width: file.bounds.width,
-    height: round(file.bounds.height * Math.max(endRatio - startRatio, 1 / file.lineCount)),
-  };
-}
-
-function resolveTokenRange(file, request) {
-  if (request.columnStart === undefined && request.columnEnd === undefined) return null;
-  const width = Math.max(1, file.maxLineLength ?? 1);
-  const columnStart = normalizeColumn(request.columnStart ?? request.columnEnd, width);
-  const columnEnd = normalizeColumn(request.columnEnd ?? request.columnStart, width);
-  return {
-    start: Math.min(columnStart, columnEnd),
-    end: Math.max(columnStart, columnEnd),
-  };
-}
-
-function tokenBounds(file, lineBounds, tokenRange) {
-  const width = Math.max(1, file.maxLineLength ?? 1);
-  const startRatio = (tokenRange.start - 1) / width;
-  const endRatio = tokenRange.end / width;
-  return {
-    x: round(file.bounds.x + file.bounds.width * startRatio),
-    y: lineBounds.y,
-    width: round(file.bounds.width * Math.max(endRatio - startRatio, 1 / width)),
-    height: lineBounds.height,
-  };
-}
-
-function resolveFragments(file, fragments) {
-  if (!Array.isArray(fragments)) return [];
-  return fragments
-    .map((fragment) => resolveFragment(file, fragment))
-    .filter(Boolean);
-}
-
-function resolveFragment(file, fragment) {
-  if (fragment?.lineStart === undefined && fragment?.lineEnd === undefined) return null;
-  const lineStart = normalizeLine(fragment.lineStart ?? fragment.lineEnd, file.lineCount);
-  const lineEnd = normalizeLine(fragment.lineEnd ?? fragment.lineStart, file.lineCount);
-  const start = Math.min(lineStart, lineEnd);
-  const end = Math.max(lineStart, lineEnd);
-  const tokenRange = resolveTokenRange(file, fragment);
-  const lineBounds = lineRangeBounds(file, start, end);
-  const bounds = tokenRange ? tokenBounds(file, lineBounds, tokenRange) : lineBounds;
-  const level = tokenRange ? "tokenRange" : "lineRange";
-  const geohash = geoForBounds(bounds, level).geohash;
-  return {
-    level,
-    targetType: level,
-    geohash,
-    lineRange: { start, end },
-    ...(tokenRange ? { tokenRange } : {}),
-    bounds,
-  };
-}
-
-function unionBounds(boundsList) {
-  const x1 = Math.min(...boundsList.map((bounds) => bounds.x));
-  const y1 = Math.min(...boundsList.map((bounds) => bounds.y));
-  const x2 = Math.max(...boundsList.map((bounds) => bounds.x + bounds.width));
-  const y2 = Math.max(...boundsList.map((bounds) => bounds.y + bounds.height));
-  return {
-    x: round(x1),
-    y: round(y1),
-    width: round(x2 - x1),
-    height: round(y2 - y1),
+    lineRange: geometry.lineRange,
+    ...(geometry.tokenRange ? { tokenRange: geometry.tokenRange } : {}),
+    ...(fragments ? { coveringSet: sortedUnique(fragments.map((fragment) => fragment.geohash)) } : {}),
+    ...(fragments ? { fragments } : {}),
   };
 }
 
@@ -169,20 +86,23 @@ function geoForBounds(bounds, level) {
   return geohashForBoundsCenter(bounds, precisionForLevel(level));
 }
 
+function geohashedFragments(fragments) {
+  return fragments.map((fragment) => {
+    const level = fragment.tokenRange ? "tokenRange" : "lineRange";
+    const geohash = geoForBounds(fragment.bounds, level).geohash;
+    return {
+      level,
+      targetType: level,
+      geohash,
+      lineRange: fragment.lineRange,
+      ...(fragment.tokenRange ? { tokenRange: fragment.tokenRange } : {}),
+      bounds: fragment.bounds,
+    };
+  });
+}
+
 function sortedUnique(values) {
   return [...new Set(values)].sort((a, b) => a.localeCompare(b));
-}
-
-function normalizeLine(value, lineCount) {
-  const line = Number(value);
-  if (!Number.isInteger(line)) throw new Error(`Line must be an integer: ${value}`);
-  return Math.min(lineCount, Math.max(1, line));
-}
-
-function normalizeColumn(value, maxLineLength) {
-  const column = Number(value);
-  if (!Number.isInteger(column)) throw new Error(`Column must be an integer: ${value}`);
-  return Math.min(maxLineLength, Math.max(1, column));
 }
 
 function breadcrumbForPath(path) {
@@ -191,8 +111,4 @@ function breadcrumbForPath(path) {
 
 function deepLink(level, geohash, metadata) {
   return createCodemapDeepLink(level, geohash, metadata);
-}
-
-function round(value) {
-  return Number(value.toFixed(12));
 }

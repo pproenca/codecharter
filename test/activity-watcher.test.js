@@ -7,7 +7,8 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { changedRangeFromUnifiedDiff, lineRangeFromUnifiedDiff, parseGitStatusPorcelain, startActivityWatcher } from "../src/activity-watcher.js";
+import { changedRangeFromUnifiedDiff, lineRangeFromUnifiedDiff } from "../src/activity-change-range.js";
+import { parseGitStatusPorcelain, startActivityWatcher } from "../src/activity-watcher.js";
 
 const execFileAsync = promisify(execFile);
 

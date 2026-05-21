@@ -3,9 +3,9 @@ import { createAnnotationHashRoute, createCodemapDeepLink } from "./deep-links.j
 import { codePointToGeo, encodeGeohash } from "./geohash.js";
 import { clampBounds, intersects, normalizeRect } from "./geometry.js";
 import { precisionForLevel } from "./levels.js";
+import { codeRangeRequestForSelection } from "./line-coordinate.js";
 import { resolveAddress } from "./resolver.js";
 
-const SELECTION_EDGE_EPSILON = 1e-12;
 const DEFAULT_ANNOTATION_NAME = "Map annotation";
 const ANNOTATION_NAME_MAX_LENGTH = 72;
 
@@ -128,13 +128,9 @@ function resolvedTarget(target, targetType, level) {
 }
 
 function resolvedCodeTarget(codemap, file, selectionBounds, level, targetMode) {
-  const lineRange = lineRangeForSelection(file, selectionBounds);
-  const tokenRange = targetMode === "tokenRange" ? tokenRangeForSelection(file, selectionBounds) : {};
   const address = resolveAddress(codemap, {
     path: file.path,
-    lineStart: lineRange.lineStart,
-    lineEnd: lineRange.lineEnd,
-    ...tokenRange,
+    ...codeRangeRequestForSelection(file, selectionBounds, targetMode),
   });
   const precision = precisionForLevel(level);
   return {
@@ -148,42 +144,11 @@ function resolvedCodeTarget(codemap, file, selectionBounds, level, targetMode) {
   };
 }
 
-function lineRangeForSelection(file, selectionBounds) {
-  const top = clampRatio((selectionBounds.y - file.bounds.y) / file.bounds.height);
-  const bottom = clampRatio((selectionBounds.y + selectionBounds.height - file.bounds.y) / file.bounds.height);
-  const lineCount = Math.max(1, file.lineCount ?? 1);
-  const lineStart = startIndexForRatio(top, lineCount);
-  const lineEnd = Math.max(lineStart, endIndexForRatio(bottom, lineCount));
-  return { lineStart, lineEnd };
-}
-
-function tokenRangeForSelection(file, selectionBounds) {
-  const left = clampRatio((selectionBounds.x - file.bounds.x) / file.bounds.width);
-  const right = clampRatio((selectionBounds.x + selectionBounds.width - file.bounds.x) / file.bounds.width);
-  const maxLineLength = Math.max(1, file.maxLineLength ?? 1);
-  const columnStart = startIndexForRatio(left, maxLineLength);
-  const columnEnd = Math.max(columnStart, endIndexForRatio(right, maxLineLength));
-  return { columnStart, columnEnd };
-}
-
-function startIndexForRatio(ratio, size) {
-  return Math.min(size, Math.floor(ratio * size + SELECTION_EDGE_EPSILON) + 1);
-}
-
-function endIndexForRatio(ratio, size) {
-  return Math.min(size, Math.max(1, Math.ceil(ratio * size - SELECTION_EDGE_EPSILON)));
-}
-
 function targetModeForLevel(level) {
   if (level === "world" || level === "region" || level === "folder") return "folder";
   if (level === "code" || level === "lineRange") return "lineRange";
   if (level === "tokenRange") return "tokenRange";
   return "file";
-}
-
-function clampRatio(value) {
-  if (!Number.isFinite(value)) return 0;
-  return Math.min(1, Math.max(0, value));
 }
 
 function spatialFrameForGeometry(geometry, level) {

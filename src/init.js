@@ -328,10 +328,10 @@ CodeCharter prompts may include:
 
 ## Workflow
 
-1. Run \`codecharter --json resolve "codecharter://annotation/<id>"\` for the pasted CodeCharter annotation.
+1. Run the pasted \`CLI:\` command exactly. If it includes \`--server <url>\`, keep it; that means the annotation belongs to the running viewer, not necessarily the current workspace.
 2. If the binary is missing, rerun the same command as \`${npxCommand} --json resolve ...\`.
 3. Treat \`resolvedTargets\` from the resolve output as the authoritative target list.
-4. Read only the needed resolved target files and ranges with normal Codex file-reading tools.
+4. Read only the needed resolved target files and ranges with normal Codex file-reading tools. If those paths are not present in the current workspace, report a CodeCharter map/workspace mismatch instead of guessing.
 5. If no deep link or resolve command is present, ask the user to copy a fresh CodeCharter prompt from the viewer.
 
 ## Fallbacks

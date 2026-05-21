@@ -36,6 +36,10 @@ _Avoid_: Real-time source of truth, capped activity database
 A tool, hook, watcher, or agent integration that reports Agent Positions into the Activity Stream. Activity Producers are best-effort and must never block code reading, editing, testing, or serving when telemetry cannot be delivered.
 _Avoid_: Required build step, blocking status reporter
 
+**Activity Change Range**:
+The line and token range information an **Activity Producer** derives from a code change before resolving it to a **Map Address**. Activity Change Ranges let Codemaps show the part of a **File** an agent touched without making telemetry delivery responsible for diff parsing.
+_Avoid_: Raw diff, watcher payload
+
 **Viewport State**:
 The current view of the **Code Map**, including pan, zoom, selected layers, and temporary drawings. Viewport State is not part of the stable map.
 _Avoid_: Map data, persisted geography

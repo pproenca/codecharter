@@ -1746,12 +1746,26 @@ function annotationShareLink(annotation) {
 }
 
 function annotationClipboardText(annotation) {
-  const prompt = annotation.codexPrompt || `CodeCharter annotation: ${annotation.deepLink}`;
+  const reference = annotation.deepLink || `codecharter://annotation/${annotation.id}`;
+  const server = window.location.origin;
+  const comment = annotation.comment?.trim() || "<empty>";
+  const prompt = [
+    `CodeCharter annotation: ${reference}`,
+    `Targets: ${annotation.resolvedTargets?.length ?? annotation.targetCount ?? 0}`,
+    `Note: ${comment}`,
+    `CLI: codecharter --json resolve ${doubleQuote(reference)} --server ${doubleQuote(server)}`,
+    `Fallback: npx --yes codecharter --json resolve ${doubleQuote(reference)} --server ${doubleQuote(server)}`,
+    "Use resolve output; read only needed resolvedTargets. If resolved target paths are not present in this workspace, report a CodeCharter map/workspace mismatch instead of guessing. Do not use browser automation unless asked.",
+  ].join("\n");
   return [
     prompt,
     "",
     `CodeCharter URL: ${annotationShareLink(annotation)}`,
   ].join("\n");
+}
+
+function doubleQuote(value) {
+  return `"${String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
 async function copyToClipboard(text) {

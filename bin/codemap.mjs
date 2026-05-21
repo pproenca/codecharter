@@ -36,6 +36,7 @@ const METADATA_EXCLUDE_PATHS = [
 
 function usage() {
   return `Usage:
+  codecharter [--json|--plain] <command>
   codecharter --json doctor [--root <dir>] [--map <file>] [--server <url>]
   codecharter setup [--root <dir>] [--out <file>] [--fresh] [--dev] [--open] [--port <port>] [--agent <id>] [--no-watch] [--no-codex] [--no-git-hooks]
   codecharter init [--root <dir>] [--out <file>] [--fresh] [--yes] [--dev] [--open] [--port <port>] [--agent <id>] [--no-watch] [--no-codex] [--no-git-hooks]
@@ -71,6 +72,7 @@ function takeFlag(args, name) {
 async function main() {
   const args = process.argv.slice(2);
   const jsonOutput = takeFlag(args, "--json");
+  takeFlag(args, "--plain");
   const command = args.shift();
   stripArgumentSeparator(args);
 
@@ -172,7 +174,7 @@ async function main() {
     const lineStart = optionalNumber(lineStartRaw);
     const lineEnd = lineEndRaw === undefined ? lineStart : optionalNumber(lineEndRaw);
     const address = resolveAddress(codemap, { path, lineStart, lineEnd, columnStart, columnEnd });
-    printJson(address);
+    printResult(address, jsonOutput, printResolvedAddress);
     return;
   }
 
@@ -184,7 +186,7 @@ async function main() {
     if (!reference) throw new Error("annotation requires an id, codecharter://annotation link, or CodeCharter URL");
     if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
 
-    printJson(await readAnnotation({ root, mapPath, reference, server }));
+    printResult(await readAnnotation({ root, mapPath, reference, server }), jsonOutput, printAnnotation);
     return;
   }
 
@@ -195,7 +197,7 @@ async function main() {
     const limit = optionalNumber(takeOption(args, "--limit", undefined));
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
-    printJson(await listAnnotations({ root, mapPath, server, limit }));
+    printResult(await listAnnotations({ root, mapPath, server, limit }), jsonOutput, printAnnotations);
     return;
   }
 
@@ -211,10 +213,10 @@ async function main() {
     if (!file) throw new Error(`No source file found for path: ${path}`);
     const lineStart = optionalNumber(lineStartRaw);
     const lineEnd = lineEndRaw === undefined ? lineStart : optionalNumber(lineEndRaw);
-    printJson({
+    printResult({
       source: "storage",
       ...await readSourceRange(root, file, { lineStart, lineEnd }),
-    });
+    }, jsonOutput, printSource);
     return;
   }
 
@@ -224,7 +226,7 @@ async function main() {
     if (!reference) throw new Error("api requires a local /api path or CodeCharter API URL");
     if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
 
-    printJson(await readApi({ reference, server }));
+    printResult(await readApi({ reference, server }), jsonOutput, printApi);
     return;
   }
 
@@ -246,9 +248,9 @@ async function main() {
       const address = resolveAddress(codemap, { path, lineStart, lineEnd, columnStart, columnEnd });
       const event = createActivityEvent(address, { agentId, activityState, note });
       await appendActivityEvents(outPath, [event]);
-      printJson({ accepted: true, event });
+      printResult({ accepted: true, event }, jsonOutput, printActivityResult);
     } catch (error) {
-      printJson({ accepted: false, error: error.message });
+      printResult({ accepted: false, error: error.message }, jsonOutput, printActivityResult);
     }
     return;
   }
@@ -687,8 +689,78 @@ function printDoctor(result) {
   if (result.setup.nextStep) console.log(result.setup.nextStep);
 }
 
+function printResult(value, jsonOutput, printPlain) {
+  if (jsonOutput) printJson(value);
+  else printPlain(value);
+}
+
+function printResolvedAddress(address) {
+  console.log(`target: ${address.targetType}`);
+  console.log(`path: ${address.path}`);
+  if (address.lineRange) console.log(`lines: ${address.lineRange.start}-${address.lineRange.end}`);
+  if (address.tokenRange) console.log(`columns: ${address.tokenRange.start}-${address.tokenRange.end}`);
+  console.log(`geohash: ${address.geohash}`);
+  console.log(`link: ${address.deepLink}`);
+}
+
+function printAnnotation(result) {
+  console.log(`annotation: ${result.annotation.id}`);
+  console.log(`source: ${result.source}`);
+  if (result.origin) console.log(`origin: ${result.origin}`);
+  console.log(`targets: ${result.targetCount}`);
+  if (result.annotation.comment) console.log(`note: ${singleLine(result.annotation.comment)}`);
+  for (const target of result.resolvedTargets.slice(0, 12)) {
+    console.log(`target: ${target.path}${target.lineRange ? `:${target.lineRange.start}-${target.lineRange.end}` : ""}`);
+  }
+  if (result.targetCount > 12) console.log(`more: ${result.targetCount - 12}`);
+  console.log(`json: codecharter --json annotation ${result.annotation.deepLink}`);
+}
+
+function printAnnotations(result) {
+  console.log(`source: ${result.source}`);
+  if (result.origin) console.log(`origin: ${result.origin}`);
+  console.log(`annotations: ${result.count}`);
+  if (result.totalCount !== result.count) console.log(`total: ${result.totalCount}`);
+  for (const annotation of result.annotations) {
+    console.log(`annotation: ${annotation.id} targets=${annotation.resolvedTargets?.length ?? 0} note=${singleLine(annotation.comment ?? annotation.name ?? "")}`);
+  }
+}
+
+function printSource(result) {
+  console.log(`source: ${result.path}`);
+  console.log(`lines: ${result.lineRange.start}-${result.lineRange.end}`);
+  for (const line of result.lines ?? []) {
+    console.log(`${line.number}: ${line.text}`);
+  }
+}
+
+function printApi(result) {
+  console.log(`method: ${result.method}`);
+  console.log(`status: ${result.status}`);
+  console.log(`url: ${result.url}`);
+  if (result.body && typeof result.body === "object" && !Array.isArray(result.body)) {
+    console.log(`keys: ${Object.keys(result.body).sort().join(",")}`);
+  } else if (result.body !== null && result.body !== undefined) {
+    console.log(`body: ${singleLine(String(result.body))}`);
+  }
+}
+
+function printActivityResult(result) {
+  console.log(`accepted: ${result.accepted ? "true" : "false"}`);
+  if (result.event) {
+    console.log(`event: ${result.event.id}`);
+    console.log(`state: ${result.event.activityState}`);
+    console.log(`path: ${result.event.address?.path}`);
+  }
+  if (result.error) console.log(`error: ${result.error}`);
+}
+
 function printJson(value) {
   console.log(JSON.stringify(value, null, 2));
+}
+
+function singleLine(value) {
+  return String(value).replace(/\s+/g, " ").trim();
 }
 
 function resolveMapPath(root, path) {

@@ -225,8 +225,8 @@ function codexPromptForAnnotation(annotation) {
   const comment = annotation.comment?.trim() || "<empty>";
   return [
     `CodeCharter annotation: ${annotation.deepLink}`,
-    `CLI: codecharter annotation ${annotation.deepLink}`,
-    `Fallback: npx --yes codecharter annotation ${annotation.deepLink}`,
+    `CLI: codecharter --json annotation ${annotation.deepLink}`,
+    `Fallback: npx --yes codecharter --json annotation ${annotation.deepLink}`,
     `Targets: ${annotation.resolvedTargets.length}`,
     `Note: ${comment}`,
     "Use CLI output; read only needed resolvedTargets. Do not use browser automation unless asked.",

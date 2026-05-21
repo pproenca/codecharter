@@ -21,6 +21,24 @@ const MIME_TYPES = {
 const BUNDLED_PUBLIC_ROOT = fileURLToPath(new URL("../public", import.meta.url));
 const DEFAULT_PORT_SEARCH_LIMIT = 20;
 const DEFAULT_ACTIVITY_ARCHIVE = ".codecharter/activity.jsonl";
+const API_ROUTES = Object.freeze([
+  apiRoute("GET", "/api/map", getMapApi),
+  apiRoute("GET", "/api/map-version", getMapVersionApi),
+  apiRoute("GET", "/api/tiles", getTilesApi),
+  apiRoute("GET", "/api/prefixes", getPrefixesApi),
+  apiRoute("GET", "/api/resolve", getResolveApi),
+  apiRoute("GET", "/api/source", getSourceApi),
+  apiRoute("GET", "/api/named-places", getNamedPlacesApi),
+  apiRoute("POST", "/api/named-places", postNamedPlacesApi),
+  apiRoute("GET", "/api/annotations", getAnnotationsApi),
+  apiRoute("GET", "/api/annotations/", getAnnotationApi, { prefix: true }),
+  apiRoute("DELETE", "/api/annotations/", deleteAnnotationApi, { prefix: true }),
+  apiRoute("POST", "/api/annotations", postAnnotationsApi),
+  apiRoute("POST", "/api/selections/resolve", postSelectionResolveApi),
+  apiRoute("GET", "/api/activity", getActivityApi),
+  apiRoute("DELETE", "/api/activity", deleteActivityApi),
+  apiRoute("POST", "/api/activity", postActivityApi),
+]);
 
 export async function startServer({
   root,
@@ -116,136 +134,150 @@ async function handleRequest(state, request, response) {
 }
 
 async function handleApi(state, request, response, url) {
-  if (request.method === "GET" && url.pathname === "/api/map") {
-    const codemap = await loadCodemap(state);
-    sendJson(response, 200, codemap);
+  const match = matchingApiRoute(request, url);
+  if (match) {
+    await match.route.handle(state, request, response, url, match);
     return;
   }
 
-  if (request.method === "GET" && url.pathname === "/api/map-version") {
-    sendJson(response, 200, await loadMapVersion(state));
-    return;
-  }
-
-  if (request.method === "GET" && url.pathname === "/api/tiles") {
-    const codemap = await loadCodemap(state);
-    const level = url.searchParams.get("level") ?? "file";
-    const prefix = url.searchParams.get("prefix");
-    sendJson(response, 200, prefix ? getTile(codemap, { level, prefix }) : buildTileIndex(codemap, level));
-    return;
-  }
-
-  if (request.method === "GET" && url.pathname === "/api/prefixes") {
-    const codemap = await loadCodemap(state);
-    sendJson(response, 200, { level: url.searchParams.get("level") ?? "file", prefixes: visiblePrefixes(codemap, url.searchParams.get("level") ?? "file") });
-    return;
-  }
-
-  if (request.method === "GET" && url.pathname === "/api/resolve") {
-    const codemap = await loadCodemap(state);
-    const path = requiredParam(url, "path");
-    const lineStart = optionalNumber(url.searchParams.get("lineStart"));
-    const lineEnd = optionalNumber(url.searchParams.get("lineEnd"));
-    const columnStart = optionalNumber(url.searchParams.get("columnStart"));
-    const columnEnd = optionalNumber(url.searchParams.get("columnEnd"));
-    sendJson(response, 200, resolveAddress(codemap, { path, lineStart, lineEnd, columnStart, columnEnd }));
-    return;
-  }
-
-  if (request.method === "GET" && url.pathname === "/api/source") {
-    const codemap = await loadCodemap(state);
-    const path = requiredParam(url, "path");
-    const file = codemap.files[path];
-    if (!file) throw httpError(404, `No source file found for path: ${path}`);
-    sendJson(response, 200, await readSourceRange(state.root, file, {
-      lineStart: optionalNumber(url.searchParams.get("lineStart")) ?? 1,
-      lineEnd: optionalNumber(url.searchParams.get("lineEnd")),
-    }));
-    return;
-  }
-
-  if (request.method === "GET" && url.pathname === "/api/named-places") {
-    const codemap = await loadCodemap(state);
-    sendJson(response, 200, withOverlaps(refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }))));
-    return;
-  }
-
-  if (request.method === "POST" && url.pathname === "/api/named-places") {
-    const codemap = await loadCodemap(state);
-    const body = await readBody(request);
-    const store = await readJson(state.namedPlacesPath, { places: [] });
-    const place = body.kind === "mapAddress" ? createNamedAddress(body) : createNamedSelection(codemap, body);
-    store.places.push(place);
-    await writeJson(state.namedPlacesPath, store);
-    sendJson(response, 201, { place, overlaps: findNamedPlaceOverlaps(store.places) });
-    return;
-  }
-
-  if (request.method === "GET" && url.pathname === "/api/annotations") {
-    const codemap = await loadCodemap(state);
-    const store = refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }));
-    sendJson(response, 200, { annotations: store.places.filter((place) => place.kind === "mapAnnotation") });
-    return;
-  }
-
-  if (request.method === "GET" && url.pathname.startsWith("/api/annotations/")) {
-    const codemap = await loadCodemap(state);
-    const id = decodeURIComponent(url.pathname.slice("/api/annotations/".length));
-    const store = refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }));
-    const annotation = store.places.find((place) => place.kind === "mapAnnotation" && place.id === id);
-    if (!annotation) throw httpError(404, `No annotation found for id: ${id}`);
-    sendJson(response, 200, { annotation });
-    return;
-  }
-
-  if (request.method === "DELETE" && url.pathname.startsWith("/api/annotations/")) {
-    const id = decodeURIComponent(url.pathname.slice("/api/annotations/".length));
-    const store = await readJson(state.namedPlacesPath, { places: [] });
-    const index = store.places.findIndex((place) => place.kind === "mapAnnotation" && place.id === id);
-    if (index === -1) throw httpError(404, `No annotation found for id: ${id}`);
-    const [annotation] = store.places.splice(index, 1);
-    await writeJson(state.namedPlacesPath, store);
-    sendJson(response, 200, { deleted: true, annotation });
-    return;
-  }
-
-  if (request.method === "POST" && url.pathname === "/api/annotations") {
-    const codemap = await loadCodemap(state);
-    const body = await readBody(request);
-    const store = await readJson(state.namedPlacesPath, { places: [] });
-    const annotation = createMapAnnotation(codemap, body);
-    store.places.push(annotation);
-    await writeJson(state.namedPlacesPath, store);
-    sendJson(response, 201, { annotation });
-    return;
-  }
-
-  if (request.method === "POST" && url.pathname === "/api/selections/resolve") {
-    const codemap = await loadCodemap(state);
-    const body = await readBody(request);
-    sendJson(response, 200, createNamedSelection(codemap, { ...body, name: body.name ?? "Preview" }));
-    return;
-  }
-
-  if (request.method === "GET" && url.pathname === "/api/activity") {
-    sendJson(response, 200, await activitySnapshot(state));
-    return;
-  }
-
-  if (request.method === "DELETE" && url.pathname === "/api/activity") {
-    const before = await activitySnapshot(state);
-    await state.activityStore.clear();
-    sendJson(response, 200, { cleared: true, events: before.events.length });
-    return;
-  }
-
-  if (request.method === "POST" && url.pathname === "/api/activity") {
-    acceptActivityRequest(state, request);
-    sendJson(response, 202, { accepted: true });
-    return;
-  }
-
+  if (knownApiPath(url)) throw httpError(405, "Method not allowed");
   throw httpError(404, "Not found");
+}
+
+function apiRoute(method, pattern, handle, options = {}) {
+  return { method, pattern, handle, prefix: options.prefix === true };
+}
+
+function matchingApiRoute(request, url) {
+  for (const route of API_ROUTES) {
+    if (route.method !== request.method) continue;
+    const match = matchApiPath(route, url.pathname);
+    if (match) return { route, ...match };
+  }
+  return null;
+}
+
+function knownApiPath(url) {
+  return API_ROUTES.some((route) => matchApiPath(route, url.pathname));
+}
+
+function matchApiPath(route, pathname) {
+  if (!route.prefix) return pathname === route.pattern ? { params: {} } : null;
+  if (!pathname.startsWith(route.pattern) || pathname.length === route.pattern.length) return null;
+  return { params: { rest: pathname.slice(route.pattern.length) } };
+}
+
+async function getMapApi(state, request, response) {
+  sendJson(response, 200, await loadCodemap(state));
+}
+
+async function getMapVersionApi(state, request, response) {
+  sendJson(response, 200, await loadMapVersion(state));
+}
+
+async function getTilesApi(state, request, response, url) {
+  const codemap = await loadCodemap(state);
+  const level = url.searchParams.get("level") ?? "file";
+  const prefix = url.searchParams.get("prefix");
+  sendJson(response, 200, prefix ? getTile(codemap, { level, prefix }) : buildTileIndex(codemap, level));
+}
+
+async function getPrefixesApi(state, request, response, url) {
+  const codemap = await loadCodemap(state);
+  const level = url.searchParams.get("level") ?? "file";
+  sendJson(response, 200, { level, prefixes: visiblePrefixes(codemap, level) });
+}
+
+async function getResolveApi(state, request, response, url) {
+  const codemap = await loadCodemap(state);
+  const path = requiredParam(url, "path");
+  const lineStart = optionalNumber(url.searchParams.get("lineStart"));
+  const lineEnd = optionalNumber(url.searchParams.get("lineEnd"));
+  const columnStart = optionalNumber(url.searchParams.get("columnStart"));
+  const columnEnd = optionalNumber(url.searchParams.get("columnEnd"));
+  sendJson(response, 200, resolveAddress(codemap, { path, lineStart, lineEnd, columnStart, columnEnd }));
+}
+
+async function getSourceApi(state, request, response, url) {
+  const codemap = await loadCodemap(state);
+  const path = requiredParam(url, "path");
+  const file = codemap.files[path];
+  if (!file) throw httpError(404, `No source file found for path: ${path}`);
+  sendJson(response, 200, await readSourceRange(state.root, file, {
+    lineStart: optionalNumber(url.searchParams.get("lineStart")) ?? 1,
+    lineEnd: optionalNumber(url.searchParams.get("lineEnd")),
+  }));
+}
+
+async function getNamedPlacesApi(state, request, response) {
+  const codemap = await loadCodemap(state);
+  sendJson(response, 200, withOverlaps(refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }))));
+}
+
+async function postNamedPlacesApi(state, request, response) {
+  const codemap = await loadCodemap(state);
+  const body = await readBody(request);
+  const store = await readJson(state.namedPlacesPath, { places: [] });
+  const place = body.kind === "mapAddress" ? createNamedAddress(body) : createNamedSelection(codemap, body);
+  store.places.push(place);
+  await writeJson(state.namedPlacesPath, store);
+  sendJson(response, 201, { place, overlaps: findNamedPlaceOverlaps(store.places) });
+}
+
+async function getAnnotationsApi(state, request, response) {
+  const codemap = await loadCodemap(state);
+  const store = refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }));
+  sendJson(response, 200, { annotations: store.places.filter((place) => place.kind === "mapAnnotation") });
+}
+
+async function getAnnotationApi(state, request, response, url, match) {
+  const codemap = await loadCodemap(state);
+  const id = decodeURIComponent(match.params.rest);
+  const store = refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }));
+  const annotation = store.places.find((place) => place.kind === "mapAnnotation" && place.id === id);
+  if (!annotation) throw httpError(404, `No annotation found for id: ${id}`);
+  sendJson(response, 200, { annotation });
+}
+
+async function deleteAnnotationApi(state, request, response, url, match) {
+  const id = decodeURIComponent(match.params.rest);
+  const store = await readJson(state.namedPlacesPath, { places: [] });
+  const index = store.places.findIndex((place) => place.kind === "mapAnnotation" && place.id === id);
+  if (index === -1) throw httpError(404, `No annotation found for id: ${id}`);
+  const [annotation] = store.places.splice(index, 1);
+  await writeJson(state.namedPlacesPath, store);
+  sendJson(response, 200, { deleted: true, annotation });
+}
+
+async function postAnnotationsApi(state, request, response) {
+  const codemap = await loadCodemap(state);
+  const body = await readBody(request);
+  const store = await readJson(state.namedPlacesPath, { places: [] });
+  const annotation = createMapAnnotation(codemap, body);
+  store.places.push(annotation);
+  await writeJson(state.namedPlacesPath, store);
+  sendJson(response, 201, { annotation });
+}
+
+async function postSelectionResolveApi(state, request, response) {
+  const codemap = await loadCodemap(state);
+  const body = await readBody(request);
+  sendJson(response, 200, createNamedSelection(codemap, { ...body, name: body.name ?? "Preview" }));
+}
+
+async function getActivityApi(state, request, response) {
+  sendJson(response, 200, await activitySnapshot(state));
+}
+
+async function deleteActivityApi(state, request, response) {
+  const before = await activitySnapshot(state);
+  await state.activityStore.clear();
+  sendJson(response, 200, { cleared: true, events: before.events.length });
+}
+
+async function postActivityApi(state, request, response) {
+  acceptActivityRequest(state, request);
+  sendJson(response, 202, { accepted: true });
 }
 
 async function serveStatic(state, response, pathname) {

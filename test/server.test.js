@@ -193,6 +193,27 @@ test("serves bundled UI assets when mapping a repo without its own public direct
   }
 });
 
+test("distinguishes unknown API routes from unsupported methods on known routes", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-api-routing-"));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
+
+  const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  try {
+    const unsupportedMethod = await fetch(`${baseUrl}/api/map`, { method: "POST" });
+    assert.equal(unsupportedMethod.status, 405);
+    assert.deepEqual(await unsupportedMethod.json(), { error: "Method not allowed" });
+
+    const unknownRoute = await fetch(`${baseUrl}/api/nope`);
+    assert.equal(unknownRoute.status, 404);
+    assert.deepEqual(await unknownRoute.json(), { error: "Not found" });
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
 test("accepts pre-resolved activity without reading the map sidecar", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-address-activity-"));
   await writeFile(join(root, "codecharter.json"), "{");

@@ -1,5 +1,5 @@
 Title: Replace API route cascade with an explicit route dispatch table
-Status: needs-triage
+Status: ready-for-agent
 Labels: architecture, follow-up
 
 ## Problem
@@ -15,3 +15,7 @@ Chain of Responsibility does not fully apply yet because the route order is fixe
 ## Suggested Slice
 
 Introduce a small route table keyed by method and path/prefix. Keep `startServer` and HTTP behavior unchanged. Add one public server API test for a dynamic route, then move one route at a time while green.
+
+## Progress
+
+Implemented the first route-table slice in `src/server.js`: API requests now pass through explicit method/path handlers, and known paths with unsupported methods return `405` while unknown API paths still return `404`.

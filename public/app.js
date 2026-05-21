@@ -53,7 +53,9 @@ const canvas = document.querySelector("#mapCanvas");
 const ctx = canvas.getContext("2d");
 const mapArea = document.querySelector(".map-area");
 const DEFAULT_MAP_LEVEL = "file";
-const SAVE_AND_COPY_LABEL = "Save and copy deep link";
+const SAVE_AND_COPY_LABEL = "Save and copy Codex prompt";
+const COPY_PROMPT_LABEL = "Copy Codex prompt";
+const MIN_SELECTION_SCREEN_PIXELS = 4;
 
 let frameLabels = [];
 let activityPollTimer = null;
@@ -73,6 +75,7 @@ const state = {
   view: { x: 0, y: 0, scale: 1 },
   dragging: null,
   lastPointerDown: null,
+  lastPointerType: "",
   drawing: false,
   draftSelection: null,
   resolvedSelection: null,
@@ -91,7 +94,9 @@ const controls = {
   searchResult: document.querySelector("#searchResult"),
   drawTool: document.querySelector("#drawTool"),
   saveSelection: document.querySelector("#saveSelection"),
+  deleteAnnotation: document.querySelector("#deleteAnnotation"),
   selectionComment: document.querySelector("#selectionComment"),
+  selectionStatus: document.querySelector("#selectionStatus"),
   sourceTitle: document.querySelector("#sourceTitle"),
   sourceOutput: document.querySelector("#sourceOutput"),
   showFolders: document.querySelector("#showFolders"),
@@ -157,6 +162,7 @@ function bindEvents() {
   window.addEventListener("hashchange", () => {
     void applyHashRoute();
   });
+  document.addEventListener("keydown", onDocumentKeyDown);
 
   for (const control of [
     controls.showFolders,
@@ -176,6 +182,7 @@ function bindEvents() {
 
   controls.searchForm?.addEventListener("submit", searchMap);
   controls.saveSelection?.addEventListener("click", saveSelection);
+  controls.deleteAnnotation?.addEventListener("click", deleteSelectedAnnotation);
   controls.activityForm?.addEventListener("submit", addActivity);
 
   mapArea.addEventListener("wheel", onWheel, { passive: false });
@@ -185,7 +192,7 @@ function bindEvents() {
   canvas.addEventListener("pointerleave", onPointerUp);
   canvas.tabIndex = 0;
   canvas.setAttribute("role", "application");
-  canvas.setAttribute("aria-label", "Codemap canvas. Use arrow keys to pan, plus and minus to zoom, and Enter to select the center.");
+  canvas.setAttribute("aria-label", "CodeCharter map canvas. Use arrow keys to pan, plus and minus to zoom, Enter to select the center, and Escape to cancel the current action.");
   canvas.addEventListener("keydown", onCanvasKeyDown);
 }
 
@@ -351,6 +358,7 @@ function setDrawMode(enabled) {
   controls.drawTool?.setAttribute("aria-pressed", String(enabled));
   if (enabled) state.selectedTarget = null;
   if (!enabled) clearDraftSelection();
+  setSelectionStatus(enabled ? "Draw mode on." : "Draw mode off.");
   updateSelectionPopover();
 }
 
@@ -372,7 +380,9 @@ function resetSelectionOverlay() {
   state.resolvedSelection = null;
   if (controls.selectionComment) controls.selectionComment.value = "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
+  if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = true;
   setSaveButtonLabel();
+  setSelectionStatus("");
   updateSelectionPopover();
 }
 
@@ -387,7 +397,14 @@ function upsertNamedPlace(place) {
 
 function updateSelectionPopover() {
   if (!controls.selectionPopover) return;
-  controls.selectionPopover.hidden = !(state.draftSelection || state.resolvedSelection || state.selectedTarget?.targetType === "annotation");
+  const selectedAnnotation = state.selectedTarget?.targetType === "annotation";
+  const hasDraft = Boolean(state.draftSelection || state.resolvedSelection);
+  controls.selectionPopover.hidden = !(hasDraft || selectedAnnotation);
+  if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = !selectedAnnotation;
+  if (controls.saveSelection) {
+    controls.saveSelection.disabled = !(state.resolvedSelection || selectedAnnotation);
+    setSaveButtonLabel(selectedAnnotation ? COPY_PROMPT_LABEL : SAVE_AND_COPY_LABEL);
+  }
 }
 
 function resize() {
@@ -1077,15 +1094,74 @@ function onCanvasKeyDown(event) {
   }
 }
 
+function onDocumentKeyDown(event) {
+  const commandModifier = event.metaKey || event.ctrlKey;
+  const textEntry = isTextEntryTarget(event.target);
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    cancelCurrentInteraction();
+    return;
+  }
+
+  if (commandModifier && event.key === "Enter") {
+    if (state.resolvedSelection || state.selectedTarget?.targetType === "annotation") {
+      event.preventDefault();
+      void saveSelection();
+    }
+    return;
+  }
+
+  if (!textEntry && commandModifier && event.key.toLowerCase() === "c" && state.selectedTarget?.targetType === "annotation") {
+    event.preventDefault();
+    void copySelectedAnnotationPrompt();
+    return;
+  }
+
+  if (!textEntry && (event.key === "Delete" || event.key === "Backspace") && state.selectedTarget?.targetType === "annotation") {
+    event.preventDefault();
+    void deleteSelectedAnnotation();
+  }
+}
+
+function isTextEntryTarget(target) {
+  return target instanceof HTMLInputElement
+    || target instanceof HTMLTextAreaElement
+    || target instanceof HTMLSelectElement
+    || target?.isContentEditable;
+}
+
+function cancelCurrentInteraction() {
+  if (state.dragging || state.draftSelection || state.resolvedSelection || state.drawing) {
+    resetSelectionOverlay();
+    setSelectionStatus("Selection cancelled.");
+    render();
+    canvas.focus({ preventScroll: true });
+    return;
+  }
+
+  if (state.selectedTarget) {
+    state.selectedTarget = null;
+    if (controls.selectionComment) controls.selectionComment.value = "";
+    updateSelectionPopover();
+    setSelectionStatus("Selection cleared.");
+    render();
+    canvas.focus({ preventScroll: true });
+  }
+}
+
 function onPointerDown(event) {
   canvas.setPointerCapture(event.pointerId);
+  canvas.focus({ preventScroll: true });
   const screen = screenPoint(event);
   const point = screenToWorld(screen);
   state.lastPointerDown = { screen, world: point };
+  state.lastPointerType = event.pointerType;
   if (state.drawing) {
     state.selectedTarget = null;
     state.dragging = { type: "draw", start: point, current: point };
     state.draftSelection = { type: "rect", bounds: { x: point.x, y: point.y, width: 0, height: 0 } };
+    render();
   } else {
     state.dragging = { type: "pan", start: screenPoint(event), view: { ...state.view } };
   }
@@ -1104,22 +1180,20 @@ function onPointerMove(event) {
     state.view.x = state.dragging.view.x - dx;
     state.view.y = state.dragging.view.y - dy;
   } else {
-    state.dragging.current = world;
-    state.draftSelection = {
-      type: "rect",
-      bounds: {
-        x: state.dragging.start.x,
-        y: state.dragging.start.y,
-        width: world.x - state.dragging.start.x,
-        height: world.y - state.dragging.start.y,
-      },
-    };
+    updateDraftSelection(world);
   }
   render();
 }
 
 async function onPointerUp(event) {
   if (state.dragging?.type === "draw" && state.draftSelection) {
+    if (event?.type === "pointerleave") return;
+    if (event) updateDraftSelection(screenToWorld(screenPoint(event)));
+    if (!hasUsableDraftSelection()) {
+      clearDraftSelection();
+      render();
+      return;
+    }
     await previewSelection();
   } else if (state.dragging?.type === "pan" && state.lastPointerDown && event) {
     const current = screenPoint(event);
@@ -1127,6 +1201,28 @@ async function onPointerUp(event) {
     if (moved < 4) await selectMapTarget(state.lastPointerDown.world);
   }
   state.dragging = null;
+}
+
+function updateDraftSelection(world) {
+  if (state.dragging?.type !== "draw") return;
+  state.dragging.current = world;
+  state.draftSelection = {
+    type: "rect",
+    bounds: {
+      x: state.dragging.start.x,
+      y: state.dragging.start.y,
+      width: world.x - state.dragging.start.x,
+      height: world.y - state.dragging.start.y,
+    },
+  };
+}
+
+function hasUsableDraftSelection() {
+  if (!state.draftSelection) return false;
+  const bounds = state.draftSelection.bounds;
+  const width = Math.abs(bounds.width) * canvas.clientWidth * state.view.scale;
+  const height = Math.abs(bounds.height) * canvas.clientHeight * state.view.scale;
+  return width >= MIN_SELECTION_SCREEN_PIXELS && height >= MIN_SELECTION_SCREEN_PIXELS;
 }
 
 async function selectMapTarget(worldPoint) {
@@ -1322,27 +1418,34 @@ async function previewSelection({ routeToken = null } = {}) {
   if (controls.saveSelection) controls.saveSelection.disabled = false;
   setSaveButtonLabel();
   updateSelectionPopover();
+  focusSelectionComment();
+  setSelectionStatus("Selection ready. Add a comment, then save or press Command Enter on macOS or Control Enter on Linux.");
   render();
 }
 
 async function saveSelection() {
+  if (state.selectedTarget?.targetType === "annotation" && !state.resolvedSelection) {
+    await copySelectedAnnotationPrompt();
+    return;
+  }
   if (!state.resolvedSelection) return;
   const comment = controls.selectionComment?.value.trim() ?? "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
+  setSelectionStatus("Saving annotation…");
   const saved = await postJson("/api/annotations", {
     comment,
     level: DEFAULT_MAP_LEVEL,
     geometry: state.resolvedSelection.geometry,
   });
   state.namedPlaces.push(saved.annotation);
-  const shareLink = annotationShareLink(saved.annotation);
-  const copied = await copyToClipboard(shareLink);
+  const copied = await copyToClipboard(annotationClipboardText(saved.annotation));
   state.selectedTarget = { ...saved.annotation, targetType: "annotation" };
   syncHashRoute(createAnnotationHashRoute(saved.annotation.id));
   state.draftSelection = null;
   state.resolvedSelection = null;
-  setSaveButtonLabel(copied ? "Deep link copied" : "Saved. Copy failed");
   updateSelectionPopover();
+  setSaveButtonLabel(copied ? "Codex prompt copied" : "Saved. Copy failed");
+  setSelectionStatus(copied ? "Annotation saved and Codex prompt copied." : "Annotation saved. Copy failed.");
   render();
 }
 
@@ -1350,14 +1453,67 @@ function clearAnnotationForm() {
   if (state.draftSelection || state.resolvedSelection) return;
   if (controls.selectionComment) controls.selectionComment.value = "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
+  if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = true;
   setSaveButtonLabel();
   updateSelectionPopover();
+}
+
+async function deleteSelectedAnnotation() {
+  const annotation = state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null;
+  if (!annotation) return;
+  if (!confirm("Delete this annotation?")) return;
+  if (controls.deleteAnnotation) controls.deleteAnnotation.disabled = true;
+  setSelectionStatus("Deleting annotation…");
+  await deleteJson(`/api/annotations/${encodeURIComponent(annotation.id)}`);
+  state.namedPlaces = state.namedPlaces.filter((place) => place.id !== annotation.id);
+  state.selectedTarget = null;
+  state.draftSelection = null;
+  state.resolvedSelection = null;
+  if (controls.selectionComment) controls.selectionComment.value = "";
+  if (window.location.hash === createAnnotationHashRoute(annotation.id)) {
+    window.history.replaceState(null, "", "#");
+  }
+  if (controls.deleteAnnotation) {
+    controls.deleteAnnotation.disabled = false;
+    controls.deleteAnnotation.hidden = true;
+  }
+  setSaveButtonLabel();
+  setSelectionStatus("Annotation deleted.");
+  updateSelectionPopover();
+  render();
+}
+
+async function copySelectedAnnotationPrompt() {
+  const annotation = state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null;
+  if (!annotation) return false;
+  const copied = await copyToClipboard(annotationClipboardText(annotation));
+  setSaveButtonLabel(copied ? "Codex prompt copied" : "Copy failed");
+  setSelectionStatus(copied ? "Codex prompt copied." : "Copy failed.");
+  return copied;
+}
+
+function focusSelectionComment() {
+  if (!controls.selectionComment || state.lastPointerType === "touch") return;
+  controls.selectionComment.focus({ preventScroll: true });
+}
+
+function setSelectionStatus(message) {
+  if (controls.selectionStatus) controls.selectionStatus.textContent = message;
 }
 
 function annotationShareLink(annotation) {
   const url = new URL(window.location.href);
   url.hash = annotation.browserHash;
   return url.toString();
+}
+
+function annotationClipboardText(annotation) {
+  const prompt = annotation.codexPrompt || `CodeCharter annotation: ${annotation.deepLink}`;
+  return [
+    prompt,
+    "",
+    `CodeCharter URL: ${annotationShareLink(annotation)}`,
+  ].join("\n");
 }
 
 async function copyToClipboard(text) {
@@ -1530,6 +1686,12 @@ function clamp(value, min, max) {
 
 async function fetchJson(url) {
   const response = await fetch(url);
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+async function deleteJson(url) {
+  const response = await fetch(url, { method: "DELETE" });
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 }

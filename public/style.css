@@ -53,11 +53,29 @@ textarea {
 button {
   cursor: pointer;
   padding: 0 10px;
+  touch-action: manipulation;
+}
+
+button:hover:not(:disabled) {
+  background: #f4f8f5;
+  border-color: rgba(47, 70, 88, 0.32);
+}
+
+button:active:not(:disabled) {
+  background: #e9f2ed;
 }
 
 button:disabled {
   cursor: not-allowed;
   opacity: 0.52;
+}
+
+button:focus-visible,
+textarea:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.78);
+  outline-offset: 2px;
 }
 
 .map-shell,
@@ -71,6 +89,18 @@ button:disabled {
   position: relative;
 }
 
+.sr-only {
+  clip: rect(0 0 0 0);
+  border: 0;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
 #mapCanvas {
   background:
     radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.55), transparent 26%),
@@ -80,6 +110,7 @@ button:disabled {
   background-size: auto, 42px 42px, 42px 42px, auto;
   display: block;
   height: 100%;
+  touch-action: none;
   width: 100%;
 }
 
@@ -169,6 +200,30 @@ button:disabled {
   padding-bottom: 8px;
   padding-top: 8px;
   resize: vertical;
+}
+
+.selection-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.selection-actions button {
+  min-width: 0;
+}
+
+.selection-actions button[hidden] {
+  display: none;
+}
+
+.danger-action {
+  border-color: rgba(185, 28, 28, 0.28);
+  color: #991b1b;
+}
+
+.danger-action:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: rgba(185, 28, 28, 0.42);
 }
 
 .map-status {

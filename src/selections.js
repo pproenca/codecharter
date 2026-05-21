@@ -193,15 +193,15 @@ function withAnnotationPrompt(annotation) {
 }
 
 function codexPromptForAnnotation(annotation) {
-  const targets = annotation.resolvedTargets.map(targetReference).filter(Boolean);
-  const shownTargets = targets.slice(0, 20).join(", ");
-  const hiddenCount = Math.max(0, targets.length - 20);
-  const targetSummary = shownTargets
-    ? `${shownTargets}${hiddenCount ? `, and ${hiddenCount} more` : ""}`
-    : "no resolved targets";
   const coveringSet = annotation.coveringSet.length ? annotation.coveringSet.join(", ") : "no geohash coverage";
-  const comment = annotation.comment ? ` User note: ${annotation.comment}` : "";
-  return `Explore CodeCharter annotation (${annotation.deepLink}) at ${coveringSet}. Browser route: ${annotation.browserHash}. Targets: ${targetSummary}.${comment}`;
+  const comment = annotation.comment?.trim() || "<empty>";
+  return [
+    `CodeCharter annotation: ${annotation.deepLink}`,
+    `Browser route: ${annotation.browserHash}`,
+    `Geohash coverage: ${coveringSet}`,
+    `User note: ${comment}`,
+    "Inspect this geohash area in CodeCharter. Read only the files needed to answer the note; do not bulk-read every resolved target.",
+  ].join("\n");
 }
 
 function annotationName(input) {
@@ -214,13 +214,4 @@ function annotationName(input) {
   return firstLine.length > ANNOTATION_NAME_MAX_LENGTH
     ? `${firstLine.slice(0, ANNOTATION_NAME_MAX_LENGTH - 3)}...`
     : firstLine;
-}
-
-function targetReference(target) {
-  if (!target.path) return "";
-  if (target.tokenRange) {
-    return `${target.path}:${target.lineRange.start}-${target.lineRange.end}@${target.tokenRange.start}-${target.tokenRange.end}`;
-  }
-  if (target.lineRange) return `${target.path}:${target.lineRange.start}-${target.lineRange.end}`;
-  return target.path;
 }

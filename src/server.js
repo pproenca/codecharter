@@ -189,6 +189,17 @@ async function handleApi(state, request, response, url) {
     return;
   }
 
+  if (request.method === "DELETE" && url.pathname.startsWith("/api/annotations/")) {
+    const id = decodeURIComponent(url.pathname.slice("/api/annotations/".length));
+    const store = await readJson(state.namedPlacesPath, { places: [] });
+    const index = store.places.findIndex((place) => place.kind === "mapAnnotation" && place.id === id);
+    if (index === -1) throw httpError(404, `No annotation found for id: ${id}`);
+    const [annotation] = store.places.splice(index, 1);
+    await writeJson(state.namedPlacesPath, store);
+    sendJson(response, 200, { deleted: true, annotation });
+    return;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/annotations") {
     const codemap = await loadCodemap(state);
     const body = await readBody(request);

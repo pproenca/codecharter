@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Codemaps</title>
+    <title>CodeCharter</title>
     <link rel="stylesheet" href="/style.css">
   </head>
   <body>
@@ -12,12 +12,16 @@
         <canvas id="mapCanvas"></canvas>
 
         <div class="map-tool-palette" aria-label="Map tools">
-          <button id="drawTool" class="icon-tool square-tool" type="button" title="Draw geohash selection" aria-label="Draw geohash selection" aria-pressed="false"></button>
+          <button id="drawTool" class="icon-tool square-tool" type="button" title="Draw Selection" aria-label="Draw Selection" aria-pressed="false"></button>
         </div>
 
         <div id="selectionPopover" class="selection-popover" hidden>
-          <textarea id="selectionComment" rows="4" placeholder="Ask Codex or leave a comment" aria-label="Annotation comment"></textarea>
-          <button id="saveSelection" type="button" disabled>Save and copy deep link</button>
+          <textarea id="selectionComment" name="annotationComment" rows="4" autocomplete="off" placeholder="Ask Codex or leave a comment…" aria-label="Annotation comment"></textarea>
+          <div class="selection-actions">
+            <button id="saveSelection" type="button" disabled>Save and copy Codex prompt</button>
+            <button id="deleteAnnotation" class="danger-action" type="button" hidden>Delete</button>
+          </div>
+          <div id="selectionStatus" class="sr-only" role="status" aria-live="polite"></div>
         </div>
 
         <footer class="map-status">

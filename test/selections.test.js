@@ -47,11 +47,13 @@ test("creates map annotations with a Codex-ready spatial prompt", () => {
   assert.equal(annotation.deepLink, `codecharter://annotation/${annotation.id}`);
   assert.equal(annotation.browserHash, `#/annotation/${annotation.id}`);
   assert.equal(annotation.resolvedTargets.length, 1);
-  assert.match(annotation.codexPrompt, /Explore CodeCharter annotation \(codecharter:\/\/annotation\//);
+  assert.match(annotation.codexPrompt, /CodeCharter annotation: codecharter:\/\/annotation\//);
   assert.match(annotation.codexPrompt, /codecharter:\/\/annotation\//);
   assert.match(annotation.codexPrompt, /#\/annotation\//);
-  assert.match(annotation.codexPrompt, /src\/a\.ts/);
-  assert.match(annotation.codexPrompt, /hey explore this area/);
+  assert.match(annotation.codexPrompt, /Geohash coverage: s123456/);
+  assert.match(annotation.codexPrompt, /User note: hey explore this area/);
+  assert.doesNotMatch(annotation.codexPrompt, /Resolved targets/);
+  assert.doesNotMatch(annotation.codexPrompt, /src\/a\.ts/);
 });
 
 test("derives map annotation labels from comments when no title is provided", () => {
@@ -85,7 +87,8 @@ test("refreshes map annotations against current geometry without changing identi
 
   assert.equal(refreshed.id, "annotation-1");
   assert.deepEqual(refreshed.resolvedTargets.map((target) => target.path), ["src/a.ts", "src/c.ts"]);
-  assert.match(refreshed.codexPrompt, /src\/c\.ts/);
+  assert.match(refreshed.codexPrompt, /s123456/);
+  assert.match(refreshed.codexPrompt, /s999999/);
 });
 
 test("resolves detailed drawn selections to line coordinates", () => {

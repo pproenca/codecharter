@@ -59,7 +59,9 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.equal(annotationResponse.annotation.comment, "hey explore this area");
     assert.equal(annotationResponse.annotation.deepLink, `codecharter://annotation/${annotationResponse.annotation.id}`);
     assert.equal(annotationResponse.annotation.browserHash, `#/annotation/${annotationResponse.annotation.id}`);
-    assert.match(annotationResponse.annotation.codexPrompt, /src\/app\.ts/);
+    assert.match(annotationResponse.annotation.codexPrompt, /CodeCharter annotation: codecharter:\/\/annotation\//);
+    assert.match(annotationResponse.annotation.codexPrompt, /User note: hey explore this area/);
+    assert.doesNotMatch(annotationResponse.annotation.codexPrompt, /src\/app\.ts/);
     const annotations = await getJson(`${baseUrl}/api/annotations`);
     assert.equal(annotations.annotations.length, 1);
     assert.equal(annotations.annotations[0].resolvedTargets.length, 1);
@@ -154,6 +156,33 @@ test("accepts pre-resolved activity without reading the map sidecar", async () =
   }
 });
 
+test("deletes saved map annotations", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-delete-annotation-"));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
+
+  const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
+  const address = server.address();
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+
+  try {
+    const created = await postJson(`${baseUrl}/api/annotations`, {
+      comment: "delete me",
+      level: "file",
+      geometry: { type: "rect", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    });
+
+    const deleted = await deleteJson(`${baseUrl}/api/annotations/${created.annotation.id}`);
+    assert.equal(deleted.deleted, true);
+    assert.equal(deleted.annotation.id, created.annotation.id);
+
+    const annotations = await getJson(`${baseUrl}/api/annotations`);
+    assert.equal(annotations.annotations.length, 0);
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
 test("uses the next available port when the requested port is occupied", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-port-fallback-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
@@ -192,6 +221,12 @@ async function postJson(url, body) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+  if (!response.ok) assert.fail(await response.text());
+  return response.json();
+}
+
+async function deleteJson(url) {
+  const response = await fetch(url, { method: "DELETE" });
   if (!response.ok) assert.fail(await response.text());
   return response.json();
 }

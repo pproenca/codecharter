@@ -371,6 +371,22 @@ const MAP_SEARCH_ACTION_HANDLERS = {
   },
 };
 
+const CANVAS_KEYBOARD_ACTION_HANDLERS = {
+  pan: (action) => animateViewTo(panViewByScreenDelta(state.view, action.delta, viewportSize())),
+  zoomIn: () => zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true }),
+  zoomOut: () => zoomAt(viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR, { animate: true }),
+  fitCodebase: () => fitCodebaseView({ animate: true }),
+  selectCenter: () => selectMapTarget(screenToWorld(viewportCenter())),
+};
+
+const DOCUMENT_KEYBOARD_ACTION_HANDLERS = {
+  startSpacePan: () => setSpacePanMode(true),
+  cancelInteraction: () => cancelCurrentInteraction(),
+  saveSelection: () => saveSelection(),
+  copyAnnotationPrompt: () => copySelectedAnnotationPrompt(),
+  deleteAnnotation: () => deleteSelectedAnnotation(),
+};
+
 async function applyHashRoute() {
   const routeToken = ++routeSequence;
   const route = parseHashRoute(window.location.hash);
@@ -1241,32 +1257,10 @@ function normalizeWheelDelta(delta, deltaMode) {
 function onCanvasKeyDown(event) {
   canvas.classList.remove("pointer-focused");
   const action = canvasKeyboardAction(event);
-  if (!action) return;
+  const handleAction = action ? CANVAS_KEYBOARD_ACTION_HANDLERS[action.type] : null;
+  if (!handleAction) return;
   event.preventDefault();
-
-  if (action.type === "pan") {
-    animateViewTo(panViewByScreenDelta(state.view, action.delta, viewportSize()));
-    return;
-  }
-
-  if (action.type === "zoomIn") {
-    zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true });
-    return;
-  }
-
-  if (action.type === "zoomOut") {
-    zoomAt(viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR, { animate: true });
-    return;
-  }
-
-  if (action.type === "fitCodebase") {
-    fitCodebaseView({ animate: true });
-    return;
-  }
-
-  if (action.type === "selectCenter") {
-    selectMapTarget(screenToWorld(viewportCenter()));
-  }
+  void handleAction(action);
 }
 
 function onDocumentKeyDown(event) {
@@ -1276,36 +1270,10 @@ function onDocumentKeyDown(event) {
     hasResolvedSelection: Boolean(state.resolvedSelection),
     hasSelectedAnnotation: state.selectedTarget?.targetType === "annotation",
   });
-  if (!action) return;
-
-  if (action.type === "startSpacePan") {
-    event.preventDefault();
-    setSpacePanMode(true);
-    return;
-  }
-
-  if (action.type === "cancelInteraction") {
-    event.preventDefault();
-    cancelCurrentInteraction();
-    return;
-  }
-
-  if (action.type === "saveSelection") {
-    event.preventDefault();
-    void saveSelection();
-    return;
-  }
-
-  if (action.type === "copyAnnotationPrompt") {
-    event.preventDefault();
-    void copySelectedAnnotationPrompt();
-    return;
-  }
-
-  if (action.type === "deleteAnnotation") {
-    event.preventDefault();
-    void deleteSelectedAnnotation();
-  }
+  const handleAction = action ? DOCUMENT_KEYBOARD_ACTION_HANDLERS[action.type] : null;
+  if (!handleAction) return;
+  event.preventDefault();
+  void handleAction(action);
 }
 
 function onDocumentKeyUp(event) {

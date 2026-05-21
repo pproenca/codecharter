@@ -63,6 +63,31 @@ function takeFlag(args, name) {
   return true;
 }
 
+const CLI_COMMANDS = [
+  cliCommand(["--help", "-h", "help"], runHelpCommand),
+  cliCommand(["--version", "-V", "version"], runVersionCommand),
+  cliCommand(["doctor"], runDoctorCommand),
+  cliCommand(["generate"], runGenerateCommand),
+  cliCommand(["init", "setup"], runInitCommand),
+  cliCommand(["dev"], runDevCommand),
+  cliCommand(["clear"], runClearCommand),
+  cliCommand(["resolve"], runResolveCommand),
+  cliCommand(["annotation"], runAnnotationCommand),
+  cliCommand(["annotations"], runAnnotationsCommand),
+  cliCommand(["api"], runApiCommand),
+  cliCommand(["activity"], runActivityCommand),
+  cliCommand(["codex-hook"], runCodexHookCommand),
+  cliCommand(["serve"], runServeCommand),
+];
+
+const COMMANDS_BY_NAME = new Map(CLI_COMMANDS.flatMap((command) =>
+  command.aliases.map((alias) => [alias, command])
+));
+
+function cliCommand(aliases, run) {
+  return { aliases, run };
+}
+
 async function main() {
   const args = process.argv.slice(2);
   let jsonOutput = takeFlag(args, "--json");
@@ -72,222 +97,220 @@ async function main() {
   jsonOutput = takeFlag(args, "--json") || jsonOutput;
   takeFlag(args, "--plain");
 
-  if (!command || command === "--help" || command === "-h" || command === "help") {
-    console.log(usage());
-    return;
-  }
-
-  if (command === "--version" || command === "-V" || command === "version") {
-    console.log((await packageMetadata()).version);
-    return;
-  }
-
-  if (command === "doctor") {
-    const root = resolvePath(takeOption(args, "--root", "."));
-    const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
-    const server = takeOption(args, "--server", undefined);
-    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
-    const result = await doctor({ root, mapPath, server });
-    if (jsonOutput) printJson(result);
-    else printDoctor(result);
-    return;
-  }
-
-  if (command === "generate") {
-    const root = resolvePath(takeOption(args, "--root", "."));
-    const out = resolveMapPath(root, takeOption(args, "--out", DEFAULT_MAP_FILE));
-    const fresh = takeFlag(args, "--fresh");
-    const quiet = takeFlag(args, "--quiet");
-    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
-
-    await writeCodemap({ root, out, fresh, quiet });
-    return;
-  }
-
-  if (command === "init" || command === "setup") {
-    const root = resolvePath(takeOption(args, "--root", "."));
-    const out = resolveMapPath(root, takeOption(args, "--out", DEFAULT_MAP_FILE));
-    const fresh = takeFlag(args, "--fresh");
-    const yes = takeFlag(args, "--yes") || command === "setup";
-    const startDev = command === "setup" ? !takeFlag(args, "--no-dev") : takeFlag(args, "--dev");
-    const open = takeFlag(args, "--open");
-    const port = Number(takeOption(args, "--port", "4173"));
-    const agentId = takeOption(args, "--agent", process.env.CODEMAP_AGENT_ID ?? "codex");
-    const watch = !takeFlag(args, "--no-watch");
-    const noCodex = takeFlag(args, "--no-codex");
-    const noGitHooks = takeFlag(args, "--no-git-hooks");
-    if (!Number.isInteger(port) || port < 1) throw new Error("Port must be a positive integer");
-    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
-
-    const installCodex = noCodex ? false : yes ? true : await confirm("Install Codex activity tracking hooks?", true);
-    const installGitHooks = noGitHooks ? false : yes ? true : await confirm("Install local Git hooks to refresh the map?", true);
-
-    if (startDev) {
-      await setupAndRunDev({
-        root,
-        mapPath: out,
-        fresh,
-        installCodex,
-        installGitHooks,
-        port,
-        agentId,
-        watch,
-        open,
-        printHooksNext: installCodex,
-      });
-    } else {
-      await setupCodecharter({
-        root,
-        out,
-        fresh,
-        installCodex,
-        installGitHooks,
-      });
-      console.log("next: codecharter dev");
-    }
-    return;
-  }
-
-  if (command === "dev") {
-    const root = resolvePath(takeOption(args, "--root", "."));
-    const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
-    const port = Number(takeOption(args, "--port", "4173"));
-    const agentId = takeOption(args, "--agent", process.env.CODEMAP_AGENT_ID ?? "codex");
-    const watch = !takeFlag(args, "--no-watch");
-    const fresh = takeFlag(args, "--fresh");
-    const setup = takeFlag(args, "--setup");
-    const open = takeFlag(args, "--open");
-    if (!Number.isInteger(port) || port < 1) throw new Error("Port must be a positive integer");
-    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
-
-    if (setup) {
-      await setupAndRunDev({
-        root,
-        mapPath,
-        fresh,
-        installCodex: true,
-        installGitHooks: true,
-        port,
-        agentId,
-        watch,
-        open,
-        printHooksNext: true,
-      });
-    } else {
-      await runDevServer({ root, mapPath, port, agentId, watch, fresh, open });
-    }
-    return;
-  }
-
-  if (command === "clear") {
-    await runClearActivityCommand(args, jsonOutput);
-    return;
-  }
-
-  if (command === "resolve") {
-    const root = resolvePath(takeOption(args, "--root", "."));
-    const mapPath = await resolveCliMapPath(takeOption(args, "--map", undefined), root);
-    const server = takeOption(args, "--server", undefined);
-    const columnStartRaw = takeOption(args, "--column-start", undefined);
-    const columnEndRaw = takeOption(args, "--column-end", undefined);
-    const [reference, lineStartRaw, lineEndRaw] = args;
-    if (!reference) throw new Error("resolve requires a CodeCharter deep link or path");
-    if (args.length > 3) throw new Error(`Unknown arguments: ${args.slice(3).join(" ")}`);
-
-    if (isCodecharterDeepLink(reference)) {
-      const resolved = await resolveDeepLink({ root, mapPath, reference, server });
-      printResult(resolved, jsonOutput, printResolvedDeepLink);
-      return;
-    }
-
-    const address = await resolveCliAddress(mapPath, { path: reference, lineStartRaw, lineEndRaw, columnStartRaw, columnEndRaw });
-    printResult(address, jsonOutput, printResolvedAddress);
-    return;
-  }
-
-  if (command === "annotation") {
-    const root = resolvePath(takeOption(args, "--root", "."));
-    const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
-    const server = takeOption(args, "--server", undefined);
-    const [reference] = args;
-    if (!reference) throw new Error("annotation requires an id, codecharter://annotation link, or CodeCharter URL");
-    if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
-
-    printResult(await readAnnotation({ root, mapPath, reference, server }), jsonOutput, printAnnotation);
-    return;
-  }
-
-  if (command === "annotations") {
-    const root = resolvePath(takeOption(args, "--root", "."));
-    const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
-    const server = takeOption(args, "--server", undefined);
-    const limit = optionalNumber(takeOption(args, "--limit", undefined));
-    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
-
-    printResult(await listAnnotations({ root, mapPath, server, limit }), jsonOutput, printAnnotations);
-    return;
-  }
-
-  if (command === "api") {
-    const server = takeOption(args, "--server", undefined);
-    const [reference] = args;
-    if (!reference) throw new Error("api requires a local /api path or CodeCharter API URL");
-    if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
-
-    printResult(await readApi({ reference, server }), jsonOutput, printApi);
-    return;
-  }
-
-  if (command === "activity") {
-    try {
-      if (args[0] === "clear") {
-        args.shift();
-        await runClearActivityCommand(args, jsonOutput);
-        return;
-      }
-
-      const mapPath = await resolveCliMapPath(takeOption(args, "--map", undefined));
-      const outPath = resolvePath(takeOption(args, "--out", DEFAULT_ACTIVITY_ARCHIVE));
-      const agentId = takeOption(args, "--agent", "codex");
-      const activityState = takeOption(args, "--state", "editing");
-      const note = takeOption(args, "--note", "");
-      const columnStartRaw = takeOption(args, "--column-start", undefined);
-      const columnEndRaw = takeOption(args, "--column-end", undefined);
-      const [path, lineStartRaw, lineEndRaw] = args;
-      if (!path) throw new Error("activity requires a path");
-
-      const address = await resolveCliAddress(mapPath, { path, lineStartRaw, lineEndRaw, columnStartRaw, columnEndRaw });
-      const event = createActivityEvent(address, { agentId, activityState, note });
-      await appendActivityEvents(outPath, [event]);
-      printResult({ accepted: true, event }, jsonOutput, printActivityResult);
-    } catch (error) {
-      printResult({ accepted: false, error: error.message }, jsonOutput, printActivityResult);
-    }
-    return;
-  }
-
-  if (command === "codex-hook") {
-    const hookInput = await readStdin();
-    await runCodexHook({ input: hookInput, cwd: process.cwd() });
-    return;
-  }
-
-  if (command === "serve") {
-    const root = resolvePath(takeOption(args, "--root", "."));
-    const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
-    const port = Number(takeOption(args, "--port", "4173"));
-    const open = takeFlag(args, "--open");
-    if (!Number.isInteger(port) || port < 1) throw new Error("Port must be a positive integer");
-    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
-
-    const server = await startServer({ root, mapPath, port });
-    await printViewerReady(server, { open });
+  const commandHandler = command ? COMMANDS_BY_NAME.get(command) : { run: runHelpCommand };
+  if (commandHandler) {
+    await commandHandler.run({ args, command, jsonOutput });
     return;
   }
 
   if (jsonOutput) throw new Error(`Unknown command: ${command}`);
   console.error(usage());
   process.exitCode = 1;
+}
+
+async function runHelpCommand() {
+  console.log(usage());
+}
+
+async function runVersionCommand() {
+  console.log((await packageMetadata()).version);
+}
+
+async function runDoctorCommand({ args, jsonOutput }) {
+  const root = resolvePath(takeOption(args, "--root", "."));
+  const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
+  const server = takeOption(args, "--server", undefined);
+  if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+  const result = await doctor({ root, mapPath, server });
+  if (jsonOutput) printJson(result);
+  else printDoctor(result);
+}
+
+async function runGenerateCommand({ args }) {
+  const root = resolvePath(takeOption(args, "--root", "."));
+  const out = resolveMapPath(root, takeOption(args, "--out", DEFAULT_MAP_FILE));
+  const fresh = takeFlag(args, "--fresh");
+  const quiet = takeFlag(args, "--quiet");
+  if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+
+  await writeCodemap({ root, out, fresh, quiet });
+}
+
+async function runInitCommand({ args, command }) {
+  const root = resolvePath(takeOption(args, "--root", "."));
+  const out = resolveMapPath(root, takeOption(args, "--out", DEFAULT_MAP_FILE));
+  const fresh = takeFlag(args, "--fresh");
+  const yes = takeFlag(args, "--yes") || command === "setup";
+  const startDev = command === "setup" ? !takeFlag(args, "--no-dev") : takeFlag(args, "--dev");
+  const open = takeFlag(args, "--open");
+  const port = Number(takeOption(args, "--port", "4173"));
+  const agentId = takeOption(args, "--agent", process.env.CODEMAP_AGENT_ID ?? "codex");
+  const watch = !takeFlag(args, "--no-watch");
+  const noCodex = takeFlag(args, "--no-codex");
+  const noGitHooks = takeFlag(args, "--no-git-hooks");
+  assertPositiveIntegerPort(port);
+  if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+
+  const installCodex = noCodex ? false : yes ? true : await confirm("Install Codex activity tracking hooks?", true);
+  const installGitHooks = noGitHooks ? false : yes ? true : await confirm("Install local Git hooks to refresh the map?", true);
+
+  if (startDev) {
+    await setupAndRunDev({
+      root,
+      mapPath: out,
+      fresh,
+      installCodex,
+      installGitHooks,
+      port,
+      agentId,
+      watch,
+      open,
+      printHooksNext: installCodex,
+    });
+    return;
+  }
+
+  await setupCodecharter({
+    root,
+    out,
+    fresh,
+    installCodex,
+    installGitHooks,
+  });
+  console.log("next: codecharter dev");
+}
+
+async function runDevCommand({ args }) {
+  const root = resolvePath(takeOption(args, "--root", "."));
+  const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
+  const port = Number(takeOption(args, "--port", "4173"));
+  const agentId = takeOption(args, "--agent", process.env.CODEMAP_AGENT_ID ?? "codex");
+  const watch = !takeFlag(args, "--no-watch");
+  const fresh = takeFlag(args, "--fresh");
+  const setup = takeFlag(args, "--setup");
+  const open = takeFlag(args, "--open");
+  assertPositiveIntegerPort(port);
+  if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+
+  if (setup) {
+    await setupAndRunDev({
+      root,
+      mapPath,
+      fresh,
+      installCodex: true,
+      installGitHooks: true,
+      port,
+      agentId,
+      watch,
+      open,
+      printHooksNext: true,
+    });
+    return;
+  }
+
+  await runDevServer({ root, mapPath, port, agentId, watch, fresh, open });
+}
+
+async function runClearCommand({ args, jsonOutput }) {
+  await runClearActivityCommand(args, jsonOutput);
+}
+
+async function runResolveCommand({ args, jsonOutput }) {
+  const root = resolvePath(takeOption(args, "--root", "."));
+  const mapPath = await resolveCliMapPath(takeOption(args, "--map", undefined), root);
+  const server = takeOption(args, "--server", undefined);
+  const columnStartRaw = takeOption(args, "--column-start", undefined);
+  const columnEndRaw = takeOption(args, "--column-end", undefined);
+  const [reference, lineStartRaw, lineEndRaw] = args;
+  if (!reference) throw new Error("resolve requires a CodeCharter deep link or path");
+  if (args.length > 3) throw new Error(`Unknown arguments: ${args.slice(3).join(" ")}`);
+
+  if (isCodecharterDeepLink(reference)) {
+    const resolved = await resolveDeepLink({ root, mapPath, reference, server });
+    printResult(resolved, jsonOutput, printResolvedDeepLink);
+    return;
+  }
+
+  const address = await resolveCliAddress(mapPath, { path: reference, lineStartRaw, lineEndRaw, columnStartRaw, columnEndRaw });
+  printResult(address, jsonOutput, printResolvedAddress);
+}
+
+async function runAnnotationCommand({ args, jsonOutput }) {
+  const root = resolvePath(takeOption(args, "--root", "."));
+  const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
+  const server = takeOption(args, "--server", undefined);
+  const [reference] = args;
+  if (!reference) throw new Error("annotation requires an id, codecharter://annotation link, or CodeCharter URL");
+  if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
+
+  printResult(await readAnnotation({ root, mapPath, reference, server }), jsonOutput, printAnnotation);
+}
+
+async function runAnnotationsCommand({ args, jsonOutput }) {
+  const root = resolvePath(takeOption(args, "--root", "."));
+  const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
+  const server = takeOption(args, "--server", undefined);
+  const limit = optionalNumber(takeOption(args, "--limit", undefined));
+  if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+
+  printResult(await listAnnotations({ root, mapPath, server, limit }), jsonOutput, printAnnotations);
+}
+
+async function runApiCommand({ args, jsonOutput }) {
+  const server = takeOption(args, "--server", undefined);
+  const [reference] = args;
+  if (!reference) throw new Error("api requires a local /api path or CodeCharter API URL");
+  if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
+
+  printResult(await readApi({ reference, server }), jsonOutput, printApi);
+}
+
+async function runActivityCommand({ args, jsonOutput }) {
+  try {
+    if (args[0] === "clear") {
+      args.shift();
+      await runClearActivityCommand(args, jsonOutput);
+      return;
+    }
+
+    const mapPath = await resolveCliMapPath(takeOption(args, "--map", undefined));
+    const outPath = resolvePath(takeOption(args, "--out", DEFAULT_ACTIVITY_ARCHIVE));
+    const agentId = takeOption(args, "--agent", "codex");
+    const activityState = takeOption(args, "--state", "editing");
+    const note = takeOption(args, "--note", "");
+    const columnStartRaw = takeOption(args, "--column-start", undefined);
+    const columnEndRaw = takeOption(args, "--column-end", undefined);
+    const [path, lineStartRaw, lineEndRaw] = args;
+    if (!path) throw new Error("activity requires a path");
+
+    const address = await resolveCliAddress(mapPath, { path, lineStartRaw, lineEndRaw, columnStartRaw, columnEndRaw });
+    const event = createActivityEvent(address, { agentId, activityState, note });
+    await appendActivityEvents(outPath, [event]);
+    printResult({ accepted: true, event }, jsonOutput, printActivityResult);
+  } catch (error) {
+    printResult({ accepted: false, error: error.message }, jsonOutput, printActivityResult);
+  }
+}
+
+async function runCodexHookCommand() {
+  const hookInput = await readStdin();
+  await runCodexHook({ input: hookInput, cwd: process.cwd() });
+}
+
+async function runServeCommand({ args }) {
+  const root = resolvePath(takeOption(args, "--root", "."));
+  const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
+  const port = Number(takeOption(args, "--port", "4173"));
+  const open = takeFlag(args, "--open");
+  assertPositiveIntegerPort(port);
+  if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+
+  const server = await startServer({ root, mapPath, port });
+  await printViewerReady(server, { open });
+}
+
+function assertPositiveIntegerPort(port) {
+  if (!Number.isInteger(port) || port < 1) throw new Error("Port must be a positive integer");
 }
 
 async function setupAndRunDev({

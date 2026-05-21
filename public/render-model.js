@@ -46,6 +46,32 @@ const ACTIVITY_STATE_STYLES = {
   reviewing: { fill: "#f59e0b", stroke: "#fef3c7", label: "#92400e" },
 };
 
+const DOUBLE_CLICK_TARGET_ACTIONS = Object.freeze({
+  annotation: "focusAnnotation",
+  folder: "selectFolder",
+  file: "selectFile",
+  activity: "selectActivity",
+});
+
+const MAP_TARGET_SELECTION_ACTIONS = Object.freeze({
+  annotation: "focusAnnotation",
+  activity: "selectActivity",
+  folder: "inspectFolder",
+  file: "inspectFile",
+});
+
+const MAP_ROUTE_FOCUS_ACTIONS = Object.freeze({
+  file: { type: "focusFile", zoomPadding: 1.35 },
+  folder: { type: "focusFolder", zoomPadding: 1.6 },
+});
+
+const MAP_SEARCH_ACTIONS = Object.freeze({
+  annotation: "focusPlace",
+  namedPlace: "focusPlace",
+  file: "focusFile",
+  folder: "focusFolder",
+});
+
 export function detailBand(scale) {
   if (scale < 1.35) return "district";
   if (scale < 2.4) return "neighborhood";
@@ -297,20 +323,13 @@ export function documentKeyboardAction(event, context = {}) {
 
 export function doubleClickMapAction(hit) {
   if (!hit) return null;
-  if (hit.targetType === "annotation") return { type: "focusAnnotation" };
-  if (hit.targetType === "folder") return { type: "selectFolder" };
-  if (hit.targetType === "file") return { type: "selectFile" };
-  if (hit.targetType === "activity") return { type: "selectActivity" };
-  return null;
+  const type = DOUBLE_CLICK_TARGET_ACTIONS[hit.targetType];
+  return type ? { type } : null;
 }
 
 export function mapTargetSelectionAction(hit) {
   if (!hit) return { type: "clearSelection" };
-  if (hit.targetType === "annotation") return { type: "focusAnnotation" };
-  if (hit.targetType === "activity") return { type: "selectActivity" };
-  if (hit.targetType === "folder") return { type: "inspectFolder" };
-  if (hit.targetType === "file") return { type: "inspectFile" };
-  return { type: "clearSelection" };
+  return { type: MAP_TARGET_SELECTION_ACTIONS[hit.targetType] ?? "clearSelection" };
 }
 
 export function isSpaceKeyEvent(event) {
@@ -520,9 +539,8 @@ export function hashRouteFocusIntent(route, { hasMap = true } = {}) {
 
 export function mapRouteFocusAction(target) {
   if (!target) return null;
-  if (target.targetType === "file") return { type: "focusFile", zoomPadding: 1.35 };
-  if (target.targetType === "folder") return { type: "focusFolder", zoomPadding: 1.6 };
-  return null;
+  const action = MAP_ROUTE_FOCUS_ACTIONS[target.targetType];
+  return action ? { ...action } : null;
 }
 
 export function mapSearchMatch(codemap, namedPlaces, query) {
@@ -555,10 +573,7 @@ export function mapSearchMatch(codemap, namedPlaces, query) {
 
 export function mapSearchAction(match) {
   if (!match) return { type: "noMatch" };
-  if (match.type === "annotation" || match.type === "namedPlace") return { type: "focusPlace" };
-  if (match.type === "file") return { type: "focusFile" };
-  if (match.type === "folder") return { type: "focusFolder" };
-  return { type: "noMatch" };
+  return { type: MAP_SEARCH_ACTIONS[match.type] ?? "noMatch" };
 }
 
 export function mapSelectionPanel(target) {

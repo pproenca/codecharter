@@ -30,10 +30,14 @@ export async function runCodexHook({ input = "", cwd = process.cwd() } = {}) {
 }
 
 async function codexHookEvents({ root, mapPath, payload }) {
+  const threadId = codexThreadId(payload);
+  const threadUri = codexThreadUri(payload, threadId);
   const base = {
     agentId: "codex",
     hookEventName: payload.hook_event_name,
     sessionId: payload.session_id,
+    threadId,
+    threadUri,
     turnId: payload.turn_id,
     model: payload.model,
   };
@@ -71,6 +75,8 @@ async function codexHookEvents({ root, mapPath, payload }) {
         note: change.note ?? `Codex ${payload.tool_name ?? "tool"} activity`,
         hookEventName: payload.hook_event_name,
         sessionId: payload.session_id,
+        threadId,
+        threadUri,
         turnId: payload.turn_id,
         model: payload.model,
       }));
@@ -110,9 +116,38 @@ function heartbeatEvent(input) {
     note: input.note,
     hookEventName: input.hookEventName,
     sessionId: input.sessionId,
+    threadId: input.threadId,
+    threadUri: input.threadUri,
     turnId: input.turnId,
     model: input.model,
   };
+}
+
+function codexThreadId(payload) {
+  return normalizeCodexThreadId(
+    payload.thread_id
+      ?? payload.threadId
+      ?? payload.codex_thread_id
+      ?? payload.thread_uri
+      ?? payload.threadUri
+      ?? payload.thread?.id
+      ?? payload.thread?.uri
+      ?? payload.session_id
+      ?? process.env.CODEX_THREAD_ID,
+  );
+}
+
+function codexThreadUri(payload, threadId) {
+  const explicit = payload.thread_uri ?? payload.threadUri ?? payload.thread?.uri ?? process.env.CODEX_THREAD_URI;
+  if (explicit) return String(explicit);
+  return threadId ? `codex://threads/${threadId}` : undefined;
+}
+
+function normalizeCodexThreadId(value) {
+  if (!value) return undefined;
+  const text = String(value);
+  const match = text.match(/^codex:\/\/threads\/([^/?#]+)/);
+  return match ? match[1] : text;
 }
 
 function inferActivityState(payload) {

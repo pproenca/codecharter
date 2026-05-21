@@ -12,6 +12,8 @@ export function createActivityEvent(address, input) {
     note: input.note ?? "",
     ...(input.hookEventName ? { hookEventName: input.hookEventName } : {}),
     ...(input.sessionId ? { sessionId: input.sessionId } : {}),
+    ...(input.threadId ? { threadId: input.threadId } : {}),
+    ...(input.threadUri ? { threadUri: input.threadUri } : {}),
     ...(input.turnId ? { turnId: input.turnId } : {}),
     ...(input.model ? { model: input.model } : {}),
   };

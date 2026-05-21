@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { extname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createActivityEvent } from "./activity.js";
 import { createActivityStore } from "./activity-store.js";
@@ -26,19 +26,20 @@ export async function startServer({
   root,
   mapPath,
   port,
+  activityArchivePath,
   activityFlushIntervalMs,
   publicRoot = BUNDLED_PUBLIC_ROOT,
   portSearchLimit = DEFAULT_PORT_SEARCH_LIMIT,
 }) {
-  const activityArchivePath = join(root, DEFAULT_ACTIVITY_ARCHIVE);
+  const resolvedActivityArchivePath = activityArchivePath ?? await configuredActivityArchivePath(root);
   const state = {
     root,
     mapPath,
     publicRoot,
     namedPlacesPath: join(root, ".codecharter", "named-places.json"),
-    activityArchivePath,
+    activityArchivePath: resolvedActivityArchivePath,
     activityStore: createActivityStore({
-      archivePath: activityArchivePath,
+      archivePath: resolvedActivityArchivePath,
       flushIntervalMs: activityFlushIntervalMs,
     }),
   };
@@ -59,6 +60,12 @@ export async function startServer({
 
   console.error(`server: http://127.0.0.1:${actualPort}`);
   return server;
+}
+
+async function configuredActivityArchivePath(root) {
+  const config = await readJson(join(root, ".codecharter", "config.json"), {});
+  const configured = config.agents?.codex?.activityPath ?? config.activityPath ?? DEFAULT_ACTIVITY_ARCHIVE;
+  return isAbsolute(configured) ? configured : resolve(root, configured);
 }
 
 async function listenOnAvailablePort(server, { port, portSearchLimit }) {

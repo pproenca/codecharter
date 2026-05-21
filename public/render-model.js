@@ -546,9 +546,13 @@ export function sortedActivityEvents(events, limit = 80, options = {}) {
 export function latestActivityByAgent(events, options = {}) {
   const latest = new Map();
   for (const event of sortedActivityEvents(events, Number.POSITIVE_INFINITY, options)) {
-    latest.set(event.agentId, event);
+    latest.set(activityActorKey(event), event);
   }
   return latest;
+}
+
+export function activityActorKey(event) {
+  return `${event?.agentId ?? "agent"}:${event?.threadId ?? event?.sessionId ?? "manual"}`;
 }
 
 function activityAgeMinutes(event, now) {
@@ -558,7 +562,7 @@ function activityAgeMinutes(event, now) {
 }
 
 function activityTrailKey(event) {
-  return `${event.agentId ?? "agent"}:${event.sessionId ?? "manual"}`;
+  return activityActorKey(event);
 }
 
 function shouldStartActivityTrailGroup(previous, event, maxGapMinutes) {

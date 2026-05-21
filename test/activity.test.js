@@ -30,6 +30,23 @@ test("normalizes blocked activity to an active reviewing state", () => {
   assert.equal(event.activityState, "reviewing");
 });
 
+test("preserves Codex thread identity on activity events", () => {
+  const event = createActivityEvent(
+    { deepLink: "codecharter://file/s123456?path=src%2Fa.ts", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    {
+      agentId: "codex",
+      activityState: "editing",
+      sessionId: "session-1",
+      threadId: "019e4c43-dd59-7f30-aea5-c00e63abc63f",
+      threadUri: "codex://threads/019e4c43-dd59-7f30-aea5-c00e63abc63f",
+    },
+  );
+
+  assert.equal(event.sessionId, "session-1");
+  assert.equal(event.threadId, "019e4c43-dd59-7f30-aea5-c00e63abc63f");
+  assert.equal(event.threadUri, "codex://threads/019e4c43-dd59-7f30-aea5-c00e63abc63f");
+});
+
 test("CLI appends Codex activity events to the JSONL activity archive", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-activity-"));
   await mkdir(join(root, "src"), { recursive: true });

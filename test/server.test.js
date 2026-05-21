@@ -249,6 +249,45 @@ test("serves activity written directly to the JSONL archive by Codex hooks", asy
   }
 });
 
+test("serves hook activity from the configured activity archive", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-configured-activity-"));
+  await mkdir(join(root, ".codecharter"), { recursive: true });
+  await mkdir(join(root, ".scratch", "codecharter"), { recursive: true });
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
+  await writeFile(join(root, ".codecharter", "config.json"), JSON.stringify({
+    activityPath: ".scratch/codecharter/activity.jsonl",
+    agents: {
+      codex: {
+        activityPath: ".scratch/codecharter/activity.jsonl",
+      },
+    },
+  }));
+
+  const archivedEvent = {
+    id: "configured-hook-event-1",
+    agentId: "codex",
+    activityState: "editing",
+    timestamp: "2026-05-21T19:28:54.728Z",
+    threadId: "019e4c43-dd59-7f30-aea5-c00e63abc63f",
+    threadUri: "codex://threads/019e4c43-dd59-7f30-aea5-c00e63abc63f",
+    address: sampleActivityAddress(),
+  };
+  await appendFile(join(root, ".scratch", "codecharter", "activity.jsonl"), `${JSON.stringify(archivedEvent)}\n`);
+
+  const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  try {
+    const activity = await getJson(`${baseUrl}/api/activity`);
+    assert.equal(activity.events.length, 1);
+    assert.equal(activity.events[0].id, "configured-hook-event-1");
+    assert.equal(activity.events[0].threadUri, "codex://threads/019e4c43-dd59-7f30-aea5-c00e63abc63f");
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
 test("deletes saved map annotations", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-delete-annotation-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));

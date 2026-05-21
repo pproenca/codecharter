@@ -9,6 +9,7 @@ import {
   activityTrailPointGroups,
   activityTissueBox,
   activityVisualEncoding,
+  activityActorKey,
   canRenderSourceText,
   detailBand,
   fileVisualState,
@@ -319,9 +320,24 @@ test("sorts activity events and keeps the latest visible state by agent", () => 
   ];
 
   assert.deepEqual(sortedActivityEvents(events, 2, { now }).map((event) => event.activityState), ["testing", "editing"]);
-  assert.equal(latestActivityByAgent(events, { now }).get("codex").activityState, "editing");
+  assert.equal(latestActivityByAgent(events, { now }).get("codex:manual").activityState, "editing");
   assert.equal(activityStateStyle("reviewing").fill, "#f59e0b");
   assert.equal(activityStateStyle("blocked").fill, activityStateStyle("reviewing").fill);
+});
+
+test("keeps latest activity separately for each Codex thread", () => {
+  const now = Date.parse("2026-05-20T12:00:00.000Z");
+  const events = [
+    activity("codex", "reading", "2026-05-20T10:00:00.000Z", { threadId: "thread-a" }),
+    activity("codex", "editing", "2026-05-20T10:01:00.000Z", { threadId: "thread-b" }),
+    activity("codex", "testing", "2026-05-20T10:02:00.000Z", { threadId: "thread-a" }),
+  ];
+
+  const latest = latestActivityByAgent(events, { now });
+  assert.equal(activityActorKey(events[0]), "codex:thread-a");
+  assert.equal(latest.size, 2);
+  assert.equal(latest.get("codex:thread-a").activityState, "testing");
+  assert.equal(latest.get("codex:thread-b").activityState, "editing");
 });
 
 test("encodes activity as recency-faded biological markers", () => {

@@ -9,6 +9,7 @@ import {
   activityTrailPointGroups,
   activityTissueBox,
   activityVisualEncoding,
+  activityActorKey,
   boundsCenter as modelBoundsCenter,
   canRenderSourceText,
   containsBoundsPoint,
@@ -854,7 +855,7 @@ function drawActivity() {
   drawActivityTrails(events, latestByAgent);
 
   for (const event of events) {
-    const latest = latestByAgent.get(event.agentId) === event;
+    const latest = latestByAgent.get(activityActorKey(event)) === event;
     const primaryBounds = activityPrimaryBounds(event);
     if (!primaryBounds) continue;
     const center = boundsCenter(primaryBounds);
@@ -886,8 +887,8 @@ function drawActivity() {
       ctx.stroke();
       ctx.globalAlpha = 1;
       const label = encoding.active
-        ? `${event.agentId}: ${encoding.activityState}`
-        : `${event.agentId}: last seen ${formatActivityAge(encoding.ageMinutes)}`;
+        ? `${activityActorLabel(event)}: ${encoding.activityState}`
+        : `${activityActorLabel(event)}: last seen ${formatActivityAge(encoding.ageMinutes)}`;
       drawLabel(label, p.x + 10, p.y - 8, encoding.active ? style.label : "#475569", 12, "700");
     }
     ctx.restore();
@@ -896,7 +897,7 @@ function drawActivity() {
 
 function drawActivityMembranes(events, latestByAgent) {
   for (const event of events) {
-    const latest = latestByAgent.get(event.agentId) === event;
+    const latest = latestByAgent.get(activityActorKey(event)) === event;
     const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.id === event.id;
     const encoding = activityVisualEncoding(event, { latest, selected });
     if (encoding.membraneAlpha <= 0.08 && !selected) continue;
@@ -929,7 +930,7 @@ function drawActivityMembranes(events, latestByAgent) {
 function drawActivityTrails(events, latestByAgent) {
   for (const agentEvents of activityTrailGroups(events)) {
     const trailLatest = agentEvents.at(-1);
-    const latest = latestByAgent.get(trailLatest.agentId) === trailLatest;
+    const latest = latestByAgent.get(activityActorKey(trailLatest)) === trailLatest;
     const selected = activityTrailSelected(agentEvents);
     const encoding = activityVisualEncoding(trailLatest, { latest, selected });
     const style = activityStateStyle(encoding.activityState);
@@ -1084,8 +1085,8 @@ function renderActivityFeed() {
 
     const title = document.createElement("strong");
     title.textContent = encoding.active
-      ? `${event.agentId}: ${normalizeActivityState(event.activityState)}`
-      : `${event.agentId}: last seen ${formatActivityAge(encoding.ageMinutes)}`;
+      ? `${activityActorLabel(event)}: ${normalizeActivityState(event.activityState)}`
+      : `${activityActorLabel(event)}: last seen ${formatActivityAge(encoding.ageMinutes)}`;
     const detail = document.createElement("span");
     detail.textContent = activityPathLabel(event);
     item.append(title, detail);
@@ -1512,7 +1513,7 @@ async function selectMapTarget(worldPoint) {
 async function selectActivityEvent(event) {
   state.selectedTarget = { ...event, targetType: "activity" };
   clearAnnotationForm();
-  setText(controls.inspectorTitle, `${event.agentId}: ${normalizeActivityState(event.activityState)}`);
+  setText(controls.inspectorTitle, `${activityActorLabel(event)}: ${normalizeActivityState(event.activityState)}`);
   setText(controls.inspectorSubtitle, `activity: ${activityPathLabel(event)} | ${event.address.geohash}`);
 
   const path = pathFromActivity(event);
@@ -1927,7 +1928,7 @@ function hoverLabel(hit) {
     return `annotation: ${hit.name} | ${hit.coveringSet?.[0] ?? "unresolved"}`;
   }
   if (hit.targetType === "activity") {
-    return `activity: ${hit.agentId} ${normalizeActivityState(hit.activityState)} | ${hit.address.geohash}`;
+    return `activity: ${activityActorLabel(hit)} ${normalizeActivityState(hit.activityState)} | ${hit.address.geohash}`;
   }
   return `${hit.targetType}: ${hit.path} | ${hit.geo.geohash}`;
 }
@@ -1937,6 +1938,16 @@ function activityPathLabel(event) {
   const lines = event.address.lineRange ? `:${event.address.lineRange.start}-${event.address.lineRange.end}` : "";
   const columns = event.address.tokenRange ? `@${event.address.tokenRange.start}-${event.address.tokenRange.end}` : "";
   return `${path || event.address.deepLink}${lines}${columns}`;
+}
+
+function activityActorLabel(event) {
+  const thread = event.threadId ?? event.sessionId;
+  if (!thread) return event.agentId ?? "agent";
+  return `${event.agentId ?? "agent"} ${shortActivityId(thread)}`;
+}
+
+function shortActivityId(value) {
+  return String(value).slice(0, 8);
 }
 
 function pathFromActivity(event) {

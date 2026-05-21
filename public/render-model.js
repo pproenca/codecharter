@@ -546,6 +546,14 @@ export function mapSearchMatch(codemap, namedPlaces, query) {
   return null;
 }
 
+export function mapSearchAction(match) {
+  if (!match) return { type: "noMatch" };
+  if (match.type === "annotation" || match.type === "namedPlace") return { type: "focusPlace" };
+  if (match.type === "file") return { type: "focusFile" };
+  if (match.type === "folder") return { type: "focusFolder" };
+  return { type: "noMatch" };
+}
+
 export function mapSelectionPanel(target) {
   if (!target) {
     return {

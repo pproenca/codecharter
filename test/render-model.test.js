@@ -27,7 +27,9 @@ import {
   labelBoxesOverlap,
   landmarkScore,
   lineAtWorldPoint,
+  mapRouteFocusAction,
   mapRouteTarget,
+  mapSearchAction,
   mapSearchMatch,
   mapSelectionPanel,
   mapTargetSelectionAction,
@@ -492,6 +494,18 @@ test("derives browser hash route focus intents without binding to controller eff
   assert.equal(hashRouteFocusIntent({ type: "unknown" }), null);
 });
 
+test("derives map route focus actions without binding to source panel effects", () => {
+  assert.equal(mapRouteFocusAction(null), null);
+  assert.deepEqual(mapRouteFocusAction({ targetType: "file", path: "src/app.ts" }), {
+    type: "focusFile",
+    zoomPadding: 1.35,
+  });
+  assert.deepEqual(mapRouteFocusAction({ targetType: "folder", path: "src" }), {
+    type: "focusFolder",
+    zoomPadding: 1.6,
+  });
+});
+
 test("resolves map search matches by navigation priority", () => {
   const codemap = {
     files: {
@@ -525,6 +539,14 @@ test("resolves map search matches by navigation priority", () => {
   assert.equal(annotation.target.targetType, "annotation");
   assert.equal(folder.type, "folder");
   assert.equal(folder.label, "Folder: src/features");
+});
+
+test("derives map search actions without binding to browser effects", () => {
+  assert.deepEqual(mapSearchAction(null), { type: "noMatch" });
+  assert.deepEqual(mapSearchAction({ type: "annotation", label: "Annotation: App note" }), { type: "focusPlace" });
+  assert.deepEqual(mapSearchAction({ type: "namedPlace", label: "Named place: Area" }), { type: "focusPlace" });
+  assert.deepEqual(mapSearchAction({ type: "file", label: "File: src/app.ts" }), { type: "focusFile" });
+  assert.deepEqual(mapSearchAction({ type: "folder", label: "Folder: src" }), { type: "focusFolder" });
 });
 
 test("derives map selection panel copy for empty, folder, and file targets", () => {

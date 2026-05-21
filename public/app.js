@@ -38,6 +38,7 @@ import {
   lineAtWorldPoint,
   latestActivityByAgent,
   mapRouteTarget,
+  mapSearchAction,
   mapSearchMatch,
   mapSelectionPanel,
   mapTargetSelectionAction,
@@ -335,6 +336,32 @@ const MAP_TARGET_SELECTION_HANDLERS = {
   selectActivity: (hit) => selectActivityEvent(hit),
   inspectFolder: inspectFolderTarget,
   inspectFile: inspectFileTarget,
+};
+
+const MAP_SEARCH_ACTION_HANDLERS = {
+  noMatch: () => {
+    setSearchResult("No matching place found.");
+  },
+  focusPlace: (match) => {
+    zoomToBounds(match.place.geometry.bounds, 1.35);
+    setSearchResult(match.label);
+    state.selectedTarget = match.target;
+    if (state.selectedTarget?.targetType === "annotation") selectAnnotation(state.selectedTarget);
+    render();
+  },
+  focusFile: async (match) => {
+    zoomToReadableFile(match.file);
+    await selectMapTarget(boundsCenter(match.file.bounds));
+    setSearchResult(match.label);
+  },
+  focusFolder: (match) => {
+    zoomToBounds(match.folder.bounds, 1.6);
+    state.selectedTarget = { ...match.folder, targetType: "folder" };
+    setText(controls.inspectorTitle, folderDisplayName(match.folder));
+    setText(controls.inspectorSubtitle, `folder: ${match.folder.path || "."} | ${match.folder.geo.geohash}`);
+    setSearchResult(match.label);
+    render();
+  },
 };
 
 async function applyHashRoute() {
@@ -1546,35 +1573,8 @@ async function searchMap(event) {
   const query = controls.searchInput?.value;
   if (!String(query ?? "").trim()) return;
   const match = mapSearchMatch(state.map, state.namedPlaces, query);
-  if (!match) {
-    setSearchResult("No matching place found.");
-    return;
-  }
-
-  if (match.type === "annotation" || match.type === "namedPlace") {
-    zoomToBounds(match.place.geometry.bounds, 1.35);
-    setSearchResult(match.label);
-    state.selectedTarget = match.target;
-    if (state.selectedTarget?.targetType === "annotation") selectAnnotation(state.selectedTarget);
-    render();
-    return;
-  }
-
-  if (match.type === "file") {
-    zoomToReadableFile(match.file);
-    await selectMapTarget(boundsCenter(match.file.bounds));
-    setSearchResult(match.label);
-    return;
-  }
-
-  if (match.type === "folder") {
-    zoomToBounds(match.folder.bounds, 1.6);
-    state.selectedTarget = { ...match.folder, targetType: "folder" };
-    setText(controls.inspectorTitle, folderDisplayName(match.folder));
-    setText(controls.inspectorSubtitle, `folder: ${match.folder.path || "."} | ${match.folder.geo.geohash}`);
-    setSearchResult(match.label);
-    render();
-  }
+  const action = mapSearchAction(match);
+  await MAP_SEARCH_ACTION_HANDLERS[action.type]?.(match);
 }
 
 function setSearchResult(message) {

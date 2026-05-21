@@ -60,6 +60,7 @@ const COPY_PROMPT_LABEL = "Copy Codex prompt";
 const MIN_SELECTION_SCREEN_PIXELS = 4;
 const CAMERA_ANIMATION_MS = 280;
 const DOUBLE_CLICK_ZOOM_FACTOR = 2;
+const CLICK_SELECT_DELAY_MS = 220;
 
 let frameLabels = [];
 let activityPollTimer = null;
@@ -79,10 +80,12 @@ const state = {
   activitySignature: "",
   view: { x: 0, y: 0, scale: 1 },
   cameraAnimation: null,
+  pendingClickSelection: null,
   dragging: null,
   lastPointerDown: null,
   lastPointerType: "",
   drawing: false,
+  panning: false,
   spacePanning: false,
   draftSelection: null,
   resolvedSelection: null,
@@ -100,6 +103,7 @@ const controls = {
   searchForm: document.querySelector("#searchForm"),
   searchInput: document.querySelector("#searchInput"),
   searchResult: document.querySelector("#searchResult"),
+  selectTool: document.querySelector("#selectTool"),
   panTool: document.querySelector("#panTool"),
   zoomInTool: document.querySelector("#zoomInTool"),
   zoomOutTool: document.querySelector("#zoomOutTool"),
@@ -191,12 +195,16 @@ function bindEvents() {
     control.addEventListener("change", render);
   }
 
+  controls.selectTool?.addEventListener("click", () => {
+    setSelectMode();
+    render();
+  });
   controls.drawTool?.addEventListener("click", () => {
     setDrawMode(!state.drawing);
     render();
   });
   controls.panTool?.addEventListener("click", () => {
-    setDrawMode(false);
+    setPanMode();
     render();
   });
   controls.zoomInTool?.addEventListener("click", () => zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true }));
@@ -219,7 +227,7 @@ function bindEvents() {
   canvas.addEventListener("blur", () => canvas.classList.remove("pointer-focused"));
   canvas.tabIndex = 0;
   canvas.setAttribute("role", "application");
-  canvas.setAttribute("aria-label", "CodeCharter map canvas. Drag to pan, hold Space and drag to temporarily pan while using another tool, use arrow keys to pan, plus and minus to zoom, double click to zoom in, 0 to fit the codebase, Enter to select the center, and Escape to cancel the current action.");
+  canvas.setAttribute("aria-label", "CodeCharter map canvas. Use the pointer tool to select items, the hand tool or Space drag to pan, arrow keys to pan, plus and minus to zoom, double click to zoom in, 0 to fit the codebase, Enter to select the center, and Escape to cancel the current action.");
   canvas.addEventListener("keydown", onCanvasKeyDown);
   updateInteractionModeUi();
 }
@@ -384,10 +392,29 @@ function isCurrentRoute(routeToken) {
 
 function setDrawMode(enabled) {
   state.drawing = enabled;
+  state.panning = false;
   if (enabled) state.selectedTarget = null;
   if (!enabled) clearDraftSelection();
   updateInteractionModeUi();
   setSelectionStatus(enabled ? "Draw mode on." : "Draw mode off.");
+  updateSelectionPopover();
+}
+
+function setSelectMode() {
+  state.panning = false;
+  state.drawing = false;
+  clearDraftSelection();
+  updateInteractionModeUi();
+  setSelectionStatus("");
+  updateSelectionPopover();
+}
+
+function setPanMode() {
+  state.panning = true;
+  state.drawing = false;
+  clearDraftSelection();
+  updateInteractionModeUi();
+  setSelectionStatus("Pan mode on.");
   updateSelectionPopover();
 }
 
@@ -398,11 +425,15 @@ function setSpacePanMode(enabled) {
 }
 
 function updateInteractionModeUi() {
-  const panActive = !state.drawing || state.spacePanning || state.dragging?.type === "pan";
+  const panActive = state.panning || state.spacePanning || state.dragging?.type === "pan";
+  const selectActive = !state.drawing && !state.panning && !state.spacePanning && state.dragging?.type !== "pan";
+  controls.selectTool?.classList.toggle("active", selectActive);
+  controls.selectTool?.setAttribute("aria-pressed", String(selectActive));
   controls.panTool?.classList.toggle("active", panActive);
   controls.panTool?.setAttribute("aria-pressed", String(panActive));
   controls.drawTool?.classList.toggle("active", state.drawing);
   controls.drawTool?.setAttribute("aria-pressed", String(state.drawing));
+  canvas.classList.toggle("is-panning-mode", state.panning && !state.spacePanning && state.dragging?.type !== "pan");
   canvas.classList.toggle("is-drawing", state.drawing && !state.spacePanning);
   canvas.classList.toggle("is-space-panning", state.spacePanning);
   canvas.classList.toggle("is-panning", state.dragging?.type === "pan");
@@ -420,6 +451,7 @@ function clearDraftSelection() {
 function resetSelectionOverlay() {
   state.dragging = null;
   state.drawing = false;
+  state.panning = false;
   state.draftSelection = null;
   state.resolvedSelection = null;
   if (controls.selectionComment) controls.selectionComment.value = "";
@@ -1257,6 +1289,7 @@ function isButtonTarget(target) {
 }
 
 function cancelCurrentInteraction() {
+  cancelPendingClickSelection();
   if (state.dragging || state.draftSelection || state.resolvedSelection || state.drawing) {
     resetSelectionOverlay();
     setSelectionStatus("Selection cancelled.");
@@ -1277,6 +1310,7 @@ function cancelCurrentInteraction() {
 
 function onPointerDown(event) {
   cancelCameraAnimation();
+  if (state.dragging?.type !== "select") cancelPendingClickSelection();
   canvas.classList.add("pointer-focused");
   canvas.setPointerCapture(event.pointerId);
   canvas.focus({ preventScroll: true });
@@ -1290,8 +1324,10 @@ function onPointerDown(event) {
     state.dragging = { type: "draw", start: point, current: point };
     state.draftSelection = { type: "rect", bounds: { x: point.x, y: point.y, width: 0, height: 0 } };
     render();
-  } else {
+  } else if (state.panning || spacePan) {
     state.dragging = { type: "pan", start: screenPoint(event), view: { ...state.view }, transient: spacePan };
+  } else {
+    state.dragging = { type: "select", start: screen, world: point };
   }
   updateInteractionModeUi();
 }
@@ -1307,6 +1343,7 @@ function onPointerMove(event) {
   controls.hover.textContent = hit ? hoverLabel(hit) : `x ${world.x.toFixed(4)}, y ${world.y.toFixed(4)}`;
 
   if (!state.dragging) return;
+  if (state.dragging.type === "select") return;
   if (state.dragging.type === "pan") {
     const dx = (screen.x - state.dragging.start.x) / (canvas.clientWidth * state.view.scale);
     const dy = (screen.y - state.dragging.start.y) / (canvas.clientHeight * state.view.scale);
@@ -1328,10 +1365,13 @@ async function onPointerUp(event) {
       return;
     }
     await previewSelection();
+  } else if (state.dragging?.type === "select" && state.lastPointerDown && event) {
+    const current = screenPoint(event);
+    const moved = Math.hypot(current.x - state.lastPointerDown.screen.x, current.y - state.lastPointerDown.screen.y);
+    if (moved < 4) scheduleClickSelection(state.lastPointerDown.world);
   } else if (state.dragging?.type === "pan" && state.lastPointerDown && event) {
     const current = screenPoint(event);
     const moved = Math.hypot(current.x - state.lastPointerDown.screen.x, current.y - state.lastPointerDown.screen.y);
-    if (!state.dragging.transient && moved < 4) await selectMapTarget(state.lastPointerDown.world);
   }
   state.dragging = null;
   updateInteractionModeUi();
@@ -1340,24 +1380,41 @@ async function onPointerUp(event) {
 function onCanvasDoubleClick(event) {
   if (state.drawing) return;
   event.preventDefault();
+  cancelPendingClickSelection();
   const screen = screenPoint(event);
   const world = screenToWorld(screen);
   const hit = hitTestDrillTarget(world) ?? hitTestAnnotation(world);
 
   if (hit?.targetType === "annotation") {
     zoomToBounds(hit.geometry.bounds, 1.28);
+    selectAnnotation(hit);
     return;
   }
   if (hit?.targetType === "folder") {
+    void selectMapTarget(world);
     zoomToBounds(hit.bounds, 1.35);
     return;
   }
   if (hit?.targetType === "file") {
-    zoomToReadableFile(hit, lineRatioAtPoint(hit, world));
+    void selectMapTarget(world);
     return;
   }
 
   zoomAt(screen, DOUBLE_CLICK_ZOOM_FACTOR, { animate: true });
+}
+
+function scheduleClickSelection(worldPoint) {
+  cancelPendingClickSelection();
+  state.pendingClickSelection = window.setTimeout(() => {
+    state.pendingClickSelection = null;
+    void selectMapTarget(worldPoint);
+  }, CLICK_SELECT_DELAY_MS);
+}
+
+function cancelPendingClickSelection() {
+  if (!state.pendingClickSelection) return;
+  window.clearTimeout(state.pendingClickSelection);
+  state.pendingClickSelection = null;
 }
 
 function hitTestDrillTarget(world) {
@@ -1612,6 +1669,7 @@ async function saveSelection() {
   state.selectedTarget = { ...saved.annotation, targetType: "annotation" };
   syncHashRoute(createAnnotationHashRoute(saved.annotation.id));
   state.drawing = false;
+  state.panning = false;
   state.draftSelection = null;
   state.resolvedSelection = null;
   updateInteractionModeUi();

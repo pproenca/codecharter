@@ -11,11 +11,13 @@ const CODECHARTER_DIR = ".codecharter";
 const CODEX_DIR = ".codex";
 const SCRATCH_DIR = ".scratch/codecharter";
 const DEFAULT_ACTIVITY_PATH = `${SCRATCH_DIR}/activity.jsonl`;
-const DEFAULT_MAP_PATH = "codecharter.json";
+const DEFAULT_MAP_PATH = ".scratch/codecharter/codecharter.json";
+const ROOT_MAP_PATH = "codecharter.json";
 const LEGACY_MAP_PATH = "codemap.json";
 const MANAGED_START = "# >>> codecharter >>>";
 const MANAGED_END = "# <<< codecharter <<<";
 const MAP_HOOKS = ["post-checkout", "post-merge", "post-rewrite"];
+const CODECHARTER_HOOK_COMMAND = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/codecharter-codex-hook.mjs"';
 
 export async function initializeCodecharter({
   root,
@@ -29,7 +31,7 @@ export async function initializeCodecharter({
   await mkdir(join(root, SCRATCH_DIR), { recursive: true });
   await ensureCodecharterConfig(root, resolvedMapPath);
 
-  if (writeCodemap) await writeCodemap({ root, out: resolvedMapPath, fresh });
+  const codemap = writeCodemap ? await writeCodemap({ root, out: resolvedMapPath, fresh }) : undefined;
   await ensurePackageDevDependency(root);
   if (installCodex) await ensureCodexAdapter(root);
   if (installGitHooks) await ensureGitMapHooks(root, resolvedMapPath);
@@ -39,6 +41,7 @@ export async function initializeCodecharter({
     configPath: join(root, CODECHARTER_DIR, "config.json"),
     codexAdapterInstalled: installCodex,
     gitHooksInstalled: installGitHooks,
+    codemap,
   };
 }
 
@@ -68,7 +71,7 @@ export async function ensureCodecharterConfig(root, mapPath) {
     version: 1,
     mapPath: normalizeRelative(root, mapPath),
     activityPath: existing.activityPath ?? DEFAULT_ACTIVITY_PATH,
-    legacyMapPaths: existing.legacyMapPaths ?? [LEGACY_MAP_PATH],
+    legacyMapPaths: existing.legacyMapPaths ?? [ROOT_MAP_PATH, LEGACY_MAP_PATH],
     agents: {
       ...(existing.agents ?? {}),
       codex: {
@@ -87,7 +90,7 @@ export async function ensureCodexAdapter(root) {
   const hooksJsonPath = join(root, CODEX_DIR, "hooks.json");
   await writeFile(hookPath, codexHookShim(), { mode: 0o755 });
   await chmod(hookPath, 0o755);
-  await writeJson(hooksJsonPath, codexHooksJson());
+  await writeJson(hooksJsonPath, mergeCodexHooks(await readJson(hooksJsonPath, {}), codexHooksJson()));
   return { hookPath, hooksJsonPath };
 }
 
@@ -134,10 +137,9 @@ ${MANAGED_END}`;
 }
 
 function codexHooksJson() {
-  const command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/codecharter-codex-hook.mjs"';
   const handler = {
     type: "command",
-    command,
+    command: CODECHARTER_HOOK_COMMAND,
     timeout: 10,
     statusMessage: "Recording CodeCharter activity",
   };
@@ -163,6 +165,68 @@ function codexHooksJson() {
       ],
     },
   };
+}
+
+export function mergeCodexHooks(existing, desired) {
+  const next = {
+    ...objectOrEmpty(existing),
+    hooks: { ...objectOrEmpty(existing?.hooks) },
+  };
+
+  for (const [eventName, groups] of Object.entries(next.hooks)) {
+    next.hooks[eventName] = Array.isArray(groups)
+      ? groups.map(withoutCodecharterHandlers)
+      : groups;
+  }
+
+  for (const [eventName, desiredGroups] of Object.entries(desired.hooks)) {
+    const existingGroups = Array.isArray(next.hooks[eventName]) ? next.hooks[eventName] : [];
+    next.hooks[eventName] = mergeHookGroups(existingGroups, desiredGroups);
+  }
+
+  return next;
+}
+
+function mergeHookGroups(existingGroups, desiredGroups) {
+  const groups = existingGroups.map((group) => ({
+    ...group,
+    hooks: Array.isArray(group.hooks) ? [...group.hooks] : [],
+  }));
+
+  for (const desiredGroup of desiredGroups) {
+    const index = groups.findIndex((group) => (group.matcher ?? "") === (desiredGroup.matcher ?? ""));
+    if (index === -1) {
+      groups.push({
+        ...desiredGroup,
+        hooks: [...desiredGroup.hooks],
+      });
+      continue;
+    }
+
+    const group = groups[index];
+    for (const hook of desiredGroup.hooks) {
+      if (!group.hooks.some((existingHook) => sameHook(existingHook, hook))) group.hooks.push(hook);
+    }
+  }
+
+  return groups;
+}
+
+function withoutCodecharterHandlers(group) {
+  const hooks = Array.isArray(group.hooks) ? group.hooks.filter((hook) => !isCodecharterHook(hook)) : [];
+  return { ...group, hooks };
+}
+
+function isCodecharterHook(hook) {
+  return hook?.type === "command" && hook.command === CODECHARTER_HOOK_COMMAND;
+}
+
+function sameHook(left, right) {
+  return left?.type === right?.type && left?.command === right?.command;
+}
+
+function objectOrEmpty(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
 function codexHookShim() {

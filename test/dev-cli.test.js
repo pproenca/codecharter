@@ -44,7 +44,7 @@ test("codecharter dev is a one-command dogfood workflow", { timeout: 8000 }, asy
     const codemap = await getJson(`http://127.0.0.1:${port}/api/map`);
     assert.equal(codemap.files["src/app.js"].path, "src/app.js");
 
-    const sidecar = JSON.parse(await readFile(join(root, "codecharter.json"), "utf8"));
+    const sidecar = JSON.parse(await readFile(join(root, ".scratch", "codecharter", "codecharter.json"), "utf8"));
     assert.equal(sidecar.files["src/app.js"].geo.geohash, codemap.files["src/app.js"].geo.geohash);
 
     const exclude = await readFile(join(root, ".git", "info", "exclude"), "utf8");
@@ -61,6 +61,101 @@ test("codecharter dev is a one-command dogfood workflow", { timeout: 8000 }, asy
   }
 });
 
+test("codecharter setup --dev initializes a fresh repo and prints the viewer URL", { timeout: 8000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-setup-dev-"));
+  const port = await freePort();
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.js"), "export const app = true;\n");
+  await execFileAsync("git", ["init"], { cwd: root });
+
+  const cli = spawn(process.execPath, [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "setup",
+    "--dev",
+    "--root",
+    root,
+    "--port",
+    String(port),
+    "--agent",
+    "first-run",
+  ], {
+    cwd: process.cwd(),
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let output = "";
+  cli.stdout.on("data", (chunk) => { output += chunk.toString(); });
+  cli.stderr.on("data", (chunk) => { output += chunk.toString(); });
+
+  try {
+    await waitFor(() => output.includes(`Open CodeCharter: http://127.0.0.1:${port}`), () => output);
+    assert.match(output, /CodeCharter setup complete/);
+    assert.match(output, /Codex hook installed\. In Codex, run `\/hooks`/);
+
+    const html = await fetchText(`http://127.0.0.1:${port}/`);
+    assert.match(html, /<canvas id="mapCanvas"/);
+
+    const hooksJson = JSON.parse(await readFile(join(root, ".codex", "hooks.json"), "utf8"));
+    assert.ok(hooksJson.hooks.PostToolUse);
+
+    const config = JSON.parse(await readFile(join(root, ".codecharter", "config.json"), "utf8"));
+    assert.equal(config.mapPath, ".scratch/codecharter/codecharter.json");
+
+    const { stdout: scratchStatus } = await execFileAsync("git", ["status", "--short", "--", ".scratch/codecharter/codecharter.json"], { cwd: root });
+    assert.equal(scratchStatus, "");
+
+    const activity = await waitForActivity(port, "src/app.js");
+    assert.equal(activity.agentId, "first-run");
+  } finally {
+    cli.kill("SIGTERM");
+    await waitForExit(cli);
+  }
+});
+
+test("packed package supports the npx one-command setup-dev path", { timeout: 20000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-packed-"));
+  const packDir = await mkdtemp(join(tmpdir(), "codecharter-pack-"));
+  const port = await freePort();
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.js"), "export const app = true;\n");
+  await execFileAsync("git", ["init"], { cwd: root });
+
+  const { stdout } = await execFileAsync("npm", ["pack", "--silent", "--pack-destination", packDir], { cwd: process.cwd() });
+  const tarball = join(packDir, stdout.trim().split(/\r?\n/).at(-1));
+  const cli = spawn("npm", [
+    "exec",
+    "--yes",
+    "--package",
+    tarball,
+    "--",
+    "codecharter",
+    "setup",
+    "--dev",
+    "--root",
+    root,
+    "--port",
+    String(port),
+    "--agent",
+    "packed",
+  ], {
+    cwd: root,
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let output = "";
+  cli.stdout.on("data", (chunk) => { output += chunk.toString(); });
+  cli.stderr.on("data", (chunk) => { output += chunk.toString(); });
+
+  try {
+    await waitFor(() => output.includes(`Open CodeCharter: http://127.0.0.1:${port}`), () => output);
+    const codemap = await getJson(`http://127.0.0.1:${port}/api/map`);
+    assert.equal(codemap.files["src/app.js"].path, "src/app.js");
+    assert.match(output, /Codex hook installed\. In Codex, run `\/hooks`/);
+  } finally {
+    killProcessGroup(cli);
+    await waitForExit(cli);
+  }
+});
+
 async function fetchText(url) {
   const response = await fetch(url);
   if (!response.ok) assert.fail(await response.text());
@@ -73,14 +168,14 @@ async function getJson(url) {
   return response.json();
 }
 
-async function waitForActivity(port) {
+async function waitForActivity(port, path = "src/app.js") {
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const activity = await getJson(`http://127.0.0.1:${port}/api/activity`);
-    const event = activity.events.find((item) => item.address?.deepLink?.includes("path=src%2Fapp.js"));
+    const event = activity.events.find((item) => item.address?.deepLink?.includes(`path=${encodeURIComponent(path)}`));
     if (event) return event;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  assert.fail("Timed out waiting for dogfood activity");
+  assert.fail(`Timed out waiting for activity on ${path}`);
 }
 
 async function waitFor(predicate, output) {
@@ -98,6 +193,18 @@ async function waitForExit(child) {
     new Promise((resolve) => setTimeout(resolve, 1000)),
   ]);
   if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+}
+
+function killProcessGroup(child) {
+  if (process.platform === "win32") {
+    child.kill("SIGTERM");
+    return;
+  }
+  try {
+    process.kill(-child.pid, "SIGTERM");
+  } catch {
+    child.kill("SIGTERM");
+  }
 }
 
 async function freePort() {

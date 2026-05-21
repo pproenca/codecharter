@@ -108,11 +108,15 @@ select:focus-visible {
     linear-gradient(90deg, rgba(49, 101, 69, 0.035) 1px, transparent 1px),
     var(--land);
   background-size: auto, 42px 42px, 42px 42px, auto;
-  cursor: grab;
+  cursor: default;
   display: block;
   height: 100%;
   touch-action: none;
   width: 100%;
+}
+
+#mapCanvas.is-panning-mode {
+  cursor: grab;
 }
 
 #mapCanvas.is-drawing {
@@ -142,21 +146,22 @@ select:focus-visible {
 
 .map-tool-palette {
   border: 1px solid var(--line);
-  display: inline-grid;
+  display: inline-flex;
   gap: 6px;
-  left: 16px;
+  left: 50%;
   padding: 5px;
   top: 16px;
+  transform: translateX(-50%);
 }
 
 .tool-group {
-  display: grid;
+  display: flex;
   gap: 4px;
 }
 
 .tool-group + .tool-group {
-  border-top: 1px solid var(--line);
-  padding-top: 6px;
+  border-left: 1px solid var(--line);
+  padding-left: 6px;
 }
 
 .icon-tool {

@@ -26,10 +26,10 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
   ], { cwd: root });
 
   const config = JSON.parse(await readFile(join(root, ".codecharter", "config.json"), "utf8"));
-  assert.equal(config.mapPath, "codecharter.json");
+  assert.equal(config.mapPath, ".scratch/codecharter/codecharter.json");
   assert.equal(config.agents.codex.enabled, true);
 
-  const sidecar = JSON.parse(await readFile(join(root, "codecharter.json"), "utf8"));
+  const sidecar = JSON.parse(await readFile(join(root, ".scratch", "codecharter", "codecharter.json"), "utf8"));
   assert.ok(sidecar.files["src/app.ts"]);
 
   const hooksJson = JSON.parse(await readFile(join(root, ".codex", "hooks.json"), "utf8"));
@@ -41,6 +41,63 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
 
   const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   assert.match(packageJson.devDependencies.codecharter, /^\^/);
+
+  const { stdout: scratchStatus } = await execFileAsync("git", ["status", "--short", "--", ".scratch/codecharter/codecharter.json"], { cwd: root });
+  assert.equal(scratchStatus, "");
+});
+
+test("codecharter init merges Codex hooks without clobbering existing repo hooks", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-hooks-merge-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await mkdir(join(root, ".codex"), { recursive: true });
+  await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
+  await writeFile(join(root, "package.json"), JSON.stringify({ name: "sample-app", version: "1.0.0" }));
+  await writeFile(join(root, ".codex", "hooks.json"), JSON.stringify({
+    custom: { preserved: true },
+    hooks: {
+      PreToolUse: [
+        {
+          matcher: "Bash",
+          hooks: [
+            {
+              type: "command",
+              command: "node .codex/hooks/existing-pre.mjs",
+              statusMessage: "Existing pre hook",
+            },
+          ],
+        },
+      ],
+      PostToolUse: [
+        {
+          matcher: "Bash",
+          hooks: [
+            {
+              type: "command",
+              command: "node .codex/hooks/existing-post.mjs",
+              statusMessage: "Existing post hook",
+            },
+          ],
+        },
+      ],
+    },
+  }));
+  await execFileAsync("git", ["init"], { cwd: root });
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await execFileAsync("node", [
+      join(process.cwd(), "bin", "codemap.mjs"),
+      "init",
+      "--root",
+      root,
+      "--yes",
+    ], { cwd: root });
+  }
+
+  const hooksJson = JSON.parse(await readFile(join(root, ".codex", "hooks.json"), "utf8"));
+  assert.equal(hooksJson.custom.preserved, true);
+  assert.equal(hooksJson.hooks.PreToolUse[0].hooks[0].command, "node .codex/hooks/existing-pre.mjs");
+  assert.equal(hooksJson.hooks.PostToolUse[0].hooks[0].command, "node .codex/hooks/existing-post.mjs");
+  assert.equal(countCodecharterHooks(hooksJson), 3);
 });
 
 test("codecharter codex-hook appends mapped Codex activity without a daemon", async () => {
@@ -92,4 +149,12 @@ async function execFileWithInput(command, args, { cwd, input }) {
   child.stdin.end(input);
   const [code] = await once(child, "exit");
   if (code !== 0) assert.fail(stderr);
+}
+
+function countCodecharterHooks(hooksJson) {
+  const command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/codecharter-codex-hook.mjs"';
+  return Object.values(hooksJson.hooks)
+    .flat()
+    .flatMap((group) => group.hooks)
+    .filter((hook) => hook.command === command).length;
 }

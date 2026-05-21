@@ -11,7 +11,8 @@ import { readJson } from "./store.js";
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_CONFIG_PATH = ".codecharter/config.json";
-const DEFAULT_MAP_PATH = "codecharter.json";
+const DEFAULT_MAP_PATH = ".scratch/codecharter/codecharter.json";
+const ROOT_MAP_PATH = "codecharter.json";
 const LEGACY_MAP_PATH = "codemap.json";
 const DEFAULT_ACTIVITY_PATH = ".scratch/codecharter/activity.jsonl";
 
@@ -111,6 +112,7 @@ async function resolveMapPath(root, configuredPath) {
   const candidates = [
     configuredPath,
     DEFAULT_MAP_PATH,
+    ROOT_MAP_PATH,
     LEGACY_MAP_PATH,
   ].filter(Boolean).map((path) => resolveFromRoot(root, path));
 

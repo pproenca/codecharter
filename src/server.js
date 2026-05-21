@@ -30,13 +30,15 @@ export async function startServer({
   publicRoot = BUNDLED_PUBLIC_ROOT,
   portSearchLimit = DEFAULT_PORT_SEARCH_LIMIT,
 }) {
+  const activityArchivePath = join(root, DEFAULT_ACTIVITY_ARCHIVE);
   const state = {
     root,
     mapPath,
     publicRoot,
     namedPlacesPath: join(root, ".codecharter", "named-places.json"),
+    activityArchivePath,
     activityStore: createActivityStore({
-      archivePath: join(root, DEFAULT_ACTIVITY_ARCHIVE),
+      archivePath: activityArchivePath,
       flushIntervalMs: activityFlushIntervalMs,
     }),
   };
@@ -219,7 +221,7 @@ async function handleApi(state, request, response, url) {
   }
 
   if (request.method === "GET" && url.pathname === "/api/activity") {
-    sendJson(response, 200, state.activityStore.snapshot());
+    sendJson(response, 200, await activitySnapshot(state));
     return;
   }
 
@@ -265,6 +267,45 @@ function acceptActivityRequest(state, request) {
     .catch((error) => {
       console.warn(`Dropped activity event: ${error.message}`);
     });
+}
+
+async function activitySnapshot(state) {
+  const archived = await readActivityArchive(state.activityArchivePath);
+  const live = state.activityStore.snapshot().events;
+  return { events: mergeActivityEvents(archived, live) };
+}
+
+async function readActivityArchive(path) {
+  let raw = "";
+  try {
+    raw = await readFile(path, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+
+  const events = [];
+  for (const line of raw.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    try {
+      const event = JSON.parse(line);
+      if (event && typeof event === "object") events.push(event);
+    } catch {
+      // Ignore incomplete trailing writes or malformed external activity lines.
+    }
+  }
+  return events;
+}
+
+function mergeActivityEvents(...groups) {
+  const byId = new Map();
+  for (const event of groups.flat()) {
+    byId.set(event.id ?? `${event.timestamp}:${event.agentId}:${event.note}`, event);
+  }
+  return [...byId.values()].sort((left, right) => {
+    const byTime = String(left.timestamp ?? "").localeCompare(String(right.timestamp ?? ""));
+    return byTime || String(left.id ?? "").localeCompare(String(right.id ?? ""));
+  });
 }
 
 async function readBody(request) {

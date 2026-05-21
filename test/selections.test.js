@@ -59,14 +59,14 @@ test("creates map annotations with a Codex-ready spatial prompt", () => {
   assert.equal(annotation.resolvedTargets.length, 1);
   assert.match(annotation.codexPrompt, /CodeCharter annotation: codecharter:\/\/annotation\//);
   assert.match(annotation.codexPrompt, /codecharter:\/\/annotation\//);
-  assert.match(annotation.codexPrompt, /#\/annotation\//);
-  assert.match(annotation.codexPrompt, /CLI retrieval: codecharter annotation codecharter:\/\/annotation\//);
-  assert.match(annotation.codexPrompt, /CLI fallback: npx --yes codecharter annotation codecharter:\/\/annotation\//);
-  assert.match(annotation.codexPrompt, /Spatial frame: level=file, precision=7, bounds=x=0.1, y=0.1, width=0.2, height=0.2/);
-  assert.match(annotation.codexPrompt, /Corner geohashes: nw=/);
-  assert.match(annotation.codexPrompt, /Resolved target count: 1/);
-  assert.match(annotation.codexPrompt, /User note: hey explore this area/);
-  assert.match(annotation.codexPrompt, /do not use browser automation unless the user explicitly asks for visual UI testing/i);
+  assert.match(annotation.codexPrompt, /CLI: codecharter annotation codecharter:\/\/annotation\//);
+  assert.match(annotation.codexPrompt, /Fallback: npx --yes codecharter annotation codecharter:\/\/annotation\//);
+  assert.match(annotation.codexPrompt, /Targets: 1/);
+  assert.match(annotation.codexPrompt, /Note: hey explore this area/);
+  assert.match(annotation.codexPrompt, /Do not use browser automation unless asked/);
+  assert.doesNotMatch(annotation.codexPrompt, /#\/annotation\//);
+  assert.doesNotMatch(annotation.codexPrompt, /Spatial frame/);
+  assert.doesNotMatch(annotation.codexPrompt, /Corner geohashes/);
   assert.doesNotMatch(annotation.codexPrompt, /Geohash coverage/);
   assert.doesNotMatch(annotation.codexPrompt, /Resolved targets/);
   assert.doesNotMatch(annotation.codexPrompt, /src\/a\.ts/);
@@ -81,7 +81,7 @@ test("derives map annotation labels from comments when no title is provided", ()
 
   assert.equal(annotation.name, "Review the spatial picker");
   assert.equal(annotation.comment, "Review the spatial picker\nIt should copy a link.");
-  assert.match(annotation.codexPrompt, /User note: Review the spatial picker/);
+  assert.match(annotation.codexPrompt, /Note: Review the spatial picker/);
 });
 
 test("refreshes map annotations against current geometry without changing identity", () => {
@@ -103,7 +103,7 @@ test("refreshes map annotations against current geometry without changing identi
 
   assert.equal(refreshed.id, "annotation-1");
   assert.deepEqual(refreshed.resolvedTargets.map((target) => target.path), ["src/a.ts", "src/c.ts"]);
-  assert.match(refreshed.codexPrompt, /Resolved target count: 2/);
+  assert.match(refreshed.codexPrompt, /Targets: 2/);
   assert.doesNotMatch(refreshed.codexPrompt, /s123456/);
   assert.doesNotMatch(refreshed.codexPrompt, /s999999/);
 });
@@ -123,11 +123,11 @@ test("keeps large annotation prompts compact by not dumping resolved target geoh
   });
 
   assert.equal(annotation.resolvedTargets.length, 40);
-  assert.match(annotation.codexPrompt, /Corner geohashes:/);
-  assert.match(annotation.codexPrompt, /Resolved target count: 40/);
+  assert.match(annotation.codexPrompt, /Targets: 40/);
+  assert.doesNotMatch(annotation.codexPrompt, /Corner geohashes:/);
   assert.doesNotMatch(annotation.codexPrompt, /s00000000000/);
   assert.doesNotMatch(annotation.codexPrompt, /src\/file-0\.ts/);
-  assert.ok(annotation.codexPrompt.length < 1000);
+  assert.ok(annotation.codexPrompt.length < 500);
 });
 
 test("resolves detailed drawn selections to line coordinates", () => {

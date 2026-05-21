@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, writeFile, mkdir, readFile } from "node:fs/promises";
+import { appendFile, mkdtemp, writeFile, mkdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
@@ -64,7 +64,10 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.equal(annotationResponse.annotation.deepLink, `codecharter://annotation/${annotationResponse.annotation.id}`);
     assert.equal(annotationResponse.annotation.browserHash, `#/annotation/${annotationResponse.annotation.id}`);
     assert.match(annotationResponse.annotation.codexPrompt, /CodeCharter annotation: codecharter:\/\/annotation\//);
-    assert.match(annotationResponse.annotation.codexPrompt, /User note: hey explore this area/);
+    assert.match(annotationResponse.annotation.codexPrompt, /CLI: codecharter annotation codecharter:\/\/annotation\//);
+    assert.match(annotationResponse.annotation.codexPrompt, /Note: hey explore this area/);
+    assert.doesNotMatch(annotationResponse.annotation.codexPrompt, /Browser route/);
+    assert.doesNotMatch(annotationResponse.annotation.codexPrompt, /Corner geohashes/);
     assert.doesNotMatch(annotationResponse.annotation.codexPrompt, /src\/app\.ts/);
     const annotations = await getJson(`${baseUrl}/api/annotations`);
     assert.equal(annotations.annotations.length, 1);
@@ -184,6 +187,38 @@ test("accepts pre-resolved activity without reading the map sidecar", async () =
 
     const activityStream = await waitForActivityEvent(baseUrl);
     assert.equal(activityStream.events.at(-1).address.deepLink, "codecharter://file/s000000?path=src%2Fapp.ts");
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
+test("serves activity written directly to the JSONL archive by Codex hooks", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-archived-activity-"));
+  await mkdir(join(root, ".codecharter"), { recursive: true });
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
+
+  const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
+  const address = server.address();
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+
+  try {
+    const archivedEvent = {
+      id: "hook-event-1",
+      agentId: "codex",
+      activityState: "editing",
+      timestamp: "2026-05-21T19:28:54.728Z",
+      note: "Codex Bash activity",
+      hookEventName: "PostToolUse",
+      sessionId: "thread-1",
+      address: sampleActivityAddress(),
+    };
+    await appendFile(join(root, ".codecharter", "activity.jsonl"), `${JSON.stringify(archivedEvent)}\n`);
+
+    const activity = await getJson(`${baseUrl}/api/activity`);
+    assert.equal(activity.events.length, 1);
+    assert.equal(activity.events[0].id, "hook-event-1");
+    assert.equal(activity.events[0].sessionId, "thread-1");
   } finally {
     server.close();
     await once(server, "close");

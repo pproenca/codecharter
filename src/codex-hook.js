@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { isAbsolute, join, resolve } from "node:path";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { changedCodeChanges } from "./activity-watcher.js";
 import { appendActivityEvents, ensureActivityArchive } from "./activity-store.js";
@@ -49,7 +49,8 @@ async function codexHookEvents({ root, mapPath, payload }) {
 
   const activityState = inferActivityState(payload);
   const codemap = await readCodemap(mapPath);
-  const changes = await changedCodeChanges(root);
+  const readChanges = activityState === "testing" ? [] : readCommandChanges(root, codemap, payload);
+  const changes = [...readChanges, ...await changedCodeChanges(root)];
   const events = [];
   for (const change of changes) {
     try {
@@ -57,8 +58,8 @@ async function codexHookEvents({ root, mapPath, payload }) {
       events.push(createActivityEvent(address, {
         id: randomUUID(),
         agentId: "codex",
-        activityState,
-        note: `Codex ${payload.tool_name ?? "tool"} activity`,
+        activityState: change.activityState ?? activityState,
+        note: change.note ?? `Codex ${payload.tool_name ?? "tool"} activity`,
         hookEventName: payload.hook_event_name,
         sessionId: payload.session_id,
         turnId: payload.turn_id,
@@ -94,6 +95,100 @@ function inferActivityState(payload) {
   if (/\b(pnpm|npm|yarn|bun)\s+(test|vitest|jest)\b/.test(command)) return "testing";
   if (/\b(vitest|jest|pytest|cargo\s+test|go\s+test|swift\s+test|xcodebuild\s+test)\b/.test(command)) return "testing";
   return "editing";
+}
+
+function readCommandChanges(root, codemap, payload) {
+  if (payload.tool_name !== "Bash") return [];
+  const command = payload.tool_input?.command ?? payload.tool_input?.cmd ?? "";
+  if (!command) return [];
+
+  const changes = [];
+  const seen = new Set();
+  for (const segment of command.split(/\n|&&|;/)) {
+    const tokens = shellWords(segment);
+    if (tokens.length === 0) continue;
+    const commandName = basename(tokens[0]);
+    if (!["cat", "nl", "less", "head", "tail", "sed", "rg"].includes(commandName)) continue;
+
+    const lineRange = readLineRange(commandName, tokens, codemap);
+    for (const candidate of readCommandPathCandidates(commandName, tokens)) {
+      const path = normalizeCommandPath(root, candidate);
+      if (!codemap.files?.[path]) continue;
+      const key = `${path}:${lineRange.lineStart ?? ""}:${lineRange.lineEnd ?? ""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      changes.push({
+        path,
+        ...lineRange,
+        activityState: "reading",
+        note: `Codex read ${path}`,
+      });
+    }
+  }
+  return changes;
+}
+
+function shellWords(segment) {
+  const words = [];
+  for (const match of segment.matchAll(/"([^"]*)"|'([^']*)'|[^\s]+/g)) {
+    words.push(match[1] ?? match[2] ?? match[0]);
+  }
+  return words;
+}
+
+function readCommandPathCandidates(commandName, tokens) {
+  const candidates = [];
+  for (let index = 1; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (!token || token.startsWith("-") || token === "|" || token === ">" || token === "2>") continue;
+    if (commandName === "sed" && (looksLikeSedScript(token) || tokens[index - 1] === "-e")) continue;
+    if (commandName === "rg" && !token.includes("/") && !token.includes(".")) continue;
+    candidates.push(token);
+  }
+  return candidates;
+}
+
+function readLineRange(commandName, tokens, codemap) {
+  if (commandName === "sed") {
+    for (const token of tokens) {
+      const range = token.match(/^(\d+)(?:,(\d+))?p$/);
+      if (range) {
+        const lineStart = Number(range[1]);
+        return { lineStart, lineEnd: Number(range[2] ?? range[1]) };
+      }
+    }
+  }
+
+  if (commandName === "head") {
+    const count = numericOption(tokens, "-n");
+    if (count) return { lineStart: 1, lineEnd: count };
+  }
+
+  if (commandName === "tail") {
+    const path = readCommandPathCandidates(commandName, tokens).find((candidate) => codemap.files?.[candidate]);
+    const count = numericOption(tokens, "-n");
+    const lineCount = path ? codemap.files[path]?.lineCount : undefined;
+    if (count && lineCount) return { lineStart: Math.max(1, lineCount - count + 1), lineEnd: lineCount };
+  }
+
+  return {};
+}
+
+function numericOption(tokens, name) {
+  const index = tokens.indexOf(name);
+  if (index !== -1) return Number(tokens[index + 1]);
+  const compact = tokens.find((token) => token.startsWith(name) && token.length > name.length);
+  return compact ? Number(compact.slice(name.length)) : undefined;
+}
+
+function looksLikeSedScript(token) {
+  return /^\d+(?:,\d+)?p$/.test(token) || token.includes("s/");
+}
+
+function normalizeCommandPath(root, candidate) {
+  const stripped = candidate.replace(/^['"]|['"]$/g, "");
+  const normalized = isAbsolute(stripped) ? relative(root, stripped) : stripped;
+  return normalized.replaceAll("\\", "/");
 }
 
 function parseHookPayload(input) {

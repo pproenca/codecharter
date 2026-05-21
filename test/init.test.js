@@ -247,6 +247,54 @@ test("codecharter codex-hook appends mapped Codex activity without a daemon", as
   assert.match(event.address.deepLink, /^codecharter:\/\//);
 });
 
+test("codecharter codex-hook maps Bash read commands as reading activity", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-codex-hook-read-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.ts"), [
+    "export const app = true;",
+    "export const other = false;",
+    "",
+  ].join("\n"));
+  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileAsync("git", ["add", "src/app.ts"], { cwd: root });
+  await execFileAsync("git", ["-c", "user.name=CodeCharter", "-c", "user.email=codecharter@example.invalid", "commit", "-m", "init"], { cwd: root });
+  await execFileAsync("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "generate",
+    "--root",
+    root,
+    "--out",
+    join(root, "codecharter.json"),
+    "--quiet",
+  ], { cwd: root });
+
+  const payload = {
+    session_id: "session-read",
+    turn_id: "turn-read",
+    cwd: root,
+    hook_event_name: "PostToolUse",
+    tool_name: "Bash",
+    tool_input: { command: "sed -n '1,2p' src/app.ts" },
+    model: "gpt-test",
+  };
+
+  await execFileWithInput("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "codex-hook",
+  ], { cwd: root, input: JSON.stringify(payload) });
+
+  const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
+  const event = JSON.parse(lines[0]);
+  assert.equal(event.agentId, "codex");
+  assert.equal(event.activityState, "reading");
+  assert.equal(event.note, "Codex read src/app.ts");
+  assert.equal(event.hookEventName, "PostToolUse");
+  assert.equal(event.sessionId, "session-read");
+  assert.equal(event.address.targetType, "lineRange");
+  assert.deepEqual(event.address.lineRange, { start: 1, end: 2 });
+  assert.match(event.address.deepLink, /path=src%2Fapp\.ts/);
+});
+
 async function execFileWithInput(command, args, { cwd, input }) {
   const child = spawn(command, args, { cwd, stdio: ["pipe", "pipe", "pipe"] });
   let stderr = "";

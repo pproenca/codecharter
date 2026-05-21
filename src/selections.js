@@ -223,18 +223,13 @@ function withAnnotationPrompt(annotation) {
 
 function codexPromptForAnnotation(annotation) {
   const comment = annotation.comment?.trim() || "<empty>";
-  const frame = annotation.spatialFrame;
   return [
     `CodeCharter annotation: ${annotation.deepLink}`,
-    `Browser route: ${annotation.browserHash}`,
-    `CLI retrieval: codecharter annotation ${annotation.deepLink}`,
-    `CLI fallback: npx --yes codecharter annotation ${annotation.deepLink}`,
-    `Spatial frame: level=${frame.level}, precision=${frame.precision}, bounds=${formatBounds(frame.bounds)}`,
-    `Corner geohashes: nw=${frame.corners.northWest}, ne=${frame.corners.northEast}, sw=${frame.corners.southWest}, se=${frame.corners.southEast}`,
-    `Resolved target count: ${annotation.resolvedTargets.length}`,
-    `User note: ${comment}`,
-    "Inspect this CodeCharter annotation. Treat the corner geohashes as the selected rectangle, not as a list of files; read only the resolved targets needed to answer the note.",
-    "Use the CLI retrieval path above; do not use browser automation unless the user explicitly asks for visual UI testing.",
+    `CLI: codecharter annotation ${annotation.deepLink}`,
+    `Fallback: npx --yes codecharter annotation ${annotation.deepLink}`,
+    `Targets: ${annotation.resolvedTargets.length}`,
+    `Note: ${comment}`,
+    "Use CLI output; read only needed resolvedTargets. Do not use browser automation unless asked.",
   ].join("\n");
 }
 

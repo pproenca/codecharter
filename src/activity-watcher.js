@@ -200,6 +200,7 @@ function isActivityWatchablePath(path) {
     && path !== "codemap.json"
     && path !== "codecharter.json"
     && !path.startsWith(".git/")
+    && !path.startsWith(".codecharter/")
     && !path.startsWith(".scratch/")
     && isCodeFile(path);
 }

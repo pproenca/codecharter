@@ -20,7 +20,7 @@ const MIME_TYPES = {
 
 const BUNDLED_PUBLIC_ROOT = fileURLToPath(new URL("../public", import.meta.url));
 const DEFAULT_PORT_SEARCH_LIMIT = 20;
-const DEFAULT_ACTIVITY_ARCHIVE = ".scratch/codecharter/activity.jsonl";
+const DEFAULT_ACTIVITY_ARCHIVE = ".codecharter/activity.jsonl";
 
 export async function startServer({
   root,
@@ -34,7 +34,7 @@ export async function startServer({
     root,
     mapPath,
     publicRoot,
-    namedPlacesPath: join(root, ".scratch", "named-places.json"),
+    namedPlacesPath: join(root, ".codecharter", "named-places.json"),
     activityStore: createActivityStore({
       archivePath: join(root, DEFAULT_ACTIVITY_ARCHIVE),
       flushIntervalMs: activityFlushIntervalMs,

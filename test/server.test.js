@@ -243,7 +243,7 @@ async function waitForActivityEvent(baseUrl) {
 async function waitForActivityArchive(root) {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     try {
-      const raw = await readFile(join(root, ".scratch", "codecharter", "activity.jsonl"), "utf8");
+      const raw = await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8");
       const events = raw.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
       if (events.length > 0) return events;
     } catch (error) {

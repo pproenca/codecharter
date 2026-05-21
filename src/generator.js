@@ -6,10 +6,12 @@ import { buildFileTree, flattenTree, sortedFiles, sortedFolders } from "./tree.j
 import { layoutTree } from "./treemap.js";
 
 const DEFAULT_EXCLUDE_PATHS = [
-  ".scratch/codecharter/codecharter.json",
+  ".codecharter/codecharter.json",
   "codecharter.json",
   "codemap.json",
   ".codecharter/config.json",
+  ".codecharter/activity.jsonl",
+  ".codecharter/named-places.json",
   ".codex/hooks.json",
   ".codex/hooks/codecharter-codex-hook.mjs",
 ];

@@ -18,7 +18,7 @@ test("parses git porcelain paths for watchable code files only", () => {
     "R  src/new-name.ts",
     "src/old-name.ts",
     "?? codecharter.json",
-    "?? .scratch/codecharter/activity.jsonl",
+    "?? .codecharter/activity.jsonl",
     "?? public/logo.png",
     "?? notes.txt",
     "",

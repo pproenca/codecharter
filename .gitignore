@@ -1,7 +1,4 @@
 node_modules/
+.codecharter/
 codecharter.json
 codemap.json
-.scratch/codecharter/
-.scratch/activity-stream.json
-.scratch/activity-stream.jsonl
-.scratch/named-places.json

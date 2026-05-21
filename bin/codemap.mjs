@@ -10,15 +10,15 @@ import { startActivityWatcher } from "../src/activity-watcher.js";
 import { runCodexHook } from "../src/codex-hook.js";
 import { generateCodemap } from "../src/generator.js";
 import { initializeCodecharter } from "../src/init.js";
-import { ensureLocalGitExcludes } from "../src/local-git-exclude.js";
+import { ensureCodecharterGitignore, ensureLocalGitExcludes } from "../src/local-git-exclude.js";
 import { resolveAddress } from "../src/resolver.js";
 import { startServer } from "../src/server.js";
 import { writeJson } from "../src/store.js";
 
-const DEFAULT_MAP_FILE = ".scratch/codecharter/codecharter.json";
+const DEFAULT_MAP_FILE = ".codecharter/codecharter.json";
 const ROOT_MAP_FILE = "codecharter.json";
 const LEGACY_MAP_FILE = "codemap.json";
-const DEFAULT_ACTIVITY_ARCHIVE = ".scratch/codecharter/activity.jsonl";
+const DEFAULT_ACTIVITY_ARCHIVE = ".codecharter/activity.jsonl";
 const METADATA_EXCLUDE_PATHS = [
   DEFAULT_MAP_FILE,
   ROOT_MAP_FILE,
@@ -197,6 +197,7 @@ async function main() {
 }
 
 async function setupCodecharter({ root, out, fresh, installCodex, installGitHooks }) {
+  await ensureCodecharterGitignore(root);
   await ensureLocalGitExcludes(root);
   const result = await initializeCodecharter({
     root,
@@ -215,6 +216,7 @@ async function setupCodecharter({ root, out, fresh, installCodex, installGitHook
 }
 
 async function runDevServer({ root, mapPath, port, agentId, watch, fresh, open, initialCodemap }) {
+  await ensureCodecharterGitignore(root);
   await ensureLocalGitExcludes(root);
   let currentCodemap = initialCodemap ?? await writeCodemap({ root, out: mapPath, fresh });
   await ensureActivityStream(root);

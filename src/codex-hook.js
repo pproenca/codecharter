@@ -11,10 +11,10 @@ import { readJson } from "./store.js";
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_CONFIG_PATH = ".codecharter/config.json";
-const DEFAULT_MAP_PATH = ".scratch/codecharter/codecharter.json";
+const DEFAULT_MAP_PATH = ".codecharter/codecharter.json";
 const ROOT_MAP_PATH = "codecharter.json";
 const LEGACY_MAP_PATH = "codemap.json";
-const DEFAULT_ACTIVITY_PATH = ".scratch/codecharter/activity.jsonl";
+const DEFAULT_ACTIVITY_PATH = ".codecharter/activity.jsonl";
 
 export async function runCodexHook({ input = "", cwd = process.cwd() } = {}) {
   const payload = parseHookPayload(input);

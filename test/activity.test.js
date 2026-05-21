@@ -47,7 +47,7 @@ test("CLI appends Codex activity events to the JSONL activity archive", async ()
     "editing",
   ], { cwd: root });
 
-  const lines = (await readFile(join(root, ".scratch/codecharter/activity.jsonl"), "utf8")).trim().split("\n");
+  const lines = (await readFile(join(root, ".codecharter/activity.jsonl"), "utf8")).trim().split("\n");
   const event = JSON.parse(lines[0]);
 
   assert.equal(lines.length, 1);
@@ -76,7 +76,7 @@ test("CLI activity can report a deterministic token-range map address", async ()
     "codex",
   ], { cwd: root });
 
-  const lines = (await readFile(join(root, ".scratch/codecharter/activity.jsonl"), "utf8")).trim().split("\n");
+  const lines = (await readFile(join(root, ".codecharter/activity.jsonl"), "utf8")).trim().split("\n");
   const event = JSON.parse(lines[0]);
 
   assert.equal(event.address.targetType, "tokenRange");

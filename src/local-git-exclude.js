@@ -5,20 +5,32 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-export const LOCAL_SCRATCH_EXCLUDES = [
-  ".scratch/codecharter/",
-  ".scratch/activity-stream.json",
-  ".scratch/activity-stream.jsonl",
-  ".scratch/named-places.json",
+export const CODECHARTER_GITIGNORE_PATTERNS = [
+  ".codecharter/",
+  "codecharter.json",
+  "codemap.json",
 ];
 
-export async function ensureLocalGitExcludes(root, patterns = LOCAL_SCRATCH_EXCLUDES) {
+export const LOCAL_CODECHARTER_EXCLUDES = [
+  ".codecharter/",
+  "codecharter.json",
+  "codemap.json",
+];
+
+export async function ensureCodecharterGitignore(root, patterns = CODECHARTER_GITIGNORE_PATTERNS) {
+  return ensureIgnoreFile(join(root, ".gitignore"), patterns);
+}
+
+export async function ensureLocalGitExcludes(root, patterns = LOCAL_CODECHARTER_EXCLUDES) {
   const excludePath = await localGitExcludePath(root);
   if (!excludePath) return { skipped: true, patternsAdded: [] };
+  return ensureIgnoreFile(excludePath, patterns);
+}
 
+async function ensureIgnoreFile(path, patterns) {
   let current = "";
   try {
-    current = await readFile(excludePath, "utf8");
+    current = await readFile(path, "utf8");
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
   }
@@ -27,9 +39,9 @@ export async function ensureLocalGitExcludes(root, patterns = LOCAL_SCRATCH_EXCL
   const missing = patterns.filter((pattern) => !existing.has(pattern));
   if (missing.length === 0) return { skipped: false, patternsAdded: [] };
 
-  await mkdir(dirname(excludePath), { recursive: true });
+  await mkdir(dirname(path), { recursive: true });
   const separator = current.length === 0 || current.endsWith("\n") ? "" : "\n";
-  await writeFile(excludePath, `${current}${separator}${missing.join("\n")}\n`);
+  await writeFile(path, `${current}${separator}${missing.join("\n")}\n`);
   return { skipped: false, patternsAdded: missing };
 }
 

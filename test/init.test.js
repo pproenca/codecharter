@@ -26,10 +26,10 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
   ], { cwd: root });
 
   const config = JSON.parse(await readFile(join(root, ".codecharter", "config.json"), "utf8"));
-  assert.equal(config.mapPath, ".scratch/codecharter/codecharter.json");
+  assert.equal(config.mapPath, ".codecharter/codecharter.json");
   assert.equal(config.agents.codex.enabled, true);
 
-  const sidecar = JSON.parse(await readFile(join(root, ".scratch", "codecharter", "codecharter.json"), "utf8"));
+  const sidecar = JSON.parse(await readFile(join(root, ".codecharter", "codecharter.json"), "utf8"));
   assert.ok(sidecar.files["src/app.ts"]);
 
   const hooksJson = JSON.parse(await readFile(join(root, ".codex", "hooks.json"), "utf8"));
@@ -42,8 +42,13 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
   const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   assert.match(packageJson.devDependencies.codecharter, /^\^/);
 
-  const { stdout: scratchStatus } = await execFileAsync("git", ["status", "--short", "--", ".scratch/codecharter/codecharter.json"], { cwd: root });
-  assert.equal(scratchStatus, "");
+  const gitignore = await readFile(join(root, ".gitignore"), "utf8");
+  assert.match(gitignore, /^\.codecharter\/$/m);
+  assert.match(gitignore, /^codecharter\.json$/m);
+  assert.match(gitignore, /^codemap\.json$/m);
+
+  const { stdout: artifactStatus } = await execFileAsync("git", ["status", "--short", "--", ".codecharter/codecharter.json"], { cwd: root });
+  assert.equal(artifactStatus, "");
 });
 
 test("codecharter init merges Codex hooks without clobbering existing repo hooks", async () => {
@@ -130,7 +135,7 @@ test("codecharter codex-hook appends mapped Codex activity without a daemon", as
     "codex-hook",
   ], { cwd: root, input: JSON.stringify(payload) });
 
-  const lines = (await readFile(join(root, ".scratch", "codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
+  const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
   const event = JSON.parse(lines[0]);
   assert.equal(event.agentId, "codex");
   assert.equal(event.activityState, "editing");

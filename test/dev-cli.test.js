@@ -7,7 +7,7 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { LOCAL_SCRATCH_EXCLUDES } from "../src/local-git-exclude.js";
+import { LOCAL_CODECHARTER_EXCLUDES } from "../src/local-git-exclude.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -44,11 +44,11 @@ test("codecharter dev is a one-command dogfood workflow", { timeout: 8000 }, asy
     const codemap = await getJson(`http://127.0.0.1:${port}/api/map`);
     assert.equal(codemap.files["src/app.js"].path, "src/app.js");
 
-    const sidecar = JSON.parse(await readFile(join(root, ".scratch", "codecharter", "codecharter.json"), "utf8"));
+    const sidecar = JSON.parse(await readFile(join(root, ".codecharter", "codecharter.json"), "utf8"));
     assert.equal(sidecar.files["src/app.js"].geo.geohash, codemap.files["src/app.js"].geo.geohash);
 
     const exclude = await readFile(join(root, ".git", "info", "exclude"), "utf8");
-    for (const pattern of LOCAL_SCRATCH_EXCLUDES) assert.match(exclude, new RegExp(escapeRegExp(pattern)));
+    for (const pattern of LOCAL_CODECHARTER_EXCLUDES) assert.match(exclude, new RegExp(escapeRegExp(pattern)));
 
     const activity = await waitForActivity(port);
     assert.equal(activity.agentId, "dogfood");
@@ -98,10 +98,15 @@ test("codecharter setup --dev initializes a fresh repo and prints the viewer URL
     assert.ok(hooksJson.hooks.PostToolUse);
 
     const config = JSON.parse(await readFile(join(root, ".codecharter", "config.json"), "utf8"));
-    assert.equal(config.mapPath, ".scratch/codecharter/codecharter.json");
+    assert.equal(config.mapPath, ".codecharter/codecharter.json");
 
-    const { stdout: scratchStatus } = await execFileAsync("git", ["status", "--short", "--", ".scratch/codecharter/codecharter.json"], { cwd: root });
-    assert.equal(scratchStatus, "");
+    const gitignore = await readFile(join(root, ".gitignore"), "utf8");
+    assert.match(gitignore, /^\.codecharter\/$/m);
+    assert.match(gitignore, /^codecharter\.json$/m);
+    assert.match(gitignore, /^codemap\.json$/m);
+
+    const { stdout: artifactStatus } = await execFileAsync("git", ["status", "--short", "--", ".codecharter/codecharter.json"], { cwd: root });
+    assert.equal(artifactStatus, "");
 
     const activity = await waitForActivity(port, "src/app.js");
     assert.equal(activity.agentId, "first-run");

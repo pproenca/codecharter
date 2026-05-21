@@ -9,9 +9,8 @@ const execFileAsync = promisify(execFile);
 
 const CODECHARTER_DIR = ".codecharter";
 const CODEX_DIR = ".codex";
-const SCRATCH_DIR = ".scratch/codecharter";
-const DEFAULT_ACTIVITY_PATH = `${SCRATCH_DIR}/activity.jsonl`;
-const DEFAULT_MAP_PATH = ".scratch/codecharter/codecharter.json";
+const DEFAULT_ACTIVITY_PATH = `${CODECHARTER_DIR}/activity.jsonl`;
+const DEFAULT_MAP_PATH = `${CODECHARTER_DIR}/codecharter.json`;
 const ROOT_MAP_PATH = "codecharter.json";
 const LEGACY_MAP_PATH = "codemap.json";
 const MANAGED_START = "# >>> codecharter >>>";
@@ -28,7 +27,7 @@ export async function initializeCodecharter({
   writeCodemap,
 } = {}) {
   const resolvedMapPath = mapPath ?? join(root, DEFAULT_MAP_PATH);
-  await mkdir(join(root, SCRATCH_DIR), { recursive: true });
+  await mkdir(join(root, CODECHARTER_DIR), { recursive: true });
   await ensureCodecharterConfig(root, resolvedMapPath);
 
   const codemap = writeCodemap ? await writeCodemap({ root, out: resolvedMapPath, fresh }) : undefined;

@@ -54,8 +54,8 @@
         "lat": 0,
         "geohash": "s00000000000"
       },
-      "lineCount": 17219,
-      "weight": 196023,
+      "lineCount": 17513,
+      "weight": 198749,
       "children": {
         "folders": [
           ".agents",
@@ -1091,8 +1091,8 @@
         "lat": -20.60411214051001,
         "geohash": "6h36gc1u7g0g"
       },
-      "lineCount": 2496,
-      "weight": 21232,
+      "lineCount": 2648,
+      "weight": 22529,
       "children": {
         "folders": [],
         "files": [
@@ -1124,8 +1124,8 @@
         "lat": -64.06612271226001,
         "geohash": "4h97ec1ggc0g"
       },
-      "lineCount": 2535,
-      "weight": 20774,
+      "lineCount": 2539,
+      "weight": 20813,
       "children": {
         "folders": [],
         "files": [
@@ -1177,8 +1177,8 @@
         "lat": 43.46201057175,
         "geohash": "wrdpk0h8s1gz"
       },
-      "lineCount": 2061,
-      "weight": 22444,
+      "lineCount": 2199,
+      "weight": 23834,
       "children": {
         "folders": [],
         "files": [
@@ -4926,9 +4926,9 @@
         "lat": -20.60411214060001,
         "geohash": "3h74fc4k3e0g"
       },
-      "lineCount": 1707,
+      "lineCount": 1770,
       "maxLineLength": 179,
-      "weight": 14660
+      "weight": 15050
     },
     "public/deep-links.js": {
       "path": "public/deep-links.js",
@@ -4946,9 +4946,9 @@
         "lat": -16.674279349679992,
         "geohash": "7tn15hx1m1nc"
       },
-      "lineCount": 57,
+      "lineCount": 64,
       "maxLineLength": 103,
-      "weight": 563
+      "weight": 645
     },
     "public/index.html": {
       "path": "public/index.html",
@@ -4966,9 +4966,9 @@
         "lat": -32.329225830780004,
         "geohash": "74kb5dehs5xb"
       },
-      "lineCount": 35,
-      "maxLineLength": 182,
-      "weight": 422
+      "lineCount": 48,
+      "maxLineLength": 280,
+      "weight": 733
     },
     "public/render-model.js": {
       "path": "public/render-model.js",
@@ -4986,9 +4986,9 @@
         "lat": -20.60411214060001,
         "geohash": "6k3fy34hq74g"
       },
-      "lineCount": 454,
+      "lineCount": 530,
       "maxLineLength": 136,
-      "weight": 4256
+      "weight": 4810
     },
     "public/style.css": {
       "path": "public/style.css",
@@ -5006,9 +5006,9 @@
         "lat": -14.055503353559999,
         "geohash": "7jsb5970u0rb"
       },
-      "lineCount": 243,
+      "lineCount": 236,
       "maxLineLength": 106,
-      "weight": 1331
+      "weight": 1291
     },
     "src/activity-store.js": {
       "path": "src/activity-store.js",
@@ -5366,9 +5366,9 @@
         "lat": -62.53333298919,
         "geohash": "1sfs300sbtff"
       },
-      "lineCount": 217,
+      "lineCount": 221,
       "maxLineLength": 135,
-      "weight": 1744
+      "weight": 1783
     },
     "src/server.js": {
       "path": "src/server.js",
@@ -5586,9 +5586,9 @@
         "lat": 5.921035282079998,
         "geohash": "w1h1xmuu98vr"
       },
-      "lineCount": 69,
+      "lineCount": 93,
       "maxLineLength": 108,
-      "weight": 715
+      "weight": 947
     },
     "test/dev-cli.test.js": {
       "path": "test/dev-cli.test.js",
@@ -5646,9 +5646,9 @@
         "lat": 32.24303080443,
         "geohash": "wt9xmv8jk2tf"
       },
-      "lineCount": 59,
-      "maxLineLength": 93,
-      "weight": 680
+      "lineCount": 111,
+      "maxLineLength": 110,
+      "weight": 1194
     },
     "test/init.test.js": {
       "path": "test/init.test.js",
@@ -5726,9 +5726,9 @@
         "lat": 72.7209037782,
         "geohash": "vugt8wqmcz40"
       },
-      "lineCount": 332,
-      "maxLineLength": 125,
-      "weight": 3441
+      "lineCount": 384,
+      "maxLineLength": 128,
+      "weight": 4003
     },
     "test/resolver.test.js": {
       "path": "test/resolver.test.js",
@@ -5766,9 +5766,9 @@
         "lat": 18.06700279409999,
         "geohash": "w55qb0czbtmt"
       },
-      "lineCount": 130,
+      "lineCount": 140,
       "maxLineLength": 123,
-      "weight": 1476
+      "weight": 1558
     },
     "test/server.test.js": {
       "path": "test/server.test.js",

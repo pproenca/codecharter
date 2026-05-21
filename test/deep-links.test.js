@@ -67,3 +67,27 @@ test("builds browser hash routes for map addresses, annotations, and selections"
     "#/selection?level=file&bounds=0.2%2C0.18%2C0.25%2C0.16",
   );
 });
+
+test("selection hash routes preserve coordinate precision and reject degenerate regions", () => {
+  const bounds = {
+    x: 0.3330228173914,
+    y: 0.0000000000014,
+    width: 0.3321899757216,
+    height: 0.1234567891234,
+  };
+  const route = parseHashRoute(createSelectionHashRoute({ level: "file", bounds }));
+  const parsed = boundsFromRouteParams(route.params);
+
+  assert.ok(Math.abs(parsed.x - bounds.x) <= 5e-13);
+  assert.ok(Math.abs(parsed.y - bounds.y) <= 5e-13);
+  assert.ok(Math.abs(parsed.width - bounds.width) <= 5e-13);
+  assert.ok(Math.abs(parsed.height - bounds.height) <= 5e-13);
+  assert.equal(
+    boundsFromRouteParams(new URLSearchParams("level=file&bounds=0.333022817391,0,0.332189975722,0")),
+    null,
+  );
+  assert.equal(
+    boundsFromRouteParams(new URLSearchParams("level=file&bounds=0.8,0.2,0.3,0.2")),
+    null,
+  );
+});

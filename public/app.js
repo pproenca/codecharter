@@ -24,6 +24,7 @@ import {
   lineAtWorldPoint,
   latestActivityByAgent,
   normalizeActivityState,
+  organicTrailSegments,
   organicRegionPoints,
   organicRegionStyle,
   panViewByScreenDelta,
@@ -227,7 +228,10 @@ async function refreshActivity() {
   try {
     const activity = await fetchJson("/api/activity");
     const nextSignature = activitySignature(activity.events ?? []);
-    if (nextSignature === state.activitySignature) return;
+    if (nextSignature === state.activitySignature) {
+      if ((activity.events ?? []).length) render();
+      return;
+    }
     state.activity = activity.events ?? [];
     state.activitySignature = nextSignature;
     render();
@@ -702,11 +706,12 @@ function drawNamedPlaces() {
 }
 
 function drawAnnotation(annotation, markerNumber, selected) {
-  drawSelection(
+  drawAnnotationMembrane(
     annotation.geometry.bounds,
     selected ? "rgba(37, 99, 235, 0.13)" : "rgba(37, 99, 235, 0.07)",
     selected ? "#1d4ed8" : "rgba(37, 99, 235, 0.8)",
-    selected ? [] : [4, 4],
+    selected,
+    annotation.id ?? annotation.name,
   );
 
   const box = screenBounds(annotation.geometry.bounds);
@@ -714,6 +719,21 @@ function drawAnnotation(annotation, markerNumber, selected) {
     drawLabel(annotation.name, box.x + 8, box.y + 18, "#1e3a8a", 12, "700");
   }
   drawAnnotationMarker(annotation, markerNumber, selected);
+}
+
+function drawAnnotationMembrane(bounds, fill, stroke, selected, key) {
+  const points = organicRegionPoints(bounds, `annotation:${key}`, 0);
+  if (points.length < 3) return;
+
+  ctx.save();
+  ctx.fillStyle = fill;
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = selected ? 2.5 : 1.6;
+  if (!selected) ctx.setLineDash([6, 5]);
+  drawOrganicPath(points);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawAnnotationMarker(annotation, markerNumber, selected) {
@@ -765,28 +785,33 @@ function drawActivity() {
     const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.id === event.id;
     const encoding = activityVisualEncoding(event, { latest, selected });
     const style = activityStateStyle(encoding.activityState);
+    const fillColor = activityFillColor(style, encoding);
+    const haloColor = activityHaloColor(style, encoding);
     ctx.save();
     ctx.globalAlpha = encoding.alpha;
-    ctx.fillStyle = style.stroke;
+    ctx.fillStyle = haloColor;
     ctx.beginPath();
     ctx.arc(p.x, p.y, encoding.haloRadius * 0.46, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = style.fill;
-    ctx.strokeStyle = selected ? "#111827" : style.stroke;
+    ctx.fillStyle = fillColor;
+    ctx.strokeStyle = selected ? "#111827" : haloColor;
     ctx.lineWidth = selected ? 3 : latest ? 2.5 : 1.5;
     ctx.beginPath();
     ctx.arc(p.x, p.y, encoding.coreRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    if (latest) {
+    if (latest && (encoding.active || selected)) {
       ctx.globalAlpha = encoding.membraneAlpha * 1.25;
       ctx.beginPath();
       drawActivityCell(p, encoding.haloRadius, event.id ?? event.agentId);
-      ctx.strokeStyle = style.fill;
+      ctx.strokeStyle = fillColor;
       ctx.lineWidth = 1.4;
       ctx.stroke();
       ctx.globalAlpha = 1;
-      drawLabel(`${event.agentId}: ${encoding.activityState}`, p.x + 10, p.y - 8, style.label, 12, "700");
+      const label = encoding.active
+        ? `${event.agentId}: ${encoding.activityState}`
+        : `${event.agentId}: last seen ${formatActivityAge(encoding.ageMinutes)}`;
+      drawLabel(label, p.x + 10, p.y - 8, encoding.active ? style.label : "#475569", 12, "700");
     }
     ctx.restore();
   }
@@ -800,6 +825,7 @@ function drawActivityMembranes(events, latestByAgent) {
     if (encoding.membraneAlpha <= 0.08 && !selected) continue;
 
     const style = activityStateStyle(encoding.activityState);
+    const fillColor = activityFillColor(style, encoding);
 
     for (const bounds of activityFragmentBounds(event)) {
       const tissueBox = activityTissueBox(screenBounds(bounds), encoding);
@@ -809,9 +835,9 @@ function drawActivityMembranes(events, latestByAgent) {
       };
       const radius = Math.max(tissueBox.width, tissueBox.height) * 0.82;
       const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
-      gradient.addColorStop(0, hexToRgba(style.fill, encoding.membraneAlpha));
-      gradient.addColorStop(0.58, hexToRgba(style.fill, encoding.membraneAlpha * 0.45));
-      gradient.addColorStop(1, hexToRgba(style.fill, 0));
+      gradient.addColorStop(0, hexToRgba(fillColor, encoding.membraneAlpha));
+      gradient.addColorStop(0.58, hexToRgba(fillColor, encoding.membraneAlpha * 0.45));
+      gradient.addColorStop(1, hexToRgba(fillColor, 0));
 
       ctx.save();
       ctx.fillStyle = gradient;
@@ -836,46 +862,67 @@ function drawActivityTrails(events, latestByAgent) {
     const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.agentId === agentEvents[0].agentId;
     const encoding = activityVisualEncoding(latest, { latest: true, selected });
     const style = activityStateStyle(encoding.activityState);
+    const fillColor = activityFillColor(style, encoding);
+    const points = activityTrailPoints(agentEvents);
+    if (points.length < 2) continue;
+
     ctx.save();
-    ctx.strokeStyle = style.fill;
-    ctx.globalAlpha = encoding.trailAlpha;
-    ctx.lineWidth = encoding.lineWidth;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.beginPath();
-    drawMyceliumPath(agentEvents);
-    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.shadowColor = hexToRgba(fillColor, encoding.trailAlpha * 0.3);
+    ctx.shadowBlur = encoding.dormant ? 0 : selected ? 12 : 7;
+
+    strokeOrganicTrail(points, {
+      color: hexToRgba(fillColor, encoding.trailAlpha * 0.16),
+      lineWidth: encoding.lineWidth * 5.4,
+    });
+    ctx.shadowBlur = 0;
+    strokeOrganicTrail(points, {
+      color: hexToRgba(fillColor, encoding.trailAlpha * 0.38),
+      lineWidth: encoding.lineWidth * 2.25,
+    });
+    strokeOrganicTrail(points, {
+      color: hexToRgba(fillColor, Math.min(0.9, encoding.trailAlpha * 0.95)),
+      lineWidth: encoding.lineWidth,
+    });
     ctx.restore();
   }
 }
 
-function drawMyceliumPath(events) {
-  const points = events
+function activityTrailPoints(events) {
+  return events
     .map((event) => activityPrimaryBounds(event))
     .filter(Boolean)
     .map((bounds) => worldToScreen(boundsCenter(bounds)));
+}
+
+function strokeOrganicTrail(points, { color, lineWidth }) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  if (drawMyceliumPath(points)) ctx.stroke();
+}
+
+function drawMyceliumPath(points) {
   if (points.length < 2) return;
 
-  ctx.moveTo(points[0].x, points[0].y);
-  for (let index = 1; index < points.length; index += 1) {
-    const previous = points[index - 1];
-    const current = points[index];
-    const mid = {
-      x: (previous.x + current.x) / 2,
-      y: (previous.y + current.y) / 2,
-    };
-    const dx = current.x - previous.x;
-    const dy = current.y - previous.y;
-    const length = Math.max(1, Math.hypot(dx, dy));
-    const unit = hashUnit(`${events[index].id ?? events[index].timestamp}:bend`);
-    const direction = unit > 0.5 ? 1 : -1;
-    const bend = Math.min(110, length * 0.28) * (0.45 + Math.abs(unit - 0.5)) * direction;
-    const control = {
-      x: mid.x - (dy / length) * bend,
-      y: mid.y + (dx / length) * bend,
-    };
-    ctx.quadraticCurveTo(control.x, control.y, current.x, current.y);
+  const minDistance = Math.min(14, Math.max(6, state.view.scale * 2.2));
+  const segments = organicTrailSegments(points, { minDistance });
+  if (segments.length === 0) return false;
+
+  ctx.moveTo(segments[0].start.x, segments[0].start.y);
+  for (const segment of segments) {
+    ctx.bezierCurveTo(
+      segment.control1.x,
+      segment.control1.y,
+      segment.control2.x,
+      segment.control2.y,
+      segment.end.x,
+      segment.end.y,
+    );
   }
+  return true;
 }
 
 function drawActivityCell(center, radius, key) {
@@ -910,6 +957,19 @@ function drawActivityTissue(box, key) {
   ctx.closePath();
 }
 
+function activityFillColor(style, encoding) {
+  return encoding.active || encoding.selected ? style.fill : "#64748b";
+}
+
+function activityHaloColor(style, encoding) {
+  return encoding.active || encoding.selected ? style.stroke : "#cbd5e1";
+}
+
+function formatActivityAge(ageMinutes) {
+  if (ageMinutes < 60) return `${Math.max(1, Math.round(ageMinutes))}m ago`;
+  return `${Math.round(ageMinutes / 60)}h ago`;
+}
+
 function hexToRgba(hex, alpha) {
   const value = hex.replace("#", "");
   const rgb = [
@@ -940,9 +1000,12 @@ function renderActivityFeed() {
     item.className = "activity-item";
     item.type = "button";
     item.addEventListener("click", () => selectActivityEvent(event));
+    const encoding = activityVisualEncoding(event, { latest: true });
 
     const title = document.createElement("strong");
-    title.textContent = `${event.agentId}: ${normalizeActivityState(event.activityState)}`;
+    title.textContent = encoding.active
+      ? `${event.agentId}: ${normalizeActivityState(event.activityState)}`
+      : `${event.agentId}: last seen ${formatActivityAge(encoding.ageMinutes)}`;
     const detail = document.createElement("span");
     detail.textContent = activityPathLabel(event);
     item.append(title, detail);

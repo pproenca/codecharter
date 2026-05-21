@@ -44,6 +44,7 @@ export function parseHashRoute(hash) {
 export function boundsFromRouteParams(params) {
   const values = (params.get("bounds") ?? "").split(",").map(Number);
   if (values.length !== 4 || values.some((value) => !Number.isFinite(value))) return null;
+  if (!isValidSelectionBounds(values)) return null;
   return {
     x: values[0],
     y: values[1],
@@ -54,4 +55,10 @@ export function boundsFromRouteParams(params) {
 
 function formatRouteNumber(value) {
   return Number(value).toFixed(12).replace(/\.?0+$/, "");
+}
+
+function isValidSelectionBounds([x, y, width, height]) {
+  if (width <= 0 || height <= 0) return false;
+  if (x < 0 || y < 0 || x > 1 || y > 1) return false;
+  return x + width <= 1 && y + height <= 1;
 }

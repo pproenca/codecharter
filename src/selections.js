@@ -104,10 +104,14 @@ function normalizeSelectionGeometry(geometry) {
   if (!geometry || geometry.type !== "rect") {
     throw new Error("Only rectangle drawn selections are supported in v1");
   }
+  const bounds = clampBounds(normalizeRect(geometry.bounds));
+  if (bounds.width <= 0 || bounds.height <= 0) {
+    throw new Error("Selection bounds must cover a non-zero area");
+  }
 
   return {
     type: "rect",
-    bounds: clampBounds(normalizeRect(geometry.bounds)),
+    bounds,
   };
 }
 

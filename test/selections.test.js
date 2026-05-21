@@ -22,6 +22,16 @@ test("resolves drawn selections with geohash coverage and geometry refinement", 
   assert.deepEqual(result.resolvedTargets.map((target) => target.path), ["src/a.ts"]);
 });
 
+test("rejects degenerate drawn selections before resolving map targets", () => {
+  assert.throws(
+    () => resolveSelection(codemap, {
+      level: "file",
+      geometry: { type: "rect", bounds: { x: 0.1, y: 0.1, width: 0.2, height: 0 } },
+    }),
+    /non-zero area/,
+  );
+});
+
 test("creates a named drawn selection", () => {
   const place = createNamedSelection(codemap, {
     name: "Search Area",

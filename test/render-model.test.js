@@ -17,6 +17,7 @@ import {
   lineAtWorldPoint,
   maxFolderDepthForScale,
   organicRegionPoints,
+  organicTrailSegments,
   latestActivityByAgent,
   panViewByScreenDelta,
   screenBoundsForView,
@@ -24,6 +25,7 @@ import {
   shouldDrawFolder,
   shouldDrawOrganicRegion,
   shouldLabelFile,
+  simplifyTrailPoints,
   sourcePanelLineRangeForBox,
   sortedActivityEvents,
   viewForBounds,
@@ -125,6 +127,29 @@ test("keeps camera transforms reversible across screen and world space", () => {
   ), { x: 0, y: 0, width: 320, height: 480 });
 });
 
+test("empirically keeps screen and world coordinate transforms precise across the viewport", () => {
+  const viewport = { width: 1505, height: 1324 };
+  const view = { x: -0.214987654321, y: -0.307123456789, scale: 1.372918273645 };
+  let maxError = 0;
+  let checked = 0;
+
+  for (let yIndex = 0; yIndex <= 32; yIndex += 1) {
+    for (let xIndex = 0; xIndex <= 32; xIndex += 1) {
+      const world = {
+        x: xIndex / 32,
+        y: yIndex / 32,
+      };
+      const screen = worldToScreenPoint(world, view, viewport);
+      const roundTrip = screenToWorldPoint(screen, view, viewport);
+      maxError = Math.max(maxError, Math.abs(roundTrip.x - world.x), Math.abs(roundTrip.y - world.y));
+      checked += 1;
+    }
+  }
+
+  assert.equal(checked, 1089);
+  assert.ok(maxError < 1e-12, `max transform error ${maxError}`);
+});
+
 test("zooms around the requested screen anchor without drifting the target world point", () => {
   const viewport = { width: 800, height: 600 };
   const anchor = { x: 300, y: 240 };
@@ -221,6 +246,26 @@ test("keeps organic contour sizing in projected world-space ratios", () => {
   assert.equal(shouldDrawOrganicRegion(1, 5, { width: 300, height: 300 }), false);
 });
 
+test("turns activity point sequences into smooth bounded trail segments", () => {
+  const points = [
+    { x: 0, y: 0 },
+    { x: 2, y: 1 },
+    { x: 30, y: 12 },
+    { x: 80, y: 36 },
+  ];
+
+  const simplified = simplifyTrailPoints(points, 8);
+  const segments = organicTrailSegments(points, { minDistance: 8 });
+
+  assert.deepEqual(simplified, [points[0], points[2], points[3]]);
+  assert.equal(segments.length, 2);
+  assert.deepEqual(segments[0].start, points[0]);
+  assert.deepEqual(segments.at(-1).end, points[3]);
+  assert.equal(Number.isFinite(segments[0].control1.x), true);
+  assert.equal(Number.isFinite(segments[0].control2.y), true);
+  assert.deepEqual(organicTrailSegments(points, { minDistance: 8 }), segments);
+});
+
 test("sorts activity events and keeps the latest visible state by agent", () => {
   const now = Date.parse("2026-05-20T12:00:00.000Z");
   const events = [
@@ -238,12 +283,19 @@ test("sorts activity events and keeps the latest visible state by agent", () => 
 test("encodes activity as recency-faded biological markers", () => {
   const now = Date.parse("2026-05-20T12:00:00.000Z");
   const fresh = activityVisualEncoding(activity("codex", "editing", "2026-05-20T12:00:00.000Z"), { latest: true, now });
+  const dormantLatest = activityVisualEncoding(activity("codex", "editing", "2026-05-20T11:20:00.000Z"), { latest: true, now });
   const older = activityVisualEncoding(activity("codex", "editing", "2026-05-20T09:00:00.000Z"), { latest: false, now });
   const selected = activityVisualEncoding(activity("codex", "blocked", "2026-05-20T09:00:00.000Z"), { selected: true, now });
 
   assert.equal(fresh.activityState, "editing");
   assert.equal(selected.activityState, "reviewing");
+  assert.equal(fresh.active, true);
+  assert.equal(dormantLatest.dormant, true);
+  assert.equal(dormantLatest.active, false);
   assert.equal(fresh.alpha > older.alpha, true);
+  assert.equal(fresh.alpha > dormantLatest.alpha, true);
+  assert.equal(fresh.haloRadius > dormantLatest.haloRadius, true);
+  assert.equal(dormantLatest.trailAlpha < fresh.trailAlpha, true);
   assert.equal(selected.haloRadius > fresh.haloRadius, true);
   assert.equal(fresh.coreRadius > older.coreRadius, true);
 });

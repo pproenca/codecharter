@@ -12,9 +12,12 @@ export const MAP_MAX_SCALE = 160;
 export const ORGANIC_REGION_EDGE_POSITIONS = [0.08, 0.24, 0.42, 0.6, 0.78, 0.92];
 export const KEYBOARD_PAN_PIXELS = 72;
 export const KEYBOARD_ZOOM_FACTOR = 1.25;
+export const ACTIVITY_DORMANT_AFTER_MINUTES = 30;
 export const ACTIVITY_DECAY_HALF_LIFE_MINUTES = 90;
 export const ACTIVITY_LIVE_WINDOW_MINUTES = 360;
 export const ACTIVITY_MIN_ALPHA = 0.18;
+export const ACTIVITY_TRAIL_MIN_SEGMENT_PX = 8;
+export const ACTIVITY_TRAIL_TENSION = 0.72;
 
 export const DISTRICT_PALETTE = [
   { fill: [126, 176, 156], stroke: [41, 98, 73], label: "#24513d" },
@@ -360,18 +363,39 @@ export function activityVisualEncoding(event, { latest = false, selected = false
   const ageMinutes = activityAgeMinutes(event, now);
   const decay = 2 ** (-ageMinutes / ACTIVITY_DECAY_HALF_LIFE_MINUTES);
   const vitality = selected ? 1 : clamp(1 - ageMinutes / ACTIVITY_LIVE_WINDOW_MINUTES, 0, 1);
-  const alpha = selected
+  const dormant = !selected && ageMinutes > ACTIVITY_DORMANT_AFTER_MINUTES;
+  const dormancy = selected
+    ? 0
+    : clamp(
+      (ageMinutes - ACTIVITY_DORMANT_AFTER_MINUTES)
+        / (ACTIVITY_LIVE_WINDOW_MINUTES - ACTIVITY_DORMANT_AFTER_MINUTES),
+      0,
+      1,
+    );
+  const activeAlpha = selected
     ? 1
     : clamp(((latest ? 0.42 : ACTIVITY_MIN_ALPHA) + decay * (latest ? 0.58 : 0.38)) * vitality, 0, 1);
+  const alpha = dormant ? activeAlpha * (0.38 - dormancy * 0.18) : activeAlpha;
+  const activeScale = Math.max(0.55, vitality);
+  const dormantScale = 0.42 + (1 - dormancy) * 0.22;
+  const presenceScale = selected ? 1 : dormant ? dormantScale : activeScale;
 
   return {
     activityState,
+    active: !dormant,
+    dormant,
+    selected,
+    ageMinutes,
     alpha,
-    coreRadius: (selected ? 8 : latest ? 6.5 : 3.8) * (selected ? 1 : Math.max(0.55, vitality)),
-    haloRadius: (selected ? 28 : latest ? 22 : 12) * (selected ? 1 : Math.max(0.35, vitality)),
-    membraneAlpha: (selected ? 0.22 : latest ? 0.15 : 0.07) * (selected ? 1 : vitality),
-    trailAlpha: (selected ? 0.72 : latest ? 0.42 : 0.18) * (selected ? 1 : vitality),
-    lineWidth: selected ? 3.2 : latest ? 2.2 : 1.3,
+    coreRadius: (selected ? 8 : latest ? 6.5 : 3.8) * presenceScale,
+    haloRadius: dormant ? (latest ? 8 : 5) * presenceScale : (selected ? 28 : latest ? 22 : 12) * presenceScale,
+    membraneAlpha: dormant
+      ? (selected ? 0.18 : latest ? 0.045 : 0.025) * vitality
+      : (selected ? 0.22 : latest ? 0.15 : 0.07) * (selected ? 1 : vitality),
+    trailAlpha: dormant
+      ? (selected ? 0.36 : latest ? 0.09 : 0.045) * vitality
+      : (selected ? 0.72 : latest ? 0.42 : 0.18) * (selected ? 1 : vitality),
+    lineWidth: selected ? 3.2 : latest && !dormant ? 2.2 : latest ? 1.15 : 1.1,
   };
 }
 
@@ -397,6 +421,54 @@ export function activityFragmentBounds(event) {
 
 export function activityPrimaryBounds(event) {
   return activityFragmentBounds(event)[0] ?? event?.address?.bounds ?? null;
+}
+
+export function simplifyTrailPoints(points, minDistance = ACTIVITY_TRAIL_MIN_SEGMENT_PX) {
+  if (points.length <= 2) return [...points];
+  const simplified = [points[0]];
+
+  for (let index = 1; index < points.length - 1; index += 1) {
+    if (pointDistance(simplified[simplified.length - 1], points[index]) >= minDistance) {
+      simplified.push(points[index]);
+    }
+  }
+
+  const last = points[points.length - 1];
+  if (pointDistance(simplified[simplified.length - 1], last) > 0) {
+    simplified.push(last);
+  }
+
+  return simplified.length > 1 ? simplified : [points[0], last];
+}
+
+export function organicTrailSegments(points, {
+  minDistance = ACTIVITY_TRAIL_MIN_SEGMENT_PX,
+  tension = ACTIVITY_TRAIL_TENSION,
+} = {}) {
+  const trail = simplifyTrailPoints(points, minDistance);
+  if (trail.length < 2) return [];
+
+  const segments = [];
+  for (let index = 0; index < trail.length - 1; index += 1) {
+    const previous = trail[index - 1] ?? trail[index];
+    const start = trail[index];
+    const end = trail[index + 1];
+    const next = trail[index + 2] ?? end;
+    const scalar = tension / 6;
+    segments.push({
+      start,
+      control1: {
+        x: start.x + (end.x - previous.x) * scalar,
+        y: start.y + (end.y - previous.y) * scalar,
+      },
+      control2: {
+        x: end.x - (next.x - start.x) * scalar,
+        y: end.y - (next.y - start.y) * scalar,
+      },
+      end,
+    });
+  }
+  return segments;
 }
 
 export function isLiveActivityEvent(event, { now = Date.now(), maxAgeMinutes = ACTIVITY_LIVE_WINDOW_MINUTES } = {}) {
@@ -443,6 +515,10 @@ function compareTargetAreaThenPath(a, b) {
   const areaDelta = a.bounds.width * a.bounds.height - b.bounds.width * b.bounds.height;
   if (Math.abs(areaDelta) > 1e-12) return areaDelta;
   return a.path.localeCompare(b.path);
+}
+
+function pointDistance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
 function hashUnit(value) {

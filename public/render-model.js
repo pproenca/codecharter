@@ -18,6 +18,7 @@ export const ACTIVITY_LIVE_WINDOW_MINUTES = 360;
 export const ACTIVITY_MIN_ALPHA = 0.18;
 export const ACTIVITY_TRAIL_MIN_SEGMENT_PX = 8;
 export const ACTIVITY_TRAIL_TENSION = 0.72;
+export const ACTIVITY_TRAIL_MAX_GAP_MINUTES = 20;
 
 export const DISTRICT_PALETTE = [
   { fill: [126, 176, 156], stroke: [41, 98, 73], label: "#24513d" },
@@ -441,6 +442,35 @@ export function simplifyTrailPoints(points, minDistance = ACTIVITY_TRAIL_MIN_SEG
   return simplified.length > 1 ? simplified : [points[0], last];
 }
 
+export function activityTrailGroups(events, {
+  maxGapMinutes = ACTIVITY_TRAIL_MAX_GAP_MINUTES,
+  now = Date.now(),
+  maxAgeMinutes = ACTIVITY_LIVE_WINDOW_MINUTES,
+} = {}) {
+  const byTrail = new Map();
+  for (const event of sortedActivityEvents(events, Number.POSITIVE_INFINITY, { now, maxAgeMinutes })) {
+    if (!activityPrimaryBounds(event)) continue;
+    const key = activityTrailKey(event);
+    if (!byTrail.has(key)) byTrail.set(key, []);
+    byTrail.get(key).push(event);
+  }
+
+  const groups = [];
+  for (const trailEvents of byTrail.values()) {
+    let current = [];
+    for (const event of trailEvents) {
+      if (shouldStartActivityTrailGroup(current.at(-1), event, maxGapMinutes)) {
+        if (current.length > 1) groups.push(current);
+        current = [];
+      }
+      current.push(event);
+    }
+    if (current.length > 1) groups.push(current);
+  }
+
+  return groups.sort(compareActivityGroupsByTime);
+}
+
 export function organicTrailSegments(points, {
   minDistance = ACTIVITY_TRAIL_MIN_SEGMENT_PX,
   tension = ACTIVITY_TRAIL_TENSION,
@@ -455,16 +485,27 @@ export function organicTrailSegments(points, {
     const end = trail[index + 1];
     const next = trail[index + 2] ?? end;
     const scalar = tension / 6;
+    const segmentDistance = pointDistance(start, end);
     segments.push({
       start,
-      control1: {
-        x: start.x + (end.x - previous.x) * scalar,
-        y: start.y + (end.y - previous.y) * scalar,
-      },
-      control2: {
-        x: end.x - (next.x - start.x) * scalar,
-        y: end.y - (next.y - start.y) * scalar,
-      },
+      control1: boundedTrailControlPoint({
+        point: {
+          x: start.x + (end.x - previous.x) * scalar,
+          y: start.y + (end.y - previous.y) * scalar,
+        },
+        start,
+        end,
+        segmentDistance,
+      }),
+      control2: boundedTrailControlPoint({
+        point: {
+          x: end.x - (next.x - start.x) * scalar,
+          y: end.y - (next.y - start.y) * scalar,
+        },
+        start,
+        end,
+        segmentDistance,
+      }),
       end,
     });
   }
@@ -494,6 +535,32 @@ function activityAgeMinutes(event, now) {
   const timestamp = Date.parse(event?.timestamp ?? "");
   if (!Number.isFinite(timestamp)) return 0;
   return Math.max(0, (now - timestamp) / 60000);
+}
+
+function activityTrailKey(event) {
+  return `${event.agentId ?? "agent"}:${event.sessionId ?? "manual"}`;
+}
+
+function shouldStartActivityTrailGroup(previous, event, maxGapMinutes) {
+  if (!previous) return false;
+  const previousTime = Date.parse(previous.timestamp ?? "");
+  const eventTime = Date.parse(event.timestamp ?? "");
+  if (!Number.isFinite(previousTime) || !Number.isFinite(eventTime)) return false;
+  return eventTime - previousTime > maxGapMinutes * 60000;
+}
+
+function compareActivityGroupsByTime(left, right) {
+  const leftTime = Date.parse(left[0]?.timestamp ?? "");
+  const rightTime = Date.parse(right[0]?.timestamp ?? "");
+  return (Number.isFinite(leftTime) ? leftTime : 0) - (Number.isFinite(rightTime) ? rightTime : 0);
+}
+
+function boundedTrailControlPoint({ point, start, end, segmentDistance }) {
+  const padding = Math.min(18, Math.max(4, segmentDistance * 0.18));
+  return {
+    x: clamp(point.x, Math.min(start.x, end.x) - padding, Math.max(start.x, end.x) + padding),
+    y: clamp(point.y, Math.min(start.y, end.y) - padding, Math.max(start.y, end.y) + padding),
+  };
 }
 
 function edgeInset(key, edge, index, baseInset, wobble) {

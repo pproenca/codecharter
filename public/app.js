@@ -5,6 +5,7 @@ import {
   activityFragmentBounds,
   activityPrimaryBounds,
   activityStateStyle,
+  activityTrailGroups,
   activityTissueBox,
   activityVisualEncoding,
   boundsCenter as modelBoundsCenter,
@@ -925,17 +926,11 @@ function drawActivityMembranes(events, latestByAgent) {
 }
 
 function drawActivityTrails(events, latestByAgent) {
-  const byAgent = new Map();
-  for (const event of events) {
-    if (!byAgent.has(event.agentId)) byAgent.set(event.agentId, []);
-    byAgent.get(event.agentId).push(event);
-  }
-
-  for (const agentEvents of byAgent.values()) {
-    if (agentEvents.length < 2) continue;
-    const latest = latestByAgent.get(agentEvents[0].agentId);
-    const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.agentId === agentEvents[0].agentId;
-    const encoding = activityVisualEncoding(latest, { latest: true, selected });
+  for (const agentEvents of activityTrailGroups(events)) {
+    const trailLatest = agentEvents.at(-1);
+    const latest = latestByAgent.get(trailLatest.agentId) === trailLatest;
+    const selected = activityTrailSelected(agentEvents);
+    const encoding = activityVisualEncoding(trailLatest, { latest, selected });
     const style = activityStateStyle(encoding.activityState);
     const fillColor = activityFillColor(style, encoding);
     const points = activityTrailPoints(agentEvents);
@@ -963,6 +958,11 @@ function drawActivityTrails(events, latestByAgent) {
     });
     ctx.restore();
   }
+}
+
+function activityTrailSelected(events) {
+  if (state.selectedTarget?.targetType !== "activity") return false;
+  return events.some((event) => event.id === state.selectedTarget.id);
 }
 
 function activityTrailPoints(events) {

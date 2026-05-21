@@ -5,6 +5,7 @@ import {
   activityFragmentBounds,
   activityPrimaryBounds,
   activityStateStyle,
+  activityTrailGroups,
   activityTissueBox,
   activityVisualEncoding,
   canRenderSourceText,
@@ -266,6 +267,34 @@ test("turns activity point sequences into smooth bounded trail segments", () => 
   assert.deepEqual(organicTrailSegments(points, { minDistance: 8 }), segments);
 });
 
+test("keeps trail curve handles close to their local segment", () => {
+  const points = [
+    { x: 0, y: 0 },
+    { x: 10, y: 0 },
+    { x: 1000, y: 1000 },
+  ];
+  const [first] = organicTrailSegments(points, { minDistance: 0 });
+
+  assert.ok(first.control2.x >= -4 && first.control2.x <= 14);
+  assert.ok(first.control2.y >= -4 && first.control2.y <= 4);
+});
+
+test("splits activity trails by Codex session and time gap", () => {
+  const events = [
+    activity("codex", "reading", "2026-05-20T10:00:00.000Z", { id: "a1", sessionId: "session-a" }),
+    activity("codex", "editing", "2026-05-20T10:01:00.000Z", { id: "b1", sessionId: "session-b" }),
+    activity("codex", "testing", "2026-05-20T10:02:00.000Z", { id: "a2", sessionId: "session-a" }),
+    activity("codex", "reviewing", "2026-05-20T10:40:00.000Z", { id: "a3", sessionId: "session-a" }),
+  ];
+
+  const groups = activityTrailGroups(events, {
+    maxGapMinutes: 20,
+    now: Date.parse("2026-05-20T10:45:00.000Z"),
+  });
+
+  assert.deepEqual(groups.map((group) => group.map((event) => event.id)), [["a1", "a2"]]);
+});
+
 test("sorts activity events and keeps the latest visible state by agent", () => {
   const now = Date.parse("2026-05-20T12:00:00.000Z");
   const events = [
@@ -344,7 +373,7 @@ function codeFile(overrides = {}) {
   };
 }
 
-function activity(agentId, activityState, timestamp) {
+function activity(agentId, activityState, timestamp, overrides = {}) {
   return {
     id: `${agentId}-${activityState}`,
     agentId,
@@ -355,6 +384,7 @@ function activity(agentId, activityState, timestamp) {
       geohash: "s000000",
       deepLink: "codecharter://file/s000000?path=src%2Fapp.ts",
     },
+    ...overrides,
   };
 }
 

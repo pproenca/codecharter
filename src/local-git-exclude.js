@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 
 export const LOCAL_SCRATCH_EXCLUDES = [
+  ".scratch/codecharter/",
   ".scratch/activity-stream.json",
   ".scratch/activity-stream.jsonl",
   ".scratch/named-places.json",

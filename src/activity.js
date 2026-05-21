@@ -10,6 +10,10 @@ export function createActivityEvent(address, input) {
     address,
     timestamp: input.timestamp ?? new Date().toISOString(),
     note: input.note ?? "",
+    ...(input.hookEventName ? { hookEventName: input.hookEventName } : {}),
+    ...(input.sessionId ? { sessionId: input.sessionId } : {}),
+    ...(input.turnId ? { turnId: input.turnId } : {}),
+    ...(input.model ? { model: input.model } : {}),
   };
 }
 

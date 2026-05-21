@@ -12,19 +12,29 @@ import {
   parseHashRoute,
 } from "../public/deep-links.js";
 
-test("builds and parses canonical codemap deep links", () => {
+test("builds and parses canonical codecharter deep links", () => {
   const link = createCodemapDeepLink("lineRange", "u4pruydqqvj", {
     path: "src/search/index.ts",
     lines: "80-120",
   });
 
-  assert.equal(link, "codemap://lineRange/u4pruydqqvj?path=src%2Fsearch%2Findex.ts&lines=80-120");
+  assert.equal(link, "codecharter://lineRange/u4pruydqqvj?path=src%2Fsearch%2Findex.ts&lines=80-120");
   assert.deepEqual(parseCodemapDeepLink(link), {
     kind: "lineRange",
     locator: "u4pruydqqvj",
     metadata: {
       path: "src/search/index.ts",
       lines: "80-120",
+    },
+  });
+});
+
+test("parses legacy codemap deep links", () => {
+  assert.deepEqual(parseCodemapDeepLink("codemap://file/s123456?path=src%2Fa.ts"), {
+    kind: "file",
+    locator: "s123456",
+    metadata: {
+      path: "src/a.ts",
     },
   });
 });

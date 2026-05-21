@@ -6,12 +6,12 @@ export function createCodemapDeepLink(kind, locator, metadata = {}) {
     if (value !== undefined && value !== "") params.set(key, value);
   }
   const query = params.toString();
-  return `codemap://${encodeURIComponent(kind)}/${encodeURIComponent(locator)}${query ? `?${query}` : ""}`;
+  return `codecharter://${encodeURIComponent(kind)}/${encodeURIComponent(locator)}${query ? `?${query}` : ""}`;
 }
 
 export function parseCodemapDeepLink(value) {
   const url = new URL(value);
-  if (url.protocol !== "codemap:") throw new Error(`Unsupported deep link protocol: ${url.protocol}`);
+  if (url.protocol !== "codecharter:" && url.protocol !== "codemap:") throw new Error(`Unsupported deep link protocol: ${url.protocol}`);
   const kind = decodeURIComponent(url.hostname);
   const locator = decodeURIComponent(url.pathname.replace(/^\//, ""));
   return {

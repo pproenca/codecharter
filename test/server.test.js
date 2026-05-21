@@ -13,11 +13,11 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
   await mkdir(join(root, "src"));
   await writeFile(join(root, "public", "index.html"), "<!doctype html><title>Codemap</title>");
   await writeFile(join(root, "src", "app.ts"), "const app = true;\nexport default app;\n");
-  await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   const server = await startServer({
     root,
-    mapPath: join(root, "codemap.json"),
+    mapPath: join(root, "codecharter.json"),
     port: 0,
     activityFlushIntervalMs: 20,
     publicRoot: join(root, "public"),
@@ -57,7 +57,7 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.equal(annotationResponse.annotation.kind, "mapAnnotation");
     assert.equal(annotationResponse.annotation.name, "hey explore this area");
     assert.equal(annotationResponse.annotation.comment, "hey explore this area");
-    assert.equal(annotationResponse.annotation.deepLink, `codemap://annotation/${annotationResponse.annotation.id}`);
+    assert.equal(annotationResponse.annotation.deepLink, `codecharter://annotation/${annotationResponse.annotation.id}`);
     assert.equal(annotationResponse.annotation.browserHash, `#/annotation/${annotationResponse.annotation.id}`);
     assert.match(annotationResponse.annotation.codexPrompt, /src\/app\.ts/);
     const annotations = await getJson(`${baseUrl}/api/annotations`);
@@ -66,7 +66,7 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     const annotationById = await getJson(`${baseUrl}/api/annotations/${annotationResponse.annotation.id}`);
     assert.equal(annotationById.annotation.id, annotationResponse.annotation.id);
 
-    await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap({ includeExtraFile: true })));
+    await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap({ includeExtraFile: true })));
     const nextMapVersion = await waitForMapVersion(baseUrl, mapVersion.version);
     assert.notEqual(nextMapVersion.version, mapVersion.version);
     const refreshedPlaces = await getJson(`${baseUrl}/api/named-places`);
@@ -111,9 +111,9 @@ test("serves bundled UI assets when mapping a repo without its own public direct
   const root = await mkdtemp(join(tmpdir(), "codemaps-bundled-ui-"));
   await mkdir(join(root, "src"));
   await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
-  await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
-  const server = await startServer({ root, mapPath: join(root, "codemap.json"), port: 0 });
+  const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
   const address = server.address();
   const baseUrl = `http://127.0.0.1:${address.port}`;
 
@@ -132,9 +132,9 @@ test("serves bundled UI assets when mapping a repo without its own public direct
 
 test("accepts pre-resolved activity without reading the map sidecar", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-address-activity-"));
-  await writeFile(join(root, "codemap.json"), "{");
+  await writeFile(join(root, "codecharter.json"), "{");
 
-  const server = await startServer({ root, mapPath: join(root, "codemap.json"), port: 0 });
+  const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
   const address = server.address();
   const baseUrl = `http://127.0.0.1:${address.port}`;
 
@@ -147,7 +147,7 @@ test("accepts pre-resolved activity without reading the map sidecar", async () =
     assert.equal(accepted.accepted, true);
 
     const activityStream = await waitForActivityEvent(baseUrl);
-    assert.equal(activityStream.events.at(-1).address.deepLink, "codemap://file/s000000?path=src%2Fapp.ts");
+    assert.equal(activityStream.events.at(-1).address.deepLink, "codecharter://file/s000000?path=src%2Fapp.ts");
   } finally {
     server.close();
     await once(server, "close");
@@ -156,12 +156,12 @@ test("accepts pre-resolved activity without reading the map sidecar", async () =
 
 test("uses the next available port when the requested port is occupied", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-port-fallback-"));
-  await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
   const blocker = await listenOnFreePort();
   const requestedPort = blocker.address().port;
   const server = await startServer({
     root,
-    mapPath: join(root, "codemap.json"),
+    mapPath: join(root, "codecharter.json"),
     port: requestedPort,
     portSearchLimit: 2,
   });
@@ -208,7 +208,7 @@ async function waitForActivityEvent(baseUrl) {
 async function waitForActivityArchive(root) {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     try {
-      const raw = await readFile(join(root, ".scratch", "activity-stream.jsonl"), "utf8");
+      const raw = await readFile(join(root, ".scratch", "codecharter", "activity.jsonl"), "utf8");
       const events = raw.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
       if (events.length > 0) return events;
     } catch (error) {
@@ -233,7 +233,7 @@ function sampleActivityAddress() {
     level: "file",
     targetType: "file",
     geohash: "s000000",
-    deepLink: "codemap://file/s000000?path=src%2Fapp.ts",
+    deepLink: "codecharter://file/s000000?path=src%2Fapp.ts",
     breadcrumb: "src > app.ts",
     bounds: { x: 0, y: 0, width: 1, height: 1 },
     geo: { lat: 0, lon: 0, geohash: "s000000" },

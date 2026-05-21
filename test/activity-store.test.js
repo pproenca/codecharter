@@ -12,7 +12,7 @@ test("keeps activity hot path in memory until an explicit or timed JSONL flush",
     id: "event-1",
     agentId: "codex",
     activityState: "editing",
-    address: { targetType: "file", deepLink: "codemap://file/s000000?path=src%2Fapp.ts", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    address: { targetType: "file", deepLink: "codecharter://file/s000000?path=src%2Fapp.ts", bounds: { x: 0, y: 0, width: 1, height: 1 } },
     timestamp: "2026-05-20T00:00:00.000Z",
   };
   const store = createActivityStore({ archivePath, flushIntervalMs: 60_000 });
@@ -57,7 +57,7 @@ function activityEvent(id) {
     id,
     agentId: "codex",
     activityState: "editing",
-    address: { targetType: "file", deepLink: `codemap://file/${id}?path=src%2Fapp.ts`, bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    address: { targetType: "file", deepLink: `codecharter://file/${id}?path=src%2Fapp.ts`, bounds: { x: 0, y: 0, width: 1, height: 1 } },
     timestamp: "2026-05-20T00:00:00.000Z",
   };
 }

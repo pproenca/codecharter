@@ -1,7 +1,6 @@
 {
-  "name": "codemaps",
+  "name": "codecharter",
   "version": "0.1.0",
-  "private": true,
   "packageManager": "pnpm@10.33.4",
   "type": "module",
   "files": [
@@ -11,11 +10,13 @@
     "README.md"
   ],
   "bin": {
+    "codecharter": "./bin/codemap.mjs",
     "codemap": "./bin/codemap.mjs"
   },
   "scripts": {
+    "codecharter": "node ./bin/codemap.mjs",
     "codemap": "node ./bin/codemap.mjs",
-    "setup": "node ./bin/codemap.mjs setup",
+    "setup": "node ./bin/codemap.mjs init --yes",
     "dev": "node ./bin/codemap.mjs dev",
     "serve": "node ./bin/codemap.mjs serve",
     "test": "node --test"

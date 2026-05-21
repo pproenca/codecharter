@@ -1,0 +1,95 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { execFile, spawn } from "node:child_process";
+import { once } from "node:events";
+import { access, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+
+test("codecharter init writes project config, map, Codex hooks, and local git hooks", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-init-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
+  await writeFile(join(root, "package.json"), JSON.stringify({ name: "sample-app", version: "1.0.0" }));
+  await execFileAsync("git", ["init"], { cwd: root });
+
+  await execFileAsync("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "init",
+    "--root",
+    root,
+    "--yes",
+  ], { cwd: root });
+
+  const config = JSON.parse(await readFile(join(root, ".codecharter", "config.json"), "utf8"));
+  assert.equal(config.mapPath, "codecharter.json");
+  assert.equal(config.agents.codex.enabled, true);
+
+  const sidecar = JSON.parse(await readFile(join(root, "codecharter.json"), "utf8"));
+  assert.ok(sidecar.files["src/app.ts"]);
+
+  const hooksJson = JSON.parse(await readFile(join(root, ".codex", "hooks.json"), "utf8"));
+  assert.ok(hooksJson.hooks.PostToolUse);
+  await access(join(root, ".codex", "hooks", "codecharter-codex-hook.mjs"), constants.X_OK);
+
+  const postMergeHook = await readFile(join(root, ".git", "hooks", "post-merge"), "utf8");
+  assert.match(postMergeHook, /codecharter generate/);
+
+  const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  assert.match(packageJson.devDependencies.codecharter, /^\^/);
+});
+
+test("codecharter codex-hook appends mapped Codex activity without a daemon", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-codex-hook-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
+  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileAsync("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "generate",
+    "--root",
+    root,
+    "--out",
+    join(root, "codecharter.json"),
+    "--quiet",
+  ], { cwd: root });
+
+  const payload = {
+    session_id: "session-1",
+    turn_id: "turn-1",
+    cwd: root,
+    hook_event_name: "PostToolUse",
+    tool_name: "apply_patch",
+    tool_input: { command: "*** Begin Patch\n*** End Patch" },
+    model: "gpt-test",
+  };
+
+  await execFileWithInput("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "codex-hook",
+  ], { cwd: root, input: JSON.stringify(payload) });
+
+  const lines = (await readFile(join(root, ".scratch", "codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
+  const event = JSON.parse(lines[0]);
+  assert.equal(event.agentId, "codex");
+  assert.equal(event.activityState, "editing");
+  assert.equal(event.hookEventName, "PostToolUse");
+  assert.equal(event.sessionId, "session-1");
+  assert.equal(event.address.targetType, "lineRange");
+  assert.match(event.address.deepLink, /^codecharter:\/\//);
+});
+
+async function execFileWithInput(command, args, { cwd, input }) {
+  const child = spawn(command, args, { cwd, stdio: ["pipe", "pipe", "pipe"] });
+  let stderr = "";
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk.toString();
+  });
+  child.stdin.end(input);
+  const [code] = await once(child, "exit");
+  if (code !== 0) assert.fail(stderr);
+}

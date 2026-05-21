@@ -19,7 +19,7 @@ test("generates a path-keyed map sidecar from gitignore-filtered code files", as
   await writeFile(join(root, "src", "wide.ts"), "export const wide = call(alpha, beta, gamma, delta, epsilon);\n");
   await writeFile(join(root, "src", "image.png"), "not really an image");
   await writeFile(join(root, "dist", "generated.ts"), "const generated = true;\n");
-  await writeFile(join(root, "codemap.json"), "{}\n");
+  await writeFile(join(root, "codecharter.json"), "{}\n");
   await writeFile(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
 
   const codemap = await generateCodemap({ root });
@@ -41,7 +41,7 @@ test("generates a path-keyed map sidecar from gitignore-filtered code files", as
   assert.equal("wordCount" in codemap.files["src/app.ts"], false);
   assert.equal(codemap.files["src/image.png"], undefined);
   assert.equal(codemap.files["dist/generated.ts"], undefined);
-  assert.equal(codemap.files["codemap.json"], undefined);
+  assert.equal(codemap.files["codecharter.json"], undefined);
   assert.equal(codemap.files["pnpm-lock.yaml"], undefined);
   assert.equal(typeof codemap.files["src/app.ts"].geo.geohash, "string");
 });

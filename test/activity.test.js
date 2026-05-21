@@ -11,19 +11,19 @@ const execFileAsync = promisify(execFile);
 
 test("creates timestamped agent activity events at map addresses", () => {
   const event = createActivityEvent(
-    { deepLink: "codemap://file/s123456?path=src%2Fa.ts", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    { deepLink: "codecharter://file/s123456?path=src%2Fa.ts", bounds: { x: 0, y: 0, width: 1, height: 1 } },
     { agentId: "codex", activityState: "editing", timestamp: "2026-05-20T00:00:00.000Z" },
   );
 
   assert.equal(event.agentId, "codex");
   assert.equal(event.activityState, "editing");
   assert.equal(event.timestamp, "2026-05-20T00:00:00.000Z");
-  assert.equal(event.address.deepLink, "codemap://file/s123456?path=src%2Fa.ts");
+  assert.equal(event.address.deepLink, "codecharter://file/s123456?path=src%2Fa.ts");
 });
 
 test("normalizes blocked activity to an active reviewing state", () => {
   const event = createActivityEvent(
-    { deepLink: "codemap://file/s123456?path=src%2Fa.ts", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    { deepLink: "codecharter://file/s123456?path=src%2Fa.ts", bounds: { x: 0, y: 0, width: 1, height: 1 } },
     { agentId: "codex", activityState: "blocked", timestamp: "2026-05-20T00:00:00.000Z" },
   );
 
@@ -33,7 +33,7 @@ test("normalizes blocked activity to an active reviewing state", () => {
 test("CLI appends Codex activity events to the JSONL activity archive", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-activity-"));
   await mkdir(join(root, "src"), { recursive: true });
-  await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   await execFileAsync("node", [
     join(process.cwd(), "bin/codemap.mjs"),
@@ -47,7 +47,7 @@ test("CLI appends Codex activity events to the JSONL activity archive", async ()
     "editing",
   ], { cwd: root });
 
-  const lines = (await readFile(join(root, ".scratch/activity-stream.jsonl"), "utf8")).trim().split("\n");
+  const lines = (await readFile(join(root, ".scratch/codecharter/activity.jsonl"), "utf8")).trim().split("\n");
   const event = JSON.parse(lines[0]);
 
   assert.equal(lines.length, 1);
@@ -60,7 +60,7 @@ test("CLI appends Codex activity events to the JSONL activity archive", async ()
 test("CLI activity can report a deterministic token-range map address", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-activity-token-"));
   await mkdir(join(root, "src"), { recursive: true });
-  await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   await execFileAsync("node", [
     join(process.cwd(), "bin/codemap.mjs"),
@@ -76,7 +76,7 @@ test("CLI activity can report a deterministic token-range map address", async ()
     "codex",
   ], { cwd: root });
 
-  const lines = (await readFile(join(root, ".scratch/activity-stream.jsonl"), "utf8")).trim().split("\n");
+  const lines = (await readFile(join(root, ".scratch/codecharter/activity.jsonl"), "utf8")).trim().split("\n");
   const event = JSON.parse(lines[0]);
 
   assert.equal(event.address.targetType, "tokenRange");
@@ -87,7 +87,7 @@ test("CLI activity can report a deterministic token-range map address", async ()
 
 test("CLI resolve prints token-range map addresses", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-resolve-token-"));
-  await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   const { stdout } = await execFileAsync("node", [
     join(process.cwd(), "bin/codemap.mjs"),
@@ -108,7 +108,7 @@ test("CLI resolve prints token-range map addresses", async () => {
 
 test("CLI activity telemetry never exits non-zero for an unmapped path", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-activity-missing-"));
-  await writeFile(join(root, "codemap.json"), JSON.stringify(sampleCodemap()));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   const { stdout } = await execFileAsync("node", [
     join(process.cwd(), "bin/codemap.mjs"),

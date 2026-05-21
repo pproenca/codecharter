@@ -201,7 +201,7 @@ function codexPromptForAnnotation(annotation) {
     : "no resolved targets";
   const coveringSet = annotation.coveringSet.length ? annotation.coveringSet.join(", ") : "no geohash coverage";
   const comment = annotation.comment ? ` User note: ${annotation.comment}` : "";
-  return `Explore codemap annotation (${annotation.deepLink}) at ${coveringSet}. Browser route: ${annotation.browserHash}. Targets: ${targetSummary}.${comment}`;
+  return `Explore CodeCharter annotation (${annotation.deepLink}) at ${coveringSet}. Browser route: ${annotation.browserHash}. Targets: ${targetSummary}.${comment}`;
 }
 
 function annotationName(input) {

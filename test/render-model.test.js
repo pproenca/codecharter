@@ -301,7 +301,7 @@ function activity(agentId, activityState, timestamp) {
     address: {
       bounds: { x: 0, y: 0, width: 1, height: 1 },
       geohash: "s000000",
-      deepLink: "codemap://file/s000000?path=src%2Fapp.ts",
+      deepLink: "codecharter://file/s000000?path=src%2Fapp.ts",
     },
   };
 }

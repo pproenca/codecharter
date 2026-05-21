@@ -73,6 +73,14 @@ export function startActivityWatcher({
   };
 }
 
+export async function changedCodeChanges(root) {
+  const paths = await changedGitPaths(root);
+  return Promise.all(paths.map(async (path) => ({
+    path,
+    ...await changedLineRange(root, path),
+  })));
+}
+
 export function parseGitStatusPorcelain(raw) {
   const entries = raw.split("\0").filter(Boolean);
   const paths = [];
@@ -170,7 +178,7 @@ function defaultActivityPayload(change, { agentId, activityState }) {
     columnStart: change.columnStart,
     columnEnd: change.columnEnd,
     fragments: change.fragments,
-    note: "codemap dev watcher",
+    note: "codecharter dev watcher",
   };
 }
 
@@ -190,6 +198,7 @@ async function sendActivityDatagram(endpoint, body) {
 function isActivityWatchablePath(path) {
   return path
     && path !== "codemap.json"
+    && path !== "codecharter.json"
     && !path.startsWith(".git/")
     && !path.startsWith(".scratch/")
     && isCodeFile(path);

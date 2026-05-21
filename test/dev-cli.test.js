@@ -11,7 +11,7 @@ import { LOCAL_SCRATCH_EXCLUDES } from "../src/local-git-exclude.js";
 
 const execFileAsync = promisify(execFile);
 
-test("codemap dev is a one-command dogfood workflow", { timeout: 8000 }, async () => {
+test("codecharter dev is a one-command dogfood workflow", { timeout: 8000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-dev-cli-"));
   const port = await freePort();
   await mkdir(join(root, "src"), { recursive: true });
@@ -36,7 +36,7 @@ test("codemap dev is a one-command dogfood workflow", { timeout: 8000 }, async (
   cli.stderr.on("data", (chunk) => { output += chunk.toString(); });
 
   try {
-    await waitFor(() => output.includes(`Codemap running at http://127.0.0.1:${port}`), () => output);
+    await waitFor(() => output.includes(`CodeCharter running at http://127.0.0.1:${port}`), () => output);
 
     const html = await fetchText(`http://127.0.0.1:${port}/`);
     assert.match(html, /<canvas id="mapCanvas"/);
@@ -44,7 +44,7 @@ test("codemap dev is a one-command dogfood workflow", { timeout: 8000 }, async (
     const codemap = await getJson(`http://127.0.0.1:${port}/api/map`);
     assert.equal(codemap.files["src/app.js"].path, "src/app.js");
 
-    const sidecar = JSON.parse(await readFile(join(root, "codemap.json"), "utf8"));
+    const sidecar = JSON.parse(await readFile(join(root, "codecharter.json"), "utf8"));
     assert.equal(sidecar.files["src/app.js"].geo.geohash, codemap.files["src/app.js"].geo.geohash);
 
     const exclude = await readFile(join(root, ".git", "info", "exclude"), "utf8");

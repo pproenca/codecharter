@@ -20,6 +20,7 @@ const MIME_TYPES = {
 
 const BUNDLED_PUBLIC_ROOT = fileURLToPath(new URL("../public", import.meta.url));
 const DEFAULT_PORT_SEARCH_LIMIT = 20;
+const DEFAULT_ACTIVITY_ARCHIVE = ".scratch/codecharter/activity.jsonl";
 
 export async function startServer({
   root,
@@ -35,7 +36,7 @@ export async function startServer({
     publicRoot,
     namedPlacesPath: join(root, ".scratch", "named-places.json"),
     activityStore: createActivityStore({
-      archivePath: join(root, ".scratch", "activity-stream.jsonl"),
+      archivePath: join(root, DEFAULT_ACTIVITY_ARCHIVE),
       flushIntervalMs: activityFlushIntervalMs,
     }),
   };
@@ -54,7 +55,7 @@ export async function startServer({
     });
   });
 
-  console.log(`Codemap running at http://127.0.0.1:${actualPort}`);
+  console.log(`CodeCharter running at http://127.0.0.1:${actualPort}`);
   return server;
 }
 

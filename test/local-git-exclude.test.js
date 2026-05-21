@@ -23,7 +23,7 @@ test("adds scratch telemetry paths to local git excludes without touching tracke
 
   await mkdir(join(root, ".scratch"));
   await writeFile(join(root, ".scratch", "activity-stream.jsonl"), "{}\n");
-  const { stdout } = await execFileAsync("git", ["status", "--short", "--", ".scratch/activity-stream.jsonl"], { cwd: root });
+  const { stdout } = await execFileAsync("git", ["status", "--short", "--", ".scratch/codecharter/activity.jsonl"], { cwd: root });
   assert.equal(stdout, "");
 });
 

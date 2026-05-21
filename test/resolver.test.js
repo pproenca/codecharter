@@ -29,7 +29,7 @@ test("resolves a file path to a file-level map address", () => {
   assert.equal(address.level, "file");
   assert.equal(address.targetType, "file");
   assert.equal(address.geohash, "s000000");
-  assert.equal(address.deepLink, "codemap://file/s000000?path=src%2Fapp.ts");
+  assert.equal(address.deepLink, "codecharter://file/s000000?path=src%2Fapp.ts");
   assert.equal(address.breadcrumb, "src > app.ts");
 });
 

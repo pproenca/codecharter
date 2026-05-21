@@ -5,7 +5,15 @@ import { stabilizeTreeLayout } from "./stability.js";
 import { buildFileTree, flattenTree, sortedFiles, sortedFolders } from "./tree.js";
 import { layoutTree } from "./treemap.js";
 
-export async function generateCodemap({ root, excludePaths = ["codemap.json"], previousCodemap } = {}) {
+const DEFAULT_EXCLUDE_PATHS = [
+  "codecharter.json",
+  "codemap.json",
+  ".codecharter/config.json",
+  ".codex/hooks.json",
+  ".codex/hooks/codecharter-codex-hook.mjs",
+];
+
+export async function generateCodemap({ root, excludePaths = DEFAULT_EXCLUDE_PATHS, previousCodemap } = {}) {
   const scannedFiles = await scanCodeFiles(root, { excludePaths });
   const previousLayout = canReusePreviousLayout(previousCodemap) ? previousCodemap : undefined;
   const tree = stabilizeTreeLayout(layoutTree(buildFileTree(scannedFiles)), previousLayout);

@@ -139,7 +139,12 @@ export function maxFolderDepthForScale(scale) {
 }
 
 export function folderDepth(path) {
-  return path ? path.split("/").length : 0;
+  if (!path) return 0;
+  let depth = 1;
+  for (let index = 0; index < path.length; index += 1) {
+    if (path.charCodeAt(index) === 47) depth += 1;
+  }
+  return depth;
 }
 
 export function organicRegionFolders(codemap) {
@@ -152,7 +157,7 @@ export function organicRegionFolders(codemap) {
 }
 
 export function folderStyle(path, depth) {
-  const base = DISTRICT_PALETTE[hashString(path.split("/")[0]) % DISTRICT_PALETTE.length];
+  const base = DISTRICT_PALETTE[hashString(firstPathSegment(path)) % DISTRICT_PALETTE.length];
   const fillAlpha = depth === 1 ? 0.18 : 0.09;
   const strokeAlpha = depth === 1 ? 0.52 : 0.28;
   return {
@@ -163,7 +168,7 @@ export function folderStyle(path, depth) {
 }
 
 export function organicRegionStyle(path, depth) {
-  const base = DISTRICT_PALETTE[hashString(path.split("/")[0]) % DISTRICT_PALETTE.length];
+  const base = DISTRICT_PALETTE[hashString(firstPathSegment(path)) % DISTRICT_PALETTE.length];
   const fillAlpha = depth === 1 ? 0.1 : 0.055;
   const strokeAlpha = depth === 1 ? 0.5 : 0.32;
   return {
@@ -215,6 +220,16 @@ export function shouldDrawFolder(scale, depth, box) {
 export function shouldLabelFolder(scale, depth, box) {
   if (box.width <= 90 || box.height <= 28) return false;
   return depth <= maxFolderDepthForScale(scale) || (box.width > 260 && box.height > 120);
+}
+
+function firstPathSegment(path) {
+  const slash = path.indexOf("/");
+  return slash === -1 ? path : path.slice(0, slash);
+}
+
+function lastPathSegment(path) {
+  const slash = path.lastIndexOf("/");
+  return slash === -1 ? path : path.slice(slash + 1);
 }
 
 export function folderLabelPriority(depth, box) {
@@ -486,15 +501,19 @@ export function sourceContextRequest(path, lineRange = {}) {
 }
 
 export function formatSourceLines(source) {
-  return (source.lines ?? [])
-    .map((item) => `${String(item.number).padStart(4, " ")}  ${item.text}`)
-    .join("\n");
+  const lines = source.lines ?? [];
+  const formatted = new Array(lines.length);
+  for (let index = 0; index < lines.length; index += 1) {
+    const item = lines[index];
+    formatted[index] = `${String(item.number).padStart(4, " ")}  ${item.text}`;
+  }
+  return formatted.join("\n");
 }
 
 export function sourcePanelState({ path = "", deepLink = "", source = null, fallbackOutput = "" } = {}) {
   if (source) {
     return {
-      sourceTitle: [path, deepLink].filter(Boolean).join(" · "),
+      sourceTitle: sourceTitle(path, deepLink),
       sourceOutput: formatSourceLines(source),
       scrollTop: 0,
     };
@@ -504,6 +523,11 @@ export function sourcePanelState({ path = "", deepLink = "", source = null, fall
     sourceTitle: path || deepLink,
     sourceOutput: fallbackOutput,
   };
+}
+
+function sourceTitle(path, deepLink) {
+  if (path && deepLink) return `${path} · ${deepLink}`;
+  return path || deepLink;
 }
 
 export function annotationClipboardText(annotation, { origin = "", href = "" } = {}) {
@@ -663,7 +687,7 @@ function shortActivityId(value) {
 
 export function folderDisplayName(folder) {
   if (!folder.path) return "Codebase";
-  return folder.path.split("/").at(-1);
+  return lastPathSegment(folder.path);
 }
 
 function mapTargetForPath(codemap, path) {
@@ -676,12 +700,18 @@ function mapTargetForPath(codemap, path) {
 function mapTargetForGeohash(codemap, geohash, kind) {
   const targetType = kind === "folder" ? "folder" : "file";
   let fallback = null;
-  for (const target of Object.values(targetType === "folder" ? codemap.folders : codemap.files)) {
+  for (const target of objectValues(targetType === "folder" ? codemap.folders : codemap.files)) {
     if (targetType === "folder" && !target.path) continue;
     if (target.geo.geohash.startsWith(geohash)) return { ...target, targetType };
     if (!fallback && geohash.startsWith(target.geo.geohash)) fallback = target;
   }
   return fallback ? { ...fallback, targetType } : null;
+}
+
+function* objectValues(values) {
+  for (const key in values) {
+    if (Object.hasOwn(values, key)) yield values[key];
+  }
 }
 
 export function boundsCenter(bounds) {
@@ -941,7 +971,11 @@ export function isLiveActivityEvent(event, { now = Date.now(), maxAgeMinutes = A
 }
 
 export function sortedActivityEvents(events, limit = 80, options = {}) {
-  return liveActivityEventsInTimeOrder(events, options).slice(-limit);
+  if (limit <= 0) return liveActivityEventsInTimeOrder(events, options).slice(-limit);
+  if (!liveActivityEventsAreInTimeOrder(events, options)) {
+    return liveActivityEventsInTimeOrder(events, options).slice(-limit);
+  }
+  return liveActivityEventsTail(events, limit, options);
 }
 
 export function latestActivityByAgent(events, options = {}) {
@@ -971,9 +1005,12 @@ export function latestActivityByAgent(events, options = {}) {
     liveIndex += 1;
   }
 
-  return new Map([...byAgent.values()]
-    .sort((a, b) => a.firstTimestamp - b.firstTimestamp || a.firstIndex - b.firstIndex)
-    .map((summary) => [summary.key, summary.event]));
+  const summaries = [...byAgent.values()].sort((a, b) => a.firstTimestamp - b.firstTimestamp || a.firstIndex - b.firstIndex);
+  const latest = new Map();
+  for (const summary of summaries) {
+    latest.set(summary.key, summary.event);
+  }
+  return latest;
 }
 
 export function activityFeedEvents(events, options = {}) {
@@ -983,7 +1020,11 @@ export function activityFeedEvents(events, options = {}) {
     if (!Number.isFinite(timestamp)) return activityFeedEventsViaSort(events, options);
     insertActivityFeedEvent(feed, event, timestamp, 5);
   }
-  return feed.map(({ event }) => event);
+  const eventsForFeed = [];
+  for (const item of feed) {
+    eventsForFeed.push(item.event);
+  }
+  return eventsForFeed;
 }
 
 export function activityActorKey(event) {
@@ -1014,18 +1055,32 @@ function latestActivityByAgentViaSort(events, options) {
 
 function liveActivityEventsInTimeOrder(events, options) {
   const liveEvents = [];
-  let ordered = true;
+  for (const event of events) {
+    if (!isLiveActivityEvent(event, options)) continue;
+    liveEvents.push(event);
+  }
+  return liveEvents.sort((a, b) => activitySortTimestamp(a) - activitySortTimestamp(b));
+}
+
+function liveActivityEventsAreInTimeOrder(events, options) {
   let previousTimestamp = Number.NEGATIVE_INFINITY;
   for (const event of events) {
     if (!isLiveActivityEvent(event, options)) continue;
     const timestamp = activitySortTimestamp(event);
-    if (!Number.isFinite(timestamp) || timestamp < previousTimestamp) ordered = false;
+    if (!Number.isFinite(timestamp) || timestamp < previousTimestamp) return false;
     previousTimestamp = timestamp;
-    liveEvents.push(event);
   }
-  return ordered
-    ? liveEvents
-    : liveEvents.sort((a, b) => activitySortTimestamp(a) - activitySortTimestamp(b));
+  return true;
+}
+
+function liveActivityEventsTail(events, limit, options) {
+  const liveEvents = [];
+  for (const event of events) {
+    if (!isLiveActivityEvent(event, options)) continue;
+    liveEvents.push(event);
+    if (liveEvents.length > limit) liveEvents.shift();
+  }
+  return liveEvents;
 }
 
 function activitySortTimestamp(event) {

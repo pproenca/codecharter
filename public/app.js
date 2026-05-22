@@ -803,7 +803,10 @@ function drawSourceText(file, box, remainingBudget) {
     return 0;
   }
 
-  const linesByNumber = new Map(cached.lines.map((line) => [line.number, line.text]));
+  const linesByNumber = new Map();
+  for (const line of cached.lines) {
+    linesByNumber.set(line.number, line.text);
+  }
   const lineHeight = lineHeightForFile(file, box);
   const firstBaseline = box.y + (visibleRange.start - 1) * lineHeight + Math.min(13, lineHeight * 0.78);
   const maxChars = Math.max(12, Math.floor((box.width - 44) / 7.2));
@@ -1710,7 +1713,7 @@ async function deleteSelectedAnnotation() {
   if (controls.deleteAnnotation) controls.deleteAnnotation.disabled = true;
   setSelectionStatus("Deleting annotation…");
   await deleteJson(`/api/annotations/${encodeURIComponent(annotation.id)}`);
-  state.namedPlaces = state.namedPlaces.filter((place) => place.id !== annotation.id);
+  removeNamedPlace(annotation.id);
   state.selectedTarget = null;
   state.draftSelection = null;
   state.resolvedSelection = null;
@@ -1726,6 +1729,11 @@ async function deleteSelectedAnnotation() {
   setSelectionStatus("Annotation deleted.");
   updateSelectionPopover();
   render();
+}
+
+function removeNamedPlace(id) {
+  const index = state.namedPlaces.findIndex((place) => place.id === id);
+  if (index !== -1) state.namedPlaces.splice(index, 1);
 }
 
 async function copySelectedAnnotationPrompt() {

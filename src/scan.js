@@ -22,15 +22,21 @@ export async function listIncludedFiles(root, { excludePaths = [] } = {}) {
   });
 
   const paths = [];
-  for (const line of stdout.split("\n")) {
-    const path = line.trim();
-    if (!path) continue;
-    if (excluded.has(path)) continue;
-    if (DEFAULT_EXCLUDED_FILES.has(path)) continue;
-    if (!isCodeFile(path)) continue;
-    paths.push(path);
+  let lineStart = 0;
+  for (let index = 0; index <= stdout.length; index += 1) {
+    if (index < stdout.length && stdout[index] !== "\n") continue;
+    const path = stdout.slice(lineStart, index).trim();
+    lineStart = index + 1;
+    if (shouldIncludePath(path, excluded)) paths.push(path);
   }
   return paths.sort((a, b) => a.localeCompare(b));
+}
+
+function shouldIncludePath(path, excluded) {
+  return path
+    && !excluded.has(path)
+    && !DEFAULT_EXCLUDED_FILES.has(path)
+    && isCodeFile(path);
 }
 
 export async function scanCodeFiles(root, options = {}) {

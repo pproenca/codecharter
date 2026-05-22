@@ -190,7 +190,7 @@ function readCommandActivity(root, codemap, payload) {
   const changes = [];
   const seen = new Set();
   let matchedReadCommand = false;
-  for (const segment of command.split(/\n|&&|;/)) {
+  for (const segment of commandSegments(command)) {
     const tokens = shellWords(segment);
     if (tokens.length === 0) continue;
     const commandName = basename(tokens[0]);
@@ -214,6 +214,23 @@ function readCommandActivity(root, codemap, payload) {
     }
   }
   return { changes, matchedReadCommand };
+}
+
+function* commandSegments(command) {
+  let start = 0;
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    if (char !== "\n" && char !== ";") {
+      if (char !== "&" || command[index + 1] !== "&") continue;
+      yield command.slice(start, index);
+      index += 1;
+      start = index + 1;
+      continue;
+    }
+    yield command.slice(start, index);
+    start = index + 1;
+  }
+  yield command.slice(start);
 }
 
 function isShellTool(payload) {

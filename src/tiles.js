@@ -88,8 +88,8 @@ function* mapTargets(codemap) {
 }
 
 function* rawMapTargets(codemap) {
-  for (const folder of Object.values(codemap.folders)) yield folder;
-  for (const file of Object.values(codemap.files)) yield file;
+  yield* objectValues(codemap.folders);
+  yield* objectValues(codemap.files);
 }
 
 function sortedTargets(targets) {
@@ -98,7 +98,7 @@ function sortedTargets(targets) {
 
 function matchingTargets(targets, targetType, level, prefix) {
   const matches = [];
-  for (const target of Object.values(targets)) {
+  for (const target of objectValues(targets)) {
     if (tilePrefixForTarget(target, level) === prefix) matches.push(target);
   }
   matches.sort((left, right) => left.path.localeCompare(right.path));
@@ -107,6 +107,12 @@ function matchingTargets(targets, targetType, level, prefix) {
     serialized.push(serializeTarget(target, targetType));
   }
   return serialized;
+}
+
+function* objectValues(values) {
+  for (const key in values) {
+    if (Object.hasOwn(values, key)) yield values[key];
+  }
 }
 
 function serializeTarget(target, targetType) {

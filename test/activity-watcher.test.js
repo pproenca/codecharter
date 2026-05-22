@@ -217,6 +217,66 @@ test("watcher reports later edits to the same untracked file", async () => {
   }
 });
 
+test("watcher reports whole-file ranges without relying on a trailing newline", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-watcher-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "new-file.js"), "const first = true;\n\nexport const third = first;");
+  await execFileAsync("git", ["init"], { cwd: root });
+
+  const posted = [];
+  const watcher = startActivityWatcher({
+    root,
+    endpoint: "http://127.0.0.1:1/api/activity",
+    intervalMs: 60_000,
+    throttleMs: 0,
+    postActivity: async (_endpoint, body) => {
+      posted.push(body);
+    },
+  });
+
+  try {
+    watcher.close();
+    await watcher.poll();
+    assert.equal(posted[0].path, "src/new-file.js");
+    assert.deepEqual(
+      { lineStart: posted[0].lineStart, lineEnd: posted[0].lineEnd },
+      { lineStart: 1, lineEnd: 3 },
+    );
+  } finally {
+    watcher.close();
+  }
+});
+
+test("watcher treats an empty untracked code file as a one-line range", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-watcher-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "empty.js"), "");
+  await execFileAsync("git", ["init"], { cwd: root });
+
+  const posted = [];
+  const watcher = startActivityWatcher({
+    root,
+    endpoint: "http://127.0.0.1:1/api/activity",
+    intervalMs: 60_000,
+    throttleMs: 0,
+    postActivity: async (_endpoint, body) => {
+      posted.push(body);
+    },
+  });
+
+  try {
+    watcher.close();
+    await watcher.poll();
+    assert.equal(posted[0].path, "src/empty.js");
+    assert.deepEqual(
+      { lineStart: posted[0].lineStart, lineEnd: posted[0].lineEnd },
+      { lineStart: 1, lineEnd: 1 },
+    );
+  } finally {
+    watcher.close();
+  }
+});
+
 test("watcher polling does not wait for activity delivery", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });

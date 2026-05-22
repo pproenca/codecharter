@@ -21,6 +21,8 @@ test("resolves drawn selections with geohash coverage and geometry refinement", 
 
   assert.deepEqual(result.coveringSet, ["s123456"]);
   assert.deepEqual(result.resolvedTargets.map((target) => target.path), ["src/a.ts"]);
+  assert.deepEqual(Object.keys(result.spatialFrame.corners), ["northWest", "northEast", "southWest", "southEast"]);
+  assert.equal(result.spatialFrame.corners.northWest.length, 7);
 });
 
 test("resolves selections with clamped bounds, unique coverage, and path-sorted targets", () => {

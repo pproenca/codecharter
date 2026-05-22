@@ -6,8 +6,25 @@ import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { generateCodemap } from "../src/generator.js";
+import { listIncludedFiles } from "../src/scan.js";
 
 const execFileAsync = promisify(execFile);
+
+test("lists git-visible code files with deterministic excludes", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-scan-"));
+  await execFileAsync("git", ["init"], { cwd: root });
+  await mkdir(join(root, "src"), { recursive: true });
+  await mkdir(join(root, "dist"), { recursive: true });
+  await writeFile(join(root, ".gitignore"), "dist/\n");
+  await writeFile(join(root, "src", "z.ts"), "const z = true;\n");
+  await writeFile(join(root, "src", "a.ts"), "const a = true;\n");
+  await writeFile(join(root, "src", "skip.ts"), "const skip = true;\n");
+  await writeFile(join(root, "src", "notes.txt"), "notes\n");
+  await writeFile(join(root, "dist", "generated.ts"), "const generated = true;\n");
+  await writeFile(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+
+  assert.deepEqual(await listIncludedFiles(root, { excludePaths: ["src/skip.ts"] }), ["src/a.ts", "src/z.ts"]);
+});
 
 test("generates a path-keyed map sidecar from gitignore-filtered code files", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-"));

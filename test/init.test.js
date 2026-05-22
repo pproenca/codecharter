@@ -478,7 +478,7 @@ test("codecharter codex-hook maps Bash read commands as reading activity", async
     cwd: root,
     hook_event_name: "PostToolUse",
     tool_name: "Bash",
-    tool_input: { command: "sed -n '1,2p' src/app.ts" },
+    tool_input: { command: "echo preparing; sed -n '1,2p' src/app.ts && echo done" },
     model: "gpt-test",
   };
 

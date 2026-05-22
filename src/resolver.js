@@ -141,7 +141,17 @@ function sortedUnique(values) {
 }
 
 function breadcrumbForPath(path) {
-  return path.split("/").filter(Boolean).join(" > ") || ".";
+  let breadcrumb = "";
+  let segmentStart = 0;
+  for (let index = 0; index <= path.length; index += 1) {
+    if (index < path.length && path[index] !== "/") continue;
+    if (index > segmentStart) {
+      if (breadcrumb) breadcrumb += " > ";
+      breadcrumb += path.slice(segmentStart, index);
+    }
+    segmentStart = index + 1;
+  }
+  return breadcrumb || ".";
 }
 
 function deepLink(level, geohash, metadata) {

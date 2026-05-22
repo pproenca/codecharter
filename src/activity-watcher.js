@@ -229,9 +229,11 @@ async function wholeFileRange(root, path) {
 
 function contentLineCount(content) {
   if (content.length === 0) return 1;
-  const lines = content.split("\n");
-  if (content.endsWith("\n")) lines.pop();
-  return Math.max(1, lines.length);
+  let lines = 1;
+  for (let index = 0; index < content.length; index += 1) {
+    if (content.charCodeAt(index) === 10 && index !== content.length - 1) lines += 1;
+  }
+  return lines;
 }
 
 function hashString(value) {

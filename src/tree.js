@@ -1,11 +1,9 @@
-import { basename } from "node:path/posix";
-
 const MIN_VISIBLE_WEIGHT = 3;
 
 export class FileNode {
   constructor(file) {
     this.type = "file";
-    this.name = file.path.split("/").at(-1);
+    this.name = lastPathSegment(file.path);
     this.path = file.path;
     this.extension = file.extension;
     this.lineCount = file.lineCount;
@@ -17,7 +15,7 @@ export class FileNode {
 export class FolderNode {
   constructor(path) {
     this.type = "folder";
-    this.name = path === "" ? "" : basename(path);
+    this.name = path === "" ? "" : lastPathSegment(path);
     this.path = path;
     this.folders = new Map();
     this.files = new Map();
@@ -80,14 +78,18 @@ export function buildFileTree(files) {
   const root = new FolderNode("");
 
   for (const file of files) {
-    const parts = file.path.split("/");
     let current = root;
+    let segmentStart = 0;
 
-    for (let index = 0; index < parts.length - 1; index += 1) {
-      current = current.childFolder(parts[index]);
+    for (let index = 0; index <= file.path.length; index += 1) {
+      if (index < file.path.length && file.path[index] !== "/") continue;
+      if (index === file.path.length) {
+        current.addFile(file);
+        break;
+      }
+      current = current.childFolder(file.path.slice(segmentStart, index));
+      segmentStart = index + 1;
     }
-
-    current.addFile(file);
   }
 
   root.recalculateMetrics();
@@ -126,4 +128,9 @@ function compareNodeNames(a, b) {
 
 function joinPath(parent, child) {
   return parent ? `${parent}/${child}` : child;
+}
+
+function lastPathSegment(path) {
+  const slash = path.lastIndexOf("/");
+  return slash === -1 ? path : path.slice(slash + 1);
 }

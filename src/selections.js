@@ -153,7 +153,7 @@ function resolveCodeTargets(codemap, geometry, level, targetMode) {
 
 function intersectingTargets(targets, bounds, resolve) {
   const resolved = [];
-  for (const target of Object.values(targets)) {
+  for (const target of objectValues(targets)) {
     if (!intersects(bounds, target.bounds)) continue;
     const item = resolve(target);
     if (item) resolved.push(item);
@@ -181,13 +181,24 @@ function spatialFrameForGeometry(geometry, level) {
     level,
     precision,
     bounds: geometry.bounds,
-    corners: Object.fromEntries(
-      Object.entries(points).map(([corner, point]) => {
-        const geo = codePointToGeo(point);
-        return [corner, encodeGeohash(geo.lat, geo.lon, precision)];
-      }),
-    ),
+    corners: cornerGeohashes(points, precision),
   };
+}
+
+function cornerGeohashes(points, precision) {
+  const corners = {};
+  for (const corner in points) {
+    if (!Object.hasOwn(points, corner)) continue;
+    const geo = codePointToGeo(points[corner]);
+    corners[corner] = encodeGeohash(geo.lat, geo.lon, precision);
+  }
+  return corners;
+}
+
+function* objectValues(values) {
+  for (const key in values) {
+    if (Object.hasOwn(values, key)) yield values[key];
+  }
 }
 
 function withAnnotationPrompt(annotation) {

@@ -17,6 +17,9 @@ import {
   detailBand,
   draftSelectionFromDrag,
   fileVisualState,
+  folderDepth,
+  folderDisplayName,
+  folderStyle,
   hitTestTargets,
   hashRouteFocusIntent,
   interactionModeUiState,
@@ -36,6 +39,7 @@ import {
   mapTargetSelectionAction,
   mapHoverLabel,
   maxFolderDepthForScale,
+  organicRegionStyle,
   organicRegionFolders,
   organicRegionPoints,
   organicTrailSegments,
@@ -93,6 +97,22 @@ test("orders organic region folders by depth and path without the root", () => {
     ["src/a", 2],
     ["src/z", 2],
   ]);
+});
+
+test("derives folder depth and root-segment styling from map paths", () => {
+  assert.equal(folderDepth(""), 0);
+  assert.equal(folderDepth("src"), 1);
+  assert.equal(folderDepth("src/components/button.js"), 3);
+
+  assert.equal(folderStyle("src", 1).label, folderStyle("src/components", 2).label);
+  assert.equal(colorChannels(organicRegionStyle("docs", 1).fill), colorChannels(organicRegionStyle("docs/guides", 2).fill));
+  assert.notDeepEqual(folderStyle("src", 1), folderStyle("docs", 1));
+});
+
+test("formats folder display names from public map paths", () => {
+  assert.equal(folderDisplayName({ path: "" }), "Codebase");
+  assert.equal(folderDisplayName({ path: "src" }), "src");
+  assert.equal(folderDisplayName({ path: "src/components" }), "components");
 });
 
 test("gates source text rendering by readable pixel geometry", () => {
@@ -1060,6 +1080,10 @@ function roundPoint(point) {
   return Object.fromEntries(
     Object.entries(point).map(([key, value]) => [key, Number(value.toFixed(12))]),
   );
+}
+
+function colorChannels(rgba) {
+  return rgba.slice(0, rgba.lastIndexOf(","));
 }
 
 function ratio(point, bounds) {

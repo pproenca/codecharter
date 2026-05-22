@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { once } from "node:events";
-import { access, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -241,6 +241,36 @@ test("codecharter init preserves existing unmanaged local git hook content", asy
   assert.equal(postMergeHook.match(/^#!\/bin\/sh/gm)?.length, 1);
   assert.match(postMergeHook, /echo existing-hook/);
   assert.equal(postMergeHook.match(/# >>> codecharter >>>/g)?.length, 1);
+});
+
+test("codecharter init quotes generated git hook map paths as literal data", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-git-hook-quote-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
+  await writeFile(join(root, "package.json"), JSON.stringify({ name: "sample-app", version: "1.0.0" }));
+  await execFileAsync("git", ["init"], { cwd: root });
+
+  const maliciousOut = ".codecharter/map'\"; touch pwned-by-hook; #.json";
+  await execFileAsync("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "init",
+    "--root",
+    root,
+    "--out",
+    maliciousOut,
+    "--yes",
+  ], { cwd: root });
+
+  const localBin = join(root, "node_modules", ".bin", "codecharter");
+  await mkdir(join(root, "node_modules", ".bin"), { recursive: true });
+  await writeFile(localBin, "#!/bin/sh\nexit 0\n");
+  await chmod(localBin, 0o755);
+
+  await execFileAsync("sh", [join(root, ".git", "hooks", "post-merge")], { cwd: root });
+
+  const hook = await readFile(join(root, ".git", "hooks", "post-merge"), "utf8");
+  assert.match(hook, /map_path="\$repo_root"\/'/);
+  await assert.rejects(access(join(root, "pwned-by-hook")), { code: "ENOENT" });
 });
 
 test("codecharter codex-hook appends mapped Codex activity without a daemon", async () => {

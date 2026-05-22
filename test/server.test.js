@@ -250,6 +250,28 @@ test("rejects unknown named-place creation kinds before storing them", async () 
   }
 });
 
+test("reports malformed JSON request bodies as client errors", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-malformed-json-"));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
+
+  const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  try {
+    const response = await fetch(`${baseUrl}/api/annotations`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{",
+    });
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "Invalid JSON body" });
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
 test("accepts pre-resolved activity without reading the map sidecar", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-address-activity-"));
   await writeFile(join(root, "codecharter.json"), "{");
@@ -369,6 +391,32 @@ test("deletes saved map annotations", async () => {
 
     const annotations = await getJson(`${baseUrl}/api/annotations`);
     assert.equal(annotations.annotations.length, 0);
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
+test("preserves concurrent annotation writes", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-concurrent-annotations-"));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
+
+  const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  try {
+    const created = await Promise.all(Array.from({ length: 8 }, (_, index) => postJson(`${baseUrl}/api/annotations`, {
+      id: `annotation-${index}`,
+      comment: `annotation ${index}`,
+      level: "file",
+      geometry: { type: "rect", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    })));
+
+    const annotations = await getJson(`${baseUrl}/api/annotations`);
+    assert.deepEqual(
+      annotations.annotations.map((annotation) => annotation.id).sort(),
+      created.map(({ annotation }) => annotation.id).sort(),
+    );
   } finally {
     server.close();
     await once(server, "close");

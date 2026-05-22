@@ -45,6 +45,19 @@ test("keeps dot-prefixed excludes repo-relative when cwd differs from root", asy
   }
 });
 
+test("excludes directory descendants without excluding similarly prefixed files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-scan-dir-exclude-"));
+  await execFileAsync("git", ["init"], { cwd: root });
+  await mkdir(join(root, "src", "generated"), { recursive: true });
+  await writeFile(join(root, "src", "generated", "client.js"), "export const generated = true;\n");
+  await writeFile(join(root, "src", "generated-client.js"), "export const handWritten = true;\n");
+  await writeFile(join(root, "src", "app.js"), "export const app = true;\n");
+
+  assert.deepEqual(await listIncludedFiles(root, {
+    excludePaths: ["src/generated"],
+  }), ["src/app.js", "src/generated-client.js"]);
+});
+
 test("generates a path-keyed map sidecar from gitignore-filtered code files", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-"));
   await execFileAsync("git", ["init"], { cwd: root });

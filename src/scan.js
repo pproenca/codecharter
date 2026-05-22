@@ -15,8 +15,8 @@ const DEFAULT_EXCLUDED_FILES = new Set([
 const DEFAULT_SCAN_CONCURRENCY = 32;
 
 export async function listIncludedFiles(root, { excludePaths = [] } = {}) {
-  const excluded = new Set();
-  for (const path of excludePaths) excluded.add(normalizeRepoPath(root, path));
+  const excluded = [];
+  for (const path of excludePaths) excluded.push(normalizeExcludedPath(root, path));
   const { stdout } = await execFileAsync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], {
     cwd: root,
     maxBuffer: 10 * 1024 * 1024,
@@ -35,9 +35,13 @@ export async function listIncludedFiles(root, { excludePaths = [] } = {}) {
 
 function shouldIncludePath(path, excluded) {
   return path
-    && !excluded.has(path)
+    && !isExcludedPath(path, excluded)
     && !DEFAULT_EXCLUDED_FILES.has(path)
     && isCodeFile(path);
+}
+
+function isExcludedPath(path, excluded) {
+  return excluded.some((excludedPath) => path === excludedPath || path.startsWith(`${excludedPath}/`));
 }
 
 function stringsAreSorted(values) {
@@ -56,6 +60,10 @@ export function normalizeRepoPath(root, path) {
   const normalized = path.replaceAll("\\", "/");
   if (isAbsolute(path)) return relative(root, path).replaceAll("\\", "/");
   return normalized.startsWith("./") ? normalized.slice(2) : normalized;
+}
+
+function normalizeExcludedPath(root, path) {
+  return normalizeRepoPath(root, path).replace(/\/+$/, "");
 }
 
 function contentMetrics(content) {

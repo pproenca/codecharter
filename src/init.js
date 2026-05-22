@@ -301,10 +301,11 @@ async function installManagedHookBlock(hookPath, block) {
 
 function gitMapHookBlock(root, mapPath, version = "latest") {
   const mapRelative = normalizeRelative(root, mapPath);
+  const mapRelativeShell = shellSingleQuote(mapRelative);
   const npxPackage = version === "latest" ? "codecharter" : `codecharter@${version}`;
   return `${MANAGED_START}
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-map_path="$repo_root/${mapRelative}"
+map_path="$repo_root"/${mapRelativeShell}
 if [ -x "$repo_root/node_modules/.bin/codecharter" ]; then
   "$repo_root/node_modules/.bin/codecharter" generate --root "$repo_root" --out "$map_path" --quiet >/dev/null 2>&1 || true
 elif command -v codecharter >/dev/null 2>&1; then
@@ -454,6 +455,11 @@ async function gitPath(root, path) {
 
 function normalizeRelative(root, path) {
   return relative(root, path).replaceAll("\\", "/");
+}
+
+function shellSingleQuote(value) {
+  if (/[\0\r\n]/.test(value)) throw new Error("Shell value cannot contain NUL or newline");
+  return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
 function escapeRegExp(value) {

@@ -329,6 +329,46 @@ test("watcher polling does not wait for activity delivery", async () => {
   }
 });
 
+test("watcher handles rejected activity delivery without unhandled rejections", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.js"), "const app = true;\n");
+  await execFileAsync("git", ["init"], { cwd: root });
+
+  const unhandled = [];
+  const warnings = [];
+  const onUnhandledRejection = (error) => {
+    unhandled.push(error);
+  };
+  const originalWarn = console.warn;
+  process.on("unhandledRejection", onUnhandledRejection);
+  console.warn = (message) => {
+    warnings.push(message);
+  };
+  const watcher = startActivityWatcher({
+    root,
+    endpoint: "http://127.0.0.1:1/api/activity",
+    intervalMs: 60_000,
+    throttleMs: 0,
+    postActivity: async () => {
+      throw new Error("send failed");
+    },
+  });
+
+  try {
+    watcher.close();
+    await watcher.poll();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(unhandled.length, 0);
+    assert.match(warnings[0], /activity-watcher-post-skipped/);
+    assert.match(warnings[0], /send failed/);
+  } finally {
+    watcher.close();
+    process.off("unhandledRejection", onUnhandledRejection);
+    console.warn = originalWarn;
+  }
+});
+
 test("watcher skips overlapping poll work", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });

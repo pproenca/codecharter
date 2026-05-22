@@ -32,6 +32,7 @@ export class ActivityStore {
     this.events = [];
     this.pending = [];
     this.writeQueue = Promise.resolve();
+    this.clearGeneration = 0;
     this.closed = false;
     this.timer = setInterval(() => {
       this.flush().catch((error) => {
@@ -56,6 +57,7 @@ export class ActivityStore {
   async flush() {
     if (!this.archivePath || this.pending.length === 0) return;
     const batch = this.pending;
+    const clearGeneration = this.clearGeneration;
     this.pending = [];
     this.writeQueue = this.writeQueue
       .catch((error) => {
@@ -65,8 +67,10 @@ export class ActivityStore {
         await appendActivityEvents(this.archivePath, batch);
       })
       .catch((error) => {
-        this.restorePendingBatch(batch);
-        this.trimPending();
+        if (clearGeneration === this.clearGeneration) {
+          this.restorePendingBatch(batch);
+          this.trimPending();
+        }
         throw error;
       });
 
@@ -74,6 +78,7 @@ export class ActivityStore {
   }
 
   async clear() {
+    this.clearGeneration += 1;
     this.events.length = 0;
     this.pending.length = 0;
     this.writeQueue = this.writeQueue

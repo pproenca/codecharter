@@ -129,6 +129,34 @@ test("clears live activity and truncates the JSONL archive", async () => {
   }
 });
 
+test("clear prevents failed in-flight flush batches from being restored", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-activity-store-"));
+  const blockedArchivePath = join(root, "blocked-archive");
+  const archivePath = join(root, ".scratch", "activity-stream.jsonl");
+  await mkdir(blockedArchivePath);
+  const store = createActivityStore({
+    archivePath: blockedArchivePath,
+    flushIntervalMs: 60_000,
+  });
+
+  try {
+    store.add(activityEvent("event-before-clear"));
+    const failedFlush = store.flush().catch(() => {});
+    await Promise.resolve();
+    store.archivePath = archivePath;
+    await store.clear();
+    await failedFlush;
+
+    store.add(activityEvent("event-after-clear"));
+    await store.flush();
+
+    const lines = (await readFile(archivePath, "utf8")).trim().split("\n");
+    assert.deepEqual(lines.map((line) => JSON.parse(line).id), ["event-after-clear"]);
+  } finally {
+    await store.close();
+  }
+});
+
 function activityEvent(id) {
   return {
     id,

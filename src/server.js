@@ -58,6 +58,7 @@ export async function startServer({
     mapPath,
     publicRoot,
     namedPlacesPath: join(root, ".codecharter", "named-places.json"),
+    namedPlacesMutation: Promise.resolve(),
     activityArchivePath: resolvedActivityArchivePath,
     activityStore: createActivityStore({
       archivePath: resolvedActivityArchivePath,
@@ -224,11 +225,12 @@ async function getNamedPlacesApi(state, request, response) {
 async function postNamedPlacesApi(state, request, response) {
   const codemap = await loadCodemap(state);
   const body = await readBody(request);
-  const store = await readJson(state.namedPlacesPath, { places: [] });
-  const place = createNamedPlace(codemap, body);
-  store.places.push(place);
-  await writeJson(state.namedPlacesPath, store);
-  sendJson(response, 201, { place, overlaps: findNamedPlaceOverlaps(store.places) });
+  const result = await mutateNamedPlaces(state, (store) => {
+    const place = createNamedPlace(codemap, body);
+    store.places.push(place);
+    return { place, overlaps: findNamedPlaceOverlaps(store.places) };
+  });
+  sendJson(response, 201, result);
 }
 
 const NAMED_PLACE_CREATORS = new Map([
@@ -265,22 +267,35 @@ async function getAnnotationApi(state, request, response, url, match) {
 
 async function deleteAnnotationApi(state, request, response, url, match) {
   const id = decodeURIComponent(match.params.rest);
-  const store = await readJson(state.namedPlacesPath, { places: [] });
-  const index = store.places.findIndex((place) => place.kind === "mapAnnotation" && place.id === id);
-  if (index === -1) throw httpError(404, `No annotation found for id: ${id}`);
-  const [annotation] = store.places.splice(index, 1);
-  await writeJson(state.namedPlacesPath, store);
-  sendJson(response, 200, { deleted: true, annotation });
+  const result = await mutateNamedPlaces(state, (store) => {
+    const index = store.places.findIndex((place) => place.kind === "mapAnnotation" && place.id === id);
+    if (index === -1) throw httpError(404, `No annotation found for id: ${id}`);
+    const [annotation] = store.places.splice(index, 1);
+    return { deleted: true, annotation };
+  });
+  sendJson(response, 200, result);
 }
 
 async function postAnnotationsApi(state, request, response) {
   const codemap = await loadCodemap(state);
   const body = await readBody(request);
-  const store = await readJson(state.namedPlacesPath, { places: [] });
-  const annotation = createMapAnnotation(codemap, body);
-  store.places.push(annotation);
-  await writeJson(state.namedPlacesPath, store);
-  sendJson(response, 201, { annotation });
+  const result = await mutateNamedPlaces(state, (store) => {
+    const annotation = createMapAnnotation(codemap, body);
+    store.places.push(annotation);
+    return { annotation };
+  });
+  sendJson(response, 201, result);
+}
+
+async function mutateNamedPlaces(state, mutate) {
+  const operation = state.namedPlacesMutation.then(async () => {
+    const store = await readJson(state.namedPlacesPath, { places: [] });
+    const result = await mutate(store);
+    await writeJson(state.namedPlacesPath, store);
+    return result;
+  });
+  state.namedPlacesMutation = operation.catch(() => {});
+  return operation;
 }
 
 async function postSelectionResolveApi(state, request, response) {
@@ -397,7 +412,12 @@ async function readBody(request) {
   const chunks = [];
   for await (const chunk of request) chunks.push(Buffer.from(chunk));
   const raw = Buffer.concat(chunks).toString("utf8");
-  return raw ? JSON.parse(raw) : {};
+  try {
+    return raw ? JSON.parse(raw) : {};
+  } catch (error) {
+    if (error instanceof SyntaxError) throw httpError(400, "Invalid JSON body");
+    throw error;
+  }
 }
 
 function sendJson(response, statusCode, value) {

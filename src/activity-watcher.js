@@ -89,7 +89,9 @@ export class ActivityWatcher {
           continue;
         }
         if (!payload) continue;
-        void this.postActivity(this.endpoint, payload);
+        void this.postActivity(this.endpoint, payload).catch((error) => {
+          console.warn(`warning: activity-watcher-post-skipped path=${path} error=${error.message}`);
+        });
       }
     } finally {
       this.pollInFlight = false;

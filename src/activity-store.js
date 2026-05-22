@@ -11,80 +11,90 @@ export function createActivityStore({
   maxMemoryEvents = DEFAULT_MAX_MEMORY_EVENTS,
   maxArchiveQueueEvents = DEFAULT_MAX_ARCHIVE_QUEUE_EVENTS,
 } = {}) {
-  const events = [];
-  const pending = [];
-  let writeQueue = Promise.resolve();
-  let closed = false;
+  return new ActivityStore({
+    archivePath,
+    flushIntervalMs,
+    maxMemoryEvents,
+    maxArchiveQueueEvents,
+  });
+}
 
-  const timer = setInterval(() => {
-    flush().catch((error) => {
-      console.warn(`warning: activity-archive-flush-skipped error=${error.message}`);
-    });
-  }, flushIntervalMs);
-  timer.unref?.();
+export class ActivityStore {
+  constructor({
+    archivePath,
+    flushIntervalMs = DEFAULT_FLUSH_INTERVAL_MS,
+    maxMemoryEvents = DEFAULT_MAX_MEMORY_EVENTS,
+    maxArchiveQueueEvents = DEFAULT_MAX_ARCHIVE_QUEUE_EVENTS,
+  } = {}) {
+    this.archivePath = archivePath;
+    this.maxMemoryEvents = maxMemoryEvents;
+    this.maxArchiveQueueEvents = maxArchiveQueueEvents;
+    this.events = [];
+    this.pending = [];
+    this.writeQueue = Promise.resolve();
+    this.closed = false;
+    this.timer = setInterval(() => {
+      this.flush().catch((error) => {
+        console.warn(`warning: activity-archive-flush-skipped error=${error.message}`);
+      });
+    }, flushIntervalMs);
+    this.timer.unref?.();
+  }
 
-  function add(event) {
-    events.push(event);
-    pending.push(event);
-    while (events.length > maxMemoryEvents) events.shift();
-    trimPending();
+  add(event) {
+    this.events.push(event);
+    this.pending.push(event);
+    while (this.events.length > this.maxMemoryEvents) this.events.shift();
+    this.trimPending();
     return event;
   }
 
-  function snapshot() {
-    return { events: [...events] };
+  snapshot() {
+    return { events: [...this.events] };
   }
 
-  async function flush() {
-    if (!archivePath || pending.length === 0) return;
-    const batch = pending.splice(0);
-    writeQueue = writeQueue
+  async flush() {
+    if (!this.archivePath || this.pending.length === 0) return;
+    const batch = this.pending.splice(0);
+    this.writeQueue = this.writeQueue
       .catch((error) => {
         console.warn(`warning: activity-archive-queue-recovered error=${error.message}`);
       })
       .then(async () => {
-        await appendActivityEvents(archivePath, batch);
+        await appendActivityEvents(this.archivePath, batch);
       })
       .catch((error) => {
-        pending.unshift(...batch);
-        trimPending();
+        this.pending.unshift(...batch);
+        this.trimPending();
         throw error;
       });
 
-    return writeQueue;
+    return this.writeQueue;
   }
 
-  async function clear() {
-    events.length = 0;
-    pending.length = 0;
-    writeQueue = writeQueue
+  async clear() {
+    this.events.length = 0;
+    this.pending.length = 0;
+    this.writeQueue = this.writeQueue
       .catch((error) => {
         console.warn(`warning: activity-archive-queue-recovered error=${error.message}`);
       })
       .then(async () => {
-        if (archivePath) await clearActivityArchive(archivePath);
+        if (this.archivePath) await clearActivityArchive(this.archivePath);
       });
-    return writeQueue;
+    return this.writeQueue;
   }
 
-  async function close() {
-    if (closed) return;
-    closed = true;
-    clearInterval(timer);
-    await flush();
-    await writeQueue;
+  async close() {
+    if (this.closed) return;
+    this.closed = true;
+    clearInterval(this.timer);
+    await this.flush();
+    await this.writeQueue;
   }
 
-  return {
-    add,
-    snapshot,
-    flush,
-    clear,
-    close,
-  };
-
-  function trimPending() {
-    while (pending.length > maxArchiveQueueEvents) pending.shift();
+  trimPending() {
+    while (this.pending.length > this.maxArchiveQueueEvents) this.pending.shift();
   }
 }
 

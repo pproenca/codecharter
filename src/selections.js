@@ -9,20 +9,68 @@ import { resolveAddress } from "./resolver.js";
 const DEFAULT_ANNOTATION_NAME = "Map annotation";
 const ANNOTATION_NAME_MAX_LENGTH = 72;
 
-const SELECTION_RESOLVERS = Object.freeze({
-  world: (codemap, geometry, level) => resolveFolderTargets(codemap, geometry, level, { includeRoot: true, rootOnly: true }),
-  region: (codemap, geometry, level) => resolveFolderTargets(codemap, geometry, level),
-  folder: (codemap, geometry, level) => resolveFolderTargets(codemap, geometry, level),
-  file: (codemap, geometry, level) => resolveFileTargets(codemap, geometry, level),
-  code: (codemap, geometry, level) => resolveCodeTargets(codemap, geometry, level, "lineRange"),
-  lineRange: (codemap, geometry, level) => resolveCodeTargets(codemap, geometry, level, "lineRange"),
-  tokenRange: (codemap, geometry, level) => resolveCodeTargets(codemap, geometry, level, "tokenRange"),
-});
+class SelectionResolverRegistry {
+  constructor(resolvers) {
+    this.resolvers = resolvers;
+  }
+
+  resolverFor(level) {
+    const resolver = this.resolvers.find((candidate) => candidate.supports(level));
+    if (!resolver) throw new Error(`Unknown map level: ${level}`);
+    return resolver;
+  }
+}
+
+class SelectionTargetResolver {
+  constructor(levels) {
+    this.levels = new Set(levels);
+  }
+
+  supports(level) {
+    return this.levels.has(level);
+  }
+}
+
+class FolderSelectionResolver extends SelectionTargetResolver {
+  constructor(levels, options = {}) {
+    super(levels);
+    this.options = options;
+  }
+
+  resolve(codemap, geometry, level) {
+    return resolveFolderTargets(codemap, geometry, level, this.options);
+  }
+}
+
+class FileSelectionResolver extends SelectionTargetResolver {
+  resolve(codemap, geometry, level) {
+    return resolveFileTargets(codemap, geometry, level);
+  }
+}
+
+class CodeSelectionResolver extends SelectionTargetResolver {
+  constructor(levels, targetMode) {
+    super(levels);
+    this.targetMode = targetMode;
+  }
+
+  resolve(codemap, geometry, level) {
+    return resolveCodeTargets(codemap, geometry, level, this.targetMode);
+  }
+}
+
+const SELECTION_RESOLVERS = new SelectionResolverRegistry([
+  new FolderSelectionResolver(["world"], { includeRoot: true, rootOnly: true }),
+  new FolderSelectionResolver(["region", "folder"]),
+  new FileSelectionResolver(["file"]),
+  new CodeSelectionResolver(["code", "lineRange"], "lineRange"),
+  new CodeSelectionResolver(["tokenRange"], "tokenRange"),
+]);
 
 export function resolveSelection(codemap, selection) {
   const level = selection.level ?? "file";
   const geometry = normalizeSelectionGeometry(selection.geometry);
-  const targets = selectionResolverForLevel(level)(codemap, geometry, level);
+  const targets = selectionResolverForLevel(level).resolve(codemap, geometry, level);
 
   const coveringSet = [...new Set(targets.map((target) => target.geohash))]
     .sort((a, b) => a.localeCompare(b));
@@ -131,9 +179,7 @@ function resolvedCodeTarget(codemap, file, selectionBounds, level, targetMode) {
 }
 
 function selectionResolverForLevel(level) {
-  const resolver = SELECTION_RESOLVERS[level];
-  if (!resolver) throw new Error(`Unknown map level: ${level}`);
-  return resolver;
+  return SELECTION_RESOLVERS.resolverFor(level);
 }
 
 function resolveFolderTargets(codemap, geometry, level, { includeRoot = false, rootOnly = false } = {}) {

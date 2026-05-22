@@ -2,31 +2,87 @@ import { basename } from "node:path/posix";
 
 const MIN_VISIBLE_WEIGHT = 3;
 
+export class FileNode {
+  constructor(file) {
+    this.type = "file";
+    this.name = file.path.split("/").at(-1);
+    this.path = file.path;
+    this.extension = file.extension;
+    this.lineCount = file.lineCount;
+    this.maxLineLength = file.maxLineLength;
+    this.weight = Math.max(file.tokenCount, MIN_VISIBLE_WEIGHT);
+  }
+}
+
+export class FolderNode {
+  constructor(path) {
+    this.type = "folder";
+    this.name = path === "" ? "" : basename(path);
+    this.path = path;
+    this.folders = new Map();
+    this.files = new Map();
+    this.weight = 0;
+    this.lineCount = 0;
+  }
+
+  childFolder(name) {
+    if (!this.folders.has(name)) this.folders.set(name, new FolderNode(joinPath(this.path, name)));
+    return this.folders.get(name);
+  }
+
+  addFile(file) {
+    const node = new FileNode(file);
+    this.files.set(node.name, node);
+    return node;
+  }
+
+  sortedChildren() {
+    return [...this.sortedFolders(), ...this.sortedFiles()];
+  }
+
+  sortedFolders() {
+    return [...this.folders.values()].sort(compareNodeNames);
+  }
+
+  sortedFiles() {
+    return [...this.files.values()].sort(compareNodeNames);
+  }
+
+  recalculateMetrics() {
+    let weight = 0;
+    let lineCount = 0;
+
+    for (const child of this.folders.values()) {
+      child.recalculateMetrics();
+      weight += child.weight;
+      lineCount += child.lineCount;
+    }
+
+    for (const child of this.files.values()) {
+      weight += child.weight;
+      lineCount += child.lineCount;
+    }
+
+    this.weight = Math.max(weight, MIN_VISIBLE_WEIGHT);
+    this.lineCount = lineCount;
+  }
+}
+
 export function buildFileTree(files) {
-  const root = folderNode("");
+  const root = new FolderNode("");
 
   for (const file of files) {
     const parts = file.path.split("/");
     let current = root;
 
     for (const part of parts.slice(0, -1)) {
-      if (!current.folders.has(part)) current.folders.set(part, folderNode(joinPath(current.path, part)));
-      current = current.folders.get(part);
+      current = current.childFolder(part);
     }
 
-    const name = parts.at(-1);
-    current.files.set(name, {
-      type: "file",
-      name,
-      path: file.path,
-      extension: file.extension,
-      lineCount: file.lineCount,
-      maxLineLength: file.maxLineLength,
-      weight: Math.max(file.tokenCount, MIN_VISIBLE_WEIGHT),
-    });
+    current.addFile(file);
   }
 
-  computeFolderWeights(root);
+  root.recalculateMetrics();
   return root;
 }
 
@@ -45,46 +101,19 @@ export function flattenTree(root) {
 }
 
 export function sortedChildren(folder) {
-  return [...sortedFolders(folder), ...sortedFiles(folder)];
+  return folder.sortedChildren();
 }
 
 export function sortedFolders(folder) {
-  return [...folder.folders.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return folder.sortedFolders();
 }
 
 export function sortedFiles(folder) {
-  return [...folder.files.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return folder.sortedFiles();
 }
 
-function folderNode(path) {
-  return {
-    type: "folder",
-    name: path === "" ? "" : basename(path),
-    path,
-    folders: new Map(),
-    files: new Map(),
-    weight: 0,
-    lineCount: 0,
-  };
-}
-
-function computeFolderWeights(folder) {
-  let weight = 0;
-  let lineCount = 0;
-
-  for (const child of folder.folders.values()) {
-    computeFolderWeights(child);
-    weight += child.weight;
-    lineCount += child.lineCount;
-  }
-
-  for (const child of folder.files.values()) {
-    weight += child.weight;
-    lineCount += child.lineCount;
-  }
-
-  folder.weight = Math.max(weight, MIN_VISIBLE_WEIGHT);
-  folder.lineCount = lineCount;
+function compareNodeNames(a, b) {
+  return a.name.localeCompare(b.name);
 }
 
 function joinPath(parent, child) {

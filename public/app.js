@@ -88,71 +88,110 @@ const CAMERA_ANIMATION_MS = 280;
 const DOUBLE_CLICK_ZOOM_FACTOR = 2;
 const CLICK_SELECT_DELAY_MS = 220;
 
+class PollingTask {
+  constructor() {
+    this.timer = null;
+  }
+
+  start(callback, intervalMs) {
+    this.stop();
+    this.timer = setInterval(callback, intervalMs);
+  }
+
+  stop() {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+  }
+}
+
+class MapApplicationState {
+  constructor() {
+    this.map = null;
+    this.mapVersion = "";
+    this.namedPlaces = [];
+    this.overlaps = [];
+    this.activity = [];
+    this.sourceCache = new Map();
+    this.pendingSourceRequests = new Set();
+    this.activitySignature = "";
+    this.view = { x: 0, y: 0, scale: 1 };
+    this.cameraAnimation = null;
+    this.pendingClickSelection = null;
+    this.dragging = null;
+    this.lastPointerDown = null;
+    this.lastPointerType = "";
+    this.drawing = false;
+    this.panning = false;
+    this.spacePanning = false;
+    this.draftSelection = null;
+    this.resolvedSelection = null;
+    this.selectedTarget = null;
+  }
+
+  clearSourceState() {
+    this.sourceCache.clear();
+    this.pendingSourceRequests.clear();
+  }
+}
+
+class MapControls {
+  constructor(root = document) {
+    this.summary = root.querySelector("#mapSummary");
+    this.hover = root.querySelector("#hoverReadout");
+    this.viewport = root.querySelector("#viewportReadout");
+    this.selectionPopover = root.querySelector("#selectionPopover");
+    this.annotationActions = root.querySelector("#annotationActions");
+    this.inspectorTitle = root.querySelector("#inspectorTitle");
+    this.inspectorSubtitle = root.querySelector("#inspectorSubtitle");
+    this.searchForm = root.querySelector("#searchForm");
+    this.searchInput = root.querySelector("#searchInput");
+    this.searchResult = root.querySelector("#searchResult");
+    this.selectTool = root.querySelector("#selectTool");
+    this.panTool = root.querySelector("#panTool");
+    this.zoomInTool = root.querySelector("#zoomInTool");
+    this.zoomOutTool = root.querySelector("#zoomOutTool");
+    this.resetViewTool = root.querySelector("#resetViewTool");
+    this.drawTool = root.querySelector("#drawTool");
+    this.clearActivityTool = root.querySelector("#clearActivityTool");
+    this.saveSelection = root.querySelector("#saveSelection");
+    this.deleteAnnotation = root.querySelector("#deleteAnnotation");
+    this.copyAnnotationPrompt = root.querySelector("#copyAnnotationPrompt");
+    this.deleteAnnotationAction = root.querySelector("#deleteAnnotationAction");
+    this.selectionComment = root.querySelector("#selectionComment");
+    this.selectionStatus = root.querySelector("#selectionStatus");
+    this.sourceTitle = root.querySelector("#sourceTitle");
+    this.sourceOutput = root.querySelector("#sourceOutput");
+    this.showFolders = root.querySelector("#showFolders");
+    this.showOrganicRegions = root.querySelector("#showOrganicRegions");
+    this.showFiles = root.querySelector("#showFiles");
+    this.showNames = root.querySelector("#showNames");
+    this.showActivity = root.querySelector("#showActivity");
+    this.showGrid = root.querySelector("#showGrid");
+    this.activityFeed = root.querySelector("#activityFeed");
+    this.activityForm = root.querySelector("#activityForm");
+  }
+
+  layerToggles() {
+    return [
+      this.showFolders,
+      this.showOrganicRegions,
+      this.showFiles,
+      this.showNames,
+      this.showActivity,
+      this.showGrid,
+    ].filter(Boolean);
+  }
+}
+
 let frameLabels = [];
-let activityPollTimer = null;
-let mapPollTimer = null;
 let applyingRoute = false;
 let routeSequence = 0;
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-const state = {
-  map: null,
-  mapVersion: "",
-  namedPlaces: [],
-  overlaps: [],
-  activity: [],
-  sourceCache: new Map(),
-  pendingSourceRequests: new Set(),
-  activitySignature: "",
-  view: { x: 0, y: 0, scale: 1 },
-  cameraAnimation: null,
-  pendingClickSelection: null,
-  dragging: null,
-  lastPointerDown: null,
-  lastPointerType: "",
-  drawing: false,
-  panning: false,
-  spacePanning: false,
-  draftSelection: null,
-  resolvedSelection: null,
-  selectedTarget: null,
-};
-
-const controls = {
-  summary: document.querySelector("#mapSummary"),
-  hover: document.querySelector("#hoverReadout"),
-  viewport: document.querySelector("#viewportReadout"),
-  selectionPopover: document.querySelector("#selectionPopover"),
-  annotationActions: document.querySelector("#annotationActions"),
-  inspectorTitle: document.querySelector("#inspectorTitle"),
-  inspectorSubtitle: document.querySelector("#inspectorSubtitle"),
-  searchForm: document.querySelector("#searchForm"),
-  searchInput: document.querySelector("#searchInput"),
-  searchResult: document.querySelector("#searchResult"),
-  selectTool: document.querySelector("#selectTool"),
-  panTool: document.querySelector("#panTool"),
-  zoomInTool: document.querySelector("#zoomInTool"),
-  zoomOutTool: document.querySelector("#zoomOutTool"),
-  resetViewTool: document.querySelector("#resetViewTool"),
-  drawTool: document.querySelector("#drawTool"),
-  clearActivityTool: document.querySelector("#clearActivityTool"),
-  saveSelection: document.querySelector("#saveSelection"),
-  deleteAnnotation: document.querySelector("#deleteAnnotation"),
-  copyAnnotationPrompt: document.querySelector("#copyAnnotationPrompt"),
-  deleteAnnotationAction: document.querySelector("#deleteAnnotationAction"),
-  selectionComment: document.querySelector("#selectionComment"),
-  selectionStatus: document.querySelector("#selectionStatus"),
-  sourceTitle: document.querySelector("#sourceTitle"),
-  sourceOutput: document.querySelector("#sourceOutput"),
-  showFolders: document.querySelector("#showFolders"),
-  showOrganicRegions: document.querySelector("#showOrganicRegions"),
-  showFiles: document.querySelector("#showFiles"),
-  showNames: document.querySelector("#showNames"),
-  showActivity: document.querySelector("#showActivity"),
-  showGrid: document.querySelector("#showGrid"),
-  activityFeed: document.querySelector("#activityFeed"),
-  activityForm: document.querySelector("#activityForm"),
-};
+const state = new MapApplicationState();
+const controls = new MapControls();
+const activityPolling = new PollingTask();
+const mapPolling = new PollingTask();
 
 await boot();
 
@@ -180,8 +219,7 @@ function applyMap(map, version) {
   const previousSelection = state.selectedTarget;
   state.map = map;
   state.mapVersion = version ?? state.mapVersion;
-  state.sourceCache.clear();
-  state.pendingSourceRequests.clear();
+  state.clearSourceState();
   if (controls.summary) {
     controls.summary.textContent = `${Object.keys(map.files).length} files, ${Object.keys(map.folders).length} folders`;
   }
@@ -204,14 +242,7 @@ function bindEvents() {
   document.addEventListener("keyup", onDocumentKeyUp);
   window.addEventListener("blur", () => setSpacePanMode(false));
 
-  for (const control of [
-    controls.showFolders,
-    controls.showOrganicRegions,
-    controls.showFiles,
-    controls.showNames,
-    controls.showActivity,
-    controls.showGrid,
-  ].filter(Boolean)) {
+  for (const control of controls.layerToggles()) {
     control.addEventListener("change", render);
   }
 
@@ -254,13 +285,11 @@ function bindEvents() {
 }
 
 function startActivityPolling() {
-  if (activityPollTimer) clearInterval(activityPollTimer);
-  activityPollTimer = setInterval(refreshActivity, 1800);
+  activityPolling.start(refreshActivity, 1800);
 }
 
 function startMapPolling() {
-  if (mapPollTimer) clearInterval(mapPollTimer);
-  mapPollTimer = setInterval(refreshMap, 1800);
+  mapPolling.start(refreshMap, 1800);
 }
 
 async function refreshMap() {
@@ -301,91 +330,371 @@ function activitySignature(events) {
   return `${events.length}:${latest?.id ?? ""}:${latest?.timestamp ?? ""}`;
 }
 
-const HASH_ROUTE_FOCUS_HANDLERS = {
-  annotation: (intent, routeToken) => focusAnnotationRoute(intent.id, routeToken),
-  selection: (intent, routeToken) => focusSelectionRoute(intent.params, routeToken),
-  map: (intent, routeToken) => focusMapRoute(intent.route, routeToken),
-};
+class CommandDispatcher {
+  constructor(commands) {
+    this.commandsByType = new Map(commands.map((command) => [command.type, command]));
+  }
 
-const MAP_ROUTE_FOCUS_HANDLERS = {
-  focusFile: (target, route, routeToken) => showFileForRoute(target, route.params, routeToken),
-  focusFolder: (target) => {
+  has(type) {
+    return this.commandsByType.has(type);
+  }
+
+  async execute(type, ...args) {
+    return this.commandsByType.get(type)?.execute(...args);
+  }
+}
+
+class UiCommand {
+  constructor(type) {
+    this.type = type;
+  }
+}
+
+class FocusAnnotationRouteCommand extends UiCommand {
+  constructor() {
+    super("annotation");
+  }
+
+  async execute(intent, routeToken) {
+    return focusAnnotationRoute(intent.id, routeToken);
+  }
+}
+
+class FocusSelectionRouteCommand extends UiCommand {
+  constructor() {
+    super("selection");
+  }
+
+  async execute(intent, routeToken) {
+    return focusSelectionRoute(intent.params, routeToken);
+  }
+}
+
+class FocusMapRouteCommand extends UiCommand {
+  constructor() {
+    super("map");
+  }
+
+  async execute(intent, routeToken) {
+    return focusMapRoute(intent.route, routeToken);
+  }
+}
+
+class FocusFileRouteCommand extends UiCommand {
+  constructor() {
+    super("focusFile");
+  }
+
+  async execute(target, route, routeToken) {
+    return showFileForRoute(target, route.params, routeToken);
+  }
+}
+
+class FocusFolderRouteCommand extends UiCommand {
+  constructor() {
+    super("focusFolder");
+  }
+
+  async execute(target) {
     clearAnnotationForm();
     setText(controls.inspectorTitle, folderDisplayName(target));
     setText(controls.inspectorSubtitle, `folder: ${target.path || "."} | ${target.geo.geohash}`);
     render();
-  },
-};
+  }
+}
 
-const DOUBLE_CLICK_ACTION_HANDLERS = {
-  focusAnnotation: (hit) => {
+class FocusAnnotationCommand extends UiCommand {
+  constructor() {
+    super("focusAnnotation");
+  }
+
+  async execute(hit) {
     zoomToBounds(hit.geometry.bounds, 1.28);
     selectAnnotation(hit);
-  },
-  selectFolder: (hit, world) => {
+  }
+}
+
+class SelectFolderCommand extends UiCommand {
+  constructor() {
+    super("selectFolder");
+  }
+
+  async execute(hit, world) {
     void selectMapTarget(world);
     zoomToBounds(hit.bounds, 1.35);
-  },
-  selectFile: (_hit, world) => {
-    void selectMapTarget(world);
-  },
-  selectActivity: (hit) => {
-    void selectActivityEvent(hit);
-  },
-};
+  }
+}
 
-const MAP_TARGET_SELECTION_HANDLERS = {
-  clearSelection: clearMapSelection,
-  focusAnnotation: (hit) => {
+class SelectFileCommand extends UiCommand {
+  constructor() {
+    super("selectFile");
+  }
+
+  async execute(_hit, world) {
+    void selectMapTarget(world);
+  }
+}
+
+class SelectActivityCommand extends UiCommand {
+  constructor() {
+    super("selectActivity");
+  }
+
+  async execute(hit) {
+    void selectActivityEvent(hit);
+  }
+}
+
+class ClearSelectionCommand extends UiCommand {
+  constructor() {
+    super("clearSelection");
+  }
+
+  async execute() {
+    clearMapSelection();
+  }
+}
+
+class InspectAnnotationCommand extends UiCommand {
+  constructor() {
+    super("focusAnnotation");
+  }
+
+  async execute(hit) {
     zoomToBounds(hit.geometry.bounds, 1.35);
     selectAnnotation(hit);
-  },
-  selectActivity: (hit) => selectActivityEvent(hit),
-  inspectFolder: inspectFolderTarget,
-  inspectFile: inspectFileTarget,
-};
+  }
+}
 
-const MAP_SEARCH_ACTION_HANDLERS = {
-  noMatch: () => {
+class InspectActivityCommand extends UiCommand {
+  constructor() {
+    super("selectActivity");
+  }
+
+  async execute(hit) {
+    return selectActivityEvent(hit);
+  }
+}
+
+class InspectFolderCommand extends UiCommand {
+  constructor() {
+    super("inspectFolder");
+  }
+
+  async execute(hit) {
+    inspectFolderTarget(hit);
+  }
+}
+
+class InspectFileCommand extends UiCommand {
+  constructor() {
+    super("inspectFile");
+  }
+
+  async execute(hit, worldPoint) {
+    return inspectFileTarget(hit, worldPoint);
+  }
+}
+
+class NoSearchMatchCommand extends UiCommand {
+  constructor() {
+    super("noMatch");
+  }
+
+  async execute() {
     setSearchResult("No matching place found.");
-  },
-  focusPlace: (match) => {
+  }
+}
+
+class FocusSearchPlaceCommand extends UiCommand {
+  constructor() {
+    super("focusPlace");
+  }
+
+  async execute(match) {
     zoomToBounds(match.place.geometry.bounds, 1.35);
     setSearchResult(match.label);
     state.selectedTarget = match.target;
     if (state.selectedTarget?.targetType === "annotation") selectAnnotation(state.selectedTarget);
     render();
-  },
-  focusFile: async (match) => {
+  }
+}
+
+class FocusSearchFileCommand extends UiCommand {
+  constructor() {
+    super("focusFile");
+  }
+
+  async execute(match) {
     zoomToReadableFile(match.file);
     await selectMapTarget(boundsCenter(match.file.bounds));
     setSearchResult(match.label);
-  },
-  focusFolder: (match) => {
+  }
+}
+
+class FocusSearchFolderCommand extends UiCommand {
+  constructor() {
+    super("focusFolder");
+  }
+
+  async execute(match) {
     zoomToBounds(match.folder.bounds, 1.6);
     state.selectedTarget = { ...match.folder, targetType: "folder" };
     setText(controls.inspectorTitle, folderDisplayName(match.folder));
     setText(controls.inspectorSubtitle, `folder: ${match.folder.path || "."} | ${match.folder.geo.geohash}`);
     setSearchResult(match.label);
     render();
-  },
-};
+  }
+}
 
-const CANVAS_KEYBOARD_ACTION_HANDLERS = {
-  pan: (action) => animateViewTo(panViewByScreenDelta(state.view, action.delta, viewportSize())),
-  zoomIn: () => zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true }),
-  zoomOut: () => zoomAt(viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR, { animate: true }),
-  fitCodebase: () => fitCodebaseView({ animate: true }),
-  selectCenter: () => selectMapTarget(screenToWorld(viewportCenter())),
-};
+class PanKeyboardCommand extends UiCommand {
+  constructor() {
+    super("pan");
+  }
 
-const DOCUMENT_KEYBOARD_ACTION_HANDLERS = {
-  startSpacePan: () => setSpacePanMode(true),
-  cancelInteraction: () => cancelCurrentInteraction(),
-  saveSelection: () => saveSelection(),
-  copyAnnotationPrompt: () => copySelectedAnnotationPrompt(),
-  deleteAnnotation: () => deleteSelectedAnnotation(),
-};
+  async execute(action) {
+    animateViewTo(panViewByScreenDelta(state.view, action.delta, viewportSize()));
+  }
+}
+
+class ZoomInKeyboardCommand extends UiCommand {
+  constructor() {
+    super("zoomIn");
+  }
+
+  async execute() {
+    zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true });
+  }
+}
+
+class ZoomOutKeyboardCommand extends UiCommand {
+  constructor() {
+    super("zoomOut");
+  }
+
+  async execute() {
+    zoomAt(viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR, { animate: true });
+  }
+}
+
+class FitCodebaseKeyboardCommand extends UiCommand {
+  constructor() {
+    super("fitCodebase");
+  }
+
+  async execute() {
+    fitCodebaseView({ animate: true });
+  }
+}
+
+class SelectCenterKeyboardCommand extends UiCommand {
+  constructor() {
+    super("selectCenter");
+  }
+
+  async execute() {
+    return selectMapTarget(screenToWorld(viewportCenter()));
+  }
+}
+
+class StartSpacePanCommand extends UiCommand {
+  constructor() {
+    super("startSpacePan");
+  }
+
+  async execute() {
+    setSpacePanMode(true);
+  }
+}
+
+class CancelInteractionCommand extends UiCommand {
+  constructor() {
+    super("cancelInteraction");
+  }
+
+  async execute() {
+    cancelCurrentInteraction();
+  }
+}
+
+class SaveSelectionCommand extends UiCommand {
+  constructor() {
+    super("saveSelection");
+  }
+
+  async execute() {
+    return saveSelection();
+  }
+}
+
+class CopyAnnotationPromptCommand extends UiCommand {
+  constructor() {
+    super("copyAnnotationPrompt");
+  }
+
+  async execute() {
+    return copySelectedAnnotationPrompt();
+  }
+}
+
+class DeleteAnnotationCommand extends UiCommand {
+  constructor() {
+    super("deleteAnnotation");
+  }
+
+  async execute() {
+    return deleteSelectedAnnotation();
+  }
+}
+
+const HASH_ROUTE_FOCUS_COMMANDS = new CommandDispatcher([
+  new FocusAnnotationRouteCommand(),
+  new FocusSelectionRouteCommand(),
+  new FocusMapRouteCommand(),
+]);
+
+const MAP_ROUTE_FOCUS_COMMANDS = new CommandDispatcher([
+  new FocusFileRouteCommand(),
+  new FocusFolderRouteCommand(),
+]);
+
+const DOUBLE_CLICK_ACTION_COMMANDS = new CommandDispatcher([
+  new FocusAnnotationCommand(),
+  new SelectFolderCommand(),
+  new SelectFileCommand(),
+  new SelectActivityCommand(),
+]);
+
+const MAP_TARGET_SELECTION_COMMANDS = new CommandDispatcher([
+  new ClearSelectionCommand(),
+  new InspectAnnotationCommand(),
+  new InspectActivityCommand(),
+  new InspectFolderCommand(),
+  new InspectFileCommand(),
+]);
+
+const MAP_SEARCH_ACTION_COMMANDS = new CommandDispatcher([
+  new NoSearchMatchCommand(),
+  new FocusSearchPlaceCommand(),
+  new FocusSearchFileCommand(),
+  new FocusSearchFolderCommand(),
+]);
+
+const CANVAS_KEYBOARD_COMMANDS = new CommandDispatcher([
+  new PanKeyboardCommand(),
+  new ZoomInKeyboardCommand(),
+  new ZoomOutKeyboardCommand(),
+  new FitCodebaseKeyboardCommand(),
+  new SelectCenterKeyboardCommand(),
+]);
+
+const DOCUMENT_KEYBOARD_COMMANDS = new CommandDispatcher([
+  new StartSpacePanCommand(),
+  new CancelInteractionCommand(),
+  new SaveSelectionCommand(),
+  new CopyAnnotationPromptCommand(),
+  new DeleteAnnotationCommand(),
+]);
 
 async function applyHashRoute() {
   const routeToken = ++routeSequence;
@@ -395,7 +704,7 @@ async function applyHashRoute() {
 
   applyingRoute = true;
   try {
-    await HASH_ROUTE_FOCUS_HANDLERS[intent.type]?.(intent, routeToken);
+    await HASH_ROUTE_FOCUS_COMMANDS.execute(intent.type, intent, routeToken);
   } finally {
     if (routeToken === routeSequence) applyingRoute = false;
   }
@@ -440,7 +749,7 @@ async function focusMapRoute(route, routeToken) {
   resetSelectionOverlay();
   zoomToBounds(target.bounds, action.zoomPadding);
   state.selectedTarget = target;
-  await MAP_ROUTE_FOCUS_HANDLERS[action.type]?.(target, route, routeToken);
+  await MAP_ROUTE_FOCUS_COMMANDS.execute(action.type, target, route, routeToken);
 }
 
 async function showFileForRoute(file, params, routeToken) {
@@ -1257,10 +1566,9 @@ function normalizeWheelDelta(delta, deltaMode) {
 function onCanvasKeyDown(event) {
   canvas.classList.remove("pointer-focused");
   const action = canvasKeyboardAction(event);
-  const handleAction = action ? CANVAS_KEYBOARD_ACTION_HANDLERS[action.type] : null;
-  if (!handleAction) return;
+  if (!action || !CANVAS_KEYBOARD_COMMANDS.has(action.type)) return;
   event.preventDefault();
-  void handleAction(action);
+  void CANVAS_KEYBOARD_COMMANDS.execute(action.type, action);
 }
 
 function onDocumentKeyDown(event) {
@@ -1270,10 +1578,9 @@ function onDocumentKeyDown(event) {
     hasResolvedSelection: Boolean(state.resolvedSelection),
     hasSelectedAnnotation: state.selectedTarget?.targetType === "annotation",
   });
-  const handleAction = action ? DOCUMENT_KEYBOARD_ACTION_HANDLERS[action.type] : null;
-  if (!handleAction) return;
+  if (!action || !DOCUMENT_KEYBOARD_COMMANDS.has(action.type)) return;
   event.preventDefault();
-  void handleAction(action);
+  void DOCUMENT_KEYBOARD_COMMANDS.execute(action.type, action);
 }
 
 function onDocumentKeyUp(event) {
@@ -1390,7 +1697,7 @@ function onCanvasDoubleClick(event) {
   const action = doubleClickMapAction(hit);
 
   if (action) {
-    DOUBLE_CLICK_ACTION_HANDLERS[action.type]?.(hit, world);
+    void DOUBLE_CLICK_ACTION_COMMANDS.execute(action.type, hit, world);
     return;
   }
 
@@ -1431,7 +1738,7 @@ function hasUsableDraftSelection() {
 async function selectMapTarget(worldPoint) {
   const hit = hitTest(worldPoint);
   const action = mapTargetSelectionAction(hit);
-  await MAP_TARGET_SELECTION_HANDLERS[action.type]?.(hit, worldPoint);
+  await MAP_TARGET_SELECTION_COMMANDS.execute(action.type, hit, worldPoint);
 }
 
 function clearMapSelection() {
@@ -1541,7 +1848,7 @@ async function searchMap(event) {
   if (!String(query ?? "").trim()) return;
   const match = mapSearchMatch(state.map, state.namedPlaces, query);
   const action = mapSearchAction(match);
-  await MAP_SEARCH_ACTION_HANDLERS[action.type]?.(match);
+  await MAP_SEARCH_ACTION_COMMANDS.execute(action.type, match);
 }
 
 function setSearchResult(message) {

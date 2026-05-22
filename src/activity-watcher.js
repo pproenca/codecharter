@@ -9,69 +9,91 @@ const execFileAsync = promisify(execFile);
 const DEFAULT_INTERVAL_MS = 1800;
 const DEFAULT_THROTTLE_MS = 5000;
 
-export function startActivityWatcher({
-  root,
-  endpoint,
-  agentId = "codex",
-  activityState = "editing",
-  intervalMs = DEFAULT_INTERVAL_MS,
-  throttleMs = DEFAULT_THROTTLE_MS,
-  prepareChanges = async () => {},
-  createActivityPayload = defaultActivityPayload,
-  postActivity = sendActivityDatagram,
-} = {}) {
-  const recent = new Map();
+export class ActivityWatcher {
+  constructor({
+    root,
+    endpoint,
+    agentId = "codex",
+    activityState = "editing",
+    intervalMs = DEFAULT_INTERVAL_MS,
+    throttleMs = DEFAULT_THROTTLE_MS,
+    prepareChanges = async () => {},
+    createActivityPayload = defaultActivityPayload,
+    postActivity = sendActivityDatagram,
+  } = {}) {
+    this.root = root;
+    this.endpoint = endpoint;
+    this.agentId = agentId;
+    this.activityState = activityState;
+    this.intervalMs = intervalMs;
+    this.throttleMs = throttleMs;
+    this.prepareChanges = prepareChanges;
+    this.createActivityPayload = createActivityPayload;
+    this.postActivity = postActivity;
+    this.recent = new Map();
+    this.initialPoll = null;
+    this.timer = null;
+    this.poll = this.poll.bind(this);
+    this.close = this.close.bind(this);
+  }
 
-  async function poll() {
-    const paths = await changedGitPaths(root);
+  start() {
+    this.initialPoll = setTimeout(() => {
+      this.poll().catch((error) => {
+        console.warn(`warning: activity-watcher-initial-poll-skipped error=${error.message}`);
+      });
+    }, 0);
+    this.timer = setInterval(() => {
+      this.poll().catch((error) => {
+        console.warn(`warning: activity-watcher-poll-skipped error=${error.message}`);
+      });
+    }, this.intervalMs);
+    return this;
+  }
+
+  close() {
+    clearTimeout(this.initialPoll);
+    clearInterval(this.timer);
+  }
+
+  async poll() {
+    const paths = await changedGitPaths(this.root);
     const activePaths = new Set(paths);
     const now = Date.now();
-    for (const path of recent.keys()) {
-      if (!activePaths.has(path)) recent.delete(path);
+    for (const path of this.recent.keys()) {
+      if (!activePaths.has(path)) this.recent.delete(path);
     }
 
     const changes = await Promise.all(paths.map(async (path) => ({
       path,
-      ...await changedLineRange(root, path),
+      ...await changedLineRange(this.root, path),
     })));
-    await prepareChanges(changes);
+    await this.prepareChanges(changes);
 
     for (const change of changes) {
       const { path } = change;
-      const previous = recent.get(path);
+      const previous = this.recent.get(path);
       if (previous?.signature === change.signature) continue;
-      if (previous && now - previous.timestamp < throttleMs) continue;
-      recent.set(path, { signature: change.signature, timestamp: now });
+      if (previous && now - previous.timestamp < this.throttleMs) continue;
+      this.recent.set(path, { signature: change.signature, timestamp: now });
       let payload;
       try {
-        payload = createActivityPayload(change, { agentId, activityState });
+        payload = this.createActivityPayload(change, {
+          agentId: this.agentId,
+          activityState: this.activityState,
+        });
       } catch (error) {
         console.warn(`warning: activity-watcher-skipped path=${path} error=${error.message}`);
         continue;
       }
       if (!payload) continue;
-      void postActivity(endpoint, payload);
+      void this.postActivity(this.endpoint, payload);
     }
   }
+}
 
-  const initialPoll = setTimeout(() => {
-    poll().catch((error) => {
-      console.warn(`warning: activity-watcher-initial-poll-skipped error=${error.message}`);
-    });
-  }, 0);
-  const timer = setInterval(() => {
-    poll().catch((error) => {
-      console.warn(`warning: activity-watcher-poll-skipped error=${error.message}`);
-    });
-  }, intervalMs);
-
-  return {
-    close() {
-      clearTimeout(initialPoll);
-      clearInterval(timer);
-    },
-    poll,
-  };
+export function startActivityWatcher(options = {}) {
+  return new ActivityWatcher(options).start();
 }
 
 export async function changedCodeChanges(root) {

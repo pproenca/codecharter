@@ -4,78 +4,81 @@ import { createCodemapDeepLink } from "./deep-links.js";
 import { codeRangeGeometry } from "./line-coordinate.js";
 
 export function resolveAddress(codemap, request) {
-  const path = normalizePathForMap(request.path);
-  const file = codemap.files[path];
-  const folder = codemap.folders[path];
+  return new AddressResolver(codemap).resolve(request);
+}
 
-  if (!file && !folder) {
-    throw new Error(`No map target found for path: ${request.path}`);
+export class AddressResolver {
+  constructor(codemap) {
+    this.codemap = codemap;
   }
 
-  if (file) return resolveFileAddress(codemap, file, request);
-  return resolveFolderAddress(codemap, folder);
-}
+  resolve(request) {
+    const path = normalizePathForMap(request.path);
+    const file = this.codemap.files[path];
+    const folder = this.codemap.folders[path];
 
-function resolveFolderAddress(codemap, folder) {
-  const level = "folder";
-  const geohash = folder.geo.geohash.slice(0, precisionForLevel(level));
-  return {
-    level,
-    targetType: "folder",
-    path: folder.path,
-    geohash,
-    deepLink: deepLink(level, geohash, { path: folder.path }),
-    breadcrumb: breadcrumbForPath(folder.path || "."),
-    bounds: folder.bounds,
-    geo: folder.geo,
-  };
-}
+    if (!file && !folder) {
+      throw new Error(`No map target found for path: ${request.path}`);
+    }
 
-function resolveFileAddress(codemap, file, request) {
-  if (
-    request.lineStart !== undefined
-    || request.lineEnd !== undefined
-    || request.columnStart !== undefined
-    || request.columnEnd !== undefined
-  ) {
-    return resolveCodeRangeAddress(file, request);
+    if (file) return this.resolveFile(file, request);
+    return this.resolveFolder(folder);
   }
 
-  const level = "file";
-  const geohash = file.geo.geohash.slice(0, precisionForLevel(level));
-  return {
-    level,
-    targetType: "file",
-    path: file.path,
-    geohash,
-    deepLink: deepLink(level, geohash, { path: file.path }),
-    breadcrumb: breadcrumbForPath(file.path),
-    bounds: file.bounds,
-    geo: file.geo,
-  };
-}
+  resolveFolder(folder) {
+    const level = "folder";
+    const geohash = folder.geo.geohash.slice(0, precisionForLevel(level));
+    return {
+      level,
+      targetType: "folder",
+      path: folder.path,
+      geohash,
+      deepLink: deepLink(level, geohash, { path: folder.path }),
+      breadcrumb: breadcrumbForPath(folder.path || "."),
+      bounds: folder.bounds,
+      geo: folder.geo,
+    };
+  }
 
-function resolveCodeRangeAddress(file, request) {
-  const geometry = codeRangeGeometry(file, request);
-  const level = geometry.tokenRange || geometry.hasTokenFragments ? "tokenRange" : "lineRange";
-  const geo = geoForBounds(geometry.anchorBounds, level);
-  const lines = `${geometry.lineRange.start}-${geometry.lineRange.end}`;
-  const fragments = geometry.fragments ? geohashedFragments(geometry.fragments) : undefined;
+  resolveFile(file, request) {
+    if (hasCodeRangeRequest(request)) return this.resolveCodeRange(file, request);
 
-  return {
-    level,
-    targetType: level,
-    path: file.path,
-    geohash: geo.geohash,
-    deepLink: deepLink(level, geo.geohash, { path: file.path, lines, columns: geometry.tokenRange ? `${geometry.tokenRange.start}-${geometry.tokenRange.end}` : undefined }),
-    breadcrumb: `${breadcrumbForPath(file.path)}:${lines}${geometry.tokenRange ? `@${geometry.tokenRange.start}-${geometry.tokenRange.end}` : ""}`,
-    bounds: geometry.bounds,
-    geo,
-    lineRange: geometry.lineRange,
-    ...(geometry.tokenRange ? { tokenRange: geometry.tokenRange } : {}),
-    ...(fragments ? { coveringSet: sortedUnique(fragments.map((fragment) => fragment.geohash)) } : {}),
-    ...(fragments ? { fragments } : {}),
-  };
+    const level = "file";
+    const geohash = file.geo.geohash.slice(0, precisionForLevel(level));
+    return {
+      level,
+      targetType: "file",
+      path: file.path,
+      geohash,
+      deepLink: deepLink(level, geohash, { path: file.path }),
+      breadcrumb: breadcrumbForPath(file.path),
+      bounds: file.bounds,
+      geo: file.geo,
+    };
+  }
+
+  resolveCodeRange(file, request) {
+    const geometry = codeRangeGeometry(file, request);
+    const level = geometry.tokenRange || geometry.hasTokenFragments ? "tokenRange" : "lineRange";
+    const geo = geoForBounds(geometry.anchorBounds, level);
+    const lines = `${geometry.lineRange.start}-${geometry.lineRange.end}`;
+    const fragments = geometry.fragments ? geohashedFragments(geometry.fragments) : undefined;
+
+    return {
+      level,
+      targetType: level,
+      path: file.path,
+      geohash: geo.geohash,
+      deepLink: deepLink(level, geo.geohash, { path: file.path, lines, columns: geometry.tokenRange ? `${geometry.tokenRange.start}-${geometry.tokenRange.end}` : undefined }),
+      breadcrumb: `${breadcrumbForPath(file.path)}:${lines}${geometry.tokenRange ? `@${geometry.tokenRange.start}-${geometry.tokenRange.end}` : ""}`,
+      bounds: geometry.bounds,
+      geo,
+      lineRange: geometry.lineRange,
+      ...(geometry.tokenRange ? { tokenRange: geometry.tokenRange } : {}),
+      ...(fragments ? { coveringSet: sortedUnique(fragments.map((fragment) => fragment.geohash)) } : {}),
+      ...(fragments ? { fragments } : {}),
+    };
+  }
 }
 
 export function normalizePathForMap(path) {
@@ -85,6 +88,13 @@ export function normalizePathForMap(path) {
 
 function geoForBounds(bounds, level) {
   return geohashForBoundsCenter(bounds, precisionForLevel(level));
+}
+
+function hasCodeRangeRequest(request) {
+  return request.lineStart !== undefined
+    || request.lineEnd !== undefined
+    || request.columnStart !== undefined
+    || request.columnEnd !== undefined;
 }
 
 function geohashedFragments(fragments) {

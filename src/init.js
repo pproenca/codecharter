@@ -25,6 +25,131 @@ const MANAGED_POST_TOOL_MATCHERS = new Set([
   "Bash|exec_command|apply_patch|Edit|Write|MultiEdit|functions.apply_patch|functions.exec_command",
 ]);
 
+export class CodecharterInitializer {
+  async initialize({
+    root,
+    mapPath,
+    installCodex = true,
+    installGitHooks = true,
+    fresh = false,
+    writeCodemap,
+  } = {}) {
+    const resolvedMapPath = mapPath ?? join(root, DEFAULT_MAP_PATH);
+    await mkdir(join(root, CODECHARTER_DIR), { recursive: true });
+    await ensureCodecharterConfig(root, resolvedMapPath);
+
+    const codemap = writeCodemap ? await writeCodemap({ root, out: resolvedMapPath, fresh }) : undefined;
+    await ensurePackageDevDependency(root);
+    if (installCodex) {
+      await ensureCodecharterSkill(root);
+      await ensureCodexAdapter(root);
+    }
+    if (installGitHooks) await ensureGitMapHooks(root, resolvedMapPath);
+
+    return {
+      mapPath: resolvedMapPath,
+      configPath: join(root, CODECHARTER_DIR, "config.json"),
+      codexAdapterInstalled: installCodex,
+      codexSkillPath: installCodex ? join(root, CODECHARTER_SKILL_DIR, "SKILL.md") : undefined,
+      gitHooksInstalled: installGitHooks,
+      codemap,
+    };
+  }
+}
+
+class ManagedHookInstaller {
+  async install(hookPath, block) {
+    let current = "";
+    try {
+      current = await readFile(hookPath, "utf8");
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+
+    const withoutManaged = current.replace(new RegExp(`\\n?${escapeRegExp(MANAGED_START)}[\\s\\S]*?${escapeRegExp(MANAGED_END)}\\n?`, "g"), "\n").trimEnd();
+    const shebang = withoutManaged.startsWith("#!") ? "" : "#!/bin/sh\n";
+    const separator = withoutManaged.length ? "\n\n" : "";
+    await mkdir(dirname(hookPath), { recursive: true });
+    await writeFile(hookPath, `${shebang}${withoutManaged}${separator}${block}\n`, { mode: 0o755 });
+    await chmod(hookPath, 0o755);
+  }
+}
+
+export class CodexHooksMerger {
+  merge(existing, desired) {
+    const next = {
+      ...this.objectOrEmpty(existing),
+      hooks: { ...this.objectOrEmpty(existing?.hooks) },
+    };
+
+    for (const [eventName, groups] of Object.entries(next.hooks)) {
+      next.hooks[eventName] = Array.isArray(groups)
+        ? groups.map((group) => this.withoutCodecharterHandlers(group)).filter((group) => !this.isEmptyManagedHookGroup(eventName, group))
+        : groups;
+    }
+
+    for (const [eventName, desiredGroups] of Object.entries(desired.hooks)) {
+      const existingGroups = Array.isArray(next.hooks[eventName]) ? next.hooks[eventName] : [];
+      next.hooks[eventName] = this.mergeHookGroups(existingGroups, desiredGroups);
+    }
+
+    return next;
+  }
+
+  mergeHookGroups(existingGroups, desiredGroups) {
+    const groups = existingGroups.map((group) => ({
+      ...group,
+      hooks: Array.isArray(group.hooks) ? [...group.hooks] : [],
+    }));
+
+    for (const desiredGroup of desiredGroups) {
+      const index = groups.findIndex((group) => (group.matcher ?? "") === (desiredGroup.matcher ?? ""));
+      if (index === -1) {
+        groups.push({
+          ...desiredGroup,
+          hooks: [...desiredGroup.hooks],
+        });
+        continue;
+      }
+
+      const group = groups[index];
+      for (const hook of desiredGroup.hooks) {
+        if (!group.hooks.some((existingHook) => this.sameHook(existingHook, hook))) group.hooks.push(hook);
+      }
+    }
+
+    return groups;
+  }
+
+  withoutCodecharterHandlers(group) {
+    const hooks = Array.isArray(group.hooks) ? group.hooks.filter((hook) => !this.isCodecharterHook(hook)) : [];
+    return { ...group, hooks };
+  }
+
+  isEmptyManagedHookGroup(eventName, group) {
+    return eventName === "PostToolUse"
+      && Array.isArray(group.hooks)
+      && group.hooks.length === 0
+      && MANAGED_POST_TOOL_MATCHERS.has(group.matcher ?? "");
+  }
+
+  isCodecharterHook(hook) {
+    return hook?.type === "command" && hook.command === CODECHARTER_HOOK_COMMAND;
+  }
+
+  sameHook(left, right) {
+    return left?.type === right?.type && left?.command === right?.command;
+  }
+
+  objectOrEmpty(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
+}
+
+const CODECHARTER_INITIALIZER = new CodecharterInitializer();
+const MANAGED_HOOK_INSTALLER = new ManagedHookInstaller();
+const CODEX_HOOKS_MERGER = new CodexHooksMerger();
+
 export async function initializeCodecharter({
   root,
   mapPath,
@@ -33,26 +158,14 @@ export async function initializeCodecharter({
   fresh = false,
   writeCodemap,
 } = {}) {
-  const resolvedMapPath = mapPath ?? join(root, DEFAULT_MAP_PATH);
-  await mkdir(join(root, CODECHARTER_DIR), { recursive: true });
-  await ensureCodecharterConfig(root, resolvedMapPath);
-
-  const codemap = writeCodemap ? await writeCodemap({ root, out: resolvedMapPath, fresh }) : undefined;
-  await ensurePackageDevDependency(root);
-  if (installCodex) {
-    await ensureCodecharterSkill(root);
-    await ensureCodexAdapter(root);
-  }
-  if (installGitHooks) await ensureGitMapHooks(root, resolvedMapPath);
-
-  return {
-    mapPath: resolvedMapPath,
-    configPath: join(root, CODECHARTER_DIR, "config.json"),
-    codexAdapterInstalled: installCodex,
-    codexSkillPath: installCodex ? join(root, CODECHARTER_SKILL_DIR, "SKILL.md") : undefined,
-    gitHooksInstalled: installGitHooks,
-    codemap,
-  };
+  return CODECHARTER_INITIALIZER.initialize({
+    root,
+    mapPath,
+    installCodex,
+    installGitHooks,
+    fresh,
+    writeCodemap,
+  });
 }
 
 export async function ensurePackageDevDependency(root) {
@@ -144,19 +257,7 @@ export async function ensureGitMapHooks(root, mapPath) {
 }
 
 async function installManagedHookBlock(hookPath, block) {
-  let current = "";
-  try {
-    current = await readFile(hookPath, "utf8");
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
-  }
-
-  const withoutManaged = current.replace(new RegExp(`\\n?${escapeRegExp(MANAGED_START)}[\\s\\S]*?${escapeRegExp(MANAGED_END)}\\n?`, "g"), "\n").trimEnd();
-  const shebang = withoutManaged.startsWith("#!") ? "" : "#!/bin/sh\n";
-  const separator = withoutManaged.length ? "\n\n" : "";
-  await mkdir(dirname(hookPath), { recursive: true });
-  await writeFile(hookPath, `${shebang}${withoutManaged}${separator}${block}\n`, { mode: 0o755 });
-  await chmod(hookPath, 0o755);
+  await MANAGED_HOOK_INSTALLER.install(hookPath, block);
 }
 
 function gitMapHookBlock(root, mapPath, version = "latest") {
@@ -207,72 +308,7 @@ function codexHooksJson() {
 }
 
 export function mergeCodexHooks(existing, desired) {
-  const next = {
-    ...objectOrEmpty(existing),
-    hooks: { ...objectOrEmpty(existing?.hooks) },
-  };
-
-  for (const [eventName, groups] of Object.entries(next.hooks)) {
-    next.hooks[eventName] = Array.isArray(groups)
-      ? groups.map(withoutCodecharterHandlers).filter((group) => !isEmptyManagedHookGroup(eventName, group))
-      : groups;
-  }
-
-  for (const [eventName, desiredGroups] of Object.entries(desired.hooks)) {
-    const existingGroups = Array.isArray(next.hooks[eventName]) ? next.hooks[eventName] : [];
-    next.hooks[eventName] = mergeHookGroups(existingGroups, desiredGroups);
-  }
-
-  return next;
-}
-
-function mergeHookGroups(existingGroups, desiredGroups) {
-  const groups = existingGroups.map((group) => ({
-    ...group,
-    hooks: Array.isArray(group.hooks) ? [...group.hooks] : [],
-  }));
-
-  for (const desiredGroup of desiredGroups) {
-    const index = groups.findIndex((group) => (group.matcher ?? "") === (desiredGroup.matcher ?? ""));
-    if (index === -1) {
-      groups.push({
-        ...desiredGroup,
-        hooks: [...desiredGroup.hooks],
-      });
-      continue;
-    }
-
-    const group = groups[index];
-    for (const hook of desiredGroup.hooks) {
-      if (!group.hooks.some((existingHook) => sameHook(existingHook, hook))) group.hooks.push(hook);
-    }
-  }
-
-  return groups;
-}
-
-function withoutCodecharterHandlers(group) {
-  const hooks = Array.isArray(group.hooks) ? group.hooks.filter((hook) => !isCodecharterHook(hook)) : [];
-  return { ...group, hooks };
-}
-
-function isEmptyManagedHookGroup(eventName, group) {
-  return eventName === "PostToolUse"
-    && Array.isArray(group.hooks)
-    && group.hooks.length === 0
-    && MANAGED_POST_TOOL_MATCHERS.has(group.matcher ?? "");
-}
-
-function isCodecharterHook(hook) {
-  return hook?.type === "command" && hook.command === CODECHARTER_HOOK_COMMAND;
-}
-
-function sameHook(left, right) {
-  return left?.type === right?.type && left?.command === right?.command;
-}
-
-function objectOrEmpty(value) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return CODEX_HOOKS_MERGER.merge(existing, desired);
 }
 
 function codexHookShim(version = "latest") {

@@ -98,7 +98,9 @@ const COPY_PROMPT_LABEL = "Copy Codex prompt";
 const CAMERA_ANIMATION_MS = 280;
 const DOUBLE_CLICK_ZOOM_FACTOR = 2;
 const CLICK_SELECT_DELAY_MS = 220;
-const CLEAR_ACTIVITY_HOLD_MS = 900;
+const CLEAR_ACTIVITY_HOLD_MS = 1600;
+const FOG_MASK_SCALE = 0.5;
+const POLLING_ERROR_NOTICE_THRESHOLD = 2;
 
 function createPollingTask() {
   let timer = null;
@@ -215,6 +217,7 @@ let frameLabels = [];
 let applyingRoute = false;
 let routeSequence = 0;
 let clearActivityHold = null;
+const pollingErrors = new Map();
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 const state = createMapApplicationState();
@@ -341,6 +344,7 @@ function startMapPolling() {
 async function refreshMap() {
   try {
     const mapVersion = await fetchJson("/api/map-version");
+    clearPollingError("map");
     if (!mapVersion.version || mapVersion.version === state.mapVersion) return;
     const [map, names] = await Promise.all([
       fetchJson("/api/map"),
@@ -351,13 +355,14 @@ async function refreshMap() {
     state.overlaps = names.overlaps ?? [];
     render();
   } catch (error) {
-    console.error(error);
+    reportPollingError("map", error);
   }
 }
 
 async function refreshActivity() {
   try {
     const activity = await fetchJson("/api/activity");
+    clearPollingError("activity");
     const nextSignature = activitySignature(activity.events ?? []);
     if (nextSignature === state.activitySignature) {
       if ((activity.events ?? []).length) {
@@ -371,8 +376,28 @@ async function refreshActivity() {
     rebuildActivityFog();
     render();
   } catch (error) {
-    console.error(error);
+    reportPollingError("activity", error);
   }
+}
+
+function reportPollingError(key, error) {
+  const failure = pollingErrors.get(key) ?? { count: 0, lastLoggedAt: 0 };
+  failure.count += 1;
+  const now = Date.now();
+  if (failure.count === POLLING_ERROR_NOTICE_THRESHOLD) {
+    setText(controls.hover, "Reconnecting...");
+  }
+  if (failure.count === 1 || now - failure.lastLoggedAt > 15000) {
+    console.warn(error);
+    failure.lastLoggedAt = now;
+  }
+  pollingErrors.set(key, failure);
+}
+
+function clearPollingError(key) {
+  if (!pollingErrors.has(key)) return;
+  pollingErrors.delete(key);
+  if (pollingErrors.size === 0) setText(controls.hover, "Reconnected");
 }
 
 function activitySignature(events) {
@@ -417,7 +442,7 @@ const DOUBLE_CLICK_ACTION_COMMANDS = commandDispatcher([
     void inspectFileTarget(hit, world, { zoomReadable: true });
   }],
   ["selectActivity", (hit) => {
-    void selectActivityEvent(hit);
+    void selectActivityEvent(hit, { zoomReadable: true });
   }],
 ]);
 
@@ -540,7 +565,12 @@ async function focusMapRoute(route, routeToken) {
   if (!action) return;
 
   resetSelectionOverlay();
-  zoomToBounds(target.bounds, action.zoomPadding);
+  const routeLineRange = target.targetType === "file" ? parseLineRange(route.params.get("lines")) : null;
+  if (routeLineRange) {
+    zoomToReadableFile(target, lineRatioForLine(target, routeLineRange.start));
+  } else {
+    zoomToBounds(target.bounds, action.zoomPadding);
+  }
   state.selectedTarget = target;
   await MAP_ROUTE_FOCUS_COMMANDS.execute(action.type, target, route, routeToken);
 }
@@ -690,9 +720,9 @@ function resize() {
   canvas.width = Math.max(1, Math.floor(rect.width * dpr));
   canvas.height = Math.max(1, Math.floor(rect.height * dpr));
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  fogMaskCanvas.width = canvas.width;
-  fogMaskCanvas.height = canvas.height;
-  fogMaskCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  fogMaskCanvas.width = Math.max(1, Math.floor(canvas.width * FOG_MASK_SCALE));
+  fogMaskCanvas.height = Math.max(1, Math.floor(canvas.height * FOG_MASK_SCALE));
+  fogMaskCtx.setTransform(dpr * FOG_MASK_SCALE, 0, 0, dpr * FOG_MASK_SCALE, 0, 0);
 }
 
 function render() {
@@ -750,10 +780,12 @@ function onClearActivityKeyUp(event) {
 function startClearActivityHold() {
   cancelClearActivityHold();
   controls.clearActivityTool?.classList.add("is-holding");
+  controls.clearActivityTool?.setAttribute("aria-description", "Hold until the progress fill completes to clear activity history.");
   setText(controls.hover, "Hold to clear activity");
   clearActivityHold = setTimeout(() => {
     clearActivityHold = null;
     controls.clearActivityTool?.classList.remove("is-holding");
+    controls.clearActivityTool?.removeAttribute("aria-description");
     void clearActivityHistory();
   }, CLEAR_ACTIVITY_HOLD_MS);
 }
@@ -763,6 +795,7 @@ function cancelClearActivityHold() {
   clearTimeout(clearActivityHold);
   clearActivityHold = null;
   controls.clearActivityTool?.classList.remove("is-holding");
+  controls.clearActivityTool?.removeAttribute("aria-description");
   setText(controls.hover, "Clear cancelled");
 }
 
@@ -792,7 +825,14 @@ function drawDiscoveryFogOverlay(rect) {
 
 function buildDiscoveryFogMask(rect) {
   fogMaskCtx.save();
-  fogMaskCtx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
+  fogMaskCtx.setTransform(
+    (window.devicePixelRatio || 1) * FOG_MASK_SCALE,
+    0,
+    0,
+    (window.devicePixelRatio || 1) * FOG_MASK_SCALE,
+    0,
+    0,
+  );
   fogMaskCtx.clearRect(0, 0, rect.width, rect.height);
   fogMaskCtx.globalCompositeOperation = "source-over";
   drawDiscoveryTrailMask(fogMaskCtx);
@@ -808,14 +848,15 @@ function drawDiscoveryFogReveals(targetCtx) {
     if (!file) continue;
     const box = screenBounds(file.bounds);
     const visibleFile = fog.visibleFiles.has(path);
+    const readable = state.view.scale > 2 && canRenderSourceText(file, box);
     const padding = visibleFile ? 54 : 22;
     if (!visible(expandedBox(box, visibleFile ? 68 : 30))) continue;
     drawFogReveal(path, box, {
-      alpha: visibleFile ? 0.42 : 0.12,
+      alpha: readable ? visibleFile ? 0.96 : 0.78 : visibleFile ? 0.34 : 0.08,
       padding,
-      core: visibleFile ? 0.38 : 0.3,
-      mid: visibleFile ? 0.86 : 0.72,
-      lobes: visibleFile ? 3 : 2,
+      core: readable ? 0.62 : visibleFile ? 0.38 : 0.3,
+      mid: readable ? 0.96 : visibleFile ? 0.86 : 0.72,
+      lobes: visibleFile ? 2 : 1,
     }, targetCtx);
   }
 }
@@ -826,11 +867,16 @@ function drawDiscoveryTrailMask(targetCtx) {
   targetCtx.save();
   targetCtx.lineCap = "round";
   targetCtx.lineJoin = "round";
+  targetCtx.filter = "blur(14px)";
   for (const agentEvents of activityTrailGroups(events)) {
     for (const points of activityTrailPointGroups(activityTrailPoints(agentEvents))) {
-      strokeFogTrail(targetCtx, points, { alpha: 0.08, lineWidth: 132 });
-      strokeFogTrail(targetCtx, points, { alpha: 0.16, lineWidth: 78 });
-      strokeFogTrail(targetCtx, points, { alpha: 0.24, lineWidth: 38 });
+      strokeFogTrail(targetCtx, points, { alpha: 0.12, lineWidth: 88 });
+    }
+  }
+  targetCtx.filter = "none";
+  for (const agentEvents of activityTrailGroups(events)) {
+    for (const points of activityTrailPointGroups(activityTrailPoints(agentEvents))) {
+      strokeFogTrail(targetCtx, points, { alpha: 0.1, lineWidth: 42 });
     }
   }
   targetCtx.restore();
@@ -853,9 +899,9 @@ function drawDiscoveryGlows() {
     const visibleFile = fog.visibleFiles.has(path);
     if (!visible(expandedBox(box, visibleFile ? 68 : 30))) continue;
     drawDiscoveryGlow(path, box, {
-      alpha: visibleFile ? 0.14 : 0.04,
+      alpha: visibleFile ? 0.1 : 0.03,
       padding: visibleFile ? 54 : 22,
-      lobes: visibleFile ? 2 : 1,
+      lobes: 1,
     });
   }
 }
@@ -866,12 +912,13 @@ function drawDiscoveryGlowTrails() {
   ctx.save();
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
+  ctx.filter = "blur(12px)";
   for (const agentEvents of activityTrailGroups(events)) {
     for (const points of activityTrailPointGroups(activityTrailPoints(agentEvents))) {
-      strokeDiscoveryGlowTrail(points, { alpha: 0.03, lineWidth: 112 });
-      strokeDiscoveryGlowTrail(points, { alpha: 0.07, lineWidth: 42 });
+      strokeDiscoveryGlowTrail(points, { alpha: 0.04, lineWidth: 72 });
     }
   }
+  ctx.filter = "none";
   ctx.restore();
 }
 
@@ -1405,8 +1452,9 @@ function drawOverlaps() {
 function drawActivity() {
   const events = sortedActivityEvents(state.activity);
   const latestByAgent = latestActivityByAgent(events);
-  drawActivityMembranes(events, latestByAgent);
-  drawActivityTrails(events, latestByAgent);
+  const discoveryMode = activityDiscoveryEnabled();
+  drawActivityMembranes(events, latestByAgent, { discoveryMode });
+  drawActivityTrails(events, latestByAgent, { discoveryMode });
 
   for (const event of events) {
     const latest = latestByAgent.get(activityActorKey(event)) === event;
@@ -1443,17 +1491,20 @@ function drawActivity() {
       const label = encoding.active
         ? `${activityActorLabel(event)}: ${encoding.activityState}`
         : `${activityActorLabel(event)}: last seen ${formatActivityAge(encoding.ageMinutes)}`;
-      drawLabel(label, p.x + 10, p.y - 8, encoding.active ? style.label : "#475569", 12, "700");
+      if (!discoveryMode || latest || selected) {
+        drawLabel(label, p.x + 10, p.y - 8, encoding.active ? style.label : "#475569", 12, "700");
+      }
     }
     ctx.restore();
   }
 }
 
-function drawActivityMembranes(events, latestByAgent) {
+function drawActivityMembranes(events, latestByAgent, { discoveryMode = false } = {}) {
   for (const event of events) {
     const latest = latestByAgent.get(activityActorKey(event)) === event;
     const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.id === event.id;
     const encoding = activityVisualEncoding(event, { latest, selected });
+    if (discoveryMode && !latest && !selected) continue;
     if (encoding.membraneAlpha <= 0.08 && !selected) continue;
 
     const style = activityStateStyle(encoding.activityState);
@@ -1467,8 +1518,9 @@ function drawActivityMembranes(events, latestByAgent) {
       };
       const radius = Math.max(tissueBox.width, tissueBox.height) * 0.82;
       const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
-      gradient.addColorStop(0, hexToRgba(fillColor, encoding.membraneAlpha));
-      gradient.addColorStop(0.58, hexToRgba(fillColor, encoding.membraneAlpha * 0.45));
+      const membraneAlpha = discoveryMode && !selected ? encoding.membraneAlpha * 0.45 : encoding.membraneAlpha;
+      gradient.addColorStop(0, hexToRgba(fillColor, membraneAlpha));
+      gradient.addColorStop(0.58, hexToRgba(fillColor, membraneAlpha * 0.45));
       gradient.addColorStop(1, hexToRgba(fillColor, 0));
 
       ctx.save();
@@ -1481,7 +1533,7 @@ function drawActivityMembranes(events, latestByAgent) {
   }
 }
 
-function drawActivityTrails(events, latestByAgent) {
+function drawActivityTrails(events, latestByAgent, { discoveryMode = false } = {}) {
   for (const agentEvents of activityTrailGroups(events)) {
     const trailLatest = agentEvents.at(-1);
     const latest = latestByAgent.get(activityActorKey(trailLatest)) === trailLatest;
@@ -1501,20 +1553,22 @@ function drawActivityTrails(events, latestByAgent) {
 
     for (const points of pointGroups) {
       strokeOrganicTrail(points, {
-        color: hexToRgba(fillColor, encoding.trailAlpha * 0.16),
-        lineWidth: encoding.lineWidth * 5.4,
+        color: hexToRgba(fillColor, encoding.trailAlpha * (discoveryMode ? 0.045 : 0.16)),
+        lineWidth: encoding.lineWidth * (discoveryMode ? 3.2 : 5.4),
       });
     }
     ctx.shadowBlur = 0;
     for (const points of pointGroups) {
       strokeOrganicTrail(points, {
-        color: hexToRgba(fillColor, encoding.trailAlpha * 0.38),
-        lineWidth: encoding.lineWidth * 2.25,
+        color: hexToRgba(fillColor, encoding.trailAlpha * (discoveryMode ? 0.12 : 0.38)),
+        lineWidth: encoding.lineWidth * (discoveryMode ? 1.4 : 2.25),
       });
-      strokeOrganicTrail(points, {
-        color: hexToRgba(fillColor, Math.min(0.9, encoding.trailAlpha * 0.95)),
-        lineWidth: encoding.lineWidth,
-      });
+      if (!discoveryMode || selected || latest) {
+        strokeOrganicTrail(points, {
+          color: hexToRgba(fillColor, Math.min(discoveryMode ? 0.42 : 0.9, encoding.trailAlpha * (discoveryMode ? 0.46 : 0.95))),
+          lineWidth: encoding.lineWidth * (discoveryMode ? 0.82 : 1),
+        });
+      }
     }
     ctx.restore();
   }
@@ -2006,7 +2060,7 @@ async function inspectFileTarget(hit, worldPoint, { zoomReadable = false } = {})
   render();
 }
 
-async function selectActivityEvent(event) {
+async function selectActivityEvent(event, { zoomReadable = false } = {}) {
   state.selectedTarget = { ...event, targetType: "activity" };
   clearAnnotationForm();
   setText(controls.inspectorTitle, `${activityActorLabel(event)}: ${normalizeActivityState(event.activityState)}`);
@@ -2023,9 +2077,17 @@ async function selectActivityEvent(event) {
   }
 
   const lineRange = event.address.lineRange ?? { start: 1, end: undefined };
+  if (zoomReadable) {
+    const file = state.map.files[path];
+    if (file) zoomToReadableFile(file, lineRatioForLine(file, lineRange.start));
+  }
   const sourceContext = sourceContextRequest(path, lineRange);
-  const source = await fetchJson(sourceContext.sourceUrl);
-  applySourcePanel(sourcePanelState({ path, deepLink: event.address.deepLink, source }));
+  const [address, source] = await Promise.all([
+    fetchJson(sourceContext.resolveUrl),
+    fetchJson(sourceContext.sourceUrl),
+  ]);
+  syncHashRoute(createMapHashRoute(address.targetType, address.geohash, { path, lines: sourceContext.lines }));
+  applySourcePanel(sourcePanelState({ path, deepLink: address.deepLink, source }));
   render();
 }
 

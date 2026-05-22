@@ -148,7 +148,6 @@ select:focus-visible {
 .annotation-actions,
 .selection-popover,
 .map-status {
-  backdrop-filter: blur(14px);
   background: var(--panel);
   box-shadow: var(--shadow);
   position: absolute;
@@ -156,24 +155,49 @@ select:focus-visible {
 }
 
 .map-tool-palette {
+  backdrop-filter: blur(12px) saturate(1.08);
+  background: rgba(248, 252, 249, 0.76);
+  box-shadow: 0 8px 22px rgba(10, 24, 31, 0.12);
+  opacity: 0.86;
+  transition:
+    background-color 160ms var(--ease-out),
+    border-color 160ms var(--ease-out),
+    box-shadow 160ms var(--ease-out),
+    opacity 160ms var(--ease-out);
+}
+
+.map-tool-palette:hover,
+.map-tool-palette:focus-within {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(47, 70, 88, 0.28);
+  box-shadow: 0 10px 28px rgba(10, 24, 31, 0.16);
+  opacity: 1;
+}
+
+.annotation-actions,
+.selection-popover,
+.map-status {
+  backdrop-filter: blur(6px);
+}
+
+.map-tool-palette {
   border: 1px solid var(--line);
   border-radius: 8px;
   display: inline-flex;
-  gap: 6px;
-  left: 50%;
-  padding: 5px;
+  gap: 4px;
+  left: 16px;
+  padding: 4px;
   top: 16px;
-  transform: translateX(-50%);
 }
 
 .tool-group {
   display: flex;
-  gap: 4px;
+  gap: 3px;
 }
 
 .tool-group + .tool-group {
   border-left: 1px solid var(--line);
-  padding-left: 6px;
+  padding-left: 5px;
 }
 
 .icon-tool {
@@ -187,7 +211,7 @@ select:focus-visible {
   padding: 0;
   position: relative;
   transform-origin: center;
-  width: 40px;
+  width: 34px;
 }
 
 label.icon-tool {
@@ -210,11 +234,11 @@ label.icon-tool {
 
 .icon-tool svg {
   display: block;
-  height: 21px;
+  height: 19px;
   pointer-events: none;
   position: relative;
   z-index: 1;
-  width: 21px;
+  width: 19px;
 }
 
 .toggle-tool:has(input:checked) {
@@ -260,7 +284,7 @@ label.icon-tool {
   clip-path: inset(0 0 0 0);
   opacity: 1;
   transition:
-    clip-path 900ms linear,
+    clip-path 1600ms linear,
     opacity 120ms var(--ease-out);
 }
 
@@ -345,6 +369,28 @@ label.icon-tool {
   color: #991b1b;
 }
 
+.map-tool-palette .danger-action {
+  opacity: 0.82;
+  width: 34px;
+}
+
+@media (max-width: 420px) {
+  .map-tool-palette {
+    left: 10px;
+    top: 10px;
+  }
+
+  .icon-tool,
+  .map-tool-palette .danger-action {
+    width: 31px;
+  }
+
+  .icon-tool svg {
+    height: 18px;
+    width: 18px;
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   .danger-action:hover:not(:disabled) {
     background: #fee2e2;
@@ -355,6 +401,7 @@ label.icon-tool {
 @media (prefers-reduced-motion: reduce) {
   button,
   label.icon-tool,
+  .map-tool-palette,
   .selection-popover,
   .annotation-actions,
   .hold-action::before {

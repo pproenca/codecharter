@@ -401,7 +401,7 @@ export function shouldShowFogLabel(fogState, { selected = false } = {}) {
 }
 
 export function shouldShowFogSourceText(fogState, { selected = false } = {}) {
-  return selected || fogState === "visible";
+  return selected || fogState !== "unexplored";
 }
 
 export function shouldLabelFoggedFile({ file, box, scale, selected, fogState }) {

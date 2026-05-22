@@ -37,6 +37,12 @@
       "skillPath": "skills/emil-design-eng/SKILL.md",
       "computedHash": "8bdf9e4e6de7a4969147bf4828a4ad2c5aacd9fba4b690b250a85e0467ca387d"
     },
+    "fog-of-war-js-ts": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/.experimental/fog-of-war-js-ts/SKILL.md",
+      "computedHash": "e0912326677f5d74060b7648624a5997d35eb4d799baacefef819c5137f7cd82"
+    },
     "geohash-spatial-code-maps": {
       "source": "pproenca/dot-skills",
       "sourceType": "github",

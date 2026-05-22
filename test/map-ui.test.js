@@ -220,6 +220,66 @@ test("activity discovery toggle keeps pointer activation visually settled", asyn
   assert.ok(toggleState.outlineStyle === "none" || toggleState.outlineWidth === "0px");
 });
 
+test("map tools stay edge anchored instead of covering the map center", async (t) => {
+  const { page, boot } = await startMapUiHarness(t);
+  await boot();
+
+  const geometry = await page.locator(".map-tool-palette").evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const canvas = document.querySelector("#mapCanvas").getBoundingClientRect();
+    return {
+      left: rect.left - canvas.left,
+      centerX: rect.left + rect.width / 2 - canvas.left,
+      width: rect.width,
+      canvasWidth: canvas.width,
+    };
+  });
+
+  assert.ok(geometry.left <= 24);
+  assert.ok(geometry.centerX < geometry.canvasWidth * 0.35);
+  assert.ok(geometry.width <= 340);
+});
+
+test("map tools expose primary controls and tuck rare actions into a menu", async (t) => {
+  const { page, boot } = await startMapUiHarness(t);
+  await boot();
+
+  const closedState = await page.locator(".map-tool-palette").evaluate((element) => {
+    const visibleControlNames = Array.from(element.children)
+      .flatMap((child) => {
+        if (child.matches(".map-action-menu")) return [child.querySelector("summary")].filter(Boolean);
+        return Array.from(child.querySelectorAll(".icon-tool"));
+      })
+      .filter((control) => {
+        const rect = control.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      })
+      .map((control) => control.getAttribute("aria-label") || control.id);
+
+    return {
+      hasActionMenu: Boolean(element.querySelector(".map-action-menu")),
+      visibleControlNames,
+      zoomInVisible: element.querySelector("#zoomInTool")?.getBoundingClientRect().width > 0,
+      clearVisible: element.querySelector("#clearActivityTool")?.getBoundingClientRect().width > 0,
+    };
+  });
+
+  assert.equal(closedState.hasActionMenu, true);
+  assert.deepEqual(closedState.visibleControlNames, [
+    "Select",
+    "Pan",
+    "Draw Selection",
+    "Activity & Discovery",
+    "More map actions",
+  ]);
+  assert.equal(closedState.zoomInVisible, false);
+  assert.equal(closedState.clearVisible, false);
+
+  await page.getByLabel("More map actions").click();
+  await page.getByRole("button", { name: "Zoom in" }).waitFor({ state: "visible" });
+  assert.equal(await page.getByRole("button", { name: "Clear activity history" }).isVisible(), true);
+});
+
 test("clear activity requires a deliberate hold", async (t) => {
   const { page, boot, baseUrl } = await startMapUiHarness(t);
   await boot();
@@ -238,6 +298,7 @@ test("clear activity requires a deliberate hold", async (t) => {
   assert.equal(response.status, 202);
   await page.waitForFunction(() => fetch("/api/activity").then((res) => res.json()).then((body) => body.events.length === 1));
 
+  await page.getByLabel("More map actions").click();
   const clearButton = page.getByRole("button", { name: "Clear activity history" });
   await clearButton.click();
   assert.equal((await getJson(`${baseUrl}/api/activity`)).events.length, 1);
@@ -246,11 +307,68 @@ test("clear activity requires a deliberate hold", async (t) => {
   assert.ok(box, "Clear activity button is not visible");
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
-  await page.waitForTimeout(950);
+  await page.waitForTimeout(1700);
   await page.mouse.up();
 
   await page.waitForFunction(() => fetch("/api/activity").then((res) => res.json()).then((body) => body.events.length === 0));
   assert.equal((await getJson(`${baseUrl}/api/activity`)).events.length, 0);
+});
+
+test("activity discovery zooms visited code into a readable revealed view", async (t) => {
+  const { page, boot, baseUrl } = await startMapUiHarness(t);
+  await boot();
+
+  await page.getByLabel("Activity & Discovery").click();
+  const response = await fetch(`${baseUrl}/api/activity`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      agentId: "codex",
+      activityState: "reading",
+      path: "src/long.ts",
+      lineStart: 52,
+      lineEnd: 54,
+    }),
+  });
+  assert.equal(response.status, 202);
+  await page.waitForFunction(() => fetch("/api/activity").then((res) => res.json()).then((body) => body.events.length === 1));
+  await page.waitForResponse(async (pollResponse) => {
+    if (!pollResponse.url().endsWith("/api/activity") || pollResponse.request().method() !== "GET") return false;
+    const body = await pollResponse.json();
+    return body.events?.some((event) => event.address?.path === "src/long.ts" && event.address?.lineRange?.start === 52);
+  });
+
+  const initialScale = await viewportScale(page);
+  await doubleClickMapWorld(page, { x: 0.1, y: 0.1 });
+  await page.waitForFunction((scale) => {
+    const match = document.querySelector("#viewportReadout")?.textContent?.match(/scale ([0-9.]+)/);
+    return match && Number(match[1]) > Math.max(20, scale * 3);
+  }, initialScale);
+
+  assert.ok(await viewportScale(page) > 20);
+  await page.waitForFunction(() => {
+    const hash = window.location.hash;
+    return hash.startsWith("#/map/lineRange/")
+      && hash.includes("path=src%2Flong.ts")
+      && hash.includes("lines=52-54");
+  });
+  assert.match(new URL(page.url()).hash, /#\/map\/lineRange\//);
+  assert.match(new URL(page.url()).hash, /path=src%2Flong\.ts/);
+  assert.match(new URL(page.url()).hash, /lines=52-54/);
+});
+
+test("line-range hash routes open discovered code at a readable source scale", async (t) => {
+  const { page, boot } = await startMapUiHarness(t);
+
+  await boot("/#/map/lineRange/s00000000001?path=src%2Flong.ts&lines=52-54");
+
+  await page.waitForFunction(() => {
+    const match = document.querySelector("#viewportReadout")?.textContent?.match(/scale ([0-9.]+)/);
+    return match && Number(match[1]) > 20;
+  });
+  assert.ok(await viewportScale(page) > 20);
+  assert.match(new URL(page.url()).hash, /path=src%2Flong\.ts/);
+  assert.match(new URL(page.url()).hash, /lines=52-54/);
 });
 
 async function drawReadySelection(page) {

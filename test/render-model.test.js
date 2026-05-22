@@ -191,7 +191,7 @@ test("applies fog rules to labels and source text disclosure", () => {
   }), false);
 
   assert.equal(shouldShowFogLabel("explored"), true);
-  assert.equal(shouldShowFogSourceText("explored"), false);
+  assert.equal(shouldShowFogSourceText("explored"), true);
   assert.equal(shouldLabelFoggedFile({
     file,
     box: readableBox,

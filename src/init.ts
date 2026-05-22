@@ -1,29 +1,8 @@
-import { execFile } from "node:child_process";
-import type { ExecFileOptions } from "node:child_process";
 import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileText } from "./exec-file.ts";
 import { readJson, writeJson } from "./store.ts";
-
-type ExecFileTextOptions = Omit<ExecFileOptions, "encoding"> & {
-  encoding?: BufferEncoding;
-};
-type ExecFileAsync = (
-  file: string,
-  args: readonly string[],
-  options: ExecFileTextOptions,
-) => Promise<{ stdout: string; stderr: string }>;
-
-const execFileAsync: ExecFileAsync = (file, args, options) =>
-  new Promise((resolve, reject) => {
-    execFile(file, [...args], { ...options, encoding: options.encoding ?? "utf8" }, (error, stdout, stderr) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve({ stdout, stderr });
-    });
-  });
 
 const CODECHARTER_DIR = ".codecharter";
 const CODEX_DIR = ".codex";
@@ -531,7 +510,7 @@ policy:
 
 async function gitPath(root: string, path: string): Promise<string | null> {
   try {
-    const { stdout } = await execFileAsync("git", ["rev-parse", "--git-path", path], { cwd: root });
+    const { stdout } = await execFileText("git", ["rev-parse", "--git-path", path], { cwd: root });
     const resolvedPath = stdout.trim();
     return isAbsolute(resolvedPath) ? resolvedPath : join(root, resolvedPath);
   } catch {

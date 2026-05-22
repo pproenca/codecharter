@@ -171,7 +171,9 @@ export class DistrictLayoutEngine {
     const count = end - start;
     if (count === 0) return rectangles;
     if (count === 1) {
-      rectangles.push({ item: entries[start]!.item, bounds });
+      const entry = entries[start];
+      if (!entry) return rectangles;
+      rectangles.push({ item: entry.item, bounds });
       return rectangles;
     }
 

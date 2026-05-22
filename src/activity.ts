@@ -40,8 +40,6 @@ type ActivityStateNormalizerLike = {
   normalize(activityState: ActivityStateInput): ActivityState;
 };
 
-const ACTIVE_ACTIVITY_STATES: ReadonlySet<string> = new Set(["reading", "editing", "testing", "reviewing"]);
-
 export class ActivityStateNormalizer {
   normalize(activityState: ActivityStateInput): ActivityState {
     return normalizeActivityState(activityState);
@@ -66,8 +64,15 @@ export function createActivityEvent(address: ActivityAddress, input: ActivityEve
 
 function normalizeActivityState(activityState: ActivityStateInput): ActivityState {
   if (activityState === "blocked") return "reviewing";
-  if (activityState && ACTIVE_ACTIVITY_STATES.has(activityState)) return activityState as ActivityState;
+  if (isActivityState(activityState)) return activityState;
   return "reading";
+}
+
+function isActivityState(activityState: ActivityStateInput): activityState is ActivityState {
+  return activityState === "reading"
+    || activityState === "editing"
+    || activityState === "testing"
+    || activityState === "reviewing";
 }
 
 function activityEvent(

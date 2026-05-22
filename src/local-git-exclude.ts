@@ -1,9 +1,6 @@
-import { execFile } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
+import { execFileText } from "./exec-file.ts";
 
 export const CODECHARTER_GITIGNORE_PATTERNS: readonly string[] = [
   ".codecharter/",
@@ -73,7 +70,7 @@ function ignorePatterns(content: string): Set<string> {
 
 async function localGitExcludePath(root: string): Promise<string | null> {
   try {
-    const { stdout } = await execFileAsync("git", ["rev-parse", "--git-path", "info/exclude"], { cwd: root });
+    const { stdout } = await execFileText("git", ["rev-parse", "--git-path", "info/exclude"], { cwd: root });
     const path = stdout.trim();
     if (!path) return null;
     return isAbsolute(path) ? path : join(root, path);

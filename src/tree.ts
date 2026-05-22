@@ -68,11 +68,13 @@ export class FolderNode {
   }
 
   childFolder(name: string): FolderNode {
-    if (!this.folders.has(name)) {
-      this.folders.set(name, new FolderNode(joinPath(this.path, name)));
+    let folder = this.folders.get(name);
+    if (!folder) {
+      folder = new FolderNode(joinPath(this.path, name));
+      this.folders.set(name, folder);
       this.sortedFolderCache = null;
     }
-    return this.folders.get(name) as FolderNode;
+    return folder;
   }
 
   addFile(file: ScannedFile): FileNode {

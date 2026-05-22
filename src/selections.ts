@@ -96,6 +96,7 @@ export type NamedAddress = {
 type ResolvablePlace = NamedSelection | MapAnnotation;
 type NamedPlace = ResolvablePlace | NamedAddress;
 type CornerName = "northWest" | "northEast" | "southWest" | "southEast";
+const CORNER_NAMES: readonly CornerName[] = ["northWest", "northEast", "southWest", "southEast"];
 
 const SELECTION_RESOLVERS: Map<MapLevel, SelectionResolver> = new Map([
   ["world", (codemap, geometry, level) => resolveFolderTargets(codemap, geometry, level, { includeRoot: true, rootOnly: true })],
@@ -179,12 +180,11 @@ export function refreshPlaceResolution<T>(codemap: CodecharterCodemap, place: T)
 }
 
 function isResolvablePlace(place: unknown): place is ResolvablePlace {
-  return typeof place === "object"
-    && place !== null
-    && ("kind" in place)
-    && ((place as { kind?: unknown }).kind === "drawnSelection" || (place as { kind?: unknown }).kind === "mapAnnotation")
-    && "level" in place
-    && "geometry" in place;
+  const record = objectRecord(place);
+  if (!record) return false;
+  return (record.kind === "drawnSelection" || record.kind === "mapAnnotation")
+    && "level" in record
+    && "geometry" in record;
 }
 
 function normalizeSelectionGeometry(geometry: SelectionGeometry): SelectionGeometry {
@@ -326,12 +326,21 @@ function spatialFrameForGeometry(geometry: SelectionGeometry, level: MapLevel): 
 }
 
 function cornerGeohashes(points: Record<CornerName, Point>, precision: number): Record<CornerName, string> {
-  const corners = {} as Record<CornerName, string>;
-  for (const corner of Object.keys(points) as CornerName[]) {
+  const corners: Record<CornerName, string> = {
+    northWest: "",
+    northEast: "",
+    southWest: "",
+    southEast: "",
+  };
+  for (const corner of CORNER_NAMES) {
     const geo = codePointToGeo(points[corner]);
     corners[corner] = encodeGeohash(geo.lat, geo.lon, precision);
   }
   return corners;
+}
+
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
 }
 
 function* objectValues<T>(values: Record<string, T>): Generator<T> {

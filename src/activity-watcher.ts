@@ -1,20 +1,10 @@
-import { execFile } from "node:child_process";
-import type { ExecFileOptions } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { promisify } from "node:util";
 import { changedRangeFromUnifiedDiff } from "./activity-change-range.ts";
+import { execFileText } from "./exec-file.ts";
 import { isCodeFile } from "./extensions.ts";
 import type { ActivityStateInput } from "./activity.js";
 import type { ChangedRange } from "./activity-change-range.js";
-
-type ExecFileAsync = (
-  file: string,
-  args: readonly string[],
-  options: ExecFileOptions & { encoding?: BufferEncoding },
-) => Promise<{ stdout: string; stderr: string }>;
-
-const execFileAsync = promisify(execFile) as ExecFileAsync;
 const DEFAULT_INTERVAL_MS = 1800;
 const DEFAULT_THROTTLE_MS = 5000;
 const DEFAULT_CHANGE_RANGE_CONCURRENCY = 32;
@@ -230,7 +220,7 @@ function isCopiedOrRenamedStatus(status: string): boolean {
 }
 
 async function changedGitPaths(root: string | undefined): Promise<string[]> {
-  const { stdout } = await execFileAsync("git", ["status", "--porcelain=v1", "-z", "--untracked-files=all"], { cwd: root });
+  const { stdout } = await execFileText("git", ["status", "--porcelain=v1", "-z", "--untracked-files=all"], { cwd: root });
   return parseGitStatusPorcelain(stdout);
 }
 
@@ -257,7 +247,7 @@ export async function changedLineRange(root: string | undefined, path: string): 
 
 async function gitDiff(root: string | undefined, args: string[]): Promise<string> {
   try {
-    const { stdout } = await execFileAsync("git", args, { cwd: root, maxBuffer: 10 * 1024 * 1024 });
+    const { stdout } = await execFileText("git", args, { cwd: root, maxBuffer: 10 * 1024 * 1024 });
     return stdout;
   } catch {
     return "";

@@ -66,7 +66,9 @@ export function changedRangeFromUnifiedDiff(diff: string): ChangedRange {
   let lineEnd = Number.NEGATIVE_INFINITY;
   let matchedHunks = 0;
   for (const match of diff.matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)) {
-    const range = changedHunkRange(match[1] as string, match[2]);
+    const start = match[1];
+    if (start === undefined) continue;
+    const range = changedHunkRange(start, match[2]);
     lineStart = Math.min(lineStart, range.start);
     lineEnd = Math.max(lineEnd, range.end);
     matchedHunks += 1;

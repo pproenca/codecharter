@@ -1,18 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, join, relative } from "node:path";
-import { execFile } from "node:child_process";
-import type { ExecFileOptions } from "node:child_process";
-import { promisify } from "node:util";
+import { execFileText } from "./exec-file.ts";
 import { isCodeFile } from "./extensions.ts";
 import type { ScannedFile } from "./tree.js";
-
-type ExecFileAsync = (
-  file: string,
-  args: readonly string[],
-  options: ExecFileOptions & { encoding?: BufferEncoding },
-) => Promise<{ stdout: string; stderr: string }>;
-
-const execFileAsync = promisify(execFile) as ExecFileAsync;
 const DEFAULT_EXCLUDED_FILES = new Set([
   "bun.lock",
   "bun.lockb",
@@ -30,7 +20,7 @@ export type ScanOptions = {
 export async function listIncludedFiles(root: string, { excludePaths = [] }: ScanOptions = {}): Promise<string[]> {
   const excluded: string[] = [];
   for (const path of excludePaths) excluded.push(normalizeExcludedPath(root, path));
-  const { stdout } = await execFileAsync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], {
+  const { stdout } = await execFileText("git", ["ls-files", "--cached", "--others", "--exclude-standard"], {
     cwd: root,
     maxBuffer: 10 * 1024 * 1024,
   });

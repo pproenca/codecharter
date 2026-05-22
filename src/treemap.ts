@@ -20,7 +20,9 @@ function assignFolderLayout(folder: FolderNode, bounds: LayoutBounds, options: {
   const { growthArea } = layoutChildren(children, folder.bounds, options);
   folder.growthArea = growthArea;
 
-  for (const child of sortedFolders(folder)) assignFolderLayout(child, child.bounds as LayoutBounds);
+  for (const child of sortedFolders(folder)) {
+    if (child.bounds) assignFolderLayout(child, child.bounds);
+  }
   for (const child of sortedFiles(folder)) {
     assignAddress(child);
   }

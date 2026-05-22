@@ -3,7 +3,7 @@ import type { Bounds, Point } from "./geometry.js";
 const BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz";
 const BASE32_DECODE: Record<string, number> = {};
 for (let index = 0; index < BASE32.length; index += 1) {
-  BASE32_DECODE[BASE32[index] as string] = index;
+  BASE32_DECODE[BASE32.charAt(index)] = index;
 }
 const GEOHASH_EAST_EDGE_EPSILON = 1e-12;
 
@@ -91,7 +91,7 @@ export function encodeGeohash(lat: number, lon: number, precision = 12): string 
     bit += 1;
 
     if (bit === 5) {
-      geohash.push(BASE32[charIndex] as string);
+      geohash.push(BASE32.charAt(charIndex));
       bit = 0;
       charIndex = 0;
     }

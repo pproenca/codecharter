@@ -1,11 +1,10 @@
-import { execFile } from "node:child_process";
-import type { ExecFileOptions } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { changedCodeChanges, changedLineRange } from "./activity-watcher.ts";
 import { appendActivityEvents, ensureActivityArchive } from "./activity-store.ts";
 import { createActivityEvent } from "./activity.ts";
+import { execFileText } from "./exec-file.ts";
 import { generateCodemap } from "./generator.ts";
 import { normalizePathForMap, resolveAddress } from "./resolver.ts";
 import { readJson, writeJson } from "./store.ts";
@@ -15,25 +14,6 @@ import type { CodeChange } from "./activity-watcher.js";
 import type { AddressRequest } from "./resolver.js";
 import type { CodecharterCodemap } from "./resolver.js";
 
-type ExecFileTextOptions = Omit<ExecFileOptions, "encoding"> & {
-  encoding?: BufferEncoding;
-};
-type ExecFileAsync = (
-  file: string,
-  args: readonly string[],
-  options: ExecFileTextOptions,
-) => Promise<{ stdout: string; stderr: string }>;
-
-const execFileAsync: ExecFileAsync = (file, args, options) =>
-  new Promise((resolve, reject) => {
-    execFile(file, [...args], { ...options, encoding: options.encoding ?? "utf8" }, (error, stdout, stderr) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve({ stdout, stderr });
-    });
-  });
 const DEFAULT_CONFIG_PATH = ".codecharter/config.json";
 const DEFAULT_MAP_PATH = ".codecharter/codecharter.json";
 const ROOT_MAP_PATH = "codecharter.json";
@@ -708,7 +688,7 @@ async function resolveMapPath(root: string, configuredPath?: string): Promise<st
 
 async function resolveRoot(cwd: string): Promise<string> {
   try {
-    const { stdout } = await execFileAsync("git", ["rev-parse", "--show-toplevel"], { cwd });
+    const { stdout } = await execFileText("git", ["rev-parse", "--show-toplevel"], { cwd });
     return stdout.trim() || cwd;
   } catch {
     return cwd;

@@ -193,8 +193,6 @@ const controls = new MapControls();
 const activityPolling = new PollingTask();
 const mapPolling = new PollingTask();
 
-await boot();
-
 async function boot() {
   const [map, mapVersion, names, activity] = await Promise.all([
     fetchJson("/api/map"),
@@ -275,6 +273,8 @@ function bindEvents() {
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointerleave", onPointerUp);
+  canvas.addEventListener("lostpointercapture", onPointerUp);
+  canvas.addEventListener("pointercancel", onPointerCancel);
   canvas.addEventListener("dblclick", onCanvasDoubleClick);
   canvas.addEventListener("blur", () => canvas.classList.remove("pointer-focused"));
   canvas.tabIndex = 0;
@@ -696,6 +696,8 @@ const DOCUMENT_KEYBOARD_COMMANDS = new CommandDispatcher([
   new DeleteAnnotationCommand(),
 ]);
 
+await boot();
+
 async function applyHashRoute() {
   const routeToken = ++routeSequence;
   const route = parseHashRoute(window.location.hash);
@@ -737,6 +739,8 @@ async function focusSelectionRoute(params, routeToken) {
   setText(controls.sourceTitle, "");
   setText(controls.sourceOutput, "");
   state.draftSelection = { type: "rect", bounds };
+  updateSelectionPopover();
+  setSelectionStatus("Resolving selection...");
   zoomToBounds(bounds, 1.35);
   await previewSelection({ routeToken });
 }
@@ -867,12 +871,13 @@ function upsertNamedPlace(place) {
 function updateSelectionPopover() {
   const selectedAnnotation = state.selectedTarget?.targetType === "annotation";
   const hasDraft = Boolean(state.draftSelection || state.resolvedSelection);
+  const selectionReady = Boolean(state.resolvedSelection);
   if (controls.selectionPopover) controls.selectionPopover.hidden = !hasDraft;
   if (controls.annotationActions) controls.annotationActions.hidden = !selectedAnnotation || hasDraft;
   if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = !selectedAnnotation;
   if (controls.saveSelection) {
-    controls.saveSelection.disabled = !(state.resolvedSelection || selectedAnnotation);
-    setSaveButtonLabel(selectedAnnotation ? COPY_PROMPT_LABEL : SAVE_AND_COPY_LABEL);
+    controls.saveSelection.disabled = !(selectionReady || selectedAnnotation);
+    setSaveButtonLabel(selectedAnnotation ? COPY_PROMPT_LABEL : selectionReady ? SAVE_AND_COPY_LABEL : "Resolving selection...");
   }
 }
 
@@ -1605,6 +1610,7 @@ function cancelCurrentInteraction() {
   cancelPendingClickSelection();
   if (state.dragging || state.draftSelection || state.resolvedSelection || state.drawing) {
     resetSelectionOverlay();
+    clearSelectionHashRoute();
     setSelectionStatus("Selection cancelled.");
     render();
     canvas.focus({ preventScroll: true });
@@ -1615,9 +1621,16 @@ function cancelCurrentInteraction() {
     state.selectedTarget = null;
     if (controls.selectionComment) controls.selectionComment.value = "";
     updateSelectionPopover();
+    clearSelectionHashRoute();
     setSelectionStatus("Selection cleared.");
     render();
     canvas.focus({ preventScroll: true });
+  }
+}
+
+function clearSelectionHashRoute() {
+  if (parseHashRoute(window.location.hash)?.type === "selection") {
+    window.history.replaceState(null, "", "#");
   }
 }
 
@@ -1667,15 +1680,19 @@ function onPointerMove(event) {
 
 async function onPointerUp(event) {
   if (state.dragging?.type === "draw" && state.draftSelection) {
-    if (event?.type === "pointerleave") return;
-    if (event) updateDraftSelection(screenToWorld(screenPoint(event)));
+    if (event && event.type !== "lostpointercapture") updateDraftSelection(screenToWorld(screenPoint(event)));
     if (!hasUsableDraftSelection()) {
       clearDraftSelection();
       render();
       return;
     }
+    state.dragging = null;
+    updateInteractionModeUi();
     await previewSelection();
-  } else if (state.dragging?.type === "select" && state.lastPointerDown && event) {
+    return;
+  }
+
+  if (state.dragging?.type === "select" && state.lastPointerDown && event) {
     const current = screenPoint(event);
     const moved = Math.hypot(current.x - state.lastPointerDown.screen.x, current.y - state.lastPointerDown.screen.y);
     if (moved < 4) scheduleClickSelection(state.lastPointerDown.world);
@@ -1683,6 +1700,11 @@ async function onPointerUp(event) {
     const current = screenPoint(event);
     const moved = Math.hypot(current.x - state.lastPointerDown.screen.x, current.y - state.lastPointerDown.screen.y);
   }
+  state.dragging = null;
+  updateInteractionModeUi();
+}
+
+function onPointerCancel() {
   state.dragging = null;
   updateInteractionModeUi();
 }
@@ -1904,16 +1926,18 @@ async function saveSelection() {
   const comment = controls.selectionComment?.value.trim() ?? "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
   setSelectionStatus("Saving annotation…");
-  const saved = await postJson("/api/annotations", {
+  const savedPromise = postJson("/api/annotations", {
     comment,
     level: DEFAULT_MAP_LEVEL,
     geometry: state.resolvedSelection.geometry,
   });
-  state.namedPlaces.push(saved.annotation);
-  const copied = await copyToClipboard(annotationClipboardText(saved.annotation, {
+  const copiedPromise = copyDeferredToClipboard(savedPromise.then((saved) => annotationClipboardText(saved.annotation, {
     origin: window.location.origin,
     href: window.location.href,
-  }));
+  })));
+  const saved = await savedPromise;
+  state.namedPlaces.push(saved.annotation);
+  const copied = await copiedPromise;
   state.selectedTarget = { ...saved.annotation, targetType: "annotation" };
   syncHashRoute(createAnnotationHashRoute(saved.annotation.id));
   state.drawing = false;
@@ -1988,6 +2012,26 @@ async function copyToClipboard(text) {
     return true;
   } catch {
     return copyToClipboardFallback(text);
+  }
+}
+
+async function copyDeferredToClipboard(textPromise) {
+  if (navigator.clipboard?.write && window.ClipboardItem && window.Blob) {
+    try {
+      const item = new ClipboardItem({
+        "text/plain": textPromise.then((text) => new Blob([text], { type: "text/plain" })),
+      });
+      await navigator.clipboard.write([item]);
+      return true;
+    } catch {
+      // Fall through to the legacy path below.
+    }
+  }
+
+  try {
+    return await copyToClipboard(await textPromise);
+  } catch {
+    return false;
   }
 }
 

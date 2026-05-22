@@ -54,7 +54,10 @@ export function getTile(codemap, { level = "file", prefix }) {
   return {
     prefix,
     level,
-    targets: [...mapTargets(codemap)].filter((target) => tilePrefixForTarget(target, level) === prefix),
+    targets: [
+      ...matchingTargets(codemap.folders, "folder", level, prefix),
+      ...matchingTargets(codemap.files, "file", level, prefix),
+    ],
   };
 }
 
@@ -79,6 +82,13 @@ function* mapTargets(codemap) {
 
 function sortedTargets(targets) {
   return Object.values(targets).sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function matchingTargets(targets, targetType, level, prefix) {
+  return Object.values(targets)
+    .filter((target) => tilePrefixForTarget(target, level) === prefix)
+    .sort((left, right) => left.path.localeCompare(right.path))
+    .map((target) => serializeTarget(target, targetType));
 }
 
 function serializeTarget(target, targetType) {

@@ -648,12 +648,14 @@ function mapTargetForPath(codemap, path) {
 }
 
 function mapTargetForGeohash(codemap, geohash, kind) {
-  const candidates = kind === "folder"
-    ? Object.values(codemap.folders).filter((folder) => folder.path)
-    : Object.values(codemap.files);
-  const target = candidates.find((candidate) => candidate.geo.geohash.startsWith(geohash))
-    ?? candidates.find((candidate) => geohash.startsWith(candidate.geo.geohash));
-  return target ? { ...target, targetType: kind === "folder" ? "folder" : "file" } : null;
+  const targetType = kind === "folder" ? "folder" : "file";
+  let fallback = null;
+  for (const target of Object.values(targetType === "folder" ? codemap.folders : codemap.files)) {
+    if (targetType === "folder" && !target.path) continue;
+    if (target.geo.geohash.startsWith(geohash)) return { ...target, targetType };
+    if (!fallback && geohash.startsWith(target.geo.geohash)) fallback = target;
+  }
+  return fallback ? { ...fallback, targetType } : null;
 }
 
 export function boundsCenter(bounds) {
@@ -668,15 +670,11 @@ export function containsBoundsPoint(bounds, point) {
 }
 
 export function hitTestTargets(codemap, point) {
-  const files = Object.values(codemap.files)
-    .filter((file) => containsBoundsPoint(file.bounds, point))
-    .sort(compareTargetAreaThenPath);
-  if (files.length > 0) return { ...files[0], targetType: "file" };
+  const file = bestContainingTarget(codemap.files, point);
+  if (file) return { ...file, targetType: "file" };
 
-  const folders = Object.values(codemap.folders)
-    .filter((folder) => folder.path && containsBoundsPoint(folder.bounds, point))
-    .sort(compareTargetAreaThenPath);
-  if (folders.length > 0) return { ...folders[0], targetType: "folder" };
+  const folder = bestContainingTarget(codemap.folders, point, (target) => target.path);
+  if (folder) return { ...folder, targetType: "folder" };
 
   return null;
 }
@@ -879,13 +877,46 @@ export function isLiveActivityEvent(event, { now = Date.now(), maxAgeMinutes = A
 }
 
 export function sortedActivityEvents(events, limit = 80, options = {}) {
-  return [...events]
-    .filter((event) => isLiveActivityEvent(event, options))
-    .sort((a, b) => Date.parse(a.timestamp ?? 0) - Date.parse(b.timestamp ?? 0))
-    .slice(-limit);
+  return liveActivityEventsInTimeOrder(events, options).slice(-limit);
 }
 
 export function latestActivityByAgent(events, options = {}) {
+  const byAgent = new Map();
+  let liveIndex = 0;
+  for (const event of events) {
+    if (!isLiveActivityEvent(event, options)) continue;
+    const timestamp = activitySortTimestamp(event);
+    if (!Number.isFinite(timestamp)) return latestActivityByAgentViaSort(events, options);
+
+    const key = activityActorKey(event);
+    const summary = byAgent.get(key);
+    if (!summary) {
+      byAgent.set(key, {
+        key,
+        event,
+        firstIndex: liveIndex,
+        firstTimestamp: timestamp,
+        latestIndex: liveIndex,
+        latestTimestamp: timestamp,
+      });
+    } else if (timestamp > summary.latestTimestamp || (timestamp === summary.latestTimestamp && liveIndex > summary.latestIndex)) {
+      summary.event = event;
+      summary.latestIndex = liveIndex;
+      summary.latestTimestamp = timestamp;
+    }
+    liveIndex += 1;
+  }
+
+  return new Map([...byAgent.values()]
+    .sort((a, b) => a.firstTimestamp - b.firstTimestamp || a.firstIndex - b.firstIndex)
+    .map((summary) => [summary.key, summary.event]));
+}
+
+export function activityActorKey(event) {
+  return `${event?.agentId ?? "agent"}:${event?.threadId ?? event?.sessionId ?? "manual"}`;
+}
+
+function latestActivityByAgentViaSort(events, options) {
   const latest = new Map();
   for (const event of sortedActivityEvents(events, Number.POSITIVE_INFINITY, options)) {
     latest.set(activityActorKey(event), event);
@@ -893,8 +924,24 @@ export function latestActivityByAgent(events, options = {}) {
   return latest;
 }
 
-export function activityActorKey(event) {
-  return `${event?.agentId ?? "agent"}:${event?.threadId ?? event?.sessionId ?? "manual"}`;
+function liveActivityEventsInTimeOrder(events, options) {
+  const liveEvents = [];
+  let ordered = true;
+  let previousTimestamp = Number.NEGATIVE_INFINITY;
+  for (const event of events) {
+    if (!isLiveActivityEvent(event, options)) continue;
+    const timestamp = activitySortTimestamp(event);
+    if (!Number.isFinite(timestamp) || timestamp < previousTimestamp) ordered = false;
+    previousTimestamp = timestamp;
+    liveEvents.push(event);
+  }
+  return ordered
+    ? liveEvents
+    : liveEvents.sort((a, b) => activitySortTimestamp(a) - activitySortTimestamp(b));
+}
+
+function activitySortTimestamp(event) {
+  return Date.parse(event.timestamp ?? 0);
 }
 
 function activityAgeMinutes(event, now) {
@@ -948,6 +995,15 @@ function compareTargetAreaThenPath(a, b) {
   const areaDelta = a.bounds.width * a.bounds.height - b.bounds.width * b.bounds.height;
   if (Math.abs(areaDelta) > 1e-12) return areaDelta;
   return a.path.localeCompare(b.path);
+}
+
+function bestContainingTarget(targets, point, accept = () => true) {
+  let best = null;
+  for (const target of Object.values(targets)) {
+    if (!accept(target) || !containsBoundsPoint(target.bounds, point)) continue;
+    if (!best || compareTargetAreaThenPath(target, best) < 0) best = target;
+  }
+  return best;
 }
 
 function pointDistance(a, b) {

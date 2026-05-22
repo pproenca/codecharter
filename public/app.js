@@ -711,12 +711,12 @@ function drawFolders() {
 function drawOrganicRegions() {
   const folders = Object.values(state.map.folders)
     .filter((folder) => folder.path)
-    .sort((a, b) => folderDepth(a.path) - folderDepth(b.path) || a.path.localeCompare(b.path));
+    .map((folder) => ({ folder, depth: folderDepth(folder.path) }))
+    .sort((a, b) => a.depth - b.depth || a.folder.path.localeCompare(b.folder.path));
 
-  for (const folder of folders) {
+  for (const { folder, depth } of folders) {
     const box = screenBounds(folder.bounds);
     if (!visible(box)) continue;
-    const depth = folderDepth(folder.path);
     if (!shouldDrawOrganicRegion(state.view.scale, depth, box)) continue;
     const points = organicRegionPoints(folder.bounds, folder.path, depth);
     if (points.length < 3) continue;

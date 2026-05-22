@@ -34,15 +34,22 @@ export function lineRangeFromUnifiedDiff(diff) {
 }
 
 export function changedRangeFromUnifiedDiff(diff) {
-  const ranges = [...diff.matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)]
-    .map((match) => changedHunkRange(match[1], match[2]));
+  let lineStart = Number.POSITIVE_INFINITY;
+  let lineEnd = Number.NEGATIVE_INFINITY;
+  let matchedHunks = 0;
+  for (const match of diff.matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)) {
+    const range = changedHunkRange(match[1], match[2]);
+    lineStart = Math.min(lineStart, range.start);
+    lineEnd = Math.max(lineEnd, range.end);
+    matchedHunks += 1;
+  }
 
-  if (ranges.length === 0) return {};
+  if (matchedHunks === 0) return {};
   const fragments = tokenFragments(diff);
   const tokenSpan = columnSpanFromFragments(fragments);
   return {
-    lineStart: Math.min(...ranges.map((range) => range.start)),
-    lineEnd: Math.max(...ranges.map((range) => range.end)),
+    lineStart,
+    lineEnd,
     ...(tokenSpan ? {
       columnStart: tokenSpan.start,
       columnEnd: tokenSpan.end,
@@ -93,9 +100,15 @@ function tokenFragments(diff) {
 
 function columnSpanFromFragments(fragments) {
   if (!fragments.length) return null;
+  let start = Number.POSITIVE_INFINITY;
+  let end = Number.NEGATIVE_INFINITY;
+  for (const fragment of fragments) {
+    start = Math.min(start, fragment.columnStart);
+    end = Math.max(end, fragment.columnEnd);
+  }
   return {
-    start: Math.min(...fragments.map((fragment) => fragment.columnStart)),
-    end: Math.max(...fragments.map((fragment) => fragment.columnEnd)),
+    start,
+    end,
   };
 }
 

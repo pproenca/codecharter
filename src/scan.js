@@ -49,17 +49,40 @@ export function normalizeRepoPath(root, path) {
 }
 
 function contentMetrics(content) {
-  const lines = content.length === 0 ? [""] : content.split("\n");
-  if (content.endsWith("\n")) lines.pop();
+  const { lineCount, maxLineLength } = lineMetrics(content);
   return {
-    lineCount: Math.max(1, lines.length),
-    maxLineLength: Math.max(1, ...lines.map((line) => line.length)),
+    lineCount,
+    maxLineLength,
     tokenCount: Math.max(1, countMatches(content, TOKEN_PATTERN)),
+  };
+}
+
+function lineMetrics(content) {
+  if (content.length === 0) return { lineCount: 1, maxLineLength: 1 };
+  let lineCount = 1;
+  let maxLineLength = 1;
+  let currentLineLength = 0;
+  for (let index = 0; index < content.length; index += 1) {
+    if (content[index] === "\n") {
+      maxLineLength = Math.max(maxLineLength, currentLineLength);
+      currentLineLength = 0;
+      if (index !== content.length - 1) lineCount += 1;
+    } else {
+      currentLineLength += 1;
+    }
+  }
+  if (!content.endsWith("\n")) maxLineLength = Math.max(maxLineLength, currentLineLength);
+  return {
+    lineCount,
+    maxLineLength,
   };
 }
 
 const TOKEN_PATTERN = /[A-Za-z_$][A-Za-z0-9_$]*|\d+(?:\.\d+)?|[^\s]/g;
 
 function countMatches(content, pattern) {
-  return content.match(pattern)?.length ?? 0;
+  pattern.lastIndex = 0;
+  let count = 0;
+  while (pattern.exec(content)) count += 1;
+  return count;
 }

@@ -465,11 +465,18 @@ test("resolves browser map route targets through path metadata or geohash prefix
     locator: "s000000",
     params: new URLSearchParams(),
   });
+  const byContainingPrefix = mapRouteTarget(codemap, {
+    kind: "folder",
+    locator: "s0000000zzzz9",
+    params: new URLSearchParams(),
+  });
 
   assert.equal(byPath.targetType, "file");
   assert.equal(byPath.path, "src/app.ts");
   assert.equal(byPrefix.targetType, "folder");
   assert.equal(byPrefix.path, "src");
+  assert.equal(byContainingPrefix.targetType, "folder");
+  assert.equal(byContainingPrefix.path, "src");
 });
 
 test("derives browser hash route focus intents without binding to controller effects", () => {
@@ -650,6 +657,21 @@ test("hit-testing prefers the smallest containing file before enclosing folders"
   assert.equal(hit.path, "src/a-inner.js");
 });
 
+test("hit-testing breaks equal-area target ties by path", () => {
+  const codemap = {
+    folders: {},
+    files: {
+      "src/b.js": target("src/b.js", "file", { x: 0.2, y: 0.2, width: 0.4, height: 0.4 }),
+      "src/a.js": target("src/a.js", "file", { x: 0.2, y: 0.2, width: 0.4, height: 0.4 }),
+    },
+  };
+
+  const hit = hitTestTargets(codemap, { x: 0.35, y: 0.35 });
+
+  assert.equal(hit.targetType, "file");
+  assert.equal(hit.path, "src/a.js");
+});
+
 test("derives organic region contours deterministically from world bounds", () => {
   const bounds = { x: 0.12, y: 0.2, width: 0.32, height: 0.18 };
   const first = organicRegionPoints(bounds, "src/features", 2);
@@ -743,7 +765,7 @@ test("splits activity trails by Codex session and time gap", () => {
     activity("codex", "reviewing", "2026-05-20T10:40:00.000Z", { id: "a3", sessionId: "session-a" }),
   ];
 
-  const groups = activityTrailGroups(events, {
+  const groups = activityTrailGroups([events[2], events[0], events[3], events[1]], {
     maxGapMinutes: 20,
     now: Date.parse("2026-05-20T10:45:00.000Z"),
   });
@@ -792,6 +814,21 @@ test("keeps latest activity separately for each Codex thread", () => {
   assert.equal(latest.size, 2);
   assert.equal(latest.get("codex:thread-a").activityState, "testing");
   assert.equal(latest.get("codex:thread-b").activityState, "editing");
+});
+
+test("keeps latest activity map ordered by each agent's first live event", () => {
+  const now = Date.parse("2026-05-20T12:00:00.000Z");
+  const events = [
+    activity("codex", "reviewing", "2026-05-20T10:04:00.000Z", { threadId: "thread-a" }),
+    activity("reviewer", "testing", "2026-05-20T10:01:00.000Z"),
+    activity("codex", "editing", "2026-05-20T10:06:00.000Z", { threadId: "thread-a" }),
+    activity("codex", "reading", "2026-05-20T10:03:00.000Z", { threadId: "thread-b" }),
+  ];
+
+  const latest = latestActivityByAgent(events, { now });
+
+  assert.deepEqual([...latest.keys()], ["reviewer:manual", "codex:thread-b", "codex:thread-a"]);
+  assert.equal(latest.get("codex:thread-a").activityState, "editing");
 });
 
 test("encodes activity as recency-faded biological markers", () => {

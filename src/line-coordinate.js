@@ -163,10 +163,16 @@ function tokenRangeForSelection(file, selectionBounds) {
 }
 
 function unionBounds(boundsList) {
-  const x1 = Math.min(...boundsList.map((bounds) => bounds.x));
-  const y1 = Math.min(...boundsList.map((bounds) => bounds.y));
-  const x2 = Math.max(...boundsList.map((bounds) => bounds.x + bounds.width));
-  const y2 = Math.max(...boundsList.map((bounds) => bounds.y + bounds.height));
+  let x1 = Number.POSITIVE_INFINITY;
+  let y1 = Number.POSITIVE_INFINITY;
+  let x2 = Number.NEGATIVE_INFINITY;
+  let y2 = Number.NEGATIVE_INFINITY;
+  for (const bounds of boundsList) {
+    x1 = Math.min(x1, bounds.x);
+    y1 = Math.min(y1, bounds.y);
+    x2 = Math.max(x2, bounds.x + bounds.width);
+    y2 = Math.max(y2, bounds.y + bounds.height);
+  }
   return {
     x: round(x1),
     y: round(y1),

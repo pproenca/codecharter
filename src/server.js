@@ -362,8 +362,10 @@ async function readActivityArchive(path) {
 
 function mergeActivityEvents(...groups) {
   const byId = new Map();
-  for (const event of groups.flat()) {
-    byId.set(event.id ?? `${event.timestamp}:${event.agentId}:${event.note}`, event);
+  for (const group of groups) {
+    for (const event of group) {
+      byId.set(event.id ?? `${event.timestamp}:${event.agentId}:${event.note}`, event);
+    }
   }
   return [...byId.values()].sort((left, right) => {
     const byTime = String(left.timestamp ?? "").localeCompare(String(right.timestamp ?? ""));
@@ -372,8 +374,9 @@ function mergeActivityEvents(...groups) {
 }
 
 async function readBody(request) {
-  let raw = "";
-  for await (const chunk of request) raw += chunk;
+  const chunks = [];
+  for await (const chunk of request) chunks.push(Buffer.from(chunk));
+  const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
 }
 

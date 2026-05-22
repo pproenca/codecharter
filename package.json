@@ -32,7 +32,7 @@
     "setup": "node ./bin/codemap.mjs init --yes",
     "dev": "node ./bin/codemap.mjs dev",
     "serve": "node ./bin/codemap.mjs serve",
-    "test": "node --test"
+    "test": "node test-support/run-tests.mjs"
   },
   "engines": {
     "node": ">=22"

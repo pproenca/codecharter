@@ -331,6 +331,7 @@ class ActivityCommand extends CliCommand {
   }
 
   async execute({ args, jsonOutput }) {
+    let hardFailure = false;
     try {
       if (args[0] === "clear") {
         args.shift();
@@ -346,7 +347,10 @@ class ActivityCommand extends CliCommand {
       const columnStartRaw = takeOption(args, "--column-start", undefined);
       const columnEndRaw = takeOption(args, "--column-end", undefined);
       const [path, lineStartRaw, lineEndRaw] = args;
-      if (!path) throw new Error("activity requires a path");
+      if (!path) {
+        hardFailure = true;
+        throw new Error("activity requires a path");
+      }
 
       const address = await resolveCliAddress(mapPath, { path, lineStartRaw, lineEndRaw, columnStartRaw, columnEndRaw });
       const event = createActivityEvent(address, { agentId, activityState, note });
@@ -354,7 +358,7 @@ class ActivityCommand extends CliCommand {
       printResult({ accepted: true, event }, jsonOutput, printActivityResult);
     } catch (error) {
       printResult({ accepted: false, error: error.message }, jsonOutput, printActivityResult);
-      process.exitCode = 1;
+      if (hardFailure) process.exitCode = 1;
     }
   }
 }

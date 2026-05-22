@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  CodemapDeepLinkCodec,
   createAnnotationHashRoute,
   createBrowserHashRoute,
   createCodemapDeepLink,
@@ -8,7 +9,9 @@ import {
   parseCodemapDeepLink,
 } from "../src/deep-links.js";
 import {
+  BrowserHashRouteCodec,
   boundsFromRouteParams,
+  createMapHashRoute,
   parseHashRoute,
 } from "../public/deep-links.js";
 
@@ -90,4 +93,21 @@ test("selection hash routes preserve coordinate precision and reject degenerate 
     boundsFromRouteParams(new URLSearchParams("level=file&bounds=0.8,0.2,0.3,0.2")),
     null,
   );
+});
+
+test("deep link codec classes keep their exported facade behaviour", () => {
+  const codemapCodec = new CodemapDeepLinkCodec();
+  const browserCodec = new BrowserHashRouteCodec();
+  const metadata = { path: "src/app.ts", empty: "", optional: undefined };
+  const selection = { level: "file", bounds: { x: 0.2, y: 0.18, width: 0.25, height: 0.16 } };
+  const route = "#/selection?level=file&bounds=0.2,0.18,0.25,0.16";
+
+  assert.equal(codemapCodec.create("file", "9tj2byn", metadata), createCodemapDeepLink("file", "9tj2byn", metadata));
+  assert.deepEqual(codemapCodec.parse("codecharter://file/9tj2byn?path=src%2Fapp.ts"), parseCodemapDeepLink("codecharter://file/9tj2byn?path=src%2Fapp.ts"));
+  assert.equal(codemapCodec.createBrowserHashRoute("file", "9tj2byn", metadata), createBrowserHashRoute("file", "9tj2byn", metadata));
+  assert.equal(codemapCodec.createSelectionHashRoute(selection), createSelectionHashRoute(selection));
+
+  assert.equal(browserCodec.createMapRoute("file", "9tj2byn", metadata), createMapHashRoute("file", "9tj2byn", metadata));
+  assert.deepEqual(browserCodec.parse(route), parseHashRoute(route));
+  assert.deepEqual(browserCodec.boundsFromParams(new URLSearchParams("bounds=0.2,0.18,0.25,0.16")), { x: 0.2, y: 0.18, width: 0.25, height: 0.16 });
 });

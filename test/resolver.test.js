@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { CodeRangeGeometryMapper, codeRangeGeometry, codeRangeRequestForSelection } from "../src/line-coordinate.js";
 import { resolveAddress } from "../src/resolver.js";
 
 const codemap = {
@@ -115,4 +116,28 @@ test("rejects column ranges without a line range", () => {
     () => resolveAddress(codemap, { path: "src/app.ts", columnStart: 3, columnEnd: 8 }),
     /Line must be an integer/,
   );
+});
+
+test("CodeRangeGeometryMapper keeps the exported class facade behaviour", () => {
+  const file = codemap.files["src/app.ts"];
+  const mapper = new CodeRangeGeometryMapper();
+  const request = {
+    lineStart: 10,
+    lineEnd: 20,
+    columnStart: 9,
+    columnEnd: 24,
+    fragments: [
+      { lineStart: 10, lineEnd: 10, columnStart: 1, columnEnd: 8 },
+      { lineStart: 20, lineEnd: 20, columnStart: 32, columnEnd: 40 },
+    ],
+  };
+  const selectionBounds = { x: 0.3, y: 0.295, width: 0.1, height: 0.055 };
+
+  assert.deepEqual(mapper.geometry(file, request), codeRangeGeometry(file, request));
+  assert.deepEqual(
+    mapper.requestForSelection(file, selectionBounds, "tokenRange"),
+    codeRangeRequestForSelection(file, selectionBounds, "tokenRange"),
+  );
+  assert.deepEqual(mapper.lineRangeForRequest(file, { lineStart: 20, lineEnd: 10 }), { start: 10, end: 20 });
+  assert.deepEqual(mapper.tokenRangeForRequest(file, { columnStart: 24, columnEnd: 9 }), { start: 9, end: 24 });
 });

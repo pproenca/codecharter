@@ -7,7 +7,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { changedRangeFromUnifiedDiff, lineRangeFromUnifiedDiff } from "../src/activity-change-range.js";
+import { UnifiedDiffChangeRangeParser, changedRangeFromUnifiedDiff, lineRangeFromUnifiedDiff } from "../src/activity-change-range.js";
 import { parseGitStatusPorcelain, startActivityWatcher } from "../src/activity-watcher.js";
 
 const execFileAsync = promisify(execFile);
@@ -92,6 +92,21 @@ test("anchors deletion-only hunks to the next surviving line", () => {
 
 test("returns an empty line range when a diff has no hunks", () => {
   assert.deepEqual(lineRangeFromUnifiedDiff(""), {});
+});
+
+test("UnifiedDiffChangeRangeParser keeps the exported class facade behaviour", () => {
+  const diff = [
+    "diff --git a/src/app.js b/src/app.js",
+    "@@ -20 +24 @@",
+    "-old();",
+    "+  const newCall = run(value);",
+  ].join("\n");
+  const parser = new UnifiedDiffChangeRangeParser();
+
+  assert.deepEqual(parser.lineRange(diff), lineRangeFromUnifiedDiff(diff));
+  assert.deepEqual(parser.changedRange(diff), changedRangeFromUnifiedDiff(diff));
+  assert.deepEqual(parser.changedHunkRange("4", "0"), { start: 5, end: 5 });
+  assert.deepEqual(parser.tokenColumnSpan("  const value = 1;"), { start: 3, end: 18 });
 });
 
 test("watcher prepares changed map state before posting each new diff signature", async () => {

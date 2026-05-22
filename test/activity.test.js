@@ -5,7 +5,7 @@ import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { createActivityEvent } from "../src/activity.js";
+import { ActivityEventBuilder, ActivityStateNormalizer, createActivityEvent } from "../src/activity.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -45,6 +45,20 @@ test("preserves Codex thread identity on activity events", () => {
   assert.equal(event.sessionId, "session-1");
   assert.equal(event.threadId, "019e4c43-dd59-7f30-aea5-c00e63abc63f");
   assert.equal(event.threadUri, "codex://threads/019e4c43-dd59-7f30-aea5-c00e63abc63f");
+});
+
+test("activity class facades preserve normalization and injected builder behavior", () => {
+  const normalizer = new ActivityStateNormalizer();
+  const builder = new ActivityEventBuilder({ normalize: () => "testing" });
+  const event = builder.create(
+    { deepLink: "codecharter://file/s123456?path=src%2Fa.ts", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    { id: "event-1", state: "custom", timestamp: "2026-05-20T00:00:00.000Z" },
+  );
+
+  assert.equal(normalizer.normalize("blocked"), "reviewing");
+  assert.equal(normalizer.normalize("not-a-state"), "reading");
+  assert.equal(event.id, "event-1");
+  assert.equal(event.activityState, "testing");
 });
 
 test("CLI appends Codex activity events to the JSONL activity archive", async () => {

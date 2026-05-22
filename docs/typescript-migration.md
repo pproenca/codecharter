@@ -8,10 +8,12 @@ Current state:
 - `checkJs` stays off because generated JavaScript is not typechecked directly; typecheck the TypeScript sources instead.
 - `skipLibCheck` is temporary migration noise control for dependency types.
 - `isolatedModules` and `noEmitOnError` are enabled from the start so future emitted files stay compatible with single-file transpilers and failed checks do not produce stale output.
+- `noImplicitAny` is enforced for the package build target (`bin/**/*.mts` and `src/**/*.ts`) through `tsconfig.build.json`, and for browser sources through `tsconfig.public.json`.
+- `useUnknownInCatchVariables` is enabled in the main project so catch blocks narrow filesystem, process, fetch, and test-runner errors before reading properties.
 - Runtime, CLI, test-support, test, and browser sources have moved to `.ts`/`.mts`.
 - Browser source lives under `public-src/`; `public/*.js` files are generated browser-served assets. Regenerate them with `pnpm build:public` rather than editing them directly.
 - `public-src/` is checked by `tsc -p tsconfig.public.json`; do not add `// @ts-nocheck` or `noCheck` bridges back.
-- `strict` remains the major outstanding ratchet. Before enabling it, pay down implicit parameters, nullable state, weak browser controller state inference, and unsafe JSON/fetch/error boundaries.
+- `strict` remains the major outstanding ratchet. Before enabling it, pay down nullable state, remaining weak browser command dispatch typing, and unsafe JSON/fetch/error boundaries.
 
 Target conventions:
 

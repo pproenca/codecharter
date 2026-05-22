@@ -12,6 +12,8 @@
     "outDir": "public",
     "rootDir": "public-src",
     "sourceMap": false,
+    "noImplicitAny": true,
+    "useUnknownInCatchVariables": true,
     "strict": false
   },
   "include": ["public-src/**/*.ts"]

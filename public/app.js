@@ -366,7 +366,7 @@ const MAP_SEARCH_ACTION_COMMANDS = commandDispatcher([
         }],
     ["focusPlace", (match) => {
             zoomToBounds(match.place.geometry.bounds, 1.35);
-            setSearchResult(match.label);
+            setSearchResult(match.label ?? "");
             state.selectedTarget = match.target;
             if (state.selectedTarget?.targetType === "annotation")
                 selectAnnotation(state.selectedTarget);
@@ -375,14 +375,14 @@ const MAP_SEARCH_ACTION_COMMANDS = commandDispatcher([
     ["focusFile", async (match) => {
             zoomToReadableFile(match.file);
             await selectMapTarget(boundsCenter(match.file.bounds));
-            setSearchResult(match.label);
+            setSearchResult(match.label ?? "");
         }],
     ["focusFolder", (match) => {
             zoomToBounds(match.folder.bounds, 1.6);
             state.selectedTarget = { ...match.folder, targetType: "folder" };
             setText(controls.inspectorTitle, folderDisplayName(match.folder));
             setText(controls.inspectorSubtitle, `folder: ${match.folder.path || "."} | ${match.folder.geo.geohash}`);
-            setSearchResult(match.label);
+            setSearchResult(match.label ?? "");
             render();
         }],
 ]);
@@ -470,7 +470,7 @@ async function focusMapRoute(route, routeToken) {
         return;
     resetSelectionOverlay();
     const routeLineRange = target.targetType === "file" ? parseLineRange(route.params.get("lines")) : null;
-    if (routeLineRange) {
+    if (target.targetType === "file" && routeLineRange) {
         zoomToReadableFile(target, lineRatioForLine(target, routeLineRange.start));
     }
     else {
@@ -615,7 +615,7 @@ function updateSelectionPopover() {
     const isEditing = Boolean(state.editingAnnotation);
     const hasDraft = Boolean(state.draftSelection || state.resolvedSelection);
     const selectionReady = Boolean(state.resolvedSelection);
-    const activeAnnotation = selectedAnnotation ? state.selectedTarget : null;
+    const activeAnnotation = state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null;
     if (controls.selectionPopover)
         controls.selectionPopover.hidden = !(hasDraft || isEditing);
     if (controls.annotationActions)
@@ -1034,7 +1034,7 @@ function drawFiles() {
         const box = screenBounds(file.bounds);
         if (!visible(box))
             continue;
-        const selected = state.selectedTarget?.path === file.path;
+        const selected = state.selectedTarget?.targetType === "file" && state.selectedTarget.path === file.path;
         const fogState = fogEnabled ? fogStateForFile(state.activityFog, file, { selected }) : "visible";
         const visualState = fileVisualState({ file, box, scale: state.view.scale, selected });
         if (visualState === "hidden")
@@ -1452,7 +1452,8 @@ function drawActivityTrails(events, latestByAgent, { discoveryMode = false } = {
 function activityTrailSelected(events) {
     if (state.selectedTarget?.targetType !== "activity")
         return false;
-    return events.some((event) => event.id === state.selectedTarget.id);
+    const selectedId = state.selectedTarget.id;
+    return events.some((event) => event.id === selectedId);
 }
 function activityTrailPoints(events) {
     const points = [];
@@ -1702,10 +1703,10 @@ function isTextEntryTarget(target) {
     return target instanceof HTMLInputElement
         || target instanceof HTMLTextAreaElement
         || target instanceof HTMLSelectElement
-        || target?.isContentEditable;
+        || (target instanceof HTMLElement && target.isContentEditable);
 }
 function isButtonTarget(target) {
-    return target instanceof HTMLButtonElement || target?.closest?.("button");
+    return target instanceof HTMLButtonElement || (target instanceof Element && Boolean(target.closest("button")));
 }
 function cancelCurrentInteraction() {
     cancelPendingClickSelection();
@@ -2317,7 +2318,7 @@ function setCopyButtonLabel(label = COPY_PROMPT_LABEL, { reset = false } = {}) {
 }
 async function addActivity(event) {
     event.preventDefault();
-    if (!controls.activityForm)
+    if (!(controls.activityForm instanceof HTMLFormElement))
         return;
     const data = formDataObject(new FormData(controls.activityForm));
     await postJson("/api/activity", {

@@ -33,11 +33,15 @@ async function discoverTestFiles() {
   try {
     entries = await readdir("test");
   } catch (error) {
-    if (error.code === "ENOENT") return [];
+    if (isErrnoException(error) && error.code === "ENOENT") return [];
     throw error;
   }
   return entries
     .filter((entry) => entry.endsWith(".test.js") || entry.endsWith(".test.ts"))
     .sort((left, right) => left.localeCompare(right))
     .map((entry) => join("test", entry));
+}
+
+function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error;
 }

@@ -94,11 +94,19 @@ function namedPlaceSearchMatch({ namedPlaces, query }) {
     if (!namedPlace?.geometry?.bounds)
         return null;
     const annotation = namedPlace.kind === "mapAnnotation";
+    if (annotation) {
+        return {
+            type: "annotation",
+            label: `Annotation: ${namedPlace.name}`,
+            place: namedPlace,
+            target: { ...namedPlace, targetType: "annotation" },
+        };
+    }
     return {
-        type: annotation ? "annotation" : "namedPlace",
-        label: `${annotation ? "Annotation" : "Named place"}: ${namedPlace.name}`,
+        type: "namedPlace",
+        label: `Named place: ${namedPlace.name}`,
         place: namedPlace,
-        target: annotation ? { ...namedPlace, targetType: "annotation" } : null,
+        target: null,
     };
 }
 function fileSearchMatch({ codemap, query }) {
@@ -870,7 +878,9 @@ export function mapHoverLabel(hit) {
         return `annotation: ${hit.name} | ${hit.coveringSet?.[0] ?? "unresolved"}`;
     }
     if (hit.targetType === "activity") {
-        return `activity: ${activityActorLabel(hit)} ${normalizeActivityState(hit.activityState)} | ${hit.address.geohash}`;
+        const thread = hit.threadId ?? hit.sessionId;
+        const actor = thread ? `${hit.agentId ?? "agent"} ${shortActivityId(thread)}` : hit.agentId ?? "agent";
+        return `activity: ${actor} ${normalizeActivityState(hit.activityState)} | ${hit.address?.geohash ?? "unresolved"}`;
     }
     return `${hit.targetType}: ${hit.path} | ${hit.geo.geohash}`;
 }
@@ -898,10 +908,22 @@ function mapTargetForPath(codemap, path) {
 }
 function mapTargetForGeohash(codemap, geohash, kind) {
     const targetType = kind === "folder" ? "folder" : "file";
+    if (!geohash)
+        return null;
+    if (targetType === "folder") {
+        let fallback = null;
+        for (const target of objectValues(codemap.folders)) {
+            if (!target.path)
+                continue;
+            if (target.geo.geohash.startsWith(geohash))
+                return { ...target, targetType };
+            if (!fallback && geohash.startsWith(target.geo.geohash))
+                fallback = target;
+        }
+        return fallback ? { ...fallback, targetType } : null;
+    }
     let fallback = null;
-    for (const target of objectValues(targetType === "folder" ? codemap.folders : codemap.files)) {
-        if (targetType === "folder" && !target.path)
-            continue;
+    for (const target of objectValues(codemap.files)) {
         if (target.geo.geohash.startsWith(geohash))
             return { ...target, targetType };
         if (!fallback && geohash.startsWith(target.geo.geohash))
@@ -928,7 +950,7 @@ export function hitTestTargets(codemap, point) {
     const file = bestContainingTarget(codemap.files, point);
     if (file)
         return { ...file, targetType: "file" };
-    const folder = bestContainingTarget(codemap.folders, point, (target) => target.path);
+    const folder = bestContainingTarget(codemap.folders, point, (target) => Boolean(target.path));
     if (folder)
         return { ...folder, targetType: "folder" };
     return null;
@@ -998,7 +1020,13 @@ export function activityStateStyle(activityState) {
 export function normalizeActivityState(activityState) {
     if (activityState === "blocked")
         return "reviewing";
-    return ACTIVITY_STATE_STYLES[activityState] ? activityState : "reading";
+    return isActivityState(activityState) ? activityState : "reading";
+}
+function isActivityState(activityState) {
+    return activityState === "reading"
+        || activityState === "editing"
+        || activityState === "testing"
+        || activityState === "reviewing";
 }
 export function activityVisualEncoding(event, { latest = false, selected = false, now = Date.now() } = {}) {
     const activityState = normalizeActivityState(event?.activityState);
@@ -1342,7 +1370,7 @@ function liveActivityEventsTail(events, limit, options) {
     return liveEvents;
 }
 function activitySortTimestamp(event) {
-    return Date.parse(event.timestamp ?? 0);
+    return Date.parse(event.timestamp ?? "");
 }
 function compareActivityEventsByTime(left, right) {
     const result = activitySortTimestamp(left) - activitySortTimestamp(right);

@@ -123,6 +123,7 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
       ]);
       assert.fail("Expected CLI API source reads to be rejected");
     } catch (error) {
+      assertExecError(error);
       const body = JSON.parse(error.stdout);
       assert.equal(body.ok, false);
       assert.match(body.error.message, /api does not expose \/api\/source/);
@@ -606,11 +607,19 @@ async function waitForActivityArchive(root) {
       const events = raw.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
       if (events.length > 0) return events;
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      if (!isErrnoException(error) || error.code !== "ENOENT") throw error;
     }
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
   assert.fail("Activity event was not archived to JSONL");
+}
+
+function assertExecError(error: unknown): asserts error is Error & { stdout: string } {
+  assert.equal(error instanceof Error && "stdout" in error, true);
+}
+
+function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error;
 }
 
 async function waitForMapVersion(baseUrl, previousVersion) {

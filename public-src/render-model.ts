@@ -23,8 +23,152 @@ export const ACTIVITY_TRAIL_TENSION = 0.72;
 export const ACTIVITY_TRAIL_MAX_GAP_MINUTES = 20;
 export const DISCOVERY_FOG_TEXTURE_STEP_PX = 28;
 
-type Point = { x: number; y: number };
-type Bounds = Point & { width: number; height: number };
+export type Point = { x?: number; y?: number };
+export type Bounds = Point & { width?: number; height?: number };
+export type View = Point & { scale: number };
+export type Viewport = { width: number; height: number };
+type Rgb = readonly [number, number, number];
+type PaletteColor = { fill: Rgb; stroke: Rgb; label: string };
+type DetailBand = "district" | "neighborhood" | "block" | "parcel" | "source";
+export type GeoAddress = { geohash: string; lat?: number; lon?: number };
+type MapBaseTarget = {
+  path: string;
+  name?: string;
+  bounds?: Bounds;
+  geo?: GeoAddress;
+  lineCount?: number;
+};
+export type MapFile = MapBaseTarget & {
+  lineCount?: number;
+  maxLineLength?: number;
+  extension?: string;
+  targetType?: "file";
+};
+export type MapFolder = MapBaseTarget & {
+  children?: { folders?: string[]; files?: string[] };
+  growthArea?: Bounds;
+  targetType?: "folder";
+};
+export type MapTarget = MapFile | MapFolder;
+type MapTargetRecord<T extends MapTarget = MapTarget> = Record<string, T>;
+export type CodecharterCodemap = {
+  files?: MapTargetRecord<MapFile>;
+  folders?: MapTargetRecord<MapFolder>;
+  codePlane?: { bounds?: Bounds };
+};
+type MapTargetType = "file" | "folder" | "annotation" | "activity";
+export type TargetHit = (MapFile & { targetType: "file" }) | (MapFolder & { targetType: "folder" });
+type ActionHit = { targetType: string; [key: string]: unknown };
+type MapAction = { type: string; zoomPadding?: number };
+export type MapAnnotationPlace = {
+  id?: string;
+  kind?: string;
+  name?: string;
+  comment?: string;
+  deepLink?: string;
+  browserHash?: string;
+  coveringSet?: string[];
+  resolvedTargets?: unknown[];
+  level?: string;
+  spatialFrame?: { level?: string; corners?: { northWest?: string } };
+  geometry?: { bounds?: Bounds };
+  targetType?: "annotation";
+};
+export type NamedPlace = MapAnnotationPlace & {
+  kind?: string;
+};
+type SearchTargetEntry<T extends MapTarget = MapTarget> = {
+  key: string;
+  target: T;
+  path: string;
+  geohash: string;
+  normalizedPath: string;
+};
+type NamedPlaceSearchEntry = {
+  place: NamedPlace;
+  name: string;
+  normalizedName: string;
+};
+type SearchContext = {
+  codemap: CodecharterCodemap;
+  namedPlaces: NamedPlace[];
+  query: string;
+};
+export type SearchMatch =
+  | { type: "annotation"; label?: string; place?: NamedPlace; target?: NamedPlace & { targetType: "annotation" } }
+  | { type: "namedPlace"; label?: string; place?: NamedPlace; target?: null }
+  | { type: "file"; label?: string; file?: MapFile }
+  | { type: "folder"; label?: string; folder?: MapFolder };
+export type FogState = "visible" | "explored" | "unexplored";
+type ActivityAddressFragment = { bounds?: Bounds };
+export type ActivityAddress = {
+  path?: string;
+  deepLink?: string;
+  geohash?: string;
+  bounds?: Bounds;
+  fragments?: ActivityAddressFragment[];
+  targetType?: string;
+  lineRange?: { start: number; end?: number };
+  tokenRange?: { start: number; end?: number };
+};
+export type ActivityState = "reading" | "editing" | "testing" | "reviewing";
+type ActivityStateInput = ActivityState | "blocked" | string | undefined;
+export type ActivityEvent = {
+  id?: string;
+  agentId?: string;
+  threadId?: string;
+  sessionId?: string;
+  timestamp?: string;
+  activityState?: ActivityStateInput;
+  path?: string;
+  address?: ActivityAddress;
+  note?: string;
+  targetType?: "activity";
+};
+type ActivityFogOptions = { now?: number; maxAgeMinutes?: number };
+export type ActivityFogState = {
+  files: Map<string, FogState>;
+  folders: Map<string, FogState>;
+  visitedFiles: Set<string>;
+  visibleFiles: Set<string>;
+};
+export type SourceLine = { number: number | string; text: string };
+export type SourceRange = {
+  path?: string;
+  lineRange?: { start: number; end: number };
+  lines?: SourceLine[];
+};
+type SourceCache = Map<string, SourceRange>;
+type MapRoute = {
+  type?: string;
+  id?: string;
+  kind?: string;
+  locator?: string;
+  params?: URLSearchParams;
+};
+type DragState = { type?: string; view: View; start: Point };
+type DraftSelection = { type: "rect"; bounds: Bounds };
+type InteractionState = {
+  drawing?: boolean;
+  panning?: boolean;
+  spacePanning?: boolean;
+  dragging?: { type?: string } | null;
+};
+type ActivitySummary = {
+  key: string;
+  event: ActivityEvent;
+  firstIndex: number;
+  firstTimestamp: number;
+  latestIndex: number;
+  latestTimestamp: number;
+};
+type ActivityFeedItem = { event?: ActivityEvent; timestamp: number };
+type TrailSegment = {
+  start: Point;
+  control1: Point;
+  control2: Point;
+  end: Point;
+};
 type OrganicRegionEdge = readonly [
   side: string,
   reversed: boolean,
@@ -52,7 +196,7 @@ type ActivityHitOptions = {
 };
 type ActivityTissueEncoding = { selected?: boolean };
 
-export const DISTRICT_PALETTE = [
+export const DISTRICT_PALETTE: readonly PaletteColor[] = [
   { fill: [126, 176, 156], stroke: [41, 98, 73], label: "#24513d" },
   { fill: [111, 162, 190], stroke: [39, 92, 122], label: "#244e66" },
   { fill: [188, 154, 92], stroke: [126, 89, 34], label: "#6f4f1f" },
@@ -77,55 +221,55 @@ const ORGANIC_REGION_EDGES: readonly OrganicRegionEdge[] = [
   ["left", true, (bounds, t, inset) => ({ x: bounds.x + bounds.width * inset, y: bounds.y + bounds.height * t })],
 ];
 
-const ACTIVITY_STATE_STYLES = {
+const ACTIVITY_STATE_STYLES: Record<ActivityState, { fill: string; stroke: string; label: string }> = {
   reading: { fill: "#2563eb", stroke: "#dbeafe", label: "#1e3a8a" },
   editing: { fill: "#e11d48", stroke: "#ffe4e6", label: "#9f1239" },
   testing: { fill: "#7c3aed", stroke: "#ede9fe", label: "#4c1d95" },
   reviewing: { fill: "#f59e0b", stroke: "#fef3c7", label: "#92400e" },
 };
 
-const DOUBLE_CLICK_TARGET_ACTIONS = new Map([
+const DOUBLE_CLICK_TARGET_ACTIONS: Map<MapTargetType, MapAction> = new Map([
   ["annotation", { type: "focusAnnotation" }],
   ["folder", { type: "selectFolder" }],
   ["file", { type: "selectFile" }],
   ["activity", { type: "selectActivity" }],
 ]);
 
-const MAP_TARGET_SELECTION_ACTIONS = new Map([
+const MAP_TARGET_SELECTION_ACTIONS: Map<MapTargetType, MapAction> = new Map([
   ["annotation", { type: "focusAnnotation" }],
   ["activity", { type: "selectActivity" }],
   ["folder", { type: "inspectFolder" }],
   ["file", { type: "inspectFile" }],
 ]);
 
-const MAP_ROUTE_FOCUS_ACTIONS = new Map([
+const MAP_ROUTE_FOCUS_ACTIONS: Map<string, MapAction> = new Map([
   ["file", { type: "focusFile", zoomPadding: 1.35 }],
   ["folder", { type: "focusFolder", zoomPadding: 1.6 }],
 ]);
 
-const MAP_SEARCH_ACTIONS = new Map([
+const MAP_SEARCH_ACTIONS: Map<SearchMatch["type"], MapAction> = new Map([
   ["annotation", { type: "focusPlace" }],
   ["namedPlace", { type: "focusPlace" }],
   ["file", { type: "focusFile" }],
   ["folder", { type: "focusFolder" }],
 ]);
 
-const MAP_SEARCH_MATCHERS = [
+const MAP_SEARCH_MATCHERS: Array<(context: SearchContext) => SearchMatch | null> = [
   namedPlaceSearchMatch,
   fileSearchMatch,
   folderSearchMatch,
 ];
 
-const SEARCH_TARGET_ENTRIES = new WeakMap();
-const NAMED_PLACE_SEARCH_ENTRIES = new WeakMap();
+const SEARCH_TARGET_ENTRIES = new WeakMap<MapTargetRecord, SearchTargetEntry[]>();
+const NAMED_PLACE_SEARCH_ENTRIES = new WeakMap<NamedPlace[], NamedPlaceSearchEntry[]>();
 
-function actionFor(actions, key) {
+function actionFor(actions: Map<string, MapAction>, key: string | undefined) {
   const action = actions.get(key);
   return action ? { ...action } : null;
 }
 
-function namedPlaceSearchMatch({ namedPlaces, query }) {
-  let namedPlace;
+function namedPlaceSearchMatch({ namedPlaces, query }: SearchContext): SearchMatch | null {
+  let namedPlace: NamedPlace | undefined;
   for (const entry of namedPlaceSearchEntries(namedPlaces)) {
     if (!entry.normalizedName.includes(query)) continue;
     namedPlace = entry.place;
@@ -134,36 +278,44 @@ function namedPlaceSearchMatch({ namedPlaces, query }) {
   if (!namedPlace?.geometry?.bounds) return null;
 
   const annotation = namedPlace.kind === "mapAnnotation";
+  if (annotation) {
+    return {
+      type: "annotation",
+      label: `Annotation: ${namedPlace.name}`,
+      place: namedPlace,
+      target: { ...namedPlace, targetType: "annotation" },
+    };
+  }
   return {
-    type: annotation ? "annotation" : "namedPlace",
-    label: `${annotation ? "Annotation" : "Named place"}: ${namedPlace.name}`,
+    type: "namedPlace",
+    label: `Named place: ${namedPlace.name}`,
     place: namedPlace,
-    target: annotation ? { ...namedPlace, targetType: "annotation" } : null,
+    target: null,
   };
 }
 
-function fileSearchMatch({ codemap, query }) {
+function fileSearchMatch({ codemap, query }: SearchContext): SearchMatch | null {
   const file = firstSearchTarget(codemap.files, query);
   return file ? { type: "file", label: `File: ${file.path}`, file } : null;
 }
 
-function folderSearchMatch({ codemap, query }) {
+function folderSearchMatch({ codemap, query }: SearchContext): SearchMatch | null {
   const folder = firstSearchTarget(codemap.folders, query);
   return folder ? { type: "folder", label: `Folder: ${folder.path || "."}`, folder } : null;
 }
 
-function firstSearchTarget(targets, query) {
+function firstSearchTarget<T extends MapTarget>(targets: MapTargetRecord<T>, query: string): T | null {
   for (const entry of searchTargetEntries(targets)) {
     if (entry.normalizedPath.includes(query) || entry.geohash.startsWith(query)) return entry.target;
   }
   return null;
 }
 
-function searchTargetEntries(targets) {
-  const cached = SEARCH_TARGET_ENTRIES.get(targets);
+function searchTargetEntries<T extends MapTarget>(targets: MapTargetRecord<T>): SearchTargetEntry<T>[] {
+  const cached = SEARCH_TARGET_ENTRIES.get(targets) as SearchTargetEntry<T>[] | undefined;
   if (cached && searchTargetEntriesMatch(targets, cached)) return cached;
 
-  const entries = [];
+  const entries: SearchTargetEntry<T>[] = [];
   for (const key in targets) {
     if (!Object.hasOwn(targets, key)) continue;
     const target = targets[key];
@@ -175,7 +327,7 @@ function searchTargetEntries(targets) {
   return entries;
 }
 
-function searchTargetEntriesMatch(targets, entries) {
+function searchTargetEntriesMatch<T extends MapTarget>(targets: MapTargetRecord<T>, entries: SearchTargetEntry<T>[]) {
   let index = 0;
   for (const key in targets) {
     if (!Object.hasOwn(targets, key)) continue;
@@ -193,7 +345,7 @@ function searchTargetEntriesMatch(targets, entries) {
   return index === entries.length;
 }
 
-function namedPlaceSearchEntries(namedPlaces) {
+function namedPlaceSearchEntries(namedPlaces: NamedPlace[]): NamedPlaceSearchEntry[] {
   const cached = NAMED_PLACE_SEARCH_ENTRIES.get(namedPlaces);
   if (cached && namedPlaceEntriesMatch(namedPlaces, cached)) return cached;
 
@@ -207,7 +359,7 @@ function namedPlaceSearchEntries(namedPlaces) {
   return entries;
 }
 
-function namedPlaceEntriesMatch(namedPlaces, entries) {
+function namedPlaceEntriesMatch(namedPlaces: NamedPlace[], entries: NamedPlaceSearchEntry[]) {
   if (namedPlaces.length !== entries.length) return false;
   for (let index = 0; index < namedPlaces.length; index += 1) {
     const place = namedPlaces[index];
@@ -217,7 +369,7 @@ function namedPlaceEntriesMatch(namedPlaces, entries) {
   return true;
 }
 
-export function detailBand(scale) {
+export function detailBand(scale: number): DetailBand {
   if (scale < 1.35) return "district";
   if (scale < 2.4) return "neighborhood";
   if (scale < 4.5) return "block";
@@ -225,7 +377,7 @@ export function detailBand(scale) {
   return "source";
 }
 
-export function maxFolderDepthForScale(scale) {
+export function maxFolderDepthForScale(scale: number): number {
   const band = detailBand(scale);
   if (band === "district") return 1;
   if (band === "neighborhood") return 2;
@@ -233,7 +385,7 @@ export function maxFolderDepthForScale(scale) {
   return 99;
 }
 
-export function folderDepth(path) {
+export function folderDepth(path: string): number {
   if (!path) return 0;
   let depth = 1;
   for (let index = 0; index < path.length; index += 1) {
@@ -242,8 +394,8 @@ export function folderDepth(path) {
   return depth;
 }
 
-export function organicRegionFolders(codemap) {
-  const folders = [];
+export function organicRegionFolders(codemap: CodecharterCodemap) {
+  const folders: Array<{ folder: MapFolder; depth: number }> = [];
   for (const folder of objectValues(codemap.folders ?? {})) {
     if (!folder.path) continue;
     folders.push({ folder, depth: folderDepth(folder.path) });
@@ -253,7 +405,7 @@ export function organicRegionFolders(codemap) {
     : folders.sort((a, b) => a.depth - b.depth || a.folder.path.localeCompare(b.folder.path));
 }
 
-function organicRegionFoldersAreSorted(folders) {
+function organicRegionFoldersAreSorted(folders: Array<{ folder: MapFolder; depth: number }>): boolean {
   for (let index = 1; index < folders.length; index += 1) {
     const previous = folders[index - 1];
     const current = folders[index];
@@ -263,7 +415,7 @@ function organicRegionFoldersAreSorted(folders) {
   return true;
 }
 
-export function folderStyle(path, depth) {
+export function folderStyle(path: string, depth: number) {
   const base = DISTRICT_PALETTE[hashString(firstPathSegment(path)) % DISTRICT_PALETTE.length];
   const fillAlpha = depth === 1 ? 0.18 : 0.09;
   const strokeAlpha = depth === 1 ? 0.52 : 0.28;
@@ -274,7 +426,7 @@ export function folderStyle(path, depth) {
   };
 }
 
-export function organicRegionStyle(path, depth) {
+export function organicRegionStyle(path: string, depth: number) {
   const base = DISTRICT_PALETTE[hashString(firstPathSegment(path)) % DISTRICT_PALETTE.length];
   const fillAlpha = depth === 1 ? 0.1 : 0.055;
   const strokeAlpha = depth === 1 ? 0.5 : 0.32;
@@ -284,20 +436,20 @@ export function organicRegionStyle(path, depth) {
   };
 }
 
-export function shouldDrawOrganicRegion(scale, depth, box) {
+export function shouldDrawOrganicRegion(scale: number, depth: number, box: Bounds): boolean {
   if (depth > 4) return false;
   if (depth > maxFolderDepthForScale(scale) + 1) return false;
   if (Math.min(box.width, box.height) < 68) return false;
   return box.width * box.height >= 7200;
 }
 
-export function organicRegionPoints(bounds, key, depth = 1) {
+export function organicRegionPoints(bounds: Bounds | null | undefined, key: string, depth = 1): Point[] {
   if (!bounds || bounds.width <= 0 || bounds.height <= 0) return [];
   const edgePositions = ORGANIC_REGION_EDGE_POSITIONS;
   const minInset = 0.018;
   const baseInset = clamp(0.024 + depth * 0.004, minInset, 0.058);
   const wobble = clamp(0.018 - depth * 0.002, 0.006, 0.018);
-  const points = [];
+  const points: Point[] = [];
 
   for (const [side, reversed, point] of ORGANIC_REGION_EDGES) {
     if (reversed) {
@@ -317,33 +469,33 @@ export function organicRegionPoints(bounds, key, depth = 1) {
   return points;
 }
 
-export function shouldDrawFolder(scale, depth, box) {
+export function shouldDrawFolder(scale: number, depth: number, box: Bounds): boolean {
   const minDimension = Math.min(box.width, box.height);
   if (minDimension < (depth <= 1 ? 6 : 10)) return false;
   if (depth <= maxFolderDepthForScale(scale)) return true;
   return depth <= 3 && box.width > 360 && box.height > 220;
 }
 
-export function shouldLabelFolder(scale, depth, box) {
+export function shouldLabelFolder(scale: number, depth: number, box: Bounds): boolean {
   if (box.width <= 90 || box.height <= 28) return false;
   return depth <= maxFolderDepthForScale(scale) || (box.width > 260 && box.height > 120);
 }
 
-function firstPathSegment(path) {
+function firstPathSegment(path: string): string {
   const slash = path.indexOf("/");
   return slash === -1 ? path : path.slice(0, slash);
 }
 
-function lastPathSegment(path) {
+function lastPathSegment(path: string): string {
   const slash = path.lastIndexOf("/");
   return slash === -1 ? path : path.slice(slash + 1);
 }
 
-export function folderLabelPriority(depth, box) {
+export function folderLabelPriority(depth: number, box: Bounds): number {
   return 80 - depth * 6 + Math.min(16, Math.log2(Math.max(1, box.width * box.height)));
 }
 
-export function landmarkScore(file) {
+export function landmarkScore(file: Pick<MapFile, "name" | "path">): number {
   let score = 0;
   if (LANDMARK_NAMES.has(file.name)) score += 24;
   if (file.path.startsWith("src/")) score += 8;
@@ -353,7 +505,7 @@ export function landmarkScore(file) {
   return score;
 }
 
-export function fileVisualState({ file, box, scale, selected }) {
+export function fileVisualState({ file, box, scale, selected }: { file: MapFile; box: Bounds; scale: number; selected?: boolean }) {
   const landmark = landmarkScore(file) > 0 && box.width > 76 && box.height > 26;
   const readable = canRenderSourceText(file, box);
   const area = box.width * box.height;
@@ -373,20 +525,20 @@ export function fileVisualState({ file, box, scale, selected }) {
   return "parcel";
 }
 
-export function shouldLabelFile({ file, box, scale, selected }) {
+export function shouldLabelFile({ file, box, scale, selected }: { file: MapFile; box: Bounds; scale: number; selected?: boolean }) {
   if (canRenderSourceText(file, box)) return false;
   if (selected) return true;
   if (landmarkScore(file) > 0 && box.width > 76 && box.height > 26) return true;
   return scale > 2.2 && box.width > 78 && box.height > 24;
 }
 
-export function buildActivityFogState(codemap, events, options = {}) {
+export function buildActivityFogState(codemap: CodecharterCodemap | null | undefined, events: ActivityEvent[] | null | undefined, options: ActivityFogOptions = {}): ActivityFogState {
   const files = codemap?.files ?? {};
   const folders = codemap?.folders ?? {};
-  const fileStates = new Map();
-  const folderStates = new Map();
-  const visitedFiles = new Set();
-  const visibleFiles = new Set();
+  const fileStates = new Map<string, FogState>();
+  const folderStates = new Map<string, FogState>();
+  const visitedFiles = new Set<string>();
+  const visibleFiles = new Set<string>();
 
   for (const event of events ?? []) {
     const path = activityEventFilePath(event, files);
@@ -413,29 +565,29 @@ export function buildActivityFogState(codemap, events, options = {}) {
   };
 }
 
-export function fogStateForFile(fog, fileOrPath, { selected = false } = {}) {
+export function fogStateForFile(fog: ActivityFogState | null | undefined, fileOrPath: MapFile | string | null | undefined, { selected = false } = {}): FogState {
   if (!fog) return "visible";
   if (selected) return "visible";
   const path = normalizeMapPath(typeof fileOrPath === "string" ? fileOrPath : fileOrPath?.path);
   return fog.files.get(path) ?? "unexplored";
 }
 
-export function fogStateForFolder(fog, folderOrPath, { selected = false } = {}) {
+export function fogStateForFolder(fog: ActivityFogState | null | undefined, folderOrPath: MapFolder | string | null | undefined, { selected = false } = {}): FogState {
   if (!fog) return "visible";
   if (selected) return "visible";
   const path = normalizeMapPath(typeof folderOrPath === "string" ? folderOrPath : folderOrPath?.path);
   return fog.folders.get(path) ?? "unexplored";
 }
 
-export function shouldShowFogLabel(fogState, { selected = false } = {}) {
+export function shouldShowFogLabel(fogState: FogState, { selected = false } = {}): boolean {
   return selected || fogState !== "unexplored";
 }
 
-export function shouldShowFogSourceText(fogState, { selected = false } = {}) {
+export function shouldShowFogSourceText(fogState: FogState, { selected = false } = {}): boolean {
   return selected || fogState !== "unexplored";
 }
 
-export function shouldLabelFoggedFile({ file, box, scale, selected, fogState }) {
+export function shouldLabelFoggedFile({ file, box, scale, selected, fogState }: { file: MapFile; box: Bounds; scale: number; selected?: boolean; fogState: FogState }) {
   if (!shouldShowFogLabel(fogState, { selected })) return false;
   if (fogState === "explored" && canRenderSourceText(file, box)) {
     if (landmarkScore(file) > 0 && box.width > 76 && box.height > 26) return true;
@@ -453,7 +605,7 @@ export function discoveryFogVeilStyle() {
   };
 }
 
-export function discoveryFogRevealStyle({ visibleFile = false, readable = false } = {}) {
+export function discoveryFogRevealStyle({ visibleFile = false, readable = false }: { visibleFile?: boolean; readable?: boolean } = {}) {
   if (readable) {
     return {
       alpha: visibleFile ? 1 : 0.88,
@@ -483,17 +635,17 @@ export function discoveryFogRevealStyle({ visibleFile = false, readable = false 
   };
 }
 
-export function fileLabelPriority({ file, selected }) {
+export function fileLabelPriority({ file, selected }: { file: MapFile; selected?: boolean }) {
   return (selected ? 120 : 40) + landmarkScore(file);
 }
 
-export function canRenderSourceText(file, box) {
+export function canRenderSourceText(file: MapFile, box: Bounds): boolean {
   return box.width >= SOURCE_TEXT_MIN_WIDTH
     && lineHeightForFile(file, box) >= SOURCE_TEXT_MIN_LINE_HEIGHT
     && file.lineCount > 0;
 }
 
-export function sourceTextLayoutForBox(box, viewportWidth) {
+export function sourceTextLayoutForBox(box: Bounds, viewportWidth: number) {
   const visibleLeft = Math.max(box.x, 0);
   const visibleRight = Math.min(box.x + box.width, viewportWidth);
   const textX = visibleLeft + 42;
@@ -505,32 +657,32 @@ export function sourceTextLayoutForBox(box, viewportWidth) {
   };
 }
 
-export function lineHeightForFile(file, box) {
+export function lineHeightForFile(file: MapFile, box: Bounds): number {
   return box.height / Math.max(1, file.lineCount);
 }
 
-export function labelBoxesOverlap(a, b) {
+export function labelBoxesOverlap(a: Bounds, b: Bounds): boolean {
   return a.x < b.x + b.width
     && a.x + a.width > b.x
     && a.y < b.y + b.height
     && a.y + a.height > b.y;
 }
 
-export function worldToScreenPoint(point, view, viewport) {
+export function worldToScreenPoint(point: Point, view: View, viewport: Viewport): Point {
   return {
     x: (point.x - view.x) * viewport.width * view.scale,
     y: (point.y - view.y) * viewport.height * view.scale,
   };
 }
 
-export function screenToWorldPoint(point, view, viewport) {
+export function screenToWorldPoint(point: Point, view: View, viewport: Viewport): Point {
   return {
     x: point.x / (viewport.width * view.scale) + view.x,
     y: point.y / (viewport.height * view.scale) + view.y,
   };
 }
 
-export function screenBoundsForView(bounds, view, viewport) {
+export function screenBoundsForView(bounds: Bounds, view: View, viewport: Viewport): Bounds {
   const point = worldToScreenPoint({ x: bounds.x, y: bounds.y }, view, viewport);
   return {
     x: point.x,
@@ -540,14 +692,14 @@ export function screenBoundsForView(bounds, view, viewport) {
   };
 }
 
-export function isScreenBoxVisible(box, viewport) {
+export function isScreenBoxVisible(box: Bounds, viewport: Viewport): boolean {
   return box.x + box.width >= 0
     && box.y + box.height >= 0
     && box.x <= viewport.width
     && box.y <= viewport.height;
 }
 
-export function zoomViewAt(view, screenAnchor, factor, viewport, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE) {
+export function zoomViewAt(view: View, screenAnchor: Point, factor: number, viewport: Viewport, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE): View {
   const before = screenToWorldPoint(screenAnchor, view, viewport);
   const scale = clamp(view.scale * factor, minScale, maxScale);
   const after = screenToWorldPoint(screenAnchor, { ...view, scale }, viewport);
@@ -558,7 +710,7 @@ export function zoomViewAt(view, screenAnchor, factor, viewport, minScale = MAP_
   };
 }
 
-export function panViewByScreenDelta(view, delta, viewport) {
+export function panViewByScreenDelta(view: View, delta: Point, viewport: Viewport): View {
   return {
     ...view,
     x: view.x + delta.x / (viewport.width * view.scale),
@@ -566,21 +718,21 @@ export function panViewByScreenDelta(view, delta, viewport) {
   };
 }
 
-export function panViewForDrag(drag, screen, viewport) {
+export function panViewForDrag(drag: DragState, screen: Point, viewport: Viewport): View {
   return panViewByScreenDelta(drag.view, {
     x: drag.start.x - screen.x,
     y: drag.start.y - screen.y,
   }, viewport);
 }
 
-export function canvasKeyboardAction(event) {
+export function canvasKeyboardAction(event: KeyboardEventLike) {
   const keyDeltas = {
     ArrowRight: { x: KEYBOARD_PAN_PIXELS, y: 0 },
     ArrowLeft: { x: -KEYBOARD_PAN_PIXELS, y: 0 },
     ArrowDown: { x: 0, y: KEYBOARD_PAN_PIXELS },
     ArrowUp: { x: 0, y: -KEYBOARD_PAN_PIXELS },
   };
-  const delta = keyDeltas[event.key];
+  const delta = keyDeltas[event.key as keyof typeof keyDeltas];
   if (delta) return { type: "pan", delta };
   if (event.key === "+" || event.key === "=") return { type: "zoomIn" };
   if (event.key === "-" || event.key === "_") return { type: "zoomOut" };
@@ -603,21 +755,21 @@ export function documentKeyboardAction(event: KeyboardEventLike, context: Docume
   return null;
 }
 
-export function doubleClickMapAction(hit) {
+export function doubleClickMapAction(hit: ActionHit | null | undefined) {
   if (!hit) return null;
   return actionFor(DOUBLE_CLICK_TARGET_ACTIONS, hit.targetType);
 }
 
-export function mapTargetSelectionAction(hit) {
+export function mapTargetSelectionAction(hit: ActionHit | null | undefined) {
   if (!hit) return { type: "clearSelection" };
   return actionFor(MAP_TARGET_SELECTION_ACTIONS, hit.targetType);
 }
 
-export function isSpaceKeyEvent(event) {
+export function isSpaceKeyEvent(event: KeyboardEventLike): boolean {
   return event.code === "Space" || event.key === " " || event.key === "Spacebar";
 }
 
-export function viewForBounds(bounds, viewport, paddingFactor = 1.2, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE) {
+export function viewForBounds(bounds: Bounds, viewport: Viewport, paddingFactor = 1.2, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE): View {
   const scaleX = 1 / Math.max(bounds.width * paddingFactor, 0.001);
   const scaleY = 1 / Math.max(bounds.height * paddingFactor, 0.001);
   const scale = clamp(Math.min(scaleX, scaleY), minScale, maxScale);
@@ -628,7 +780,7 @@ export function viewForBounds(bounds, viewport, paddingFactor = 1.2, minScale = 
   };
 }
 
-export function viewForReadableFile(file, viewport, lineRatio = 0.5, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE) {
+export function viewForReadableFile(file: MapFile, viewport: Viewport, lineRatio = 0.5, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE): View {
   const widthScale = SOURCE_TEXT_MIN_WIDTH / Math.max(file.bounds.width * viewport.width, 0.001);
   const lineScale = (SOURCE_TEXT_MIN_LINE_HEIGHT * Math.max(1, file.lineCount)) / Math.max(file.bounds.height * viewport.height, 0.001);
   const scale = clamp(Math.max(widthScale, lineScale) * SOURCE_TEXT_ZOOM_HEADROOM, minScale, maxScale);
@@ -644,7 +796,7 @@ export function viewForReadableFile(file, viewport, lineRatio = 0.5, minScale = 
   };
 }
 
-export function visibleLineRangeForBox(file, box, viewportHeight) {
+export function visibleLineRangeForBox(file: MapFile, box: Bounds, viewportHeight: number): { start: number; end: number } | null {
   const top = Math.max(box.y, 0);
   const bottom = Math.min(box.y + box.height, viewportHeight);
   if (bottom <= top) return null;
@@ -657,12 +809,12 @@ export function visibleLineRangeForBox(file, box, viewportHeight) {
   };
 }
 
-export function lineAtWorldPoint(file, worldPoint) {
+export function lineAtWorldPoint(file: MapFile, worldPoint: Point): number {
   const rawLine = ((worldPoint.y - file.bounds.y) / file.bounds.height) * file.lineCount;
   return Math.max(1, Math.min(file.lineCount, Math.floor(rawLine) + 1));
 }
 
-export function sourcePanelLineRangeForBox(file, focusLine, box, viewportHeight) {
+export function sourcePanelLineRangeForBox(file: MapFile, focusLine: number, box: Bounds, viewportHeight: number): { start: number; end: number } {
   const visibleRange = canRenderSourceText(file, box) ? visibleLineRangeForBox(file, box, viewportHeight) : null;
   if (visibleRange) return capLineRange(file, visibleRange.start, visibleRange.end, focusLine);
   return capLineRange(
@@ -673,7 +825,7 @@ export function sourcePanelLineRangeForBox(file, focusLine, box, viewportHeight)
   );
 }
 
-export function interactionModeUiState({ drawing = false, panning = false, spacePanning = false, dragging = null } = {}) {
+export function interactionModeUiState({ drawing = false, panning = false, spacePanning = false, dragging = null }: InteractionState = {}) {
   const draggingPan = dragging?.type === "pan";
   return {
     selectActive: !drawing && !panning && !spacePanning && !draggingPan,
@@ -686,7 +838,7 @@ export function interactionModeUiState({ drawing = false, panning = false, space
   };
 }
 
-export function draftSelectionFromDrag(start, current) {
+export function draftSelectionFromDrag(start: Point, current: Point): DraftSelection {
   return {
     type: "rect",
     bounds: {
@@ -698,7 +850,7 @@ export function draftSelectionFromDrag(start, current) {
   };
 }
 
-export function isUsableDraftSelection(selection, { viewport, scale, minPixels = 4 }) {
+export function isUsableDraftSelection(selection: DraftSelection | null | undefined, { viewport, scale, minPixels = 4 }: { viewport: Viewport; scale: number; minPixels?: number }): boolean {
   if (!selection) return false;
   const bounds = selection.bounds;
   const width = Math.abs(bounds.width) * viewport.width * scale;
@@ -706,7 +858,7 @@ export function isUsableDraftSelection(selection, { viewport, scale, minPixels =
   return width >= minPixels && height >= minPixels;
 }
 
-export function sourceContextRequest(path, lineRange: LineRange = {}) {
+export function sourceContextRequest(path: string, lineRange: LineRange = {}) {
   const lineStart = lineRange.start ?? 1;
   const lineEnd = lineRange.end ?? lineStart;
   const query = new URLSearchParams({
@@ -722,7 +874,7 @@ export function sourceContextRequest(path, lineRange: LineRange = {}) {
   };
 }
 
-export function formatSourceLines(source) {
+export function formatSourceLines(source: { lines?: SourceLine[] }): string {
   const lines = source.lines ?? [];
   const formatted = new Array(lines.length);
   for (let index = 0; index < lines.length; index += 1) {
@@ -732,7 +884,7 @@ export function formatSourceLines(source) {
   return formatted.join("\n");
 }
 
-export function sourcePanelState({ path = "", deepLink = "", source = null, fallbackOutput = "" } = {}) {
+export function sourcePanelState({ path = "", deepLink = "", source = null, fallbackOutput = "" }: { path?: string; deepLink?: string; source?: SourceRange | null; fallbackOutput?: string } = {}) {
   if (source) {
     return {
       sourceTitle: sourceTitle(path, deepLink),
@@ -747,12 +899,12 @@ export function sourcePanelState({ path = "", deepLink = "", source = null, fall
   };
 }
 
-function sourceTitle(path, deepLink) {
+function sourceTitle(path: string, deepLink: string): string {
   if (path && deepLink) return `${path} · ${deepLink}`;
   return path || deepLink;
 }
 
-export function annotationClipboardText(annotation, { origin = "", href = "" } = {}) {
+export function annotationClipboardText(annotation: MapAnnotationPlace, { origin = "", href = "" }: { origin?: string; href?: string } = {}) {
   const reference = annotation.deepLink || `codecharter://annotation/${annotation.id}`;
   const serverFlag = origin ? ` --server ${doubleQuote(origin)}` : "";
   const comment = annotation.comment?.trim() || "<empty>";
@@ -770,22 +922,22 @@ export function annotationClipboardText(annotation, { origin = "", href = "" } =
   ].join("\n");
 }
 
-function annotationShareUrl(annotation, href) {
+function annotationShareUrl(annotation: MapAnnotationPlace, href: string): string {
   if (!href || !annotation.browserHash) return "";
   const url = new URL(href);
   url.hash = annotation.browserHash;
   return url.toString();
 }
 
-function doubleQuote(value) {
+function doubleQuote(value: string): string {
   return `"${String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
-export function sourceRangeCacheKey(path, lineStart, lineEnd) {
+export function sourceRangeCacheKey(path: string, lineStart: number, lineEnd: number): string {
   return `${normalizeMapPath(path)}:${lineStart}-${lineEnd}`;
 }
 
-export function rememberSourceRange(cache, cacheKey, source, limit = SOURCE_CACHE_LIMIT) {
+export function rememberSourceRange(cache: SourceCache, cacheKey: string, source: SourceRange, limit = SOURCE_CACHE_LIMIT): void {
   if (cache.has(cacheKey)) cache.delete(cacheKey);
   cache.set(cacheKey, source);
   while (cache.size > limit) {
@@ -793,7 +945,7 @@ export function rememberSourceRange(cache, cacheKey, source, limit = SOURCE_CACH
   }
 }
 
-export function cachedSourceRange(cache, path, lineStart, lineEnd) {
+export function cachedSourceRange(cache: SourceCache, path: string, lineStart: number, lineEnd: number): SourceRange | null {
   const normalized = normalizeMapPath(path);
   for (const [cacheKey, source] of cache) {
     if (normalizeMapPath(source.path) !== normalized) continue;
@@ -805,12 +957,12 @@ export function cachedSourceRange(cache, path, lineStart, lineEnd) {
   return null;
 }
 
-export function normalizeMapPath(path) {
+export function normalizeMapPath(path: unknown): string {
   const normalized = String(path ?? "").replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+$/, "");
   return normalized === "." ? "" : normalized;
 }
 
-function activityEventFilePath(event, files) {
+function activityEventFilePath(event: ActivityEvent, files: MapTargetRecord<MapFile>): string | null {
   for (const candidate of [
     event?.address?.path,
     event?.path,
@@ -822,7 +974,7 @@ function activityEventFilePath(event, files) {
   return null;
 }
 
-function pathFromDeepLink(deepLink) {
+function pathFromDeepLink(deepLink: string | undefined): string {
   if (!deepLink) return "";
   try {
     return new URL(deepLink).searchParams.get("path") ?? "";
@@ -831,7 +983,7 @@ function pathFromDeepLink(deepLink) {
   }
 }
 
-function markAncestorFolderFog(folderStates, folders, filePath, fogState) {
+function markAncestorFolderFog(folderStates: Map<string, FogState>, folders: MapTargetRecord<MapFolder>, filePath: string, fogState: FogState): void {
   if (Object.hasOwn(folders, "")) mergeFolderFogState(folderStates, "", fogState);
   for (let index = filePath.indexOf("/"); index !== -1; index = filePath.indexOf("/", index + 1)) {
     const folderPath = filePath.slice(0, index);
@@ -839,25 +991,25 @@ function markAncestorFolderFog(folderStates, folders, filePath, fogState) {
   }
 }
 
-function mergeFolderFogState(folderStates, folderPath, fogState) {
+function mergeFolderFogState(folderStates: Map<string, FogState>, folderPath: string, fogState: FogState): void {
   if (fogStateRank(fogState) > fogStateRank(folderStates.get(folderPath))) {
     folderStates.set(folderPath, fogState);
   }
 }
 
-function fogStateRank(fogState) {
+function fogStateRank(fogState: FogState | undefined): number {
   if (fogState === "visible") return 2;
   if (fogState === "explored") return 1;
   return 0;
 }
 
-export function mapRouteTarget(codemap, route) {
+export function mapRouteTarget(codemap: CodecharterCodemap, route: MapRoute): TargetHit | null {
   const path = route.params?.get("path");
   if (path) return mapTargetForPath(codemap, path);
   return mapTargetForGeohash(codemap, route.locator, route.kind);
 }
 
-export function hashRouteFocusIntent(route, { hasMap = true } = {}) {
+export function hashRouteFocusIntent(route: MapRoute | null | undefined, { hasMap = true } = {}) {
   if (!route || !hasMap) return null;
   if (route.type === "annotation") return { type: "annotation", id: route.id };
   if (route.type === "selection") return { type: "selection", params: route.params };
@@ -865,12 +1017,12 @@ export function hashRouteFocusIntent(route, { hasMap = true } = {}) {
   return null;
 }
 
-export function mapRouteFocusAction(target) {
+export function mapRouteFocusAction(target: ActionHit | null | undefined) {
   if (!target) return null;
   return actionFor(MAP_ROUTE_FOCUS_ACTIONS, target.targetType);
 }
 
-export function mapSearchMatch(codemap, namedPlaces, query) {
+export function mapSearchMatch(codemap: CodecharterCodemap, namedPlaces: NamedPlace[], query: string): SearchMatch | null {
   const normalized = String(query ?? "").trim().toLowerCase();
   if (!normalized) return null;
 
@@ -882,12 +1034,12 @@ export function mapSearchMatch(codemap, namedPlaces, query) {
   return null;
 }
 
-export function mapSearchAction(match) {
+export function mapSearchAction(match: SearchMatch | null | undefined) {
   if (!match) return { type: "noMatch" };
   return actionFor(MAP_SEARCH_ACTIONS, match.type);
 }
 
-export function mapSelectionPanel(target) {
+export function mapSelectionPanel(target: TargetHit | null | undefined) {
   if (!target) {
     return {
       inspectorTitle: "No place selected",
@@ -914,7 +1066,10 @@ export function mapSelectionPanel(target) {
   };
 }
 
-export function reconciledSelectedTarget(codemap, target) {
+export function reconciledSelectedTarget(codemap: CodecharterCodemap, target: TargetHit | null | undefined): TargetHit | null;
+export function reconciledSelectedTarget<T extends ActionHit>(codemap: CodecharterCodemap, target: T | null | undefined): T | TargetHit | null;
+export function reconciledSelectedTarget(codemap: CodecharterCodemap, target: NamedPlace | ActivityEvent | null | undefined): NamedPlace | ActivityEvent | null;
+export function reconciledSelectedTarget(codemap: CodecharterCodemap, target: TargetHit | NamedPlace | ActivityEvent | null | undefined) {
   if (!target) return null;
   if (target.targetType === "file") {
     return codemap.files[target.path] ? { ...codemap.files[target.path], targetType: "file" } : null;
@@ -925,77 +1080,98 @@ export function reconciledSelectedTarget(codemap, target) {
   return target;
 }
 
-export function mapHoverLabel(hit) {
+export function mapHoverLabel(hit: ActionHit & {
+  path?: string;
+  name?: string;
+  geo?: GeoAddress;
+  coveringSet?: string[];
+  address?: ActivityAddress;
+  activityState?: ActivityStateInput;
+  agentId?: string;
+  threadId?: string;
+  sessionId?: string;
+}): string {
   if (hit.targetType === "annotation") {
     return `annotation: ${hit.name} | ${hit.coveringSet?.[0] ?? "unresolved"}`;
   }
   if (hit.targetType === "activity") {
-    return `activity: ${activityActorLabel(hit)} ${normalizeActivityState(hit.activityState)} | ${hit.address.geohash}`;
+    const thread = hit.threadId ?? hit.sessionId;
+    const actor = thread ? `${hit.agentId ?? "agent"} ${shortActivityId(thread)}` : hit.agentId ?? "agent";
+    return `activity: ${actor} ${normalizeActivityState(hit.activityState)} | ${hit.address?.geohash ?? "unresolved"}`;
   }
   return `${hit.targetType}: ${hit.path} | ${hit.geo.geohash}`;
 }
 
-export function activityActorLabel(event) {
+export function activityActorLabel(event: ActivityEvent): string {
   const thread = event.threadId ?? event.sessionId;
   if (!thread) return event.agentId ?? "agent";
   return `${event.agentId ?? "agent"} ${shortActivityId(thread)}`;
 }
 
-function shortActivityId(value) {
+function shortActivityId(value: string): string {
   return String(value).slice(0, 8);
 }
 
-export function folderDisplayName(folder) {
+export function folderDisplayName(folder: Pick<MapFolder, "path">): string {
   if (!folder.path) return "Codebase";
   return lastPathSegment(folder.path);
 }
 
-function mapTargetForPath(codemap, path) {
+function mapTargetForPath(codemap: CodecharterCodemap, path: string): TargetHit | null {
   const normalized = normalizeMapPath(path);
   if (codemap.files[normalized]) return { ...codemap.files[normalized], targetType: "file" };
   if (codemap.folders[normalized]) return { ...codemap.folders[normalized], targetType: "folder" };
   return null;
 }
 
-function mapTargetForGeohash(codemap, geohash, kind) {
+function mapTargetForGeohash(codemap: CodecharterCodemap, geohash: string | undefined, kind: string | undefined): TargetHit | null {
   const targetType = kind === "folder" ? "folder" : "file";
-  let fallback = null;
-  for (const target of objectValues(targetType === "folder" ? codemap.folders : codemap.files)) {
-    if (targetType === "folder" && !target.path) continue;
+  if (!geohash) return null;
+  if (targetType === "folder") {
+    let fallback: MapFolder | null = null;
+    for (const target of objectValues(codemap.folders)) {
+      if (!target.path) continue;
+      if (target.geo.geohash.startsWith(geohash)) return { ...target, targetType };
+      if (!fallback && geohash.startsWith(target.geo.geohash)) fallback = target;
+    }
+    return fallback ? { ...fallback, targetType } : null;
+  }
+  let fallback: MapFile | null = null;
+  for (const target of objectValues(codemap.files)) {
     if (target.geo.geohash.startsWith(geohash)) return { ...target, targetType };
     if (!fallback && geohash.startsWith(target.geo.geohash)) fallback = target;
   }
   return fallback ? { ...fallback, targetType } : null;
 }
 
-function* objectValues(values) {
+function* objectValues<T>(values: Record<string, T>): Generator<T> {
   for (const key in values) {
     if (Object.hasOwn(values, key)) yield values[key];
   }
 }
 
-export function boundsCenter(bounds) {
+export function boundsCenter(bounds: Bounds): Point {
   return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
 }
 
-export function containsBoundsPoint(bounds, point) {
+export function containsBoundsPoint(bounds: Bounds, point: Point): boolean {
   return point.x >= bounds.x
     && point.x <= bounds.x + bounds.width
     && point.y >= bounds.y
     && point.y <= bounds.y + bounds.height;
 }
 
-export function hitTestTargets(codemap, point) {
+export function hitTestTargets(codemap: CodecharterCodemap, point: Point): TargetHit | null {
   const file = bestContainingTarget(codemap.files, point);
   if (file) return { ...file, targetType: "file" };
 
-  const folder = bestContainingTarget(codemap.folders, point, (target) => target.path);
+  const folder = bestContainingTarget(codemap.folders, point, (target) => Boolean(target.path));
   if (folder) return { ...folder, targetType: "folder" };
 
   return null;
 }
 
-export function hitTestAnnotations(namedPlaces, point, { radiusX = 0, radiusY = 0 } = {}) {
+export function hitTestAnnotations(namedPlaces: NamedPlace[], point: Point, { radiusX = 0, radiusY = 0 } = {}): (NamedPlace & { targetType: "annotation" }) | null {
   for (let index = namedPlaces.length - 1; index >= 0; index -= 1) {
     const place = namedPlaces[index];
     if (place.kind !== "mapAnnotation" || !place.geometry?.bounds) continue;
@@ -1008,9 +1184,9 @@ export function hitTestAnnotations(namedPlaces, point, { radiusX = 0, radiusY = 
   return null;
 }
 
-export function hitTestActivityEvents(events, point, { radiusX = 0, radiusY = 0, now, maxAgeMinutes }: ActivityHitOptions = {}) {
+export function hitTestActivityEvents(events: ActivityEvent[], point: Point, { radiusX = 0, radiusY = 0, now, maxAgeMinutes }: ActivityHitOptions = {}): (ActivityEvent & { targetType: "activity" }) | null {
   const options = { now, maxAgeMinutes };
-  let best = null;
+  let best: ActivityEvent | null = null;
   for (const event of events) {
     if (!isLiveActivityEvent(event, options)) continue;
     if (!activityEventHitsPoint(event, point, radiusX, radiusY)) continue;
@@ -1019,7 +1195,7 @@ export function hitTestActivityEvents(events, point, { radiusX = 0, radiusY = 0,
   return best ? { ...best, targetType: "activity" } : null;
 }
 
-function activityEventHitsPoint(event, point, radiusX, radiusY) {
+function activityEventHitsPoint(event: ActivityEvent, point: Point, radiusX: number, radiusY: number): boolean {
   const fragments = event?.address?.fragments;
   if (Array.isArray(fragments)) {
     let foundFragmentBounds = false;
@@ -1035,16 +1211,16 @@ function activityEventHitsPoint(event, point, radiusX, radiusY) {
     : false;
 }
 
-function boundsCenterHitsPoint(bounds, point, radiusX, radiusY) {
+function boundsCenterHitsPoint(bounds: Bounds, point: Point, radiusX: number, radiusY: number): boolean {
   const center = boundsCenter(bounds);
   return Math.abs(point.x - center.x) <= radiusX && Math.abs(point.y - center.y) <= radiusY;
 }
 
-export function rgba(rgb, alpha) {
+export function rgba(rgb: Rgb, alpha: number): string {
   return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
 }
 
-export function hashString(value) {
+export function hashString(value: string): number {
   let hash = 0;
   for (let index = 0; index < value.length; index += 1) {
     hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
@@ -1052,16 +1228,23 @@ export function hashString(value) {
   return hash;
 }
 
-export function activityStateStyle(activityState) {
+export function activityStateStyle(activityState: ActivityStateInput) {
   return ACTIVITY_STATE_STYLES[normalizeActivityState(activityState)];
 }
 
-export function normalizeActivityState(activityState) {
+export function normalizeActivityState(activityState: ActivityStateInput): ActivityState {
   if (activityState === "blocked") return "reviewing";
-  return ACTIVITY_STATE_STYLES[activityState] ? activityState : "reading";
+  return isActivityState(activityState) ? activityState : "reading";
 }
 
-export function activityVisualEncoding(event, { latest = false, selected = false, now = Date.now() } = {}) {
+function isActivityState(activityState: ActivityStateInput): activityState is ActivityState {
+  return activityState === "reading"
+    || activityState === "editing"
+    || activityState === "testing"
+    || activityState === "reviewing";
+}
+
+export function activityVisualEncoding(event: ActivityEvent, { latest = false, selected = false, now = Date.now() } = {}) {
   const activityState = normalizeActivityState(event?.activityState);
   const ageMinutes = activityAgeMinutes(event, now);
   const decay = 2 ** (-ageMinutes / ACTIVITY_DECAY_HALF_LIFE_MINUTES);
@@ -1102,7 +1285,7 @@ export function activityVisualEncoding(event, { latest = false, selected = false
   };
 }
 
-export function activityTissueBox(screenBox, encoding: ActivityTissueEncoding = {}) {
+export function activityTissueBox(screenBox: Bounds, encoding: ActivityTissueEncoding = {}): Bounds {
   const minWidth = encoding.selected ? 30 : 18;
   const minHeight = encoding.selected ? 18 : 10;
   const width = Math.max(screenBox.width, minWidth);
@@ -1115,10 +1298,10 @@ export function activityTissueBox(screenBox, encoding: ActivityTissueEncoding = 
   };
 }
 
-export function activityFragmentBounds(event) {
+export function activityFragmentBounds(event: ActivityEvent): Bounds[] {
   const fragments = event?.address?.fragments;
   if (Array.isArray(fragments)) {
-    const bounds = [];
+    const bounds: Bounds[] = [];
     for (const fragment of fragments) {
       if (fragment.bounds) bounds.push(fragment.bounds);
     }
@@ -1127,7 +1310,7 @@ export function activityFragmentBounds(event) {
   return event?.address?.bounds ? [event.address.bounds] : [];
 }
 
-export function activityPrimaryBounds(event) {
+export function activityPrimaryBounds(event: ActivityEvent): Bounds | null {
   const fragments = event?.address?.fragments;
   if (Array.isArray(fragments)) {
     for (const fragment of fragments) {
@@ -1137,9 +1320,9 @@ export function activityPrimaryBounds(event) {
   return event?.address?.bounds ?? null;
 }
 
-export function simplifyTrailPoints(points, minDistance = ACTIVITY_TRAIL_MIN_SEGMENT_PX) {
+export function simplifyTrailPoints(points: Point[], minDistance = ACTIVITY_TRAIL_MIN_SEGMENT_PX): Point[] {
   if (points.length <= 2) {
-    const copy = [];
+    const copy: Point[] = [];
     for (const point of points) copy.push(point);
     return copy;
   }
@@ -1159,12 +1342,12 @@ export function simplifyTrailPoints(points, minDistance = ACTIVITY_TRAIL_MIN_SEG
   return simplified.length > 1 ? simplified : [points[0], last];
 }
 
-export function activityTrailGroups(events, {
+export function activityTrailGroups(events: ActivityEvent[], {
   maxGapMinutes = ACTIVITY_TRAIL_MAX_GAP_MINUTES,
   now = Date.now(),
   maxAgeMinutes = ACTIVITY_LIVE_WINDOW_MINUTES,
 } = {}) {
-  const byTrail = new Map();
+  const byTrail = new Map<string, ActivityEvent[]>();
   for (const event of sortedActivityEvents(events, Number.POSITIVE_INFINITY, { now, maxAgeMinutes })) {
     if (!activityPrimaryBounds(event)) continue;
     const key = activityTrailKey(event);
@@ -1172,9 +1355,9 @@ export function activityTrailGroups(events, {
     byTrail.get(key).push(event);
   }
 
-  const groups = [];
+  const groups: ActivityEvent[][] = [];
   for (const trailEvents of byTrail.values()) {
-    let current = [];
+    let current: ActivityEvent[] = [];
     for (const event of trailEvents) {
       if (shouldStartActivityTrailGroup(current.at(-1), event, maxGapMinutes)) {
         if (current.length > 1) groups.push(current);
@@ -1188,11 +1371,11 @@ export function activityTrailGroups(events, {
   return activityGroupsAreSorted(groups) ? groups : groups.sort(compareActivityGroupsByTime);
 }
 
-export function activityTrailPointGroups(points, {
+export function activityTrailPointGroups(points: Point[], {
   maxSegmentDistance = ACTIVITY_TRAIL_MAX_SEGMENT_PX,
 } = {}) {
-  const groups = [];
-  let current = [];
+  const groups: Point[][] = [];
+  let current: Point[] = [];
 
   for (const point of points) {
     const previous = current.at(-1);
@@ -1207,14 +1390,14 @@ export function activityTrailPointGroups(points, {
   return groups;
 }
 
-export function organicTrailSegments(points, {
+export function organicTrailSegments(points: Point[], {
   minDistance = ACTIVITY_TRAIL_MIN_SEGMENT_PX,
   tension = ACTIVITY_TRAIL_TENSION,
-} = {}) {
+} = {}): TrailSegment[] {
   const trail = simplifyTrailPoints(points, minDistance);
   if (trail.length < 2) return [];
 
-  const segments = [];
+  const segments: TrailSegment[] = [];
   for (let index = 0; index < trail.length - 1; index += 1) {
     const previous = trail[index - 1] ?? trail[index];
     const start = trail[index];
@@ -1248,11 +1431,11 @@ export function organicTrailSegments(points, {
   return segments;
 }
 
-export function isLiveActivityEvent(event, { now = Date.now(), maxAgeMinutes = ACTIVITY_LIVE_WINDOW_MINUTES } = {}) {
+export function isLiveActivityEvent(event: ActivityEvent, { now = Date.now(), maxAgeMinutes = ACTIVITY_LIVE_WINDOW_MINUTES }: ActivityFogOptions = {}) {
   return activityPrimaryBounds(event) && activityAgeMinutes(event, now) <= maxAgeMinutes;
 }
 
-export function sortedActivityEvents(events, limit = 80, options = {}) {
+export function sortedActivityEvents(events: ActivityEvent[], limit = 80, options: ActivityFogOptions = {}): ActivityEvent[] {
   if (limit <= 0) return liveActivityEventsFromOffset(events, -limit, options);
   if (!liveActivityEventsAreInTimeOrder(events, options)) {
     return liveActivityEventsTailInTimeOrder(events, limit, options);
@@ -1260,8 +1443,8 @@ export function sortedActivityEvents(events, limit = 80, options = {}) {
   return liveActivityEventsTail(events, limit, options);
 }
 
-export function latestActivityByAgent(events, options = {}) {
-  const byAgent = new Map();
+export function latestActivityByAgent(events: ActivityEvent[], options: ActivityFogOptions = {}) {
+  const byAgent = new Map<string, ActivitySummary>();
   let liveIndex = 0;
   for (const event of events) {
     if (!isLiveActivityEvent(event, options)) continue;
@@ -1287,37 +1470,37 @@ export function latestActivityByAgent(events, options = {}) {
     liveIndex += 1;
   }
 
-  const summaries = [];
+  const summaries: ActivitySummary[] = [];
   for (const summary of byAgent.values()) summaries.push(summary);
   if (!activitySummariesAreInFirstSeenOrder(summaries)) {
     summaries.sort((a, b) => a.firstTimestamp - b.firstTimestamp || a.firstIndex - b.firstIndex);
   }
-  const latest = new Map();
+  const latest = new Map<string, ActivityEvent>();
   for (const summary of summaries) {
     latest.set(summary.key, summary.event);
   }
   return latest;
 }
 
-export function activityFeedEvents(events, options = {}) {
-  const feed = [];
+export function activityFeedEvents(events: ActivityEvent[], options: ActivityFogOptions = {}) {
+  const feed: ActivityFeedItem[] = [];
   for (const event of latestActivityByAgent(events, options).values()) {
     const timestamp = activitySortTimestamp(event);
     if (!Number.isFinite(timestamp)) return activityFeedEventsViaSort(events, options);
     insertActivityFeedEvent(feed, event, timestamp, 5);
   }
-  const eventsForFeed = [];
+  const eventsForFeed: ActivityEvent[] = [];
   for (const item of feed) {
     eventsForFeed.push(item.event);
   }
   return eventsForFeed;
 }
 
-export function activityActorKey(event) {
+export function activityActorKey(event: ActivityEvent): string {
   return `${event?.agentId ?? "agent"}:${event?.threadId ?? event?.sessionId ?? "manual"}`;
 }
 
-function activitySummariesAreInFirstSeenOrder(summaries) {
+function activitySummariesAreInFirstSeenOrder(summaries: ActivitySummary[]): boolean {
   let previousTimestamp = Number.NEGATIVE_INFINITY;
   let previousIndex = -1;
   for (const summary of summaries) {
@@ -1333,7 +1516,7 @@ function activitySummariesAreInFirstSeenOrder(summaries) {
   return true;
 }
 
-function insertActivityFeedEvent(feed, event, timestamp, limit) {
+function insertActivityFeedEvent(feed: ActivityFeedItem[], event: ActivityEvent, timestamp: number, limit: number): void {
   let index = 0;
   while (index < feed.length && compareActivityFeedItems(feed[index], { timestamp }) <= 0) index += 1;
   if (index >= limit) return;
@@ -1341,33 +1524,33 @@ function insertActivityFeedEvent(feed, event, timestamp, limit) {
   if (feed.length > limit) feed.pop();
 }
 
-function activityFeedEventsViaSort(events, options) {
-  const feed = [];
+function activityFeedEventsViaSort(events: ActivityEvent[], options: ActivityFogOptions): ActivityEvent[] {
+  const feed: ActivityFeedItem[] = [];
   for (const event of latestActivityByAgent(events, options).values()) {
     insertActivityFeedEvent(feed, event, activitySortTimestamp(event), 5);
   }
-  const eventsForFeed = [];
+  const eventsForFeed: ActivityEvent[] = [];
   for (const item of feed) {
     eventsForFeed.push(item.event);
   }
   return eventsForFeed;
 }
 
-function latestActivityByAgentViaSort(events, options) {
-  const latest = new Map();
+function latestActivityByAgentViaSort(events: ActivityEvent[], options: ActivityFogOptions): Map<string, ActivityEvent> {
+  const latest = new Map<string, ActivityEvent>();
   for (const event of sortedActivityEvents(events, Number.POSITIVE_INFINITY, options)) {
     latest.set(activityActorKey(event), event);
   }
   return latest;
 }
 
-function compareActivityFeedItems(left, right) {
+function compareActivityFeedItems(left: ActivityFeedItem, right: Pick<ActivityFeedItem, "timestamp">): number {
   const result = right.timestamp - left.timestamp;
   return Number.isNaN(result) ? 0 : result;
 }
 
-function liveActivityEventsInTimeOrder(events, options) {
-  const liveEvents = [];
+function liveActivityEventsInTimeOrder(events: ActivityEvent[], options: ActivityFogOptions): ActivityEvent[] {
+  const liveEvents: ActivityEvent[] = [];
   for (const event of events) {
     if (!isLiveActivityEvent(event, options)) continue;
     liveEvents.push(event);
@@ -1375,9 +1558,9 @@ function liveActivityEventsInTimeOrder(events, options) {
   return activityEventsAreSorted(liveEvents) ? liveEvents : liveEvents.sort(compareActivityEventsByTime);
 }
 
-function liveActivityEventsFromOffset(events, offset, options) {
+function liveActivityEventsFromOffset(events: ActivityEvent[], offset: number, options: ActivityFogOptions): ActivityEvent[] {
   const ordered = liveActivityEventsInTimeOrder(events, options);
-  const liveEvents = [];
+  const liveEvents: ActivityEvent[] = [];
   const start = Math.max(0, offset);
   for (let index = start; index < ordered.length; index += 1) {
     liveEvents.push(ordered[index]);
@@ -1385,9 +1568,9 @@ function liveActivityEventsFromOffset(events, offset, options) {
   return liveEvents;
 }
 
-function liveActivityEventsTailInTimeOrder(events, limit, options) {
+function liveActivityEventsTailInTimeOrder(events: ActivityEvent[], limit: number, options: ActivityFogOptions): ActivityEvent[] {
   if (!Number.isFinite(limit)) return liveActivityEventsInTimeOrder(events, options);
-  const liveEvents = [];
+  const liveEvents: ActivityEvent[] = [];
   for (const event of events) {
     if (!isLiveActivityEvent(event, options)) continue;
     insertActivityEventInTimeOrder(liveEvents, event, limit);
@@ -1395,14 +1578,14 @@ function liveActivityEventsTailInTimeOrder(events, limit, options) {
   return liveEvents;
 }
 
-function insertActivityEventInTimeOrder(events, event, limit) {
+function insertActivityEventInTimeOrder(events: ActivityEvent[], event: ActivityEvent, limit: number): void {
   let index = 0;
   while (index < events.length && compareActivityEventsByTime(events[index], event) <= 0) index += 1;
   events.splice(index, 0, event);
   if (events.length > limit) events.shift();
 }
 
-function liveActivityEventsAreInTimeOrder(events, options) {
+function liveActivityEventsAreInTimeOrder(events: ActivityEvent[], options: ActivityFogOptions): boolean {
   let previousTimestamp = Number.NEGATIVE_INFINITY;
   for (const event of events) {
     if (!isLiveActivityEvent(event, options)) continue;
@@ -1413,8 +1596,8 @@ function liveActivityEventsAreInTimeOrder(events, options) {
   return true;
 }
 
-function liveActivityEventsTail(events, limit, options) {
-  const liveEvents = [];
+function liveActivityEventsTail(events: ActivityEvent[], limit: number, options: ActivityFogOptions): ActivityEvent[] {
+  const liveEvents: ActivityEvent[] = [];
   for (const event of events) {
     if (!isLiveActivityEvent(event, options)) continue;
     liveEvents.push(event);
@@ -1423,33 +1606,33 @@ function liveActivityEventsTail(events, limit, options) {
   return liveEvents;
 }
 
-function activitySortTimestamp(event) {
-  return Date.parse(event.timestamp ?? 0);
+function activitySortTimestamp(event: ActivityEvent): number {
+  return Date.parse(event.timestamp ?? "");
 }
 
-function compareActivityEventsByTime(left, right) {
+function compareActivityEventsByTime(left: ActivityEvent, right: ActivityEvent): number {
   const result = activitySortTimestamp(left) - activitySortTimestamp(right);
   return Number.isNaN(result) ? 0 : result;
 }
 
-function activityEventsAreSorted(events) {
+function activityEventsAreSorted(events: ActivityEvent[]): boolean {
   for (let index = 1; index < events.length; index += 1) {
     if (compareActivityEventsByTime(events[index - 1], events[index]) > 0) return false;
   }
   return true;
 }
 
-function activityAgeMinutes(event, now) {
+function activityAgeMinutes(event: ActivityEvent, now: number): number {
   const timestamp = Date.parse(event?.timestamp ?? "");
   if (!Number.isFinite(timestamp)) return 0;
   return Math.max(0, (now - timestamp) / 60000);
 }
 
-function activityTrailKey(event) {
+function activityTrailKey(event: ActivityEvent): string {
   return activityActorKey(event);
 }
 
-function shouldStartActivityTrailGroup(previous, event, maxGapMinutes) {
+function shouldStartActivityTrailGroup(previous: ActivityEvent | undefined, event: ActivityEvent, maxGapMinutes: number): boolean {
   if (!previous) return false;
   const previousTime = Date.parse(previous.timestamp ?? "");
   const eventTime = Date.parse(event.timestamp ?? "");
@@ -1457,20 +1640,20 @@ function shouldStartActivityTrailGroup(previous, event, maxGapMinutes) {
   return eventTime - previousTime > maxGapMinutes * 60000;
 }
 
-function compareActivityGroupsByTime(left, right) {
+function compareActivityGroupsByTime(left: ActivityEvent[], right: ActivityEvent[]): number {
   const leftTime = Date.parse(left[0]?.timestamp ?? "");
   const rightTime = Date.parse(right[0]?.timestamp ?? "");
   return (Number.isFinite(leftTime) ? leftTime : 0) - (Number.isFinite(rightTime) ? rightTime : 0);
 }
 
-function activityGroupsAreSorted(groups) {
+function activityGroupsAreSorted(groups: ActivityEvent[][]): boolean {
   for (let index = 1; index < groups.length; index += 1) {
     if (compareActivityGroupsByTime(groups[index - 1], groups[index]) > 0) return false;
   }
   return true;
 }
 
-function boundedTrailControlPoint({ point, start, end, segmentDistance }) {
+function boundedTrailControlPoint({ point, start, end, segmentDistance }: { point: Point; start: Point; end: Point; segmentDistance: number }): Point {
   const padding = Math.min(18, Math.max(4, segmentDistance * 0.18));
   return {
     x: clamp(point.x, Math.min(start.x, end.x) - padding, Math.max(start.x, end.x) + padding),
@@ -1478,12 +1661,12 @@ function boundedTrailControlPoint({ point, start, end, segmentDistance }) {
   };
 }
 
-function edgeInset(key, edge, index, baseInset, wobble) {
+function edgeInset(key: string, edge: string, index: number, baseInset: number, wobble: number): number {
   const unit = hashUnit(`${key}:${edge}:${index}`);
   return clamp(baseInset + (unit - 0.5) * wobble, 0.012, 0.08);
 }
 
-function capLineRange(file, start, end, focusLine) {
+function capLineRange(file: MapFile, start: number, end: number, focusLine: number): { start: number; end: number } {
   if (end - start + 1 <= SOURCE_PANEL_MAX_LINES) return { start, end };
   const before = Math.floor(SOURCE_PANEL_MAX_LINES / 2);
   const cappedStart = Math.max(1, Math.min(focusLine - before, file.lineCount - SOURCE_PANEL_MAX_LINES + 1));
@@ -1493,14 +1676,14 @@ function capLineRange(file, start, end, focusLine) {
   };
 }
 
-function compareTargetAreaThenPath(a, b) {
+function compareTargetAreaThenPath(a: MapTarget, b: MapTarget): number {
   const areaDelta = a.bounds.width * a.bounds.height - b.bounds.width * b.bounds.height;
   if (Math.abs(areaDelta) > 1e-12) return areaDelta;
   return a.path.localeCompare(b.path);
 }
 
-function bestContainingTarget(targets, point, accept = (_target) => true) {
-  let best = null;
+function bestContainingTarget<T extends MapTarget>(targets: MapTargetRecord<T>, point: Point, accept: (target: T) => boolean = (_target) => true): T | null {
+  let best: T | null = null;
   for (const target of objectValues(targets)) {
     if (!accept(target) || !containsBoundsPoint(target.bounds, point)) continue;
     if (!best || compareTargetAreaThenPath(target, best) < 0) best = target;
@@ -1508,14 +1691,14 @@ function bestContainingTarget(targets, point, accept = (_target) => true) {
   return best;
 }
 
-function pointDistance(a, b) {
+function pointDistance(a: Point, b: Point): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-function hashUnit(value) {
+function hashUnit(value: string): number {
   return hashString(value) / 0xffffffff;
 }
 
-function clamp(value, min, max) {
+function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }

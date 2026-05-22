@@ -82,6 +82,23 @@ import {
   worldToScreenPoint,
   zoomViewAt,
 } from "./render-model.js";
+import type {
+  ActivityEvent,
+  ActivityFogState,
+  Bounds,
+  CodecharterCodemap,
+  FogState,
+  MapAnnotationPlace,
+  MapFile,
+  MapFolder,
+  NamedPlace,
+  Point,
+  SearchMatch,
+  SourceRange,
+  TargetHit,
+  View,
+  Viewport,
+} from "./render-model.js";
 import {
   boundsFromRouteParams,
   createAnnotationHashRoute,
@@ -97,10 +114,135 @@ type BrowserControl = HTMLElement & {
   elements?: Record<string, { value?: string }>;
   reset?: () => void;
 };
-type BrowserControls = Record<string, any> & {
+type BrowserControlName =
+  | "summary"
+  | "hover"
+  | "viewport"
+  | "selectionPopover"
+  | "annotationActions"
+  | "selectionContext"
+  | "annotationTitle"
+  | "annotationMeta"
+  | "annotationFeedback"
+  | "inspectorTitle"
+  | "inspectorSubtitle"
+  | "searchForm"
+  | "searchInput"
+  | "searchResult"
+  | "selectTool"
+  | "panTool"
+  | "resetViewTool"
+  | "drawTool"
+  | "clearActivityTool"
+  | "saveSelection"
+  | "deleteAnnotation"
+  | "copyAnnotationPrompt"
+  | "editAnnotation"
+  | "deleteAnnotationAction"
+  | "selectionComment"
+  | "selectionStatus"
+  | "sourceTitle"
+  | "sourceOutput"
+  | "showFolders"
+  | "showOrganicRegions"
+  | "showFiles"
+  | "showNames"
+  | "showActivity"
+  | "showGrid"
+  | "activityFeed"
+  | "activityForm";
+type BrowserControls = Record<BrowserControlName, BrowserControl | null> & {
   layerToggles: () => BrowserControl[];
 };
-type BrowserCommand = (...args: any[]) => any;
+type BrowserCommand = (...args: unknown[]) => unknown;
+type HashRouteIntent =
+  | { type: "annotation"; id: string }
+  | { type: "selection"; params: URLSearchParams }
+  | { type: "map"; route: NonNullable<ReturnType<typeof parseHashRoute>> };
+type CanvasAction = { type: string; delta?: Point };
+type SearchActionMatch = SearchMatch & { label?: string };
+type TimerHandle = number | ReturnType<typeof setTimeout> | null;
+type PollingTask = {
+  start(callback: () => void | Promise<void>, intervalMs: number): void;
+  stop(): void;
+};
+type AnnotationHit = NamedPlace & { targetType: "annotation" };
+type ActivityHit = ActivityEvent & { targetType: "activity" };
+type HitTarget = TargetHit | AnnotationHit | ActivityHit;
+type RouteToken = number;
+type ParsedLineRange = { start: number; end: number };
+type ResolvedSelection = {
+  level?: string;
+  geometry: { bounds: Bounds };
+  resolvedTargets?: unknown[];
+  spatialFrame?: { level?: string; corners?: { northWest?: string } };
+  coveringSet?: string[];
+};
+type SourcePanel = {
+  sourceTitle: string;
+  sourceOutput: string;
+  scrollTop?: number;
+};
+type FrameLabel = {
+  text: string;
+  box: Bounds;
+  color: string;
+  size: number;
+  weight: string;
+  priority: number;
+};
+type PlacedFrameLabel = FrameLabel & { x: number; y: number; collisionBox: Bounds };
+type MapDrag =
+  | { type: "draw"; start: Point; current: Point }
+  | { type: "pan"; start: Point; view: View; transient?: boolean }
+  | { type: "select"; start: Point; world: Point };
+type PointerDownState = { screen: Point; world: Point };
+type PendingAnnotationDelete = { id: string; timer: number | ReturnType<typeof setTimeout> };
+type PollingFailure = { count: number; lastLoggedAt: number };
+type FolderRenderStyle = { fill: string; stroke: string; label: string; lineWidth?: number };
+type OrganicRegionRenderStyle = { fill: string; stroke: string; lineWidth?: number };
+type FileVisualState = "source" | "selected" | "landmark" | "aggregate" | "parcel" | "hidden";
+type FileFogStyleOptions = {
+  fogState: FogState;
+  selected?: boolean;
+  visualState: FileVisualState;
+  discoveryMode?: boolean;
+};
+type RevealStyle = ReturnType<typeof discoveryFogRevealStyle>;
+type ActivityEncoding = ReturnType<typeof activityVisualEncoding>;
+type ActivityStyle = ReturnType<typeof activityStateStyle>;
+type StrokeStyle = { color: string; lineWidth: number };
+type FogTrailStyle = { alpha: number; lineWidth: number };
+type MapApplicationState = {
+  map: CodecharterCodemap | null;
+  mapFolders: MapFolder[];
+  mapFiles: MapFile[];
+  organicRegionFolders: Array<{ folder: MapFolder; depth: number }>;
+  mapVersion: string;
+  namedPlaces: NamedPlace[];
+  namedPlacesById: Map<string, NamedPlace>;
+  namedPlaceIndexesById: Map<string, number>;
+  overlaps: Array<{ bounds: Bounds }>;
+  activity: ActivityEvent[];
+  activityFog: ActivityFogState | null;
+  sourceCache: Map<string, SourceRange>;
+  pendingSourceRequests: Set<string>;
+  activitySignature: string;
+  view: View;
+  cameraAnimation: { frame: number } | null;
+  pendingClickSelection: TimerHandle;
+  dragging: MapDrag | null;
+  lastPointerDown: PointerDownState | null;
+  lastPointerType: string;
+  drawing: boolean;
+  panning: boolean;
+  spacePanning: boolean;
+  draftSelection: { type: "rect"; bounds: Bounds } | null;
+  resolvedSelection: ResolvedSelection | null;
+  editingAnnotation: AnnotationHit | null;
+  selectedTarget: HitTarget | null;
+  clearSourceState(): void;
+};
 
 const canvas = requiredElement(document.querySelector<HTMLCanvasElement>("#mapCanvas"), "map canvas");
 const ctx = requiredContext(canvas.getContext("2d"), "map canvas context");
@@ -122,10 +264,10 @@ const DELETE_ANNOTATION_CONFIRM_MS = 4000;
 const FOG_MASK_SCALE = 0.5;
 const POLLING_ERROR_NOTICE_THRESHOLD = 2;
 
-function createPollingTask() {
-  let timer = null;
+function createPollingTask(): PollingTask {
+  let timer: TimerHandle = null;
   return {
-    start(callback, intervalMs) {
+    start(callback: () => void | Promise<void>, intervalMs: number) {
       this.stop();
       timer = setInterval(callback, intervalMs);
     },
@@ -136,9 +278,9 @@ function createPollingTask() {
   };
 }
 
-function createMapApplicationState() {
-  const sourceCache = new Map();
-  const pendingSourceRequests = new Set();
+function createMapApplicationState(): MapApplicationState {
+  const sourceCache = new Map<string, SourceRange>();
+  const pendingSourceRequests = new Set<string>();
   return {
     map: null,
     mapFolders: [],
@@ -175,7 +317,7 @@ function createMapApplicationState() {
 }
 
 function createMapControls(root: Document = document): BrowserControls {
-  const controlSelectors = [
+  const controlSelectors: Array<[BrowserControlName, string]> = [
     ["summary", "#mapSummary"],
     ["hover", "#hoverReadout"],
     ["viewport", "#viewportReadout"],
@@ -213,7 +355,7 @@ function createMapControls(root: Document = document): BrowserControls {
     ["activityFeed", "#activityFeed"],
     ["activityForm", "#activityForm"],
   ];
-  const controls: Record<string, BrowserControl | null> = {};
+  const controls = {} as Record<BrowserControlName, BrowserControl | null>;
   for (const [name, selector] of controlSelectors) {
     controls[name] = root.querySelector<BrowserControl>(selector);
   }
@@ -237,16 +379,16 @@ function createMapControls(root: Document = document): BrowserControls {
   };
 }
 
-let frameLabels = [];
+let frameLabels: PlacedFrameLabel[] = [];
 let applyingRoute = false;
 let routeSequence = 0;
-let clearActivityHold = null;
-let pendingAnnotationDelete = null;
-let copyPromptLabelTimer = null;
-const pollingErrors = new Map();
+let clearActivityHold: TimerHandle = null;
+let pendingAnnotationDelete: PendingAnnotationDelete | null = null;
+let copyPromptLabelTimer: TimerHandle = null;
+const pollingErrors = new Map<string, PollingFailure>();
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-const state = createMapApplicationState();
+const state: MapApplicationState = createMapApplicationState();
 const controls = createMapControls();
 const activityPolling = createPollingTask();
 const mapPolling = createPollingTask();
@@ -272,7 +414,7 @@ async function boot() {
   render();
 }
 
-function applyMap(map, version) {
+function applyMap(map: CodecharterCodemap, version: string | undefined) {
   const previousSelection = state.selectedTarget;
   state.map = map;
   state.mapFolders = objectValues(map.folders);
@@ -287,16 +429,16 @@ function applyMap(map, version) {
   reconcileSelectedTarget(previousSelection);
 }
 
-function reconcileSelectedTarget(target) {
-  state.selectedTarget = reconciledSelectedTarget(state.map, target);
+function reconcileSelectedTarget(target: HitTarget | null) {
+  state.selectedTarget = reconciledSelectedTarget(state.map, target) as HitTarget | null;
 }
 
 function rebuildActivityFog() {
   state.activityFog = buildActivityFogState(state.map, state.activity);
 }
 
-function objectValues(value) {
-  const values = [];
+function objectValues<T>(value: Record<string, T>): T[] {
+  const values: T[] = [];
   for (const key in value) {
     if (Object.hasOwn(value, key)) values.push(value[key]);
   }
@@ -405,7 +547,7 @@ async function refreshActivity() {
   }
 }
 
-function reportPollingError(key, error) {
+function reportPollingError(key: string, error: unknown) {
   const failure = pollingErrors.get(key) ?? { count: 0, lastLoggedAt: 0 };
   failure.count += 1;
   const now = Date.now();
@@ -419,13 +561,13 @@ function reportPollingError(key, error) {
   pollingErrors.set(key, failure);
 }
 
-function clearPollingError(key) {
+function clearPollingError(key: string) {
   if (!pollingErrors.has(key)) return;
   pollingErrors.delete(key);
   if (pollingErrors.size === 0) setText(controls.hover, "Reconnected");
 }
 
-function activitySignature(events) {
+function activitySignature(events: ActivityEvent[]): string {
   const latest = events.at(-1);
   return `${events.length}:${latest?.id ?? ""}:${latest?.timestamp ?? ""}`;
 }
@@ -433,20 +575,20 @@ function activitySignature(events) {
 function commandDispatcher(commands: Array<[string, BrowserCommand]>) {
   const commandsByType = new Map(commands);
   return {
-    has: (type) => commandsByType.has(type),
-    execute: async (type, ...args) => commandsByType.get(type)?.(...args),
+    has: (type: string) => commandsByType.has(type),
+    execute: async (type: string, ...args: unknown[]) => commandsByType.get(type)?.(...args),
   };
 }
 
 const HASH_ROUTE_FOCUS_COMMANDS = commandDispatcher([
-  ["annotation", (intent, routeToken) => focusAnnotationRoute(intent.id, routeToken)],
-  ["selection", (intent, routeToken) => focusSelectionRoute(intent.params, routeToken)],
-  ["map", (intent, routeToken) => focusMapRoute(intent.route, routeToken)],
+  ["annotation", (intent: HashRouteIntent & { type: "annotation" }, routeToken: RouteToken) => focusAnnotationRoute(intent.id, routeToken)],
+  ["selection", (intent: HashRouteIntent & { type: "selection" }, routeToken: RouteToken) => focusSelectionRoute(intent.params, routeToken)],
+  ["map", (intent: HashRouteIntent & { type: "map" }, routeToken: RouteToken) => focusMapRoute(intent.route, routeToken)],
 ]);
 
 const MAP_ROUTE_FOCUS_COMMANDS = commandDispatcher([
-  ["focusFile", (target, route, routeToken) => showFileForRoute(target, route.params, routeToken)],
-  ["focusFolder", (target) => {
+  ["focusFile", (target: MapFile, route: NonNullable<ReturnType<typeof parseHashRoute>>, routeToken: RouteToken) => showFileForRoute(target, route.params, routeToken)],
+  ["focusFolder", (target: MapFolder) => {
     clearAnnotationForm();
     setText(controls.inspectorTitle, folderDisplayName(target));
     setText(controls.inspectorSubtitle, `folder: ${target.path || "."} | ${target.geo.geohash}`);
@@ -455,25 +597,25 @@ const MAP_ROUTE_FOCUS_COMMANDS = commandDispatcher([
 ]);
 
 const DOUBLE_CLICK_ACTION_COMMANDS = commandDispatcher([
-  ["focusAnnotation", (hit) => {
+  ["focusAnnotation", (hit: AnnotationHit) => {
     zoomToBounds(hit.geometry.bounds, 1.28);
     selectAnnotation(hit);
   }],
-  ["selectFolder", (hit, world) => {
+  ["selectFolder", (hit: TargetHit, world: Point) => {
     void selectMapTarget(world);
     zoomToBounds(hit.bounds, 1.35);
   }],
-  ["selectFile", (hit, world) => {
+  ["selectFile", (hit: MapFile & { targetType: "file" }, world: Point) => {
     void inspectFileTarget(hit, world, { zoomReadable: true });
   }],
-  ["selectActivity", (hit) => {
+  ["selectActivity", (hit: ActivityEvent) => {
     void selectActivityEvent(hit, { zoomReadable: true });
   }],
 ]);
 
 const MAP_TARGET_SELECTION_COMMANDS = commandDispatcher([
   ["clearSelection", clearMapSelection],
-  ["focusAnnotation", (hit) => {
+  ["focusAnnotation", (hit: AnnotationHit) => {
     zoomToBounds(hit.geometry.bounds, 1.35);
     selectAnnotation(hit);
   }],
@@ -486,30 +628,30 @@ const MAP_SEARCH_ACTION_COMMANDS = commandDispatcher([
   ["noMatch", () => {
     setSearchResult("No matching place found.");
   }],
-  ["focusPlace", (match) => {
+  ["focusPlace", (match: SearchActionMatch & { place: NamedPlace; target?: AnnotationHit | null }) => {
     zoomToBounds(match.place.geometry.bounds, 1.35);
-    setSearchResult(match.label);
+    setSearchResult(match.label ?? "");
     state.selectedTarget = match.target;
     if (state.selectedTarget?.targetType === "annotation") selectAnnotation(state.selectedTarget);
     render();
   }],
-  ["focusFile", async (match) => {
+  ["focusFile", async (match: SearchActionMatch & { file: MapFile }) => {
     zoomToReadableFile(match.file);
     await selectMapTarget(boundsCenter(match.file.bounds));
-    setSearchResult(match.label);
+    setSearchResult(match.label ?? "");
   }],
-  ["focusFolder", (match) => {
+  ["focusFolder", (match: SearchActionMatch & { folder: MapFolder }) => {
     zoomToBounds(match.folder.bounds, 1.6);
     state.selectedTarget = { ...match.folder, targetType: "folder" };
     setText(controls.inspectorTitle, folderDisplayName(match.folder));
     setText(controls.inspectorSubtitle, `folder: ${match.folder.path || "."} | ${match.folder.geo.geohash}`);
-    setSearchResult(match.label);
+    setSearchResult(match.label ?? "");
     render();
   }],
 ]);
 
 const CANVAS_KEYBOARD_COMMANDS = commandDispatcher([
-  ["pan", (action) => {
+  ["pan", (action: CanvasAction & { delta: Point }) => {
     animateViewTo(panViewByScreenDelta(state.view, action.delta, viewportSize()));
   }],
   ["zoomIn", () => {
@@ -550,7 +692,7 @@ async function applyHashRoute() {
   }
 }
 
-async function focusAnnotationRoute(id, routeToken) {
+async function focusAnnotationRoute(id: string, routeToken: RouteToken) {
   let annotation = state.namedPlacesById.get(id);
   if (annotation?.kind !== "mapAnnotation") annotation = null;
   if (!annotation) {
@@ -568,7 +710,7 @@ async function focusAnnotationRoute(id, routeToken) {
   selectAnnotation(annotation);
 }
 
-async function focusSelectionRoute(params, routeToken) {
+async function focusSelectionRoute(params: URLSearchParams, routeToken: RouteToken) {
   const bounds = boundsFromRouteParams(params);
   if (!bounds) return;
   resetSelectionOverlay();
@@ -584,14 +726,14 @@ async function focusSelectionRoute(params, routeToken) {
   await previewSelection({ routeToken });
 }
 
-async function focusMapRoute(route, routeToken) {
+async function focusMapRoute(route: NonNullable<ReturnType<typeof parseHashRoute>>, routeToken: RouteToken) {
   const target = mapRouteTarget(state.map, route);
   const action = mapRouteFocusAction(target);
   if (!action) return;
 
   resetSelectionOverlay();
   const routeLineRange = target.targetType === "file" ? parseLineRange(route.params.get("lines")) : null;
-  if (routeLineRange) {
+  if (target.targetType === "file" && routeLineRange) {
     zoomToReadableFile(target, lineRatioForLine(target, routeLineRange.start));
   } else {
     zoomToBounds(target.bounds, action.zoomPadding);
@@ -600,7 +742,7 @@ async function focusMapRoute(route, routeToken) {
   await MAP_ROUTE_FOCUS_COMMANDS.execute(action.type, target, route, routeToken);
 }
 
-async function showFileForRoute(file, params, routeToken) {
+async function showFileForRoute(file: MapFile, params: URLSearchParams, routeToken: RouteToken) {
   clearAnnotationForm();
   setText(controls.inspectorTitle, file.name);
   setText(controls.inspectorSubtitle, `file: ${file.path} | ${file.geo.geohash}`);
@@ -622,16 +764,16 @@ async function showFileForRoute(file, params, routeToken) {
   render();
 }
 
-function syncHashRoute(hash) {
+function syncHashRoute(hash: string) {
   if (applyingRoute || !hash || window.location.hash === hash) return;
   window.history.replaceState(null, "", hash);
 }
 
-function isCurrentRoute(routeToken) {
+function isCurrentRoute(routeToken: RouteToken) {
   return routeToken === routeSequence;
 }
 
-function setDrawMode(enabled) {
+function setDrawMode(enabled: boolean) {
   state.drawing = enabled;
   state.panning = false;
   if (enabled) {
@@ -662,7 +804,7 @@ function setPanMode() {
   updateSelectionPopover();
 }
 
-function setSpacePanMode(enabled) {
+function setSpacePanMode(enabled: boolean) {
   if (state.spacePanning === enabled) return;
   state.spacePanning = enabled;
   updateInteractionModeUi();
@@ -710,7 +852,7 @@ function resetSelectionOverlay() {
   updateSelectionPopover();
 }
 
-function setNamedPlaces(places) {
+function setNamedPlaces(places: NamedPlace[]) {
   state.namedPlaces = places;
   state.namedPlacesById = new Map();
   state.namedPlaceIndexesById = new Map();
@@ -722,7 +864,7 @@ function setNamedPlaces(places) {
   }
 }
 
-function upsertNamedPlace(place) {
+function upsertNamedPlace(place: NamedPlace) {
   const index = state.namedPlaceIndexesById.get(place.id);
   if (index === undefined) {
     state.namedPlaces.push(place);
@@ -738,7 +880,7 @@ function updateSelectionPopover() {
   const isEditing = Boolean(state.editingAnnotation);
   const hasDraft = Boolean(state.draftSelection || state.resolvedSelection);
   const selectionReady = Boolean(state.resolvedSelection);
-  const activeAnnotation = selectedAnnotation ? state.selectedTarget : null;
+  const activeAnnotation = state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null;
   if (controls.selectionPopover) controls.selectionPopover.hidden = !(hasDraft || isEditing);
   if (controls.annotationActions) controls.annotationActions.hidden = !selectedAnnotation || hasDraft || isEditing;
   if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = !isEditing;
@@ -752,7 +894,7 @@ function updateSelectionPopover() {
   }
 }
 
-function positionAnnotationActions(annotation, { visible = true } = {}) {
+function positionAnnotationActions(annotation: MapAnnotationPlace | null, { visible = true } = {}) {
   const panel = controls.annotationActions;
   if (!panel || !visible || !annotation?.geometry?.bounds) {
     panel?.style.removeProperty("left");
@@ -835,21 +977,21 @@ function bindClearActivityHold() {
   control.addEventListener("click", (event) => event.preventDefault());
 }
 
-function onClearActivityPointerDown(event) {
+function onClearActivityPointerDown(event: PointerEvent) {
   if (event.button !== 0 || controls.clearActivityTool?.disabled) return;
   event.preventDefault();
   controls.clearActivityTool?.setPointerCapture?.(event.pointerId);
   startClearActivityHold();
 }
 
-function onClearActivityKeyDown(event) {
+function onClearActivityKeyDown(event: KeyboardEvent) {
   if (event.repeat || controls.clearActivityTool?.disabled) return;
   if (event.key !== " " && event.key !== "Enter") return;
   event.preventDefault();
   startClearActivityHold();
 }
 
-function onClearActivityKeyUp(event) {
+function onClearActivityKeyUp(event: KeyboardEvent) {
   if (event.key !== " " && event.key !== "Enter") return;
   cancelClearActivityHold();
 }
@@ -876,7 +1018,7 @@ function cancelClearActivityHold() {
   setText(controls.hover, "Clear cancelled");
 }
 
-function layerEnabled(name, fallback = true) {
+function layerEnabled(name: BrowserControlName, fallback = true) {
   return controls[name]?.checked ?? fallback;
 }
 
@@ -884,7 +1026,7 @@ function activityDiscoveryEnabled() {
   return controls.showActivity?.checked === true;
 }
 
-function drawDiscoveryFogOverlay(rect) {
+function drawDiscoveryFogOverlay(rect: DOMRect) {
   buildDiscoveryFogMask(rect);
 
   fogLayerCtx.save();
@@ -900,7 +1042,7 @@ function drawDiscoveryFogOverlay(rect) {
   ctx.restore();
 }
 
-function drawDiscoveryVeil(rect, targetCtx = ctx) {
+function drawDiscoveryVeil(rect: DOMRect, targetCtx: CanvasRenderingContext2D = ctx) {
   const style = discoveryFogVeilStyle();
   const gradient = targetCtx.createLinearGradient(0, 0, rect.width, rect.height);
   gradient.addColorStop(0, `rgba(1, 7, 11, ${style.baseAlpha})`);
@@ -925,7 +1067,7 @@ function drawDiscoveryVeil(rect, targetCtx = ctx) {
   targetCtx.fillRect(0, 0, rect.width, rect.height);
 }
 
-function drawDiscoveryVeilTexture(rect, style, targetCtx = ctx) {
+function drawDiscoveryVeilTexture(rect: DOMRect, style: ReturnType<typeof discoveryFogVeilStyle>, targetCtx: CanvasRenderingContext2D = ctx) {
   const step = style.textureStep;
   targetCtx.save();
   targetCtx.fillStyle = `rgba(190, 244, 216, ${style.textureAlpha})`;
@@ -945,7 +1087,7 @@ function drawDiscoveryVeilTexture(rect, style, targetCtx = ctx) {
   targetCtx.restore();
 }
 
-function buildDiscoveryFogMask(rect) {
+function buildDiscoveryFogMask(rect: DOMRect) {
   fogMaskCtx.save();
   fogMaskCtx.setTransform(
     (window.devicePixelRatio || 1) * FOG_MASK_SCALE,
@@ -962,7 +1104,7 @@ function buildDiscoveryFogMask(rect) {
   fogMaskCtx.restore();
 }
 
-function drawDiscoveryFogReveals(targetCtx) {
+function drawDiscoveryFogReveals(targetCtx: CanvasRenderingContext2D) {
   const fog = state.activityFog;
   if (!fog) return;
   for (const path of fog.visitedFiles) {
@@ -981,7 +1123,7 @@ function drawDiscoveryFogReveals(targetCtx) {
   }
 }
 
-function drawDiscoveryTrailMask(targetCtx) {
+function drawDiscoveryTrailMask(targetCtx: CanvasRenderingContext2D) {
   const events = sortedActivityEvents(state.activity);
   if (events.length < 2) return;
   targetCtx.save();
@@ -1002,14 +1144,14 @@ function drawDiscoveryTrailMask(targetCtx) {
   targetCtx.restore();
 }
 
-function strokeFogTrail(targetCtx, points, { alpha, lineWidth }) {
+function strokeFogTrail(targetCtx: CanvasRenderingContext2D, points: Point[], { alpha, lineWidth }: FogTrailStyle) {
   targetCtx.strokeStyle = `rgba(0, 0, 0, ${alpha})`;
   targetCtx.lineWidth = lineWidth;
   targetCtx.beginPath();
   if (drawMyceliumPathForContext(targetCtx, points)) targetCtx.stroke();
 }
 
-function drawReadableFogReveal(box, { alpha, padding }, targetCtx = ctx) {
+function drawReadableFogReveal(box: Bounds, { alpha, padding }: RevealStyle, targetCtx: CanvasRenderingContext2D = ctx) {
   const x = Math.max(0, box.x - padding);
   const y = Math.max(0, box.y - padding);
   const right = Math.min(canvas.clientWidth, box.x + box.width + padding);
@@ -1023,7 +1165,7 @@ function drawReadableFogReveal(box, { alpha, padding }, targetCtx = ctx) {
   targetCtx.restore();
 }
 
-function drawFogReveal(key, box, { alpha, padding, core, mid, lobes = 3 }, targetCtx = ctx) {
+function drawFogReveal(key: string, box: Bounds, { alpha, padding, core, mid, lobes = 3 }: RevealStyle, targetCtx: CanvasRenderingContext2D = ctx) {
   const radiusX = Math.max(18, box.width / 2 + padding);
   const radiusY = Math.max(18, box.height / 2 + padding);
   const centerX = box.x + box.width / 2;
@@ -1048,7 +1190,7 @@ function drawFogReveal(key, box, { alpha, padding, core, mid, lobes = 3 }, targe
   }
 }
 
-function drawFogRevealGradient({ x, y, radiusX, radiusY, alpha, core, mid }, targetCtx = ctx) {
+function drawFogRevealGradient({ x, y, radiusX, radiusY, alpha, core, mid }: { x: number; y: number; radiusX: number; radiusY: number; alpha: number; core: number; mid: number }, targetCtx: CanvasRenderingContext2D = ctx) {
   targetCtx.save();
   targetCtx.translate(x, y);
   targetCtx.scale(radiusX, radiusY);
@@ -1064,7 +1206,7 @@ function drawFogRevealGradient({ x, y, radiusX, radiusY, alpha, core, mid }, tar
   targetCtx.restore();
 }
 
-function drawMyceliumPathForContext(targetCtx, points) {
+function drawMyceliumPathForContext(targetCtx: CanvasRenderingContext2D, points: Point[]) {
   if (points.length < 2) return false;
 
   const minDistance = Math.min(14, Math.max(6, state.view.scale * 2.2));
@@ -1085,7 +1227,7 @@ function drawMyceliumPathForContext(targetCtx, points) {
   return true;
 }
 
-function expandedBox(box, padding) {
+function expandedBox(box: Bounds, padding: number): Bounds {
   return {
     x: box.x - padding,
     y: box.y - padding,
@@ -1186,7 +1328,7 @@ function drawFiles() {
   for (const file of state.mapFiles) {
     const box = screenBounds(file.bounds);
     if (!visible(box)) continue;
-    const selected = state.selectedTarget?.path === file.path;
+    const selected = state.selectedTarget?.targetType === "file" && state.selectedTarget.path === file.path;
     const fogState = fogEnabled ? fogStateForFile(state.activityFog, file, { selected }) : "visible";
     const visualState = fileVisualState({ file, box, scale: state.view.scale, selected });
     if (visualState === "hidden") continue;
@@ -1218,7 +1360,7 @@ function drawFiles() {
   }
 }
 
-function folderFogStyle(style, fogState, depth, selected, discoveryMode = false) {
+function folderFogStyle(style: FolderRenderStyle, fogState: FogState, depth: number, selected: boolean, discoveryMode = false) {
   if (discoveryMode) {
     return {
       ...style,
@@ -1247,7 +1389,7 @@ function folderFogStyle(style, fogState, depth, selected, discoveryMode = false)
   };
 }
 
-function organicRegionFogStyle(style, fogState, depth, selected, discoveryMode = false) {
+function organicRegionFogStyle(style: OrganicRegionRenderStyle, fogState: FogState, depth: number, selected: boolean, discoveryMode = false) {
   if (discoveryMode) {
     return {
       ...style,
@@ -1274,7 +1416,7 @@ function organicRegionFogStyle(style, fogState, depth, selected, discoveryMode =
   };
 }
 
-function fileFogStyle({ fogState, selected, visualState, discoveryMode = false }) {
+function fileFogStyle({ fogState, selected, visualState, discoveryMode = false }: FileFogStyleOptions) {
   if (selected) {
     return {
       fill: "rgba(255, 255, 255, 0.82)",
@@ -1315,7 +1457,7 @@ function fileFogStyle({ fogState, selected, visualState, discoveryMode = false }
   };
 }
 
-function drawOrganicPath(points) {
+function drawOrganicPath(points: Point[]) {
   const first = worldToScreen(points[0]);
   const second = worldToScreen(points[1]);
   ctx.beginPath();
@@ -1330,7 +1472,7 @@ function drawOrganicPath(points) {
   ctx.closePath();
 }
 
-function drawSourceText(file, box, remainingBudget) {
+function drawSourceText(file: MapFile, box: Bounds, remainingBudget: number): number {
   const visibleRange = visibleLineRange(file, box);
   if (!visibleRange) return 0;
 
@@ -1346,7 +1488,7 @@ function drawSourceText(file, box, remainingBudget) {
     return 0;
   }
 
-  const linesByNumber = new Map();
+  const linesByNumber = new Map<number | string, string>();
   for (const line of cached.lines) {
     linesByNumber.set(line.number, line.text);
   }
@@ -1377,18 +1519,18 @@ function drawSourceText(file, box, remainingBudget) {
   return drawn;
 }
 
-function drawSourcePlaceholder(box) {
+function drawSourcePlaceholder(box: Bounds) {
   ctx.save();
   ctx.fillStyle = "rgba(255, 255, 255, 0.36)";
   ctx.fillRect(box.x + 4, box.y + 4, Math.max(0, box.width - 8), Math.min(24, Math.max(0, box.height - 8)));
   ctx.restore();
 }
 
-function visibleLineRange(file, box) {
+function visibleLineRange(file: MapFile, box: Bounds) {
   return visibleLineRangeForBox(file, box, canvas.clientHeight);
 }
 
-function requestSourceRange(path, lineStart, lineEnd, cacheKey) {
+function requestSourceRange(path: string, lineStart: number, lineEnd: number, cacheKey: string) {
   if (state.pendingSourceRequests.has(cacheKey)) return;
   state.pendingSourceRequests.add(cacheKey);
   fetchJson(sourceContextRequest(path, { start: lineStart, end: lineEnd }).sourceUrl)
@@ -1404,11 +1546,11 @@ function requestSourceRange(path, lineStart, lineEnd, cacheKey) {
     });
 }
 
-function truncateLine(text, maxChars) {
+function truncateLine(text: string, maxChars: number) {
   return text.length > maxChars ? `${text.slice(0, Math.max(0, maxChars - 3))}...` : text;
 }
 
-function drawLineBands(file, box) {
+function drawLineBands(file: MapFile, box: Bounds) {
   const lines = Math.min(file.lineCount, 80);
   ctx.strokeStyle = "rgba(4, 120, 87, 0.18)";
   ctx.lineWidth = 1;
@@ -1422,7 +1564,7 @@ function drawLineBands(file, box) {
 }
 
 function drawNamedPlaces() {
-  const annotations = [];
+  const annotations: MapAnnotationPlace[] = [];
   for (const place of state.namedPlaces) {
     if (place.kind === "mapAnnotation") {
       annotations.push(place);
@@ -1440,7 +1582,7 @@ function drawNamedPlaces() {
   });
 }
 
-function drawAnnotation(annotation, markerNumber, selected) {
+function drawAnnotation(annotation: MapAnnotationPlace, markerNumber: number, selected: boolean) {
   drawAnnotationMembrane(
     annotation.geometry.bounds,
     selected ? "rgba(37, 99, 235, 0.13)" : "rgba(37, 99, 235, 0.07)",
@@ -1456,7 +1598,7 @@ function drawAnnotation(annotation, markerNumber, selected) {
   drawAnnotationMarker(annotation, markerNumber, selected);
 }
 
-function drawAnnotationMembrane(bounds, fill, stroke, selected, key) {
+function drawAnnotationMembrane(bounds: Bounds, fill: string, stroke: string, selected: boolean, key: string) {
   const points = organicRegionPoints(bounds, `annotation:${key}`, 0);
   if (points.length < 3) return;
 
@@ -1471,7 +1613,7 @@ function drawAnnotationMembrane(bounds, fill, stroke, selected, key) {
   ctx.restore();
 }
 
-function drawAnnotationMarker(annotation, markerNumber, selected) {
+function drawAnnotationMarker(annotation: MapAnnotationPlace, markerNumber: number, selected: boolean) {
   const center = worldToScreen(boundsCenter(annotation.geometry.bounds));
   const radius = selected ? 13 : 11;
   ctx.save();
@@ -1555,7 +1697,7 @@ function drawActivity() {
   }
 }
 
-function drawActivityMembranes(events, latestByAgent, { discoveryMode = false } = {}) {
+function drawActivityMembranes(events: ActivityEvent[], latestByAgent: Map<string, ActivityEvent>, { discoveryMode = false } = {}) {
   for (const event of events) {
     const latest = latestByAgent.get(activityActorKey(event)) === event;
     const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.id === event.id;
@@ -1590,7 +1732,7 @@ function drawActivityMembranes(events, latestByAgent, { discoveryMode = false } 
   }
 }
 
-function drawActivityTrails(events, latestByAgent, { discoveryMode = false } = {}) {
+function drawActivityTrails(events: ActivityEvent[], latestByAgent: Map<string, ActivityEvent>, { discoveryMode = false } = {}) {
   for (const agentEvents of activityTrailGroups(events)) {
     const trailLatest = agentEvents.at(-1);
     const latest = latestByAgent.get(activityActorKey(trailLatest)) === trailLatest;
@@ -1631,13 +1773,14 @@ function drawActivityTrails(events, latestByAgent, { discoveryMode = false } = {
   }
 }
 
-function activityTrailSelected(events) {
+function activityTrailSelected(events: ActivityEvent[]) {
   if (state.selectedTarget?.targetType !== "activity") return false;
-  return events.some((event) => event.id === state.selectedTarget.id);
+  const selectedId = state.selectedTarget.id;
+  return events.some((event) => event.id === selectedId);
 }
 
-function activityTrailPoints(events) {
-  const points = [];
+function activityTrailPoints(events: ActivityEvent[]): Point[] {
+  const points: Point[] = [];
   for (const event of events) {
     const bounds = activityPrimaryBounds(event);
     if (bounds) points.push(worldToScreen(boundsCenter(bounds)));
@@ -1645,14 +1788,14 @@ function activityTrailPoints(events) {
   return points;
 }
 
-function strokeOrganicTrail(points, { color, lineWidth }) {
+function strokeOrganicTrail(points: Point[], { color, lineWidth }: StrokeStyle) {
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
   ctx.beginPath();
   if (drawMyceliumPath(points)) ctx.stroke();
 }
 
-function drawMyceliumPath(points) {
+function drawMyceliumPath(points: Point[]) {
   if (points.length < 2) return;
 
   const minDistance = Math.min(14, Math.max(6, state.view.scale * 2.2));
@@ -1673,7 +1816,7 @@ function drawMyceliumPath(points) {
   return true;
 }
 
-function drawActivityCell(center, radius, key) {
+function drawActivityCell(center: Point, radius: number, key: string | undefined) {
   const points = 10;
   ctx.moveTo(center.x + radius, center.y);
   for (let index = 1; index <= points; index += 1) {
@@ -1685,7 +1828,7 @@ function drawActivityCell(center, radius, key) {
   ctx.closePath();
 }
 
-function drawActivityTissue(box, key) {
+function drawActivityTissue(box: Bounds, key: string) {
   const center = {
     x: box.x + box.width / 2,
     y: box.y + box.height / 2,
@@ -1705,20 +1848,20 @@ function drawActivityTissue(box, key) {
   ctx.closePath();
 }
 
-function activityFillColor(style, encoding) {
+function activityFillColor(style: ActivityStyle, encoding: ActivityEncoding) {
   return encoding.active || encoding.selected ? style.fill : "#64748b";
 }
 
-function activityHaloColor(style, encoding) {
+function activityHaloColor(style: ActivityStyle, encoding: ActivityEncoding) {
   return encoding.active || encoding.selected ? style.stroke : "#cbd5e1";
 }
 
-function formatActivityAge(ageMinutes) {
+function formatActivityAge(ageMinutes: number) {
   if (ageMinutes < 60) return `${Math.max(1, Math.round(ageMinutes))}m ago`;
   return `${Math.round(ageMinutes / 60)}h ago`;
 }
 
-function hexToRgba(hex, alpha) {
+function hexToRgba(hex: string, alpha: number) {
   const value = hex.replace("#", "");
   const rgb = [
     Number.parseInt(value.slice(0, 2), 16),
@@ -1728,11 +1871,11 @@ function hexToRgba(hex, alpha) {
   return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
 }
 
-function hashUnit(value) {
+function hashUnit(value: string) {
   return hashString(value) / 0xffffffff;
 }
 
-function integerNoise(x, y) {
+function integerNoise(x: number, y: number) {
   let value = Math.imul(x, 374761393) ^ Math.imul(y, 668265263);
   value = Math.imul(value ^ (value >>> 13), 1274126177);
   return ((value ^ (value >>> 16)) >>> 0) / 0xffffffff;
@@ -1766,7 +1909,7 @@ function renderActivityFeed() {
   }
 }
 
-function drawSelection(bounds, fill, stroke, dash) {
+function drawSelection(bounds: Bounds, fill: string, stroke: string, dash: number[]) {
   const box = screenBounds(bounds);
   ctx.save();
   ctx.fillStyle = fill;
@@ -1777,14 +1920,14 @@ function drawSelection(bounds, fill, stroke, dash) {
   ctx.restore();
 }
 
-function drawRect(box) {
+function drawRect(box: Bounds) {
   ctx.beginPath();
   ctx.rect(box.x, box.y, box.width, box.height);
   ctx.fill();
   ctx.stroke();
 }
 
-function drawLabel(text, x, y, color, size = 12, weight = "400") {
+function drawLabel(text: string, x: number, y: number, color: string, size = 12, weight = "400") {
   ctx.save();
   ctx.font = `${weight} ${size}px Inter, system-ui, sans-serif`;
   ctx.fillStyle = color;
@@ -1793,14 +1936,14 @@ function drawLabel(text, x, y, color, size = 12, weight = "400") {
   ctx.restore();
 }
 
-function queueLabelInBox(label) {
+function queueLabelInBox(label: FrameLabel) {
   const placement = labelPlacement(label.text, label.box, label.size, label.weight);
   if (!placement) return;
   frameLabels.push({ ...label, ...placement });
 }
 
 function drawQueuedLabels() {
-  const placed = [];
+  const placed: Bounds[] = [];
   if (!labelsAreInPriorityOrder(frameLabels)) frameLabels.sort((a, b) => b.priority - a.priority);
   for (const label of frameLabels) {
     if (placed.some((other) => labelBoxesOverlap(label.collisionBox, other))) continue;
@@ -1814,14 +1957,14 @@ function drawQueuedLabels() {
   }
 }
 
-function labelsAreInPriorityOrder(labels) {
+function labelsAreInPriorityOrder(labels: PlacedFrameLabel[]) {
   for (let index = 1; index < labels.length; index += 1) {
     if (labels[index - 1].priority < labels[index].priority) return false;
   }
   return true;
 }
 
-function labelPlacement(text, box, size = 12, weight = "400") {
+function labelPlacement(text: string, box: Bounds, size = 12, weight = "400"): Pick<PlacedFrameLabel, "x" | "y" | "collisionBox"> | null {
   const area = screenIntersection(box);
   if (!area || area.width < 56 || area.height < size + 8) return null;
 
@@ -1847,7 +1990,7 @@ function labelPlacement(text, box, size = 12, weight = "400") {
   };
 }
 
-function onWheel(event) {
+function onWheel(event: WheelEvent) {
   event.preventDefault();
   cancelCameraAnimation();
   const mouse = screenPoint(event);
@@ -1859,26 +2002,26 @@ function onWheel(event) {
   render();
 }
 
-function zoomAt(screenAnchor, factor, { animate = false } = {}) {
+function zoomAt(screenAnchor: Point, factor: number, { animate = false } = {}) {
   const nextView = zoomViewAt(state.view, screenAnchor, factor, viewportSize());
   if (animate) animateViewTo(nextView);
   else setViewImmediate(nextView);
 }
 
-function panByWheel(event) {
+function panByWheel(event: WheelEvent) {
   const deltaX = normalizeWheelDelta(event.deltaX, event.deltaMode);
   const deltaY = normalizeWheelDelta(event.deltaY, event.deltaMode);
   state.view = panViewByScreenDelta(state.view, { x: deltaX, y: deltaY }, viewportSize());
 }
 
-function normalizeWheelDelta(delta, deltaMode) {
+function normalizeWheelDelta(delta: number, deltaMode: number) {
   if (!Number.isFinite(delta)) return 0;
   if (deltaMode === WheelEvent.DOM_DELTA_LINE) return delta * 16;
   if (deltaMode === WheelEvent.DOM_DELTA_PAGE) return delta * canvas.clientHeight;
   return delta;
 }
 
-function onCanvasKeyDown(event) {
+function onCanvasKeyDown(event: KeyboardEvent) {
   canvas.classList.remove("pointer-focused");
   const action = canvasKeyboardAction(event);
   if (!action || !CANVAS_KEYBOARD_COMMANDS.has(action.type)) return;
@@ -1886,7 +2029,7 @@ function onCanvasKeyDown(event) {
   void CANVAS_KEYBOARD_COMMANDS.execute(action.type, action);
 }
 
-function onDocumentKeyDown(event) {
+function onDocumentKeyDown(event: KeyboardEvent) {
   const action = documentKeyboardAction(event, {
     textEntry: isTextEntryTarget(event.target),
     buttonTarget: isButtonTarget(event.target),
@@ -1898,22 +2041,22 @@ function onDocumentKeyDown(event) {
   void DOCUMENT_KEYBOARD_COMMANDS.execute(action.type, action);
 }
 
-function onDocumentKeyUp(event) {
+function onDocumentKeyUp(event: KeyboardEvent) {
   if (isSpaceKeyEvent(event) && state.spacePanning) {
     event.preventDefault();
     setSpacePanMode(false);
   }
 }
 
-function isTextEntryTarget(target) {
+function isTextEntryTarget(target: EventTarget | null) {
   return target instanceof HTMLInputElement
     || target instanceof HTMLTextAreaElement
     || target instanceof HTMLSelectElement
-    || target?.isContentEditable;
+    || (target instanceof HTMLElement && target.isContentEditable);
 }
 
-function isButtonTarget(target) {
-  return target instanceof HTMLButtonElement || target?.closest?.("button");
+function isButtonTarget(target: EventTarget | null) {
+  return target instanceof HTMLButtonElement || (target instanceof Element && Boolean(target.closest("button")));
 }
 
 function cancelCurrentInteraction() {
@@ -1954,7 +2097,7 @@ function clearSelectionHashRoute() {
   }
 }
 
-function onPointerDown(event) {
+function onPointerDown(event: PointerEvent) {
   cancelCameraAnimation();
   if (state.dragging?.type !== "select") cancelPendingClickSelection();
   canvas.classList.add("pointer-focused");
@@ -1978,11 +2121,11 @@ function onPointerDown(event) {
   updateInteractionModeUi();
 }
 
-function isSpacePanPointerEvent(event) {
+function isSpacePanPointerEvent(event: PointerEvent) {
   return state.spacePanning || Boolean(event.getModifierState?.("Space"));
 }
 
-function onPointerMove(event) {
+function onPointerMove(event: PointerEvent) {
   const screen = screenPoint(event);
   const world = screenToWorld(screen);
   const hit = hitTest(world);
@@ -1998,7 +2141,7 @@ function onPointerMove(event) {
   render();
 }
 
-async function onPointerUp(event) {
+async function onPointerUp(event: PointerEvent) {
   if (state.dragging?.type === "draw" && state.draftSelection) {
     if (event && event.type !== "lostpointercapture") updateDraftSelection(screenToWorld(screenPoint(event)));
     if (!hasUsableDraftSelection()) {
@@ -2029,7 +2172,7 @@ function onPointerCancel() {
   updateInteractionModeUi();
 }
 
-function onCanvasDoubleClick(event) {
+function onCanvasDoubleClick(event: MouseEvent) {
   if (state.drawing) return;
   event.preventDefault();
   cancelPendingClickSelection();
@@ -2046,7 +2189,7 @@ function onCanvasDoubleClick(event) {
   zoomAt(screen, DOUBLE_CLICK_ZOOM_FACTOR, { animate: true });
 }
 
-function scheduleClickSelection(worldPoint) {
+function scheduleClickSelection(worldPoint: Point) {
   cancelPendingClickSelection();
   state.pendingClickSelection = window.setTimeout(() => {
     state.pendingClickSelection = null;
@@ -2060,11 +2203,11 @@ function cancelPendingClickSelection() {
   state.pendingClickSelection = null;
 }
 
-function hitTestDrillTarget(world) {
+function hitTestDrillTarget(world: Point) {
   return hitTestActivity(world) ?? hitTestTargets(state.map, world);
 }
 
-function updateDraftSelection(world) {
+function updateDraftSelection(world: Point) {
   if (state.dragging?.type !== "draw") return;
   state.dragging.current = world;
   state.draftSelection = draftSelectionFromDrag(state.dragging.start, world);
@@ -2077,7 +2220,7 @@ function hasUsableDraftSelection() {
   });
 }
 
-async function selectMapTarget(worldPoint) {
+async function selectMapTarget(worldPoint: Point) {
   const hit = hitTest(worldPoint);
   const action = mapTargetSelectionAction(hit);
   await MAP_TARGET_SELECTION_COMMANDS.execute(action.type, hit, worldPoint);
@@ -2095,7 +2238,7 @@ function clearMapSelection() {
   render();
 }
 
-function inspectMapTarget(hit) {
+function inspectMapTarget(hit: TargetHit) {
   clearPendingAnnotationDelete();
   clearAnnotationForm();
   state.selectedTarget = hit;
@@ -2107,14 +2250,14 @@ function inspectMapTarget(hit) {
   return panel;
 }
 
-function inspectFolderTarget(hit) {
+function inspectFolderTarget(hit: TargetHit) {
   const panel = inspectMapTarget(hit);
   setText(controls.sourceTitle, panel.sourceTitle);
   setText(controls.sourceOutput, panel.sourceOutput);
   render();
 }
 
-async function inspectFileTarget(hit, worldPoint, { zoomReadable = false } = {}) {
+async function inspectFileTarget(hit: MapFile & { targetType: "file" }, worldPoint: Point, { zoomReadable = false } = {}) {
   inspectMapTarget(hit);
   const line = lineAtPoint(hit, worldPoint);
   const lineRatio = lineRatioForLine(hit, line);
@@ -2135,7 +2278,7 @@ async function inspectFileTarget(hit, worldPoint, { zoomReadable = false } = {})
   render();
 }
 
-async function selectActivityEvent(event, { zoomReadable = false } = {}) {
+async function selectActivityEvent(event: ActivityEvent, { zoomReadable = false } = {}) {
   state.selectedTarget = { ...event, targetType: "activity" };
   clearAnnotationForm();
   setText(controls.inspectorTitle, `${activityActorLabel(event)}: ${normalizeActivityState(event.activityState)}`);
@@ -2166,7 +2309,7 @@ async function selectActivityEvent(event, { zoomReadable = false } = {}) {
   render();
 }
 
-function selectAnnotation(annotation) {
+function selectAnnotation(annotation: MapAnnotationPlace) {
   clearPendingAnnotationDelete();
   state.selectedTarget = { ...annotation, targetType: "annotation" };
   state.draftSelection = null;
@@ -2196,23 +2339,23 @@ function editSelectedAnnotation() {
   render();
 }
 
-function lineAtPoint(file, worldPoint) {
+function lineAtPoint(file: MapFile, worldPoint: Point) {
   return lineAtWorldPoint(file, worldPoint);
 }
 
-function lineRatioAtPoint(file, worldPoint) {
+function lineRatioAtPoint(file: MapFile, worldPoint: Point) {
   return lineRatioForLine(file, lineAtPoint(file, worldPoint));
 }
 
-function lineRatioForLine(file, line) {
+function lineRatioForLine(file: MapFile, line: number) {
   return (line - 0.5) / Math.max(1, file.lineCount);
 }
 
-function sourcePanelLineRange(file, focusLine, box) {
+function sourcePanelLineRange(file: MapFile, focusLine: number, box: Bounds) {
   return sourcePanelLineRangeForBox(file, focusLine, box, canvas.clientHeight);
 }
 
-async function searchMap(event) {
+async function searchMap(event: Event) {
   event.preventDefault();
   const query = controls.searchInput?.value;
   if (!String(query ?? "").trim()) return;
@@ -2221,15 +2364,15 @@ async function searchMap(event) {
   await MAP_SEARCH_ACTION_COMMANDS.execute(action.type, match);
 }
 
-function setSearchResult(message) {
+function setSearchResult(message: string) {
   if (controls.searchResult) controls.searchResult.textContent = message;
 }
 
-function setText(element, value) {
+function setText(element: HTMLElement | null, value: string) {
   if (element) element.textContent = value;
 }
 
-function selectionContextLabel(selection) {
+function selectionContextLabel(selection: ResolvedSelection | MapAnnotationPlace | null) {
   if (!selection) return "";
   const targets = selection.resolvedTargets ?? [];
   const targetCount = targets.length;
@@ -2239,20 +2382,20 @@ function selectionContextLabel(selection) {
   return [targetLabel, `${level} level`, prefix].filter(Boolean).join(" · ");
 }
 
-function annotationTitle(annotation) {
+function annotationTitle(annotation: MapAnnotationPlace | null) {
   const title = annotation?.comment?.trim().split(/\r?\n/).find(Boolean)
     ?? annotation?.name?.trim()
     ?? "";
   return title || "Map annotation";
 }
 
-function applySourcePanel(panel) {
+function applySourcePanel(panel: SourcePanel) {
   setText(controls.sourceTitle, panel.sourceTitle);
   setText(controls.sourceOutput, panel.sourceOutput);
   if (Number.isFinite(panel.scrollTop) && controls.sourceOutput) controls.sourceOutput.scrollTop = panel.scrollTop;
 }
 
-function parseLineRange(value) {
+function parseLineRange(value: string | null | undefined): ParsedLineRange | null {
   if (!value) return null;
   const match = value.match(/^(\d+)(?:-(\d+))?$/);
   if (!match) return null;
@@ -2262,7 +2405,7 @@ function parseLineRange(value) {
   };
 }
 
-async function previewSelection({ routeToken = null } = {}) {
+async function previewSelection({ routeToken = null }: { routeToken?: RouteToken | null } = {}) {
   const draftSelection = state.draftSelection;
   if (!draftSelection) return;
   const body = {
@@ -2328,7 +2471,7 @@ async function saveSelection() {
   render();
 }
 
-async function copyEditedAnnotationPrompt(annotation) {
+async function copyEditedAnnotationPrompt(annotation: MapAnnotationPlace) {
   const comment = controls.selectionComment?.value.trim() ?? "";
   const copied = await copyToClipboard(annotationClipboardText({ ...annotation, comment }, {
     origin: window.location.origin,
@@ -2385,7 +2528,7 @@ async function deleteSelectedAnnotation() {
   render();
 }
 
-function armAnnotationDelete(annotation) {
+function armAnnotationDelete(annotation: MapAnnotationPlace) {
   clearPendingAnnotationDelete();
   setDeleteButtonLabel(CONFIRM_DELETE_ANNOTATION_LABEL);
   setSelectionStatus("Press Delete again to delete this annotation.");
@@ -2399,7 +2542,7 @@ function armAnnotationDelete(annotation) {
   };
 }
 
-function isPendingAnnotationDelete(annotation) {
+function isPendingAnnotationDelete(annotation: MapAnnotationPlace) {
   return pendingAnnotationDelete?.id === annotation.id;
 }
 
@@ -2415,12 +2558,12 @@ function setDeleteButtonLabel(label = DELETE_ANNOTATION_LABEL) {
   if (controls.deleteAnnotationAction) controls.deleteAnnotationAction.textContent = label;
 }
 
-function setDeleteButtonsDisabled(disabled) {
+function setDeleteButtonsDisabled(disabled: boolean) {
   if (controls.deleteAnnotation) controls.deleteAnnotation.disabled = disabled;
   if (controls.deleteAnnotationAction) controls.deleteAnnotationAction.disabled = disabled;
 }
 
-function removeNamedPlace(id) {
+function removeNamedPlace(id: string) {
   const index = state.namedPlaceIndexesById.get(id);
   if (index === undefined) return;
   state.namedPlaces.splice(index, 1);
@@ -2450,11 +2593,11 @@ function focusSelectionComment() {
   controls.selectionComment.focus({ preventScroll: true });
 }
 
-function setSelectionStatus(message) {
+function setSelectionStatus(message: string) {
   if (controls.selectionStatus) controls.selectionStatus.textContent = message;
 }
 
-function setAnnotationFeedback(message, tone = "neutral") {
+function setAnnotationFeedback(message: string, tone = "neutral") {
   if (!controls.annotationFeedback) return;
   controls.annotationFeedback.textContent = message;
   controls.annotationFeedback.hidden = !message;
@@ -2464,7 +2607,7 @@ function setAnnotationFeedback(message, tone = "neutral") {
   });
 }
 
-async function copyToClipboard(text) {
+async function copyToClipboard(text: string) {
   try {
     await navigator.clipboard.writeText(text);
     return true;
@@ -2473,7 +2616,7 @@ async function copyToClipboard(text) {
   }
 }
 
-async function copyDeferredToClipboard(textPromise) {
+async function copyDeferredToClipboard(textPromise: Promise<string>) {
   if (navigator.clipboard?.write && window.ClipboardItem && window.Blob) {
     try {
       const item = new ClipboardItem({
@@ -2493,7 +2636,7 @@ async function copyDeferredToClipboard(textPromise) {
   }
 }
 
-function copyToClipboardFallback(text) {
+function copyToClipboardFallback(text: string) {
   const element = document.createElement("textarea");
   element.value = text;
   element.setAttribute("readonly", "");
@@ -2529,10 +2672,10 @@ function setCopyButtonLabel(label = COPY_PROMPT_LABEL, { reset = false } = {}) {
   }
 }
 
-async function addActivity(event) {
+async function addActivity(event: SubmitEvent) {
   event.preventDefault();
-  if (!controls.activityForm) return;
-  const data = formDataObject(new FormData(controls.activityForm as HTMLFormElement));
+  if (!(controls.activityForm instanceof HTMLFormElement)) return;
+  const data = formDataObject(new FormData(controls.activityForm));
   await postJson("/api/activity", {
     agentId: data.agentId,
     activityState: data.activityState,
@@ -2543,7 +2686,7 @@ async function addActivity(event) {
   setTimeout(refreshActivity, 250);
 }
 
-function formDataObject(formData): Record<string, FormDataEntryValue> {
+function formDataObject(formData: FormData): Record<string, FormDataEntryValue> {
   const data: Record<string, FormDataEntryValue> = {};
   for (const [key, value] of formData) data[key] = value;
   return data;
@@ -2567,7 +2710,7 @@ async function clearActivityHistory() {
   }
 }
 
-function hitTest(point) {
+function hitTest(point: Point): HitTarget | null {
   const annotation = hitTestAnnotation(point);
   if (annotation) return annotation;
   const activity = hitTestActivity(point);
@@ -2575,24 +2718,24 @@ function hitTest(point) {
   return hitTestTargets(state.map, point);
 }
 
-function hitTestAnnotation(point) {
+function hitTestAnnotation(point: Point) {
   const radiusX = 15 / (canvas.clientWidth * state.view.scale);
   const radiusY = 15 / (canvas.clientHeight * state.view.scale);
   return hitTestAnnotations(state.namedPlaces, point, { radiusX, radiusY });
 }
 
-function hitTestActivity(point) {
+function hitTestActivity(point: Point) {
   if (!activityDiscoveryEnabled()) return null;
   const radiusX = 13 / (canvas.clientWidth * state.view.scale);
   const radiusY = 13 / (canvas.clientHeight * state.view.scale);
   return hitTestActivityEvents(state.activity, point, { radiusX, radiusY });
 }
 
-function zoomToBounds(bounds, paddingFactor = 1.2) {
+function zoomToBounds(bounds: Bounds, paddingFactor = 1.2) {
   animateViewTo(viewForBounds(bounds, viewportSize(), paddingFactor));
 }
 
-function zoomToReadableFile(file, lineRatio = 0.5) {
+function zoomToReadableFile(file: MapFile, lineRatio = 0.5) {
   const view = viewForReadableFile(file, viewportSize(), lineRatio);
   animateViewTo(view);
   return view;
@@ -2605,13 +2748,13 @@ function fitCodebaseView({ animate = false } = {}) {
   else setViewImmediate(view);
 }
 
-function setViewImmediate(view) {
+function setViewImmediate(view: View) {
   cancelCameraAnimation();
   state.view = view;
   render();
 }
 
-function animateViewTo(targetView) {
+function animateViewTo(targetView: View) {
   cancelCameraAnimation();
   if (reducedMotion.matches) {
     setViewImmediate(targetView);
@@ -2622,7 +2765,7 @@ function animateViewTo(targetView) {
   const startedAt = performance.now();
   state.cameraAnimation = { frame: 0 };
 
-  const step = (now) => {
+  const step = (now: number) => {
     if (!state.cameraAnimation) return;
     const progress = Math.min(1, (now - startedAt) / CAMERA_ANIMATION_MS);
     const eased = easeCamera(progress);
@@ -2646,7 +2789,7 @@ function cancelCameraAnimation() {
   state.cameraAnimation = null;
 }
 
-function interpolateView(fromView, toView, t) {
+function interpolateView(fromView: View, toView: View, t: number): View {
   return {
     x: fromView.x + (toView.x - fromView.x) * t,
     y: fromView.y + (toView.y - fromView.y) * t,
@@ -2654,18 +2797,18 @@ function interpolateView(fromView, toView, t) {
   };
 }
 
-function easeCamera(t) {
+function easeCamera(t: number) {
   return 1 - (1 - t) ** 3;
 }
 
-function activityPathLabel(event) {
+function activityPathLabel(event: ActivityEvent) {
   const path = pathFromActivity(event);
   const lines = event.address.lineRange ? `:${event.address.lineRange.start}-${event.address.lineRange.end}` : "";
   const columns = event.address.tokenRange ? `@${event.address.tokenRange.start}-${event.address.tokenRange.end}` : "";
   return `${path || event.address.deepLink}${lines}${columns}`;
 }
 
-function pathFromActivity(event) {
+function pathFromActivity(event: ActivityEvent) {
   const deepLink = event.address?.deepLink;
   if (!deepLink) return "";
   try {
@@ -2675,19 +2818,19 @@ function pathFromActivity(event) {
   }
 }
 
-function worldToScreen(point) {
+function worldToScreen(point: Point) {
   return worldToScreenPoint(point, state.view, viewportSize());
 }
 
-function screenToWorld(point) {
+function screenToWorld(point: Point) {
   return screenToWorldPoint(point, state.view, viewportSize());
 }
 
-function screenBounds(bounds) {
+function screenBounds(bounds: Bounds) {
   return screenBoundsForView(bounds, state.view, viewportSize());
 }
 
-function screenPoint(event) {
+function screenPoint(event: MouseEvent | PointerEvent | WheelEvent) {
   const rect = canvas.getBoundingClientRect();
   return {
     x: clamp(event.clientX - rect.left, 0, rect.width),
@@ -2695,11 +2838,11 @@ function screenPoint(event) {
   };
 }
 
-function visible(box) {
+function visible(box: Bounds) {
   return isScreenBoxVisible(box, viewportSize());
 }
 
-function screenIntersection(box) {
+function screenIntersection(box: Bounds): Bounds | null {
   const x1 = Math.max(0, box.x);
   const y1 = Math.max(0, box.y);
   const x2 = Math.min(canvas.clientWidth, box.x + box.width);
@@ -2708,7 +2851,7 @@ function screenIntersection(box) {
   return { x: x1, y: y1, width: x2 - x1, height: y2 - y1 };
 }
 
-function boundsCenter(bounds) {
+function boundsCenter(bounds: Bounds) {
   return modelBoundsCenter(bounds);
 }
 
@@ -2720,19 +2863,19 @@ function viewportCenter() {
   return { x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 };
 }
 
-function clamp(value, min, max) {
+function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-async function fetchJson(url) {
+async function fetchJson(url: string) {
   return requestJson(url);
 }
 
-async function deleteJson(url) {
+async function deleteJson(url: string) {
   return requestJson(url, { method: "DELETE" });
 }
 
-async function postJson(url, body) {
+async function postJson(url: string, body: unknown) {
   return requestJson(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -2740,7 +2883,7 @@ async function postJson(url, body) {
   });
 }
 
-async function requestJson(url, options?: RequestInit) {
+async function requestJson(url: string, options?: RequestInit) {
   const response = await fetch(url, options);
   if (!response.ok) throw new Error(await response.text());
   return response.json();

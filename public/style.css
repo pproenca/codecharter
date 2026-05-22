@@ -155,10 +155,13 @@ select:focus-visible {
 }
 
 .map-tool-palette {
-  backdrop-filter: blur(12px) saturate(1.08);
-  background: rgba(248, 252, 249, 0.76);
-  box-shadow: 0 8px 22px rgba(10, 24, 31, 0.12);
-  opacity: 0.86;
+  backdrop-filter: blur(18px) saturate(1.14);
+  background: rgba(14, 24, 29, 0.78);
+  box-shadow:
+    0 14px 34px rgba(5, 13, 17, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  color: rgba(241, 248, 244, 0.86);
+  opacity: 0.92;
   transition:
     background-color 160ms var(--ease-out),
     border-color 160ms var(--ease-out),
@@ -168,9 +171,11 @@ select:focus-visible {
 
 .map-tool-palette:hover,
 .map-tool-palette:focus-within {
-  background: rgba(255, 255, 255, 0.94);
-  border-color: rgba(47, 70, 88, 0.28);
-  box-shadow: 0 10px 28px rgba(10, 24, 31, 0.16);
+  background: rgba(14, 24, 29, 0.9);
+  border-color: rgba(218, 241, 229, 0.24);
+  box-shadow:
+    0 18px 42px rgba(5, 13, 17, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
   opacity: 1;
 }
 
@@ -181,29 +186,27 @@ select:focus-visible {
 }
 
 .map-tool-palette {
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 1px solid rgba(218, 241, 229, 0.16);
+  border-radius: 999px;
   display: inline-flex;
-  gap: 4px;
+  gap: 2px;
   left: 16px;
-  padding: 4px;
+  padding: 3px;
   top: 16px;
 }
 
 .tool-group {
   display: flex;
-  gap: 3px;
-}
-
-.tool-group + .tool-group {
-  border-left: 1px solid var(--line);
-  padding-left: 5px;
+  gap: 2px;
 }
 
 .icon-tool {
   align-items: center;
   aspect-ratio: 1;
-  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: inherit;
   display: grid;
   justify-items: center;
   min-height: 0;
@@ -211,12 +214,12 @@ select:focus-visible {
   padding: 0;
   position: relative;
   transform-origin: center;
-  width: 34px;
+  width: 32px;
 }
 
 label.icon-tool {
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid var(--line);
+  background: transparent;
+  border: 1px solid transparent;
   cursor: pointer;
   transition:
     background-color 140ms var(--ease-out),
@@ -226,9 +229,12 @@ label.icon-tool {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  label.icon-tool:hover {
-    background: #f4f8f5;
-    border-color: rgba(47, 70, 88, 0.32);
+  .map-tool-palette .icon-tool:hover:not(:disabled),
+  label.icon-tool:hover,
+  .menu-trigger:hover {
+    background: rgba(255, 255, 255, 0.11);
+    border-color: rgba(218, 241, 229, 0.1);
+    color: #ffffff;
   }
 }
 
@@ -241,13 +247,18 @@ label.icon-tool {
   width: 19px;
 }
 
-.toggle-tool:has(input:checked) {
-  background: #e9f2ed;
-  border-color: rgba(18, 128, 98, 0.42);
-  color: #035743;
+.map-tool-palette .icon-tool.active,
+.map-tool-palette .toggle-tool:has(input:checked),
+.map-action-menu[open] > .menu-trigger {
+  background: rgba(190, 244, 216, 0.18);
+  border-color: rgba(190, 244, 216, 0.26);
+  color: #eafff2;
 }
 
-.toggle-tool:active {
+.map-tool-palette .icon-tool:active:not(:disabled),
+.toggle-tool:active,
+.menu-trigger:active {
+  background: rgba(255, 255, 255, 0.14);
   transform: scale(0.98);
 }
 
@@ -261,10 +272,51 @@ label.icon-tool {
   outline-offset: 2px;
 }
 
-.icon-tool.active {
-  background: #123d35;
-  border-color: #123d35;
-  color: #fff;
+.map-action-menu {
+  display: grid;
+  position: relative;
+}
+
+.menu-trigger {
+  list-style: none;
+}
+
+.menu-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.map-action-panel {
+  backdrop-filter: blur(18px) saturate(1.14);
+  background: rgba(14, 24, 29, 0.9);
+  border: 1px solid rgba(218, 241, 229, 0.16);
+  border-radius: 999px;
+  box-shadow:
+    0 16px 36px rgba(5, 13, 17, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  color: rgba(241, 248, 244, 0.88);
+  display: flex;
+  gap: 2px;
+  left: 0;
+  opacity: 1;
+  padding: 3px;
+  position: absolute;
+  top: calc(100% + 8px);
+  transform: translateY(0) scale(1);
+  transform-origin: left top;
+  transition:
+    opacity 160ms var(--ease-out),
+    transform 160ms var(--ease-out);
+}
+
+.map-action-menu:not([open]) .map-action-panel {
+  display: none;
+}
+
+@starting-style {
+  .map-action-menu[open] .map-action-panel {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
 }
 
 .hold-action::before {
@@ -370,8 +422,9 @@ label.icon-tool {
 }
 
 .map-tool-palette .danger-action {
-  opacity: 0.82;
-  width: 34px;
+  color: #fecaca;
+  opacity: 0.9;
+  width: 32px;
 }
 
 @media (max-width: 420px) {
@@ -402,6 +455,7 @@ label.icon-tool {
   button,
   label.icon-tool,
   .map-tool-palette,
+  .map-action-panel,
   .selection-popover,
   .annotation-actions,
   .hold-action::before {
@@ -416,17 +470,56 @@ label.icon-tool {
 
 .map-status {
   align-items: center;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  bottom: 14px;
-  color: var(--muted);
-  display: flex;
-  font-size: 13px;
-  gap: 18px;
-  justify-content: space-between;
+  backdrop-filter: blur(18px) saturate(1.14);
+  background: rgba(14, 24, 29, 0.76);
+  border: 1px solid rgba(218, 241, 229, 0.16);
+  border-radius: 999px;
+  bottom: 16px;
+  box-shadow:
+    0 14px 34px rgba(5, 13, 17, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  color: rgba(241, 248, 244, 0.82);
+  display: inline-flex;
+  font-size: 12px;
+  gap: 10px;
+  justify-content: flex-start;
   left: 16px;
-  max-width: calc(100vw - 32px);
-  min-height: 34px;
-  padding: 0 12px;
-  right: 16px;
+  letter-spacing: 0;
+  max-width: min(520px, calc(100vw - 32px));
+  min-height: 32px;
+  padding: 0 13px;
+  pointer-events: none;
+  right: auto;
+  white-space: nowrap;
+  width: fit-content;
+}
+
+#hoverReadout {
+  max-width: min(300px, calc(100vw - 174px));
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#viewportReadout {
+  border-left: 1px solid rgba(218, 241, 229, 0.16);
+  color: rgba(241, 248, 244, 0.66);
+  flex-shrink: 0;
+  padding-left: 10px;
+}
+
+#viewportReadout:empty {
+  display: none;
+}
+
+@media (max-width: 420px) {
+  .map-status {
+    bottom: 10px;
+    left: 10px;
+    max-width: calc(100vw - 20px);
+    min-height: 31px;
+  }
+
+  #hoverReadout {
+    max-width: calc(100vw - 154px);
+  }
 }

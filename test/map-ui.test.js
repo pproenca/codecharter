@@ -280,6 +280,31 @@ test("map tools expose primary controls and tuck rare actions into a menu", asyn
   assert.equal(await page.getByRole("button", { name: "Clear activity history" }).isVisible(), true);
 });
 
+test("map status is a compact overlay instead of a full-width footer", async (t) => {
+  const { page, boot } = await startMapUiHarness(t);
+  await boot();
+
+  const geometry = await page.locator(".map-status").evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const canvas = document.querySelector("#mapCanvas").getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return {
+      background: style.backgroundColor,
+      borderRadius: style.borderRadius,
+      bottom: Math.round(canvas.bottom - rect.bottom),
+      canvasWidth: Math.round(canvas.width),
+      left: Math.round(rect.left - canvas.left),
+      width: Math.round(rect.width),
+    };
+  });
+
+  assert.ok(geometry.left <= 24);
+  assert.ok(geometry.bottom <= 24);
+  assert.ok(geometry.width < geometry.canvasWidth * 0.6);
+  assert.equal(geometry.borderRadius, "999px");
+  assert.match(geometry.background, /rgba\(14, 24, 29,/);
+});
+
 test("clear activity requires a deliberate hold", async (t) => {
   const { page, boot, baseUrl } = await startMapUiHarness(t);
   await boot();

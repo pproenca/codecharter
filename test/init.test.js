@@ -241,6 +241,7 @@ test("codecharter init preserves existing unmanaged local git hook content", asy
   assert.equal(postMergeHook.match(/^#!\/bin\/sh/gm)?.length, 1);
   assert.match(postMergeHook, /echo existing-hook/);
   assert.equal(postMergeHook.match(/# >>> codecharter >>>/g)?.length, 1);
+  await execFileAsync("sh", ["-n", join(root, ".git", "hooks", "post-merge")], { cwd: root });
 });
 
 test("codecharter init quotes generated git hook map paths as literal data", async () => {
@@ -266,6 +267,7 @@ test("codecharter init quotes generated git hook map paths as literal data", asy
   await writeFile(localBin, "#!/bin/sh\nexit 0\n");
   await chmod(localBin, 0o755);
 
+  await execFileAsync("sh", ["-n", join(root, ".git", "hooks", "post-merge")], { cwd: root });
   await execFileAsync("sh", [join(root, ".git", "hooks", "post-merge")], { cwd: root });
 
   const hook = await readFile(join(root, ".git", "hooks", "post-merge"), "utf8");

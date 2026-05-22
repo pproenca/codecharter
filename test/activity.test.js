@@ -138,6 +138,28 @@ test("CLI resolve prints token-range map addresses", async () => {
   assert.deepEqual(address.tokenRange, { start: 3, end: 8 });
 });
 
+test("CLI resolve honors POSIX end-of-options before dash-prefixed paths", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-posix-options-"));
+  const codemap = sampleCodemap();
+  codemap.files["--json"] = {
+    ...codemap.files["src/app.ts"],
+    path: "--json",
+  };
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(codemap));
+
+  const { stdout } = await execFileAsync("node", [
+    join(process.cwd(), "bin/codemap.mjs"),
+    "--json",
+    "resolve",
+    "--",
+    "--json",
+  ], { cwd: root });
+  const address = JSON.parse(stdout);
+
+  assert.equal(address.targetType, "file");
+  assert.equal(address.path, "--json");
+});
+
 test("CLI resolve and activity default omitted range ends for token addresses", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-cli-token-default-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));

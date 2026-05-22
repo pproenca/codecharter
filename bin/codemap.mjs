@@ -48,7 +48,7 @@ For agents:
 }
 
 function takeOption(args, name, fallback) {
-  const index = args.indexOf(name);
+  const index = optionIndex(args, name);
   if (index === -1) return fallback;
   const value = args[index + 1];
   if (!value) throw new Error(`Missing value for ${name}`);
@@ -57,18 +57,31 @@ function takeOption(args, name, fallback) {
 }
 
 function takeFlag(args, name) {
-  const index = args.indexOf(name);
+  const index = optionIndex(args, name);
   if (index === -1) return false;
   args.splice(index, 1);
   return true;
+}
+
+function optionIndex(args, name) {
+  const limit = optionSearchLimit(args);
+  for (let index = 0; index < limit; index += 1) {
+    if (args[index] === name) return index;
+  }
+  return -1;
+}
+
+function optionSearchLimit(args) {
+  const separatorIndex = args.indexOf("--");
+  return separatorIndex === -1 ? args.length : separatorIndex;
 }
 
 async function main() {
   const args = process.argv.slice(2);
   let jsonOutput = takeFlag(args, "--json");
   takeFlag(args, "--plain");
-  const command = args.shift();
   stripArgumentSeparator(args);
+  const command = args.shift();
   jsonOutput = takeFlag(args, "--json") || jsonOutput;
   takeFlag(args, "--plain");
 
@@ -131,6 +144,7 @@ class DoctorCommand extends CliCommand {
     const root = resolvePath(takeOption(args, "--root", "."));
     const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
     const server = takeOption(args, "--server", undefined);
+    stripArgumentSeparator(args);
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
     const result = await doctor({ root, mapPath, server });
     if (jsonOutput) printJson(result);
@@ -148,6 +162,7 @@ class GenerateCommand extends CliCommand {
     const out = resolveMapPath(root, takeOption(args, "--out", DEFAULT_MAP_FILE));
     const fresh = takeFlag(args, "--fresh");
     const quiet = takeFlag(args, "--quiet");
+    stripArgumentSeparator(args);
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
     await writeCodemap({ root, out, fresh, quiet });
@@ -172,6 +187,7 @@ class InitCommand extends CliCommand {
     const noCodex = takeFlag(args, "--no-codex");
     const noGitHooks = takeFlag(args, "--no-git-hooks");
     assertPositiveIntegerPort(port);
+    stripArgumentSeparator(args);
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
     const installCodex = noCodex ? false : yes ? true : await confirm("Install Codex activity tracking hooks?", true);
@@ -219,6 +235,7 @@ class DevCommand extends CliCommand {
     const setup = takeFlag(args, "--setup");
     const open = takeFlag(args, "--open");
     assertPositiveIntegerPort(port);
+    stripArgumentSeparator(args);
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
     if (setup) {
@@ -262,6 +279,7 @@ class ResolveCommand extends CliCommand {
     const server = takeOption(args, "--server", undefined);
     const columnStartRaw = takeOption(args, "--column-start", undefined);
     const columnEndRaw = takeOption(args, "--column-end", undefined);
+    stripArgumentSeparator(args);
     const [reference, lineStartRaw, lineEndRaw] = args;
     if (!reference) throw new Error("resolve requires a CodeCharter deep link or path");
     if (args.length > 3) throw new Error(`Unknown arguments: ${args.slice(3).join(" ")}`);
@@ -286,6 +304,7 @@ class AnnotationCommand extends CliCommand {
     const root = resolvePath(takeOption(args, "--root", "."));
     const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
     const server = takeOption(args, "--server", undefined);
+    stripArgumentSeparator(args);
     const [reference] = args;
     if (!reference) throw new Error("annotation requires an id, codecharter://annotation link, or CodeCharter URL");
     if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
@@ -304,6 +323,7 @@ class AnnotationsCommand extends CliCommand {
     const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
     const server = takeOption(args, "--server", undefined);
     const limit = optionalNumber(takeOption(args, "--limit", undefined));
+    stripArgumentSeparator(args);
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
     printResult(await listAnnotations({ root, mapPath, server, limit }), jsonOutput, printAnnotations);
@@ -317,6 +337,7 @@ class ApiCommand extends CliCommand {
 
   async execute({ args, jsonOutput }) {
     const server = takeOption(args, "--server", undefined);
+    stripArgumentSeparator(args);
     const [reference] = args;
     if (!reference) throw new Error("api requires a local /api path or CodeCharter API URL");
     if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
@@ -346,6 +367,7 @@ class ActivityCommand extends CliCommand {
       const note = takeOption(args, "--note", "");
       const columnStartRaw = takeOption(args, "--column-start", undefined);
       const columnEndRaw = takeOption(args, "--column-end", undefined);
+      stripArgumentSeparator(args);
       const [path, lineStartRaw, lineEndRaw] = args;
       if (!path) {
         hardFailure = true;
@@ -385,6 +407,7 @@ class ServeCommand extends CliCommand {
     const port = Number(takeOption(args, "--port", "4173"));
     const open = takeFlag(args, "--open");
     assertPositiveIntegerPort(port);
+    stripArgumentSeparator(args);
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
     const server = await startServer({ root, mapPath, port });
@@ -444,6 +467,7 @@ async function runClearActivityCommand(args, jsonOutput) {
   const root = resolvePath(takeOption(args, "--root", "."));
   const outPath = resolvePath(root, takeOption(args, "--out", DEFAULT_ACTIVITY_ARCHIVE));
   const server = takeOption(args, "--server", undefined);
+  stripArgumentSeparator(args);
   if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
   printResult(await clearActivity({ outPath, server }), jsonOutput, printActivityClearResult);

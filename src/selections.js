@@ -137,34 +137,26 @@ function selectionResolverForLevel(level) {
 }
 
 function resolveFolderTargets(codemap, geometry, level, { includeRoot = false, rootOnly = false } = {}) {
-  const targets = [];
-  for (const folder of Object.values(codemap.folders)) {
-    if (!includeRoot && folder.path === "") continue;
-    if (rootOnly && folder.path !== "") continue;
-    if (intersects(geometry.bounds, folder.bounds)) {
-      targets.push(resolvedTarget(folder, "folder", level));
-    }
-  }
-  return targets;
+  return intersectingTargets(codemap.folders, geometry.bounds, (folder) => {
+    if (!includeRoot && folder.path === "") return null;
+    if (rootOnly && folder.path !== "") return null;
+    return resolvedTarget(folder, "folder", level);
+  });
 }
 
 function resolveFileTargets(codemap, geometry, level) {
-  const targets = [];
-  for (const file of Object.values(codemap.files)) {
-    if (intersects(geometry.bounds, file.bounds)) {
-      targets.push(resolvedTarget(file, "file", level));
-    }
-  }
-  return targets;
+  return intersectingTargets(codemap.files, geometry.bounds, (file) => resolvedTarget(file, "file", level));
 }
 
 function resolveCodeTargets(codemap, geometry, level, targetMode) {
-  const targets = [];
-  for (const file of Object.values(codemap.files)) {
-    if (!intersects(geometry.bounds, file.bounds)) continue;
-    targets.push(resolvedCodeTarget(codemap, file, geometry.bounds, level, targetMode));
-  }
-  return targets;
+  return intersectingTargets(codemap.files, geometry.bounds, (file) => resolvedCodeTarget(codemap, file, geometry.bounds, level, targetMode));
+}
+
+function intersectingTargets(targets, bounds, resolve) {
+  return Object.values(targets)
+    .filter((target) => intersects(bounds, target.bounds))
+    .map(resolve)
+    .filter(Boolean);
 }
 
 function spatialFrameForGeometry(geometry, level) {

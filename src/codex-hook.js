@@ -35,6 +35,7 @@ const TOOL_INPUT_PATH_STRATEGIES = [
     paths: structuredToolPaths,
   },
 ];
+const READ_PATH_STOP_TOKENS = new Set(["|", ">", "2>"]);
 
 export async function runCodexHook({ input = "", cwd = process.cwd() } = {}) {
   const payload = parseHookPayload(input);
@@ -269,14 +270,10 @@ function isReadShellCommand(payload) {
 
 async function toolInputChanges(root, payload) {
   const paths = toolInputPaths(root, payload);
-  const changes = [];
-  for (const path of paths) {
-    changes.push({
-      path,
-      ...await changedLineRange(root, path),
-    });
-  }
-  return changes;
+  return Promise.all(paths.map(async (path) => ({
+    path,
+    ...await changedLineRange(root, path),
+  })));
 }
 
 function toolInputPaths(root, payload) {
@@ -349,11 +346,8 @@ function isPathKey(key) {
 }
 
 function shellWords(segment) {
-  const words = [];
-  for (const match of segment.matchAll(/"([^"]*)"|'([^']*)'|[^\s]+/g)) {
-    words.push(match[1] ?? match[2] ?? match[0]);
-  }
-  return words;
+  return [...segment.matchAll(/"([^"]*)"|'([^']*)'|[^\s]+/g)]
+    .map((match) => match[1] ?? match[2] ?? match[0]);
 }
 
 function readCommandStrategy(commandName) {
@@ -366,41 +360,28 @@ function readCommandPathCandidates(commandName, tokens, codemap, root = "") {
 }
 
 function genericReadPathCandidates({ tokens }) {
-  const candidates = [];
-  for (let index = 1; index < tokens.length; index += 1) {
-    const token = tokens[index];
-    if (!token || token.startsWith("-") || token === "|" || token === ">" || token === "2>") continue;
-    candidates.push(token);
-  }
-  return candidates;
+  return readPathCandidateTokens(tokens, { optionConsumesNext: null });
 }
 
 function optionAwareReadPathCandidates({ tokens }) {
-  const candidates = [];
-  for (let index = 1; index < tokens.length; index += 1) {
-    const token = tokens[index];
-    if (!token || token === "|" || token === ">" || token === "2>") continue;
-    if (readOptionConsumesNext(token)) {
-      index += 1;
-      continue;
-    }
-    if (token.startsWith("-")) continue;
-    candidates.push(token);
-  }
-  return candidates;
+  return readPathCandidateTokens(tokens);
 }
 
 function sedPathCandidates({ tokens }) {
+  return readPathCandidateTokens(tokens, { reject: looksLikeSedScript });
+}
+
+function readPathCandidateTokens(tokens, { optionConsumesNext = readOptionConsumesNext, reject = () => false } = {}) {
   const candidates = [];
   for (let index = 1; index < tokens.length; index += 1) {
     const token = tokens[index];
-    if (!token || token === "|" || token === ">" || token === "2>") continue;
-    if (readOptionConsumesNext(token)) {
+    if (!token || READ_PATH_STOP_TOKENS.has(token)) continue;
+    if (optionConsumesNext?.(token)) {
       index += 1;
       continue;
     }
     if (token.startsWith("-")) continue;
-    if (looksLikeSedScript(token)) continue;
+    if (reject(token)) continue;
     candidates.push(token);
   }
   return candidates;

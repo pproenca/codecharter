@@ -34,6 +34,16 @@ test("resolves world-level selections to the root code map region", () => {
   assert.equal(result.resolvedTargets[0].targetType, "folder");
 });
 
+test("resolves region selections to non-root folders", () => {
+  const result = resolveSelection(codemap, {
+    level: "region",
+    geometry: { type: "rect", bounds: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } },
+  });
+
+  assert.deepEqual(result.resolvedTargets.map((target) => target.path), ["src"]);
+  assert.equal(result.resolvedTargets[0].targetType, "folder");
+});
+
 test("rejects degenerate drawn selections before resolving map targets", () => {
   assert.throws(
     () => resolveSelection(codemap, {

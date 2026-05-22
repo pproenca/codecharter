@@ -32,19 +32,14 @@ export async function listIncludedFiles(root, { excludePaths = [] } = {}) {
 
 export async function scanCodeFiles(root, options = {}) {
   const paths = await listIncludedFiles(root, options);
-  const files = [];
-
-  for (const path of paths) {
+  return Promise.all(paths.map(async (path) => {
     const content = await readFile(join(root, path), "utf8");
-    const metrics = contentMetrics(content);
-    files.push({
+    return {
       path,
       extension: extname(path).toLowerCase(),
-      ...metrics,
-    });
-  }
-
-  return files;
+      ...contentMetrics(content),
+    };
+  }));
 }
 
 export function normalizeRepoPath(root, path) {

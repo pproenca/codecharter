@@ -64,10 +64,7 @@ export class ActivityWatcher {
       if (!activePaths.has(path)) this.recent.delete(path);
     }
 
-    const changes = await Promise.all(paths.map(async (path) => ({
-      path,
-      ...await changedLineRange(this.root, path),
-    })));
+    const changes = await changedRangesForPaths(this.root, paths);
     await this.prepareChanges(changes);
 
     for (const change of changes) {
@@ -97,7 +94,10 @@ export function startActivityWatcher(options = {}) {
 }
 
 export async function changedCodeChanges(root) {
-  const paths = await changedGitPaths(root);
+  return changedRangesForPaths(root, await changedGitPaths(root));
+}
+
+function changedRangesForPaths(root, paths) {
   return Promise.all(paths.map(async (path) => ({
     path,
     ...await changedLineRange(root, path),

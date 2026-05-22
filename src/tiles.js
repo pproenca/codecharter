@@ -51,13 +51,11 @@ export function buildTileIndex(codemap, level = "file") {
 }
 
 export function getTile(codemap, { level = "file", prefix }) {
-  const targets = [];
-
-  for (const target of mapTargets(codemap)) {
-    if (tilePrefixForTarget(target, level) === prefix) targets.push(target);
-  }
-
-  return { prefix, level, targets };
+  return {
+    prefix,
+    level,
+    targets: [...mapTargets(codemap)].filter((target) => tilePrefixForTarget(target, level) === prefix),
+  };
 }
 
 export function visiblePrefixes(codemap, level = "file") {

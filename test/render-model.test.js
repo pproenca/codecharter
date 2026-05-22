@@ -656,6 +656,32 @@ test("derives organic region contours deterministically from world bounds", () =
   const second = organicRegionPoints(bounds, "src/features", 2);
   const other = organicRegionPoints(bounds, "src/search", 2);
 
+  assert.deepEqual(roundPoints(first), [
+    [0.1456, 0.205156940138],
+    [0.1968, 0.205156940139],
+    [0.2544, 0.205156940139],
+    [0.312, 0.20515694014],
+    [0.3696, 0.205156940141],
+    [0.4144, 0.205156940141],
+    [0.43169209312, 0.2144],
+    [0.431692093119, 0.2432],
+    [0.431692093117, 0.2756],
+    [0.431692093116, 0.308],
+    [0.431692093115, 0.3404],
+    [0.431692093114, 0.3656],
+    [0.4144, 0.373062728318],
+    [0.3696, 0.373062728319],
+    [0.312, 0.373062728319],
+    [0.2544, 0.37306272832],
+    [0.1968, 0.373062728321],
+    [0.1456, 0.373062728321],
+    [0.128115915391, 0.3656],
+    [0.12811591539, 0.3404],
+    [0.128115915389, 0.308],
+    [0.128115915388, 0.2756],
+    [0.128115915387, 0.2432],
+    [0.128115915386, 0.2144],
+  ]);
   assert.deepEqual(first, second);
   assert.notDeepEqual(first, other);
   assert.equal(first.length, 24);
@@ -870,4 +896,11 @@ function ratio(point, bounds) {
     x: Number(((point.x - bounds.x) / bounds.width).toFixed(12)),
     y: Number(((point.y - bounds.y) / bounds.height).toFixed(12)),
   };
+}
+
+function roundPoints(points) {
+  return points.map((point) => [
+    Number(point.x.toFixed(12)),
+    Number(point.y.toFixed(12)),
+  ]);
 }

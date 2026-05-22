@@ -12,7 +12,7 @@ import { startServer } from "../src/server.js";
 const execFileAsync = promisify(execFile);
 
 test("serves map, tiles, selections, named places, and activity APIs", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-server-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-server-"));
   await mkdir(join(root, "public"));
   await mkdir(join(root, "src"));
   await writeFile(join(root, "public", "index.html"), "<!doctype html><title>Codemap</title>");
@@ -177,7 +177,7 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
 });
 
 test("serves bundled UI assets when mapping a repo without its own public directory", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-bundled-ui-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-bundled-ui-"));
   await mkdir(join(root, "src"));
   await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
@@ -200,7 +200,7 @@ test("serves bundled UI assets when mapping a repo without its own public direct
 });
 
 test("distinguishes unknown API routes from unsupported methods on known routes", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-api-routing-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-api-routing-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
@@ -221,7 +221,7 @@ test("distinguishes unknown API routes from unsupported methods on known routes"
 });
 
 test("rejects unknown named-place creation kinds before storing them", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-named-place-kind-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-named-place-kind-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
   const server = await startServer({
     root,
@@ -251,7 +251,7 @@ test("rejects unknown named-place creation kinds before storing them", async () 
 });
 
 test("accepts pre-resolved activity without reading the map sidecar", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-address-activity-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-address-activity-"));
   await writeFile(join(root, "codecharter.json"), "{");
 
   const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
@@ -275,7 +275,7 @@ test("accepts pre-resolved activity without reading the map sidecar", async () =
 });
 
 test("serves activity written directly to the JSONL archive by Codex hooks", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-archived-activity-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-archived-activity-"));
   await mkdir(join(root, ".codecharter"), { recursive: true });
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
@@ -310,7 +310,7 @@ test("serves activity written directly to the JSONL archive by Codex hooks", asy
 });
 
 test("serves hook activity from the configured activity archive", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-configured-activity-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-configured-activity-"));
   await mkdir(join(root, ".codecharter"), { recursive: true });
   await mkdir(join(root, ".scratch", "codecharter"), { recursive: true });
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
@@ -349,7 +349,7 @@ test("serves hook activity from the configured activity archive", async () => {
 });
 
 test("deletes saved map annotations", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-delete-annotation-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-delete-annotation-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
@@ -376,7 +376,7 @@ test("deletes saved map annotations", async () => {
 });
 
 test("CLI resolves annotation deep links from local storage without browser automation", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-cli-annotation-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-cli-annotation-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
@@ -432,7 +432,7 @@ test("CLI resolves annotation deep links from local storage without browser auto
 });
 
 test("uses the next available port when the requested port is occupied", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-port-fallback-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-port-fallback-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
   const blocker = await listenOnFreePort();
   const requestedPort = blocker.address().port;

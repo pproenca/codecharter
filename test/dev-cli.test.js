@@ -12,7 +12,7 @@ import { LOCAL_CODECHARTER_EXCLUDES } from "../src/local-git-exclude.js";
 const execFileAsync = promisify(execFile);
 
 test("codecharter dev is a one-command dogfood workflow", { timeout: 8000 }, async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-dev-cli-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-dev-cli-"));
   const port = await freePort();
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.js"), "export const app = true;\n");

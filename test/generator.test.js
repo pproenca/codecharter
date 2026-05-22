@@ -11,7 +11,7 @@ import { listIncludedFiles } from "../src/scan.js";
 const execFileAsync = promisify(execFile);
 
 test("lists git-visible code files with deterministic excludes", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-scan-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-scan-"));
   await execFileAsync("git", ["init"], { cwd: root });
   await mkdir(join(root, "src"), { recursive: true });
   await mkdir(join(root, "dist"), { recursive: true });
@@ -27,7 +27,7 @@ test("lists git-visible code files with deterministic excludes", async () => {
 });
 
 test("generates a path-keyed map sidecar from gitignore-filtered code files", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-"));
   await execFileAsync("git", ["init"], { cwd: root });
   await mkdir(join(root, "src"), { recursive: true });
   await mkdir(join(root, "dist"), { recursive: true });
@@ -64,7 +64,7 @@ test("generates a path-keyed map sidecar from gitignore-filtered code files", as
 });
 
 test("serializes folder children deterministically by name", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-child-order-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-child-order-"));
   await execFileAsync("git", ["init"], { cwd: root });
   await mkdir(join(root, "src", "z-folder"), { recursive: true });
   await mkdir(join(root, "src", "a-folder"), { recursive: true });
@@ -80,7 +80,7 @@ test("serializes folder children deterministically by name", async () => {
 });
 
 test("stabilizes existing file addresses when new files are added", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-stable-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-stable-"));
   await execFileAsync("git", ["init"], { cwd: root });
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "const a = 1;\nconst b = 2;\n");
@@ -100,7 +100,7 @@ test("stabilizes existing file addresses when new files are added", async () => 
 });
 
 test("stabilizes existing districts while placing new nested folders in growth area", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-stable-nested-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-stable-nested-"));
   await execFileAsync("git", ["init"], { cwd: root });
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "const a = 1;\nconst b = 2;\n");
@@ -126,7 +126,7 @@ test("stabilizes existing districts while placing new nested folders in growth a
 });
 
 test("does not anchor a district map to an obsolete projection", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-projection-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-projection-"));
   await execFileAsync("git", ["init"], { cwd: root });
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "const a = 1;\n");
@@ -150,7 +150,7 @@ test("does not anchor a district map to an obsolete projection", async () => {
 });
 
 test("does not anchor when the district layout algorithm changes", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-order-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-order-"));
   await execFileAsync("git", ["init"], { cwd: root });
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "const a = 1;\n");

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { createActivityStore } from "../src/activity-store.js";
 
 test("keeps activity hot path in memory until an explicit or timed JSONL flush", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-store-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-activity-store-"));
   const archivePath = join(root, ".scratch", "activity-stream.jsonl");
   const event = {
     id: "event-1",
@@ -31,7 +31,7 @@ test("keeps activity hot path in memory until an explicit or timed JSONL flush",
 });
 
 test("caps the archive queue in memory without checking JSONL file size", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-store-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-activity-store-"));
   const archivePath = join(root, ".scratch", "activity-stream.jsonl");
   const store = createActivityStore({
     archivePath,
@@ -84,7 +84,7 @@ test("returns activity snapshots without exposing the live events array", async 
 });
 
 test("recovers failed archive flushes before later queued activity", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-store-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-activity-store-"));
   const blockedArchivePath = join(root, "blocked-archive");
   const archivePath = join(root, ".scratch", "activity-stream.jsonl");
   await mkdir(blockedArchivePath);
@@ -111,7 +111,7 @@ test("recovers failed archive flushes before later queued activity", async () =>
 });
 
 test("clears live activity and truncates the JSONL archive", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-store-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-activity-store-"));
   const archivePath = join(root, ".scratch", "activity-stream.jsonl");
   const store = createActivityStore({ archivePath, flushIntervalMs: 60_000 });
 

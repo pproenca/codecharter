@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { readSourceRange } from "../src/source.js";
 
 test("reads a source line range for a mapped code file", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-source-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-source-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "one\ntwo\nthree\nfour\n");
 

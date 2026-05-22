@@ -1,6 +1,6 @@
 # Stable code map addresses
 
-Codemaps will create its first layout from the filesystem tree, then persist coordinates so existing Map Addresses remain stable as the codebase changes. New and deleted files should be handled locally within the affected folder region by default rather than triggering a full map reflow, because stable addresses protect human spatial memory, Drawn Selections, and Codex navigation history.
+CodeCharter will create its first layout from the filesystem tree, then persist coordinates so existing Map Addresses remain stable as the codebase changes. New and deleted files should be handled locally within the affected folder region by default rather than triggering a full map reflow, because stable addresses protect human spatial memory, Drawn Selections, and Codex navigation history.
 
 ## Considered Options
 

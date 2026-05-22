@@ -11,7 +11,7 @@ import { generateCodemap } from "../src/generator.js";
 const execFileAsync = promisify(execFile);
 
 test("generated spatial sidecar keeps geohash and containment invariants", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-spatial-invariants-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-spatial-invariants-"));
   await execFileAsync("git", ["init"], { cwd: root });
   await mkdir(join(root, "src", "features"), { recursive: true });
   await mkdir(join(root, "test"), { recursive: true });

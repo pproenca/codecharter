@@ -1,6 +1,6 @@
-# Codemaps
+# CodeCharter
 
-Codemaps treats a codebase as a navigable spatial map so people and agents can refer to code by stable regions and coordinates.
+CodeCharter treats a codebase as a navigable spatial map so people and agents can refer to code by stable regions and coordinates.
 
 ## Language
 
@@ -25,11 +25,11 @@ The persisted collection of Named Places, Drawn Selections, and Covering Sets. I
 _Avoid_: Map sidecar section, label cache
 
 **Activity Stream**:
-The in-memory timeline of Agent Positions and Activity States that powers the real-time map overlay. It is separate from the Map Sidecar because agent activity changes without changing the Code Map. Codemaps may periodically append Activity Stream events to a JSONL Activity Archive, but the archive is not read on the hot path.
+The in-memory timeline of Agent Positions and Activity States that powers the real-time map overlay. It is separate from the Map Sidecar because agent activity changes without changing the Code Map. CodeCharter may periodically append Activity Stream events to a JSONL Activity Archive, but the archive is not read on the hot path.
 _Avoid_: Map layout history, cursor log
 
 **Activity Archive**:
-A JSONL append-only record of Activity Stream events written from time to time outside the real-time request path. The Activity Archive is allowed to grow until the developer chooses to rotate or delete it; Codemaps does not put a hard file-size gate in front of telemetry.
+A JSONL append-only record of Activity Stream events written from time to time outside the real-time request path. The Activity Archive is allowed to grow until the developer chooses to rotate or delete it; CodeCharter does not put a hard file-size gate in front of telemetry.
 _Avoid_: Real-time source of truth, capped activity database
 
 **Activity Producer**:
@@ -37,7 +37,7 @@ A tool, hook, watcher, or agent integration that reports Agent Positions into th
 _Avoid_: Required build step, blocking status reporter
 
 **Activity Change Range**:
-The line and token range information an **Activity Producer** derives from a code change before resolving it to a **Map Address**. Activity Change Ranges let Codemaps show the part of a **File** an agent touched without making telemetry delivery responsible for diff parsing.
+The line and token range information an **Activity Producer** derives from a code change before resolving it to a **Map Address**. Activity Change Ranges let CodeCharter show the part of a **File** an agent touched without making telemetry delivery responsible for diff parsing.
 _Avoid_: Raw diff, watcher payload
 
 **Viewport State**:
@@ -109,7 +109,7 @@ A stable position on the **Code Map** that can be used by people and agents to l
 _Avoid_: Path-only location
 
 **Code Plane**:
-The normalized spatial domain of the **Code Map**. Codemaps can use standard geohash latitude and longitude internally while presenting Coordinates as code-space locations rather than Earth geography.
+The normalized spatial domain of the **Code Map**. CodeCharter can use standard geohash latitude and longitude internally while presenting Coordinates as code-space locations rather than Earth geography.
 _Avoid_: Fake earth, literal latitude and longitude
 
 **Map Address**:
@@ -256,7 +256,7 @@ Domain expert: "Geohash coverage is the coarse lookup. Selection Resolution stil
 
 Developer: "Should the map rearrange itself when files change?"
 
-Domain expert: "No. Codemaps should behave like a real map: existing places stay put, while new or removed Files are handled without moving the rest of the world by default."
+Domain expert: "No. CodeCharter should behave like a real map: existing places stay put, while new or removed Files are handled without moving the rest of the world by default."
 
 Developer: "Where does a new File go?"
 
@@ -316,7 +316,7 @@ Domain expert: "No. The Map Sidecar is canonical. The Tile Cache is derived from
 
 Developer: "How are Tiles addressed?"
 
-Domain expert: "Tiles use geohash prefixes as their addresses. Codemaps avoids a second tile-coordinate system unless scale later proves it necessary."
+Domain expert: "Tiles use geohash prefixes as their addresses. CodeCharter avoids a second tile-coordinate system unless scale later proves it necessary."
 
 Developer: "Does tile loading use different coordinates from Map Addresses?"
 

@@ -1,6 +1,6 @@
 # Geohash map levels
 
-Codemaps will use one geohash-based Map Level table for tile loading, Map Addresses, Drawn Selection covering sets, Named Places, and Agent Positions. The first levels are `world` at geohash length 1, `region` at length 2, `folder` at length 4, `file` at length 7, `code` at length 10, and `lineRange` at length 12 plus an explicit line range.
+CodeCharter will use one geohash-based Map Level table for tile loading, Map Addresses, Drawn Selection covering sets, Named Places, and Agent Positions. The first levels are `world` at geohash length 1, `region` at length 2, `folder` at length 4, `file` at length 7, `code` at length 10, and `lineRange` at length 12 plus an explicit line range.
 
 ## Considered Options
 

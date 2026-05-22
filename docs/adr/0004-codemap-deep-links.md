@@ -1,6 +1,6 @@
 # Codemap deep links
 
-Codemaps will use `codemap://<mapLevel>/<geohash>` as the canonical portable URI form of a Map Address, with optional metadata such as path, line range, or name in query parameters. This format is deterministic, easy for Codex and other tools to parse, and can appear consistently in hooks, logs, PR comments, saved names, browser routes, and agent activity events.
+CodeCharter will use `codemap://<mapLevel>/<geohash>` as the canonical portable URI form of a Map Address, with optional metadata such as path, line range, or name in query parameters. This format is deterministic, easy for Codex and other tools to parse, and can appear consistently in hooks, logs, PR comments, saved names, browser routes, and agent activity events.
 
 ## Considered Options
 

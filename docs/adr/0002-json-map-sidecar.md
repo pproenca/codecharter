@@ -1,6 +1,6 @@
 # JSON map sidecar
 
-Codemaps will persist the first stable base geography in a committed JSON sidecar, `codemap.json`. JSON is easy for humans, Codex, tests, web apps, and CLIs to inspect and consume, which matters more for the first version than storage density or query performance.
+CodeCharter will persist the first stable base geography in a committed JSON sidecar, `codemap.json`. JSON is easy for humans, Codex, tests, web apps, and CLIs to inspect and consume, which matters more for the first version than storage density or query performance.
 
 ## Considered Options
 

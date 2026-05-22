@@ -1,6 +1,6 @@
-# Codemaps
+# CodeCharter
 
-Codemaps turns a codebase into a navigable 2D map.
+CodeCharter turns a codebase into a navigable 2D map.
 
 The goal is to project source code into one large spatial plane, assign geohashes to areas of that plane, and use those geohash prefixes to represent business domains, features, modules, and smaller implementation regions. The experience should feel closer to navigating Google Maps than browsing a file tree.
 

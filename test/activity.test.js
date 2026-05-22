@@ -62,7 +62,7 @@ test("activity class facades preserve normalization and injected builder behavio
 });
 
 test("CLI appends Codex activity events to the JSONL activity archive", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-activity-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
@@ -89,7 +89,7 @@ test("CLI appends Codex activity events to the JSONL activity archive", async ()
 });
 
 test("CLI activity can report a deterministic token-range map address", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-token-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-activity-token-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
@@ -117,7 +117,7 @@ test("CLI activity can report a deterministic token-range map address", async ()
 });
 
 test("CLI resolve prints token-range map addresses", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-resolve-token-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-resolve-token-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   const { stdout } = await execFileAsync("node", [
@@ -139,7 +139,7 @@ test("CLI resolve prints token-range map addresses", async () => {
 });
 
 test("CLI resolve and activity default omitted range ends for token addresses", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-cli-token-default-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-cli-token-default-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   const { stdout: resolveStdout } = await execFileAsync("node", [
@@ -177,7 +177,7 @@ test("CLI resolve and activity default omitted range ends for token addresses", 
 });
 
 test("CLI resolve reports the resolved address kind for deep links with range metadata", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-resolve-link-kind-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-resolve-link-kind-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   const { stdout } = await execFileAsync("node", [
@@ -194,7 +194,7 @@ test("CLI resolve reports the resolved address kind for deep links with range me
 });
 
 test("CLI activity telemetry never exits non-zero for an unmapped path", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-missing-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-activity-missing-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   const { stdout } = await execFileAsync("node", [
@@ -212,7 +212,7 @@ test("CLI activity telemetry never exits non-zero for an unmapped path", async (
 });
 
 test("CLI activity clear truncates the local activity archive", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-clear-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-activity-clear-"));
   await mkdir(join(root, ".codecharter"), { recursive: true });
   await writeFile(join(root, ".codecharter", "activity.jsonl"), `${JSON.stringify({ id: "event-1" })}\n`);
 
@@ -229,7 +229,7 @@ test("CLI activity clear truncates the local activity archive", async () => {
 });
 
 test("CLI nested activity clear truncates the local activity archive", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-nested-clear-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-activity-nested-clear-"));
   await mkdir(join(root, ".codecharter"), { recursive: true });
   await writeFile(join(root, ".codecharter", "activity.jsonl"), `${JSON.stringify({ id: "event-1" })}\n`);
 

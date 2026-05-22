@@ -10,7 +10,7 @@ import { CODECHARTER_GITIGNORE_PATTERNS, ensureCodecharterGitignore, ensureLocal
 const execFileAsync = promisify(execFile);
 
 test("adds CodeCharter artifact paths to local git excludes without touching tracked ignores", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-local-exclude-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-local-exclude-"));
   await mkdir(join(root, "src"));
   await writeFile(join(root, "src", "app.js"), "export const app = true;\n");
   await execFileAsync("git", ["init"], { cwd: root });
@@ -28,7 +28,7 @@ test("adds CodeCharter artifact paths to local git excludes without touching tra
 });
 
 test("adds CodeCharter outputs to the repo gitignore during setup", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-gitignore-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-gitignore-"));
   await writeFile(join(root, ".gitignore"), "node_modules/\n");
 
   const result = await ensureCodecharterGitignore(root);

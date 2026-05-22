@@ -131,7 +131,7 @@ test("UnifiedDiffChangeRangeParser keeps the exported class facade behaviour", (
 });
 
 test("watcher prepares changed map state before posting each new diff signature", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-watcher-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.js"), "const app = true;\n");
   await execFileAsync("git", ["init"], { cwd: root });
@@ -176,7 +176,7 @@ test("watcher prepares changed map state before posting each new diff signature"
 });
 
 test("watcher reports untracked code files as line ranges", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-watcher-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "new-file.js"), "const first = true;\nexport const second = first;\n");
   await execFileAsync("git", ["init"], { cwd: root });
@@ -206,7 +206,7 @@ test("watcher reports untracked code files as line ranges", async () => {
 });
 
 test("watcher reports later edits to the same untracked file", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-watcher-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "new-file.js"), "const first = true;\n");
   await execFileAsync("git", ["init"], { cwd: root });
@@ -239,7 +239,7 @@ test("watcher reports later edits to the same untracked file", async () => {
 });
 
 test("watcher reports whole-file ranges without relying on a trailing newline", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-watcher-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "new-file.js"), "const first = true;\n\nexport const third = first;");
   await execFileAsync("git", ["init"], { cwd: root });
@@ -269,7 +269,7 @@ test("watcher reports whole-file ranges without relying on a trailing newline", 
 });
 
 test("watcher treats an empty untracked code file as a one-line range", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-watcher-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "empty.js"), "");
   await execFileAsync("git", ["init"], { cwd: root });
@@ -299,7 +299,7 @@ test("watcher treats an empty untracked code file as a one-line range", async ()
 });
 
 test("watcher polling does not wait for activity delivery", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-watcher-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.js"), "const app = true;\n");
   await execFileAsync("git", ["init"], { cwd: root });
@@ -330,7 +330,7 @@ test("watcher polling does not wait for activity delivery", async () => {
 });
 
 test("watcher can post pre-resolved map addresses without path resolution at the endpoint", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codemaps-watcher-"));
+  const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.js"), "const app = true;\n");
   await execFileAsync("git", ["init"], { cwd: root });

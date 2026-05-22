@@ -1,6 +1,6 @@
 # Non-blocking activity telemetry
 
-Codemaps will treat agent activity as best-effort telemetry. `POST /api/activity` accepts an event immediately, returns `202`, and records the event in the in-memory Activity Stream. If an event is malformed or refers to an unmapped path, the server drops it after logging instead of blocking the caller.
+CodeCharter will treat agent activity as best-effort telemetry. `POST /api/activity` accepts an event immediately, returns `202`, and records the event in the in-memory Activity Stream. If an event is malformed or refers to an unmapped path, the server drops it after logging instead of blocking the caller.
 
 The real-time Activity Stream is memory-backed so the UI can poll it without per-event disk I/O. The normal `codemap dev` producer resolves changed paths to Map Addresses before posting activity, so the server can accept pre-resolved events without reading the Map Sidecar. From time to time, the server appends accumulated events to `.scratch/activity-stream.jsonl` as a JSONL Activity Archive. The archive is not read on the hot path and has no hard file-size check; developers can rotate or delete it as local scratch data. The in-memory archive backlog is bounded, so slow disk can lose old archive candidates instead of blocking live work.
 

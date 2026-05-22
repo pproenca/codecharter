@@ -7,12 +7,13 @@
     <link rel="stylesheet" href="/style.css">
   </head>
   <body>
-    <main class="map-shell">
+    <main class="map-shell" aria-labelledby="appTitle">
+      <h1 id="appTitle" class="sr-only">CodeCharter Map</h1>
       <section class="map-area">
         <canvas id="mapCanvas"></canvas>
 
         <div class="map-tool-palette" role="toolbar" aria-label="Map tools">
-          <div class="tool-group tool-group-primary" aria-label="Primary map tools">
+          <div class="tool-group tool-group-primary" role="group" aria-label="Primary map tools">
             <button id="selectTool" class="icon-tool active" type="button" title="Select" aria-label="Select" aria-pressed="true">
               <svg class="lucide lucide-mouse-pointer-2" xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                 <path d="m4 4 7.07 17 2.51-7.39L21 11.07z"></path>
@@ -49,7 +50,7 @@
             </label>
           </div>
           <details class="map-action-menu">
-            <summary class="icon-tool menu-trigger" title="More map actions" aria-label="More map actions">
+            <summary class="icon-tool menu-trigger" role="button" title="More map actions" aria-label="More map actions" aria-expanded="false">
               <svg class="lucide lucide-ellipsis" xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                 <circle cx="12" cy="12" r="1"></circle>
                 <circle cx="19" cy="12" r="1"></circle>

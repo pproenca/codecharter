@@ -99,10 +99,13 @@ const mapArea = document.querySelector(".map-area");
 const DEFAULT_MAP_LEVEL = "file";
 const SAVE_AND_COPY_LABEL = "Save and copy Codex prompt";
 const COPY_PROMPT_LABEL = "Copy Codex prompt";
+const DELETE_ANNOTATION_LABEL = "Delete";
+const CONFIRM_DELETE_ANNOTATION_LABEL = "Confirm Delete";
 const CAMERA_ANIMATION_MS = 280;
 const DOUBLE_CLICK_ZOOM_FACTOR = 2;
 const CLICK_SELECT_DELAY_MS = 220;
 const CLEAR_ACTIVITY_HOLD_MS = 1600;
+const DELETE_ANNOTATION_CONFIRM_MS = 4000;
 const FOG_MASK_SCALE = 0.5;
 const POLLING_ERROR_NOTICE_THRESHOLD = 2;
 
@@ -221,6 +224,7 @@ let frameLabels = [];
 let applyingRoute = false;
 let routeSequence = 0;
 let clearActivityHold = null;
+let pendingAnnotationDelete = null;
 const pollingErrors = new Map();
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -319,6 +323,7 @@ function bindEvents() {
   controls.copyAnnotationPrompt?.addEventListener("click", copySelectedAnnotationPrompt);
   controls.deleteAnnotationAction?.addEventListener("click", deleteSelectedAnnotation);
   controls.activityForm?.addEventListener("submit", addActivity);
+  document.querySelector(".map-action-menu")?.addEventListener("toggle", updateActionMenuExpanded);
   bindClearActivityHold();
 
   mapArea.addEventListener("wheel", onWheel, { passive: false });
@@ -334,6 +339,7 @@ function bindEvents() {
   canvas.setAttribute("role", "application");
   canvas.setAttribute("aria-label", "CodeCharter map canvas. Use the pointer tool to select items, the hand tool or Space drag to pan, arrow keys to pan, plus and minus to zoom, double click to zoom in, 0 to fit the codebase, Enter to select the center, and Escape to cancel the current action.");
   canvas.addEventListener("keydown", onCanvasKeyDown);
+  updateActionMenuExpanded();
   updateInteractionModeUi();
 }
 
@@ -658,7 +664,14 @@ function updateInteractionModeUi() {
   canvas.classList.toggle("is-panning", mode.panning);
 }
 
+function updateActionMenuExpanded() {
+  const menu = document.querySelector(".map-action-menu");
+  const trigger = menu?.querySelector(".menu-trigger");
+  trigger?.setAttribute("aria-expanded", String(Boolean(menu?.open)));
+}
+
 function clearDraftSelection() {
+  clearPendingAnnotationDelete();
   state.dragging = null;
   state.draftSelection = null;
   state.resolvedSelection = null;
@@ -668,6 +681,7 @@ function clearDraftSelection() {
 }
 
 function resetSelectionOverlay() {
+  clearPendingAnnotationDelete();
   state.dragging = null;
   state.drawing = false;
   state.panning = false;
@@ -2004,6 +2018,7 @@ async function selectMapTarget(worldPoint) {
 }
 
 function clearMapSelection() {
+  clearPendingAnnotationDelete();
   const panel = mapSelectionPanel(null);
   state.selectedTarget = null;
   setText(controls.inspectorTitle, panel.inspectorTitle);
@@ -2015,6 +2030,7 @@ function clearMapSelection() {
 }
 
 function inspectMapTarget(hit) {
+  clearPendingAnnotationDelete();
   clearAnnotationForm();
   state.selectedTarget = hit;
 
@@ -2085,6 +2101,7 @@ async function selectActivityEvent(event, { zoomReadable = false } = {}) {
 }
 
 function selectAnnotation(annotation) {
+  clearPendingAnnotationDelete();
   state.selectedTarget = { ...annotation, targetType: "annotation" };
   state.draftSelection = null;
   state.resolvedSelection = null;
@@ -2161,11 +2178,12 @@ async function previewSelection({ routeToken = null } = {}) {
   setSaveButtonLabel();
   updateSelectionPopover();
   focusSelectionComment();
-  setSelectionStatus("Selection ready. Add a comment, then save or press Command Enter on macOS or Control Enter on Linux.");
+  setSelectionStatus("Selection ready. Add a comment, then save or press Command Enter on macOS or Control Enter elsewhere.");
   render();
 }
 
 async function saveSelection() {
+  clearPendingAnnotationDelete();
   if (state.selectedTarget?.targetType === "annotation" && !state.resolvedSelection) {
     await copySelectedAnnotationPrompt();
     return;
@@ -2200,6 +2218,7 @@ async function saveSelection() {
 }
 
 function clearAnnotationForm() {
+  clearPendingAnnotationDelete();
   if (state.draftSelection || state.resolvedSelection) return;
   if (controls.selectionComment) controls.selectionComment.value = "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
@@ -2211,8 +2230,12 @@ function clearAnnotationForm() {
 async function deleteSelectedAnnotation() {
   const annotation = state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null;
   if (!annotation) return;
-  if (!confirm("Delete this annotation?")) return;
-  if (controls.deleteAnnotation) controls.deleteAnnotation.disabled = true;
+  if (!isPendingAnnotationDelete(annotation)) {
+    armAnnotationDelete(annotation);
+    return;
+  }
+  clearPendingAnnotationDelete();
+  setDeleteButtonsDisabled(true);
   setSelectionStatus("Deleting annotation…");
   await deleteJson(`/api/annotations/${encodeURIComponent(annotation.id)}`);
   removeNamedPlace(annotation.id);
@@ -2223,14 +2246,48 @@ async function deleteSelectedAnnotation() {
   if (window.location.hash === createAnnotationHashRoute(annotation.id)) {
     window.history.replaceState(null, "", "#");
   }
-  if (controls.deleteAnnotation) {
-    controls.deleteAnnotation.disabled = false;
-    controls.deleteAnnotation.hidden = true;
-  }
+  setDeleteButtonsDisabled(false);
+  if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = true;
   setSaveButtonLabel();
+  setDeleteButtonLabel();
   setSelectionStatus("Annotation deleted.");
   updateSelectionPopover();
   render();
+}
+
+function armAnnotationDelete(annotation) {
+  clearPendingAnnotationDelete();
+  setDeleteButtonLabel(CONFIRM_DELETE_ANNOTATION_LABEL);
+  setSelectionStatus("Press Delete again to delete this annotation.");
+  pendingAnnotationDelete = {
+    id: annotation.id,
+    timer: window.setTimeout(() => {
+      pendingAnnotationDelete = null;
+      setDeleteButtonLabel();
+      setSelectionStatus("Delete confirmation expired.");
+    }, DELETE_ANNOTATION_CONFIRM_MS),
+  };
+}
+
+function isPendingAnnotationDelete(annotation) {
+  return pendingAnnotationDelete?.id === annotation.id;
+}
+
+function clearPendingAnnotationDelete() {
+  if (!pendingAnnotationDelete) return;
+  window.clearTimeout(pendingAnnotationDelete.timer);
+  pendingAnnotationDelete = null;
+  setDeleteButtonLabel();
+}
+
+function setDeleteButtonLabel(label = DELETE_ANNOTATION_LABEL) {
+  if (controls.deleteAnnotation) controls.deleteAnnotation.textContent = label;
+  if (controls.deleteAnnotationAction) controls.deleteAnnotationAction.textContent = label;
+}
+
+function setDeleteButtonsDisabled(disabled) {
+  if (controls.deleteAnnotation) controls.deleteAnnotation.disabled = disabled;
+  if (controls.deleteAnnotationAction) controls.deleteAnnotationAction.disabled = disabled;
 }
 
 function removeNamedPlace(id) {

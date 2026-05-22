@@ -14,6 +14,16 @@ test("drawing a map selection opens the annotation textbox and enables save", as
   assert.equal(await comment.evaluate((element) => document.activeElement === element), true);
   assert.equal(await page.getByRole("button", { name: "Save and copy Codex prompt" }).isEnabled(), true);
   assert.match(page.url(), /#\/selection\?level=file&bounds=/);
+
+  const composerStyle = await page.locator("#selectionPopover").evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      background: style.backgroundColor,
+      borderRadius: style.borderRadius,
+    };
+  });
+  assert.match(composerStyle.background, /rgba\(14, 24, 29,/);
+  assert.equal(composerStyle.borderRadius, "8px");
 });
 
 test("selection hash route boots into a ready annotation draft and Escape cleans the hash", async (t) => {
@@ -77,9 +87,9 @@ test("annotation hash route boots selected annotation and keyboard copy/delete u
   await page.keyboard.press("Control+C");
   await page.waitForFunction(() => navigator.clipboard.readText().then((text) => text.includes("Route boot annotation")));
 
-  page.on("dialog", (dialog) => {
-    dialog.accept();
-  });
+  await page.keyboard.press("Delete");
+  await page.getByRole("button", { name: "Confirm Delete" }).waitFor({ state: "visible" });
+
   const deleteResponse = page.waitForResponse((response) =>
     response.request().method() === "DELETE"
     && response.url().endsWith(`/api/annotations/${annotation.id}`)
@@ -280,6 +290,20 @@ test("map tools expose primary controls and tuck rare actions into a menu", asyn
   await page.getByLabel("More map actions").click();
   await page.getByRole("button", { name: "Zoom in" }).waitFor({ state: "visible" });
   assert.equal(await page.getByRole("button", { name: "Clear activity history" }).isVisible(), true);
+});
+
+test("more actions menu exposes button semantics and expanded state", async (t) => {
+  const { page, boot } = await startMapUiHarness(t);
+  await boot();
+
+  const menuTrigger = page.getByRole("button", { name: "More map actions" });
+  await menuTrigger.waitFor({ state: "visible" });
+  assert.equal(await menuTrigger.getAttribute("aria-expanded"), "false");
+
+  await menuTrigger.click();
+  await page.waitForFunction(() => document.querySelector(".menu-trigger")?.getAttribute("aria-expanded") === "true");
+  assert.equal(await menuTrigger.getAttribute("aria-expanded"), "true");
+  await page.getByRole("button", { name: "Fit codebase" }).waitFor({ state: "visible" });
 });
 
 test("map status is a compact overlay instead of a full-width footer", async (t) => {

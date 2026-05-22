@@ -393,8 +393,8 @@ const DOUBLE_CLICK_ACTION_COMMANDS = commandDispatcher([
     void selectMapTarget(world);
     zoomToBounds(hit.bounds, 1.35);
   }],
-  ["selectFile", (_hit, world) => {
-    void selectMapTarget(world);
+  ["selectFile", (hit, world) => {
+    void inspectFileTarget(hit, world, { zoomReadable: true });
   }],
   ["selectActivity", (hit) => {
     void selectActivityEvent(hit);
@@ -1581,12 +1581,12 @@ function inspectFolderTarget(hit) {
   render();
 }
 
-async function inspectFileTarget(hit, worldPoint) {
+async function inspectFileTarget(hit, worldPoint, { zoomReadable = false } = {}) {
   inspectMapTarget(hit);
   const line = lineAtPoint(hit, worldPoint);
   const lineRatio = lineRatioForLine(hit, line);
   let box = screenBounds(hit.bounds);
-  if (!canRenderSourceText(hit, box)) {
+  if (zoomReadable && !canRenderSourceText(hit, box)) {
     const readableView = zoomToReadableFile(hit, lineRatio);
     box = screenBoundsForView(hit.bounds, readableView, viewportSize());
   }

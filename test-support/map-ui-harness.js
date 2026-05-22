@@ -9,6 +9,7 @@ export async function startMapUiHarness(t, { viewport = { width: 960, height: 72
   const root = await mkdtemp(join(tmpdir(), "codecharter-map-ui-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "const app = true;\nexport default app;\n");
+  await writeFile(join(root, "src", "long.ts"), Array.from({ length: 120 }, (_, index) => `export const line${index + 1} = ${index + 1};`).join("\n"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   const server = await startServer({
@@ -108,6 +109,17 @@ function sampleCodemap() {
         lineCount: 2,
         maxLineLength: 19,
         weight: 2,
+      },
+      "src/long.ts": {
+        path: "src/long.ts",
+        name: "long.ts",
+        extension: ".ts",
+        contentType: "code",
+        bounds: { x: 0.08, y: 0.08, width: 0.04, height: 0.04 },
+        geo: { lat: 0, lon: 0, geohash: "s00000000001" },
+        lineCount: 120,
+        maxLineLength: 27,
+        weight: 120,
       },
     },
   };

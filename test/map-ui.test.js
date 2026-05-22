@@ -121,10 +121,59 @@ test("annotation hash route focuses annotations created after boot", async (t) =
   assert.equal(new URL(page.url()).hash, `#/annotation/${annotation.id}`);
 });
 
+test("single click inspects a file without drilling the camera into it", async (t) => {
+  const { page, boot } = await startMapUiHarness(t);
+  await boot();
+
+  const initialScale = await viewportScale(page);
+  await clickMapWorld(page, { x: 0.1, y: 0.1 });
+  await page.waitForFunction(() => window.location.hash.includes("path=src%2Flong.ts"));
+  await page.waitForTimeout(500);
+
+  assert.equal(await viewportScale(page), initialScale);
+});
+
+test("double click drills the camera into a file", async (t) => {
+  const { page, boot } = await startMapUiHarness(t);
+  await boot();
+
+  const initialScale = await viewportScale(page);
+  await doubleClickMapWorld(page, { x: 0.1, y: 0.1 });
+  await page.waitForFunction((scale) => {
+    const match = document.querySelector("#viewportReadout")?.textContent?.match(/scale ([0-9.]+)/);
+    return match && Number(match[1]) > scale;
+  }, initialScale);
+
+  assert.ok(await viewportScale(page) > initialScale);
+});
+
 async function drawReadySelection(page) {
   const resolveResponse = waitForSelectionResolve(page);
   await drawSelection(page);
   await resolveResponse;
+}
+
+async function clickMapWorld(page, point) {
+  const canvas = page.locator("#mapCanvas");
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("Map canvas is not visible");
+
+  await page.mouse.click(box.x + box.width * point.x, box.y + box.height * point.y);
+}
+
+async function doubleClickMapWorld(page, point) {
+  const canvas = page.locator("#mapCanvas");
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("Map canvas is not visible");
+
+  await page.mouse.dblclick(box.x + box.width * point.x, box.y + box.height * point.y);
+}
+
+async function viewportScale(page) {
+  const text = await page.locator("#viewportReadout").innerText();
+  const match = text.match(/scale ([0-9.]+)/);
+  assert.ok(match, `No scale in viewport readout: ${text}`);
+  return Number(match[1]);
 }
 
 function waitForSelectionResolve(page) {

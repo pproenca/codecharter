@@ -6,7 +6,7 @@ export function findNamedPlaceOverlaps(places) {
     const place = places[index];
     if (place.kind === "drawnSelection" && place.geometry?.type === "rect") drawn.push({ place, index });
   }
-  drawn.sort((a, b) => a.place.geometry.bounds.x - b.place.geometry.bounds.x || a.index - b.index);
+  if (!drawnPlacesAreSorted(drawn)) drawn.sort(compareDrawnPlaces);
   const overlaps = [];
   const active = [];
 
@@ -32,12 +32,34 @@ export function findNamedPlaceOverlaps(places) {
     active.push(candidate);
   }
 
-  overlaps.sort((a, b) => a.order[0] - b.order[0] || a.order[1] - b.order[1]);
+  if (!overlapsAreSorted(overlaps)) overlaps.sort(compareOverlaps);
   const results = [];
   for (const { order, ...overlap } of overlaps) {
     results.push(overlap);
   }
   return results;
+}
+
+function drawnPlacesAreSorted(drawn) {
+  for (let index = 1; index < drawn.length; index += 1) {
+    if (compareDrawnPlaces(drawn[index - 1], drawn[index]) > 0) return false;
+  }
+  return true;
+}
+
+function compareDrawnPlaces(a, b) {
+  return a.place.geometry.bounds.x - b.place.geometry.bounds.x || a.index - b.index;
+}
+
+function overlapsAreSorted(overlaps) {
+  for (let index = 1; index < overlaps.length; index += 1) {
+    if (compareOverlaps(overlaps[index - 1], overlaps[index]) > 0) return false;
+  }
+  return true;
+}
+
+function compareOverlaps(a, b) {
+  return a.order[0] - b.order[0] || a.order[1] - b.order[1];
 }
 
 function intersectionBounds(a, b) {

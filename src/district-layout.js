@@ -81,13 +81,7 @@ export class DistrictLayoutEngine {
         layoutWeight: this.layoutWeight(child),
       });
     }
-    ordered.sort((a, b) => {
-      const typeDelta = a.typeRank - b.typeRank;
-      if (typeDelta !== 0) return typeDelta;
-      const weightDelta = b.layoutWeight - a.layoutWeight;
-      if (Math.abs(weightDelta) > 1e-9) return weightDelta;
-      return a.child.path.localeCompare(b.child.path);
-    });
+    if (!layoutEntriesAreSorted(ordered)) ordered.sort(compareLayoutEntries);
     const childrenForLayout = [];
     for (const entry of ordered) childrenForLayout.push(entry.child);
     return childrenForLayout;
@@ -238,6 +232,21 @@ export class DistrictLayoutEngine {
 }
 
 const DISTRICT_LAYOUT_ENGINE = new DistrictLayoutEngine();
+
+function layoutEntriesAreSorted(entries) {
+  for (let index = 1; index < entries.length; index += 1) {
+    if (compareLayoutEntries(entries[index - 1], entries[index]) > 0) return false;
+  }
+  return true;
+}
+
+function compareLayoutEntries(a, b) {
+  const typeDelta = a.typeRank - b.typeRank;
+  if (typeDelta !== 0) return typeDelta;
+  const weightDelta = b.layoutWeight - a.layoutWeight;
+  if (Math.abs(weightDelta) > 1e-9) return weightDelta;
+  return a.child.path.localeCompare(b.child.path);
+}
 
 export function assignAddress(target) {
   DISTRICT_LAYOUT_ENGINE.assignAddress(target);

@@ -30,7 +30,7 @@ export async function listIncludedFiles(root, { excludePaths = [] } = {}) {
     lineStart = index + 1;
     if (shouldIncludePath(path, excluded)) paths.push(path);
   }
-  return paths.sort((a, b) => a.localeCompare(b));
+  return stringsAreSorted(paths) ? paths : paths.sort((a, b) => a.localeCompare(b));
 }
 
 function shouldIncludePath(path, excluded) {
@@ -38,6 +38,13 @@ function shouldIncludePath(path, excluded) {
     && !excluded.has(path)
     && !DEFAULT_EXCLUDED_FILES.has(path)
     && isCodeFile(path);
+}
+
+function stringsAreSorted(values) {
+  for (let index = 1; index < values.length; index += 1) {
+    if (values[index - 1].localeCompare(values[index]) > 0) return false;
+  }
+  return true;
 }
 
 export async function scanCodeFiles(root, options = {}) {

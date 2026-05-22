@@ -51,7 +51,7 @@ export class FolderNode {
     if (!this.sortedFolderCache) {
       const folders = [];
       for (const folder of this.folders.values()) folders.push(folder);
-      this.sortedFolderCache = folders.sort(compareNodeNames);
+      this.sortedFolderCache = nodesAreSorted(folders) ? folders : folders.sort(compareNodeNames);
     }
     return this.sortedFolderCache;
   }
@@ -60,7 +60,7 @@ export class FolderNode {
     if (!this.sortedFileCache) {
       const files = [];
       for (const file of this.files.values()) files.push(file);
-      this.sortedFileCache = files.sort(compareNodeNames);
+      this.sortedFileCache = nodesAreSorted(files) ? files : files.sort(compareNodeNames);
     }
     return this.sortedFileCache;
   }
@@ -135,6 +135,13 @@ export function sortedFiles(folder) {
 
 function compareNodeNames(a, b) {
   return a.name.localeCompare(b.name);
+}
+
+function nodesAreSorted(nodes) {
+  for (let index = 1; index < nodes.length; index += 1) {
+    if (compareNodeNames(nodes[index - 1], nodes[index]) > 0) return false;
+  }
+  return true;
 }
 
 function joinPath(parent, child) {

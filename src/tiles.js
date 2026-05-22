@@ -47,7 +47,7 @@ export function buildTileIndex(codemap, level = "file") {
 
   const tileEntries = [];
   for (const entry of tiles.entries()) tileEntries.push(entry);
-  tileEntries.sort(([a], [b]) => a.localeCompare(b));
+  if (!tileEntriesAreSorted(tileEntries)) tileEntries.sort(([a], [b]) => a.localeCompare(b));
   const index = [];
   for (const [prefix, targets] of tileEntries) {
     index.push({ prefix, level, targets });
@@ -73,7 +73,7 @@ export function visiblePrefixes(codemap, level = "file") {
   }
   const sorted = [];
   for (const prefix of prefixes) sorted.push(prefix);
-  return sorted.sort((a, b) => a.localeCompare(b));
+  return stringsAreSorted(sorted) ? sorted : sorted.sort((a, b) => a.localeCompare(b));
 }
 
 function addTarget(tiles, prefix, target) {
@@ -101,7 +101,7 @@ function sortedTargets(targets) {
   for (const target of objectValues(targets)) {
     sorted.push(target);
   }
-  return sorted.sort((left, right) => left.path.localeCompare(right.path));
+  return targetsAreSorted(sorted) ? sorted : sorted.sort((left, right) => left.path.localeCompare(right.path));
 }
 
 function matchingTargets(targets, targetType, level, prefix) {
@@ -109,7 +109,7 @@ function matchingTargets(targets, targetType, level, prefix) {
   for (const target of objectValues(targets)) {
     if (tilePrefixForTarget(target, level) === prefix) matches.push(target);
   }
-  matches.sort((left, right) => left.path.localeCompare(right.path));
+  if (!targetsAreSorted(matches)) matches.sort((left, right) => left.path.localeCompare(right.path));
   const serialized = [];
   for (const target of matches) {
     serialized.push(serializeTarget(target, targetType));
@@ -121,6 +121,27 @@ function* objectValues(values) {
   for (const key in values) {
     if (Object.hasOwn(values, key)) yield values[key];
   }
+}
+
+function tileEntriesAreSorted(entries) {
+  for (let index = 1; index < entries.length; index += 1) {
+    if (entries[index - 1][0].localeCompare(entries[index][0]) > 0) return false;
+  }
+  return true;
+}
+
+function targetsAreSorted(targets) {
+  for (let index = 1; index < targets.length; index += 1) {
+    if (targets[index - 1].path.localeCompare(targets[index].path) > 0) return false;
+  }
+  return true;
+}
+
+function stringsAreSorted(values) {
+  for (let index = 1; index < values.length; index += 1) {
+    if (values[index - 1].localeCompare(values[index]) > 0) return false;
+  }
+  return true;
 }
 
 function serializeTarget(target, targetType) {

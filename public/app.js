@@ -1279,7 +1279,7 @@ function queueLabelInBox(label) {
 
 function drawQueuedLabels() {
   const placed = [];
-  frameLabels.sort((a, b) => b.priority - a.priority);
+  if (!labelsAreInPriorityOrder(frameLabels)) frameLabels.sort((a, b) => b.priority - a.priority);
   for (const label of frameLabels) {
     if (placed.some((other) => labelBoxesOverlap(label.collisionBox, other))) continue;
     ctx.save();
@@ -1290,6 +1290,13 @@ function drawQueuedLabels() {
     ctx.restore();
     placed.push(label.collisionBox);
   }
+}
+
+function labelsAreInPriorityOrder(labels) {
+  for (let index = 1; index < labels.length; index += 1) {
+    if (labels[index - 1].priority < labels[index].priority) return false;
+  }
+  return true;
 }
 
 function labelPlacement(text, box, size = 12, weight = "400") {

@@ -139,7 +139,14 @@ function sortedUnique(values) {
   const source = values instanceof Set ? values : new Set(values);
   const unique = [];
   for (const value of source) unique.push(value);
-  return unique.sort((a, b) => a.localeCompare(b));
+  return stringsAreSorted(unique) ? unique : unique.sort((a, b) => a.localeCompare(b));
+}
+
+function stringsAreSorted(values) {
+  for (let index = 1; index < values.length; index += 1) {
+    if (values[index - 1].localeCompare(values[index]) > 0) return false;
+  }
+  return true;
 }
 
 function breadcrumbForPath(path) {

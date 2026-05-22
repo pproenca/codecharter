@@ -378,10 +378,19 @@ function mergeActivityEvents(...groups) {
   }
   const events = [];
   for (const event of byId.values()) events.push(event);
-  return events.sort((left, right) => {
-    const byTime = String(left.timestamp ?? "").localeCompare(String(right.timestamp ?? ""));
-    return byTime || String(left.id ?? "").localeCompare(String(right.id ?? ""));
-  });
+  return activityEventsAreSorted(events) ? events : events.sort(compareActivityEvents);
+}
+
+function activityEventsAreSorted(events) {
+  for (let index = 1; index < events.length; index += 1) {
+    if (compareActivityEvents(events[index - 1], events[index]) > 0) return false;
+  }
+  return true;
+}
+
+function compareActivityEvents(left, right) {
+  const byTime = String(left.timestamp ?? "").localeCompare(String(right.timestamp ?? ""));
+  return byTime || String(left.id ?? "").localeCompare(String(right.id ?? ""));
 }
 
 async function readBody(request) {

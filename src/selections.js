@@ -30,7 +30,7 @@ export function resolveSelection(codemap, selection) {
     geometry,
     spatialFrame: spatialFrameForGeometry(geometry, level),
     coveringSet,
-    resolvedTargets: targets.sort((a, b) => a.path.localeCompare(b.path)),
+    resolvedTargets: targetsAreSorted(targets) ? targets : targets.sort((a, b) => a.path.localeCompare(b.path)),
   };
 }
 
@@ -166,7 +166,21 @@ function sortedUniqueGeohashes(targets) {
   for (const target of targets) geohashes.add(target.geohash);
   const sorted = [];
   for (const geohash of geohashes) sorted.push(geohash);
-  return sorted.sort((a, b) => a.localeCompare(b));
+  return stringsAreSorted(sorted) ? sorted : sorted.sort((a, b) => a.localeCompare(b));
+}
+
+function stringsAreSorted(values) {
+  for (let index = 1; index < values.length; index += 1) {
+    if (values[index - 1].localeCompare(values[index]) > 0) return false;
+  }
+  return true;
+}
+
+function targetsAreSorted(targets) {
+  for (let index = 1; index < targets.length; index += 1) {
+    if (targets[index - 1].path.localeCompare(targets[index].path) > 0) return false;
+  }
+  return true;
 }
 
 function spatialFrameForGeometry(geometry, level) {

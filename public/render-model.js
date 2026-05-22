@@ -158,7 +158,19 @@ export function organicRegionFolders(codemap) {
     if (!folder.path) continue;
     folders.push({ folder, depth: folderDepth(folder.path) });
   }
-  return folders.sort((a, b) => a.depth - b.depth || a.folder.path.localeCompare(b.folder.path));
+  return organicRegionFoldersAreSorted(folders)
+    ? folders
+    : folders.sort((a, b) => a.depth - b.depth || a.folder.path.localeCompare(b.folder.path));
+}
+
+function organicRegionFoldersAreSorted(folders) {
+  for (let index = 1; index < folders.length; index += 1) {
+    const previous = folders[index - 1];
+    const current = folders[index];
+    if (previous.depth > current.depth) return false;
+    if (previous.depth === current.depth && previous.folder.path.localeCompare(current.folder.path) > 0) return false;
+  }
+  return true;
 }
 
 export function folderStyle(path, depth) {
@@ -912,7 +924,7 @@ export function activityTrailGroups(events, {
     if (current.length > 1) groups.push(current);
   }
 
-  return groups.sort(compareActivityGroupsByTime);
+  return activityGroupsAreSorted(groups) ? groups : groups.sort(compareActivityGroupsByTime);
 }
 
 export function activityTrailPointGroups(points, {
@@ -1099,7 +1111,7 @@ function liveActivityEventsInTimeOrder(events, options) {
     if (!isLiveActivityEvent(event, options)) continue;
     liveEvents.push(event);
   }
-  return liveEvents.sort(compareActivityEventsByTime);
+  return activityEventsAreSorted(liveEvents) ? liveEvents : liveEvents.sort(compareActivityEventsByTime);
 }
 
 function liveActivityEventsFromOffset(events, offset, options) {
@@ -1159,6 +1171,13 @@ function compareActivityEventsByTime(left, right) {
   return Number.isNaN(result) ? 0 : result;
 }
 
+function activityEventsAreSorted(events) {
+  for (let index = 1; index < events.length; index += 1) {
+    if (compareActivityEventsByTime(events[index - 1], events[index]) > 0) return false;
+  }
+  return true;
+}
+
 function activityAgeMinutes(event, now) {
   const timestamp = Date.parse(event?.timestamp ?? "");
   if (!Number.isFinite(timestamp)) return 0;
@@ -1181,6 +1200,13 @@ function compareActivityGroupsByTime(left, right) {
   const leftTime = Date.parse(left[0]?.timestamp ?? "");
   const rightTime = Date.parse(right[0]?.timestamp ?? "");
   return (Number.isFinite(leftTime) ? leftTime : 0) - (Number.isFinite(rightTime) ? rightTime : 0);
+}
+
+function activityGroupsAreSorted(groups) {
+  for (let index = 1; index < groups.length; index += 1) {
+    if (compareActivityGroupsByTime(groups[index - 1], groups[index]) > 0) return false;
+  }
+  return true;
 }
 
 function boundedTrailControlPoint({ point, start, end, segmentDistance }) {

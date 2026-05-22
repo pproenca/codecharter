@@ -23,6 +23,26 @@ test("resolves drawn selections with geohash coverage and geometry refinement", 
   assert.deepEqual(result.resolvedTargets.map((target) => target.path), ["src/a.ts"]);
 });
 
+test("resolves selections with clamped bounds, unique coverage, and path-sorted targets", () => {
+  const map = {
+    folders: {},
+    files: {
+      "src/z.ts": target("src/z.ts", "s12345678901", { x: 0.05, y: 0.05, width: 0.2, height: 0.2 }),
+      "src/a.ts": target("src/a.ts", "s12345678999", { x: 0.1, y: 0.1, width: 0.2, height: 0.2 }),
+      "src/outside.ts": target("src/outside.ts", "u98765432109", { x: 0.8, y: 0.8, width: 0.1, height: 0.1 }),
+    },
+  };
+
+  const result = resolveSelection(map, {
+    level: "file",
+    geometry: { type: "rect", bounds: { x: -0.1, y: -0.1, width: 0.5, height: 0.5 } },
+  });
+
+  assert.deepEqual(result.geometry.bounds, { x: 0, y: 0, width: 0.4, height: 0.4 });
+  assert.deepEqual(result.coveringSet, ["s123456"]);
+  assert.deepEqual(result.resolvedTargets.map((target) => target.path), ["src/a.ts", "src/z.ts"]);
+});
+
 test("resolves world-level selections to the root code map region", () => {
   const result = resolveSelection(codemap, {
     level: "world",
@@ -103,6 +123,16 @@ test("derives map annotation labels from comments when no title is provided", ()
   assert.equal(annotation.name, "Review the spatial picker");
   assert.equal(annotation.comment, "Review the spatial picker\nIt should copy a link.");
   assert.match(annotation.codexPrompt, /Note: Review the spatial picker/);
+});
+
+test("derives map annotation labels from the first nonblank comment line", () => {
+  const annotation = createMapAnnotation(codemap, {
+    comment: "\n\n  Review later lines\nSecond line",
+    level: "file",
+    geometry: { type: "rect", bounds: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } },
+  });
+
+  assert.equal(annotation.name, "Review later lines");
 });
 
 test("refreshes map annotations against current geometry without changing identity", () => {

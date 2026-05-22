@@ -21,18 +21,24 @@ export class FolderNode {
     this.path = path;
     this.folders = new Map();
     this.files = new Map();
+    this.sortedFolderCache = null;
+    this.sortedFileCache = null;
     this.weight = 0;
     this.lineCount = 0;
   }
 
   childFolder(name) {
-    if (!this.folders.has(name)) this.folders.set(name, new FolderNode(joinPath(this.path, name)));
+    if (!this.folders.has(name)) {
+      this.folders.set(name, new FolderNode(joinPath(this.path, name)));
+      this.sortedFolderCache = null;
+    }
     return this.folders.get(name);
   }
 
   addFile(file) {
     const node = new FileNode(file);
     this.files.set(node.name, node);
+    this.sortedFileCache = null;
     return node;
   }
 
@@ -41,11 +47,13 @@ export class FolderNode {
   }
 
   sortedFolders() {
-    return [...this.folders.values()].sort(compareNodeNames);
+    if (!this.sortedFolderCache) this.sortedFolderCache = [...this.folders.values()].sort(compareNodeNames);
+    return this.sortedFolderCache;
   }
 
   sortedFiles() {
-    return [...this.files.values()].sort(compareNodeNames);
+    if (!this.sortedFileCache) this.sortedFileCache = [...this.files.values()].sort(compareNodeNames);
+    return this.sortedFileCache;
   }
 
   recalculateMetrics() {
@@ -75,8 +83,8 @@ export function buildFileTree(files) {
     const parts = file.path.split("/");
     let current = root;
 
-    for (const part of parts.slice(0, -1)) {
-      current = current.childFolder(part);
+    for (let index = 0; index < parts.length - 1; index += 1) {
+      current = current.childFolder(parts[index]);
     }
 
     current.addFile(file);

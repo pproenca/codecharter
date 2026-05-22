@@ -12,6 +12,7 @@ const DEFAULT_EXCLUDED_FILES = new Set([
   "pnpm-lock.yaml",
   "yarn.lock",
 ]);
+const DEFAULT_SCAN_CONCURRENCY = 32;
 
 export async function listIncludedFiles(root, { excludePaths = [] } = {}) {
   const excluded = new Set(excludePaths.map((path) => normalizeRepoPath(root, path)));
@@ -20,26 +21,21 @@ export async function listIncludedFiles(root, { excludePaths = [] } = {}) {
     maxBuffer: 10 * 1024 * 1024,
   });
 
-  return stdout
-    .split("\n")
-    .map((path) => path.trim())
-    .filter(Boolean)
-    .filter((path) => !excluded.has(path))
-    .filter((path) => !DEFAULT_EXCLUDED_FILES.has(path))
-    .filter(isCodeFile)
-    .sort((a, b) => a.localeCompare(b));
+  const paths = [];
+  for (const line of stdout.split("\n")) {
+    const path = line.trim();
+    if (!path) continue;
+    if (excluded.has(path)) continue;
+    if (DEFAULT_EXCLUDED_FILES.has(path)) continue;
+    if (!isCodeFile(path)) continue;
+    paths.push(path);
+  }
+  return paths.sort((a, b) => a.localeCompare(b));
 }
 
 export async function scanCodeFiles(root, options = {}) {
   const paths = await listIncludedFiles(root, options);
-  return Promise.all(paths.map(async (path) => {
-    const content = await readFile(join(root, path), "utf8");
-    return {
-      path,
-      extension: extname(path).toLowerCase(),
-      ...contentMetrics(content),
-    };
-  }));
+  return scanPaths(root, paths, options.scanConcurrency ?? DEFAULT_SCAN_CONCURRENCY);
 }
 
 export function normalizeRepoPath(root, path) {
@@ -54,6 +50,30 @@ function contentMetrics(content) {
     lineCount,
     maxLineLength,
     tokenCount: Math.max(1, countMatches(content, TOKEN_PATTERN)),
+  };
+}
+
+async function scanPaths(root, paths, concurrency) {
+  const results = new Array(paths.length);
+  let next = 0;
+  const workerCount = Math.max(1, Math.min(paths.length, Number(concurrency) || DEFAULT_SCAN_CONCURRENCY));
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (next < paths.length) {
+      const index = next;
+      next += 1;
+      results[index] = await scanPath(root, paths[index]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+async function scanPath(root, path) {
+  const content = await readFile(join(root, path), "utf8");
+  return {
+    path,
+    extension: extname(path).toLowerCase(),
+    ...contentMetrics(content),
   };
 }
 

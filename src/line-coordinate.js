@@ -64,7 +64,7 @@ export function codeRangeGeometry(file, request) {
   const tokenRange = tokenRangeForRequest(file, request);
   const fragments = fragmentGeometries(file, request.fragments);
   const bounds = fragments.length
-    ? unionBounds(fragments.map((fragment) => fragment.bounds))
+    ? unionFragmentBounds(fragments)
     : tokenRange ? tokenBounds(file, lineBounds, tokenRange) : lineBounds;
 
   return {
@@ -103,9 +103,12 @@ function tokenRangeForRequest(file, request) {
 
 function fragmentGeometries(file, fragments) {
   if (!Array.isArray(fragments)) return [];
-  return fragments
-    .map((fragment) => fragmentGeometry(file, fragment))
-    .filter(Boolean);
+  const geometries = [];
+  for (const fragment of fragments) {
+    const geometry = fragmentGeometry(file, fragment);
+    if (geometry) geometries.push(geometry);
+  }
+  return geometries;
 }
 
 function fragmentGeometry(file, fragment) {
@@ -168,6 +171,26 @@ function unionBounds(boundsList) {
   let x2 = Number.NEGATIVE_INFINITY;
   let y2 = Number.NEGATIVE_INFINITY;
   for (const bounds of boundsList) {
+    x1 = Math.min(x1, bounds.x);
+    y1 = Math.min(y1, bounds.y);
+    x2 = Math.max(x2, bounds.x + bounds.width);
+    y2 = Math.max(y2, bounds.y + bounds.height);
+  }
+  return {
+    x: round(x1),
+    y: round(y1),
+    width: round(x2 - x1),
+    height: round(y2 - y1),
+  };
+}
+
+function unionFragmentBounds(fragments) {
+  let x1 = Number.POSITIVE_INFINITY;
+  let y1 = Number.POSITIVE_INFINITY;
+  let x2 = Number.NEGATIVE_INFINITY;
+  let y2 = Number.NEGATIVE_INFINITY;
+  for (const fragment of fragments) {
+    const bounds = fragment.bounds;
     x1 = Math.min(x1, bounds.x);
     y1 = Math.min(y1, bounds.y);
     x2 = Math.max(x2, bounds.x + bounds.width);

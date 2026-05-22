@@ -44,7 +44,7 @@ export class ActivityStore {
   add(event) {
     this.events.push(event);
     this.pending.push(event);
-    while (this.events.length > this.maxMemoryEvents) this.events.shift();
+    trimOldest(this.events, this.maxMemoryEvents);
     this.trimPending();
     return event;
   }
@@ -94,8 +94,12 @@ export class ActivityStore {
   }
 
   trimPending() {
-    while (this.pending.length > this.maxArchiveQueueEvents) this.pending.shift();
+    trimOldest(this.pending, this.maxArchiveQueueEvents);
   }
+}
+
+function trimOldest(events, maxEvents) {
+  if (events.length > maxEvents) events.splice(0, events.length - maxEvents);
 }
 
 export async function appendActivityEvents(archivePath, events) {

@@ -1,5 +1,7 @@
 import { createServer } from "node:http";
+import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
+import { createInterface } from "node:readline";
 import { extname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createActivityEvent } from "./activity.js";
@@ -339,23 +341,25 @@ async function activitySnapshot(state) {
 }
 
 async function readActivityArchive(path) {
-  let raw = "";
+  const events = [];
+  let stream;
   try {
-    raw = await readFile(path, "utf8");
+    stream = createReadStream(path, { encoding: "utf8" });
+    const reader = createInterface({ input: stream, crlfDelay: Infinity });
+    for await (const line of reader) {
+      if (!line.trim()) continue;
+      try {
+        const event = JSON.parse(line);
+        if (event && typeof event === "object") events.push(event);
+      } catch {
+        // Ignore incomplete trailing writes or malformed external activity lines.
+      }
+    }
   } catch (error) {
     if (error.code === "ENOENT") return [];
     throw error;
-  }
-
-  const events = [];
-  for (const line of raw.split(/\r?\n/)) {
-    if (!line.trim()) continue;
-    try {
-      const event = JSON.parse(line);
-      if (event && typeof event === "object") events.push(event);
-    } catch {
-      // Ignore incomplete trailing writes or malformed external activity lines.
-    }
+  } finally {
+    stream?.destroy();
   }
   return events;
 }

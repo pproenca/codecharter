@@ -291,7 +291,10 @@ test("serves activity written directly to the JSONL archive by Codex hooks", asy
       sessionId: "thread-1",
       address: sampleActivityAddress(),
     };
-    await appendFile(join(root, ".codecharter", "activity.jsonl"), `${JSON.stringify(archivedEvent)}\n`);
+    await appendFile(
+      join(root, ".codecharter", "activity.jsonl"),
+      `not-json\n${JSON.stringify(archivedEvent)}\n{"incomplete"\n`,
+    );
 
     const activity = await getJson(`${baseUrl}/api/activity`);
     assert.equal(activity.events.length, 1);

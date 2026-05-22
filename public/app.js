@@ -2,6 +2,7 @@ import {
   SOURCE_TEXT_MAX_LINES_PER_FRAME,
   SOURCE_TEXT_PREFETCH_LINES,
   activityFragmentBounds,
+  activityFeedEvents,
   activityPrimaryBounds,
   activityStateStyle,
   activityTrailGroups,
@@ -1175,8 +1176,7 @@ function hashUnit(value) {
 
 function renderActivityFeed() {
   if (!controls.activityFeed) return;
-  const latest = [...latestActivityByAgent(state.activity).values()]
-    .sort((a, b) => Date.parse(b.timestamp ?? 0) - Date.parse(a.timestamp ?? 0));
+  const latest = activityFeedEvents(state.activity);
 
   controls.activityFeed.replaceChildren();
   if (latest.length === 0) {
@@ -1184,7 +1184,7 @@ function renderActivityFeed() {
     return;
   }
 
-  for (const event of latest.slice(0, 5)) {
+  for (const event of latest) {
     const item = document.createElement("button");
     item.className = "activity-item";
     item.type = "button";

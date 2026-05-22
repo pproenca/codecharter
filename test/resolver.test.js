@@ -90,6 +90,7 @@ test("resolves token fragments without placing the anchor in whitespace between 
     columnEnd: 40,
     fragments: [
       { lineStart: 10, lineEnd: 10, columnStart: 1, columnEnd: 8 },
+      { columnStart: 12, columnEnd: 20 },
       { lineStart: 20, lineEnd: 20, columnStart: 32, columnEnd: 40 },
     ],
   });

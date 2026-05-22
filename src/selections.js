@@ -24,8 +24,7 @@ export function resolveSelection(codemap, selection) {
   const geometry = normalizeSelectionGeometry(selection.geometry);
   const targets = selectionResolverForLevel(level)(codemap, geometry, level);
 
-  const coveringSet = [...new Set(targets.map((target) => target.geohash))]
-    .sort((a, b) => a.localeCompare(b));
+  const coveringSet = sortedUniqueGeohashes(targets);
 
   return {
     geometry,
@@ -153,10 +152,19 @@ function resolveCodeTargets(codemap, geometry, level, targetMode) {
 }
 
 function intersectingTargets(targets, bounds, resolve) {
-  return Object.values(targets)
-    .filter((target) => intersects(bounds, target.bounds))
-    .map(resolve)
-    .filter(Boolean);
+  const resolved = [];
+  for (const target of Object.values(targets)) {
+    if (!intersects(bounds, target.bounds)) continue;
+    const item = resolve(target);
+    if (item) resolved.push(item);
+  }
+  return resolved;
+}
+
+function sortedUniqueGeohashes(targets) {
+  const geohashes = new Set();
+  for (const target of targets) geohashes.add(target.geohash);
+  return [...geohashes].sort((a, b) => a.localeCompare(b));
 }
 
 function spatialFrameForGeometry(geometry, level) {
@@ -224,9 +232,20 @@ function annotationName(input) {
   if (explicit) return explicit;
   const comment = input.comment?.trim();
   if (!comment) return DEFAULT_ANNOTATION_NAME;
-  const firstLine = comment.split(/\r?\n/).find((line) => line.trim())?.trim();
+  const firstLine = firstNonblankLine(comment);
   if (!firstLine) return DEFAULT_ANNOTATION_NAME;
   return firstLine.length > ANNOTATION_NAME_MAX_LENGTH
     ? `${firstLine.slice(0, ANNOTATION_NAME_MAX_LENGTH - 3)}...`
     : firstLine;
+}
+
+function firstNonblankLine(value) {
+  let start = 0;
+  for (let index = 0; index <= value.length; index += 1) {
+    if (index < value.length && value[index] !== "\n") continue;
+    const line = value.slice(start, value[index - 1] === "\r" ? index - 1 : index).trim();
+    if (line) return line;
+    start = index + 1;
+  }
+  return "";
 }

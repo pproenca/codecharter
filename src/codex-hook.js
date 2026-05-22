@@ -74,9 +74,12 @@ async function codexHookEvents({ root, mapPath, payload }) {
 
   const activityState = inferActivityState(payload);
   let codemap = await readCodemap(mapPath);
-  const readChanges = activityState === "testing" ? [] : readCommandChanges(root, codemap, payload);
+  const readActivity = activityState === "testing"
+    ? { changes: [], matchedReadCommand: false }
+    : readCommandActivity(root, codemap, payload);
+  const readChanges = readActivity.changes;
   let writeChanges = activityState === "testing" ? [] : await toolInputChanges(root, payload);
-  if (writeChanges.length === 0 && readChanges.length === 0 && !isReadShellCommand(payload)) {
+  if (writeChanges.length === 0 && readChanges.length === 0 && !readActivity.matchedReadCommand) {
     writeChanges = await changedCodeChanges(root);
   }
   const previousCodemap = codemap;
@@ -179,18 +182,24 @@ function inferActivityState(payload) {
 }
 
 function readCommandChanges(root, codemap, payload) {
-  if (!isShellTool(payload)) return [];
+  return readCommandActivity(root, codemap, payload).changes;
+}
+
+function readCommandActivity(root, codemap, payload) {
+  if (!isShellTool(payload)) return { changes: [], matchedReadCommand: false };
   const command = shellCommand(payload);
-  if (!command) return [];
+  if (!command) return { changes: [], matchedReadCommand: false };
 
   const changes = [];
   const seen = new Set();
+  let matchedReadCommand = false;
   for (const segment of command.split(/\n|&&|;/)) {
     const tokens = shellWords(segment);
     if (tokens.length === 0) continue;
     const commandName = basename(tokens[0]);
     const strategy = readCommandStrategy(commandName);
     if (!strategy) continue;
+    matchedReadCommand = true;
 
     const lineRange = strategy.lineRange({ root, tokens, codemap });
     for (const candidate of strategy.pathCandidates({ root, commandName, tokens, codemap })) {
@@ -207,7 +216,7 @@ function readCommandChanges(root, codemap, payload) {
       });
     }
   }
-  return changes;
+  return { changes, matchedReadCommand };
 }
 
 function isShellTool(payload) {

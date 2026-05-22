@@ -103,49 +103,68 @@ export class DistrictLayoutEngine {
     return rectangles.length === children.length ? rectangles : this.stripLayout(children, bounds);
   }
 
-  binaryPartition(entries, bounds) {
-    if (entries.length === 0) return [];
-    if (entries.length === 1) return [{ item: entries[0].item, bounds }];
+  binaryPartition(entries, bounds, rectangles = []) {
+    return this.binaryPartitionRange(entries, 0, entries.length, bounds, this.prefixWeights(entries), rectangles);
+  }
 
-    const split = this.splitEntries(entries);
-    const firstWeight = split.first.reduce((sum, entry) => sum + entry.weight, 0);
-    const totalWeight = firstWeight + split.second.reduce((sum, entry) => sum + entry.weight, 0);
+  binaryPartitionRange(entries, start, end, bounds, prefixWeights, rectangles) {
+    const count = end - start;
+    if (count === 0) return rectangles;
+    if (count === 1) {
+      rectangles.push({ item: entries[start].item, bounds });
+      return rectangles;
+    }
+
+    const split = this.splitEntryRange(entries, start, end, prefixWeights);
+    const firstWeight = this.rangeWeight(prefixWeights, start, split);
+    const totalWeight = this.rangeWeight(prefixWeights, start, end);
     const ratio = totalWeight > 0 ? firstWeight / totalWeight : 0.5;
 
     if (bounds.width >= bounds.height) {
       const firstWidth = bounds.width * ratio;
-      return [
-        ...this.binaryPartition(split.first, { x: bounds.x, y: bounds.y, width: firstWidth, height: bounds.height }),
-        ...this.binaryPartition(split.second, { x: bounds.x + firstWidth, y: bounds.y, width: bounds.width - firstWidth, height: bounds.height }),
-      ];
+      this.binaryPartitionRange(entries, start, split, { x: bounds.x, y: bounds.y, width: firstWidth, height: bounds.height }, prefixWeights, rectangles);
+      return this.binaryPartitionRange(entries, split, end, { x: bounds.x + firstWidth, y: bounds.y, width: bounds.width - firstWidth, height: bounds.height }, prefixWeights, rectangles);
     }
 
     const firstHeight = bounds.height * ratio;
-    return [
-      ...this.binaryPartition(split.first, { x: bounds.x, y: bounds.y, width: bounds.width, height: firstHeight }),
-      ...this.binaryPartition(split.second, { x: bounds.x, y: bounds.y + firstHeight, width: bounds.width, height: bounds.height - firstHeight }),
-    ];
+    this.binaryPartitionRange(entries, start, split, { x: bounds.x, y: bounds.y, width: bounds.width, height: firstHeight }, prefixWeights, rectangles);
+    return this.binaryPartitionRange(entries, split, end, { x: bounds.x, y: bounds.y + firstHeight, width: bounds.width, height: bounds.height - firstHeight }, prefixWeights, rectangles);
   }
 
   splitEntries(entries) {
-    const totalWeight = entries.reduce((sum, entry) => sum + entry.weight, 0);
+    const split = this.splitEntryRange(entries, 0, entries.length, this.prefixWeights(entries));
+    return {
+      first: entries.slice(0, split),
+      second: entries.slice(split),
+    };
+  }
+
+  splitEntryRange(entries, start, end, prefixWeights) {
+    const totalWeight = this.rangeWeight(prefixWeights, start, end);
     let bestIndex = 1;
     let bestDelta = Infinity;
     let runningWeight = 0;
 
-    for (let index = 0; index < entries.length - 1; index += 1) {
+    for (let index = start; index < end - 1; index += 1) {
       runningWeight += entries[index].weight;
       const delta = Math.abs(totalWeight / 2 - runningWeight);
       if (delta < bestDelta) {
         bestDelta = delta;
-        bestIndex = index + 1;
+        bestIndex = index + 1 - start;
       }
     }
 
-    return {
-      first: entries.slice(0, bestIndex),
-      second: entries.slice(bestIndex),
-    };
+    return start + bestIndex;
+  }
+
+  prefixWeights(entries) {
+    const prefixWeights = [0];
+    for (const entry of entries) prefixWeights.push(prefixWeights[prefixWeights.length - 1] + entry.weight);
+    return prefixWeights;
+  }
+
+  rangeWeight(prefixWeights, start, end) {
+    return prefixWeights[end] - prefixWeights[start];
   }
 
   stripLayout(children, bounds) {

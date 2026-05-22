@@ -46,6 +46,22 @@ test("generates a path-keyed map sidecar from gitignore-filtered code files", as
   assert.equal(typeof codemap.files["src/app.ts"].geo.geohash, "string");
 });
 
+test("serializes folder children deterministically by name", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-child-order-"));
+  await execFileAsync("git", ["init"], { cwd: root });
+  await mkdir(join(root, "src", "z-folder"), { recursive: true });
+  await mkdir(join(root, "src", "a-folder"), { recursive: true });
+  await writeFile(join(root, "src", "z-file.ts"), "const z = true;\n");
+  await writeFile(join(root, "src", "a-file.ts"), "const a = true;\n");
+  await writeFile(join(root, "src", "z-folder", "index.ts"), "const zFolder = true;\n");
+  await writeFile(join(root, "src", "a-folder", "index.ts"), "const aFolder = true;\n");
+
+  const codemap = await generateCodemap({ root });
+
+  assert.deepEqual(codemap.folders.src.children.folders, ["src/a-folder", "src/z-folder"]);
+  assert.deepEqual(codemap.folders.src.children.files, ["src/a-file.ts", "src/z-file.ts"]);
+});
+
 test("stabilizes existing file addresses when new files are added", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-stable-"));
   await execFileAsync("git", ["init"], { cwd: root });

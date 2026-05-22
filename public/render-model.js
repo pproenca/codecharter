@@ -944,8 +944,32 @@ export function latestActivityByAgent(events, options = {}) {
     .map((summary) => [summary.key, summary.event]));
 }
 
+export function activityFeedEvents(events, options = {}) {
+  const feed = [];
+  for (const event of latestActivityByAgent(events, options).values()) {
+    const timestamp = activitySortTimestamp(event);
+    if (!Number.isFinite(timestamp)) return activityFeedEventsViaSort(events, options);
+    insertActivityFeedEvent(feed, event, timestamp, 5);
+  }
+  return feed.map(({ event }) => event);
+}
+
 export function activityActorKey(event) {
   return `${event?.agentId ?? "agent"}:${event?.threadId ?? event?.sessionId ?? "manual"}`;
+}
+
+function insertActivityFeedEvent(feed, event, timestamp, limit) {
+  let index = 0;
+  while (index < feed.length && feed[index].timestamp >= timestamp) index += 1;
+  if (index >= limit) return;
+  feed.splice(index, 0, { event, timestamp });
+  if (feed.length > limit) feed.pop();
+}
+
+function activityFeedEventsViaSort(events, options) {
+  return [...latestActivityByAgent(events, options).values()]
+    .sort((a, b) => activitySortTimestamp(b) - activitySortTimestamp(a))
+    .slice(0, 5);
 }
 
 function latestActivityByAgentViaSort(events, options) {

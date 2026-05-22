@@ -52,6 +52,23 @@ test("caps the archive queue in memory without checking JSONL file size", async 
   }
 });
 
+test("caps live activity memory to the newest events", async () => {
+  const store = createActivityStore({
+    flushIntervalMs: 60_000,
+    maxMemoryEvents: 2,
+  });
+
+  try {
+    store.add(activityEvent("event-1"));
+    store.add(activityEvent("event-2"));
+    store.add(activityEvent("event-3"));
+
+    assert.deepEqual(store.snapshot().events.map((event) => event.id), ["event-2", "event-3"]);
+  } finally {
+    await store.close();
+  }
+});
+
 test("clears live activity and truncates the JSONL archive", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-activity-store-"));
   const archivePath = join(root, ".scratch", "activity-stream.jsonl");

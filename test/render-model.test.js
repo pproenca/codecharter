@@ -10,6 +10,7 @@ import {
   activityTissueBox,
   activityVisualEncoding,
   activityActorKey,
+  activityFeedEvents,
   annotationClipboardText,
   cachedSourceRange,
   canRenderSourceText,
@@ -921,6 +922,27 @@ test("keeps latest activity map ordered by each agent's first live event", () =>
 
   assert.deepEqual([...latest.keys()], ["reviewer:manual", "codex:thread-b", "codex:thread-a"]);
   assert.equal(latest.get("codex:thread-a").activityState, "editing");
+});
+
+test("selects the activity feed as the five newest latest-agent events with stable ties", () => {
+  const now = Date.parse("2026-05-20T12:00:00.000Z");
+  const events = [
+    activity("agent-1", "reading", "2026-05-20T10:00:00.000Z"),
+    activity("agent-2", "reading", "2026-05-20T10:06:00.000Z"),
+    activity("agent-3", "editing", "2026-05-20T10:06:00.000Z"),
+    activity("agent-4", "testing", "2026-05-20T10:04:00.000Z"),
+    activity("agent-5", "reviewing", "2026-05-20T10:03:00.000Z"),
+    activity("agent-6", "editing", "2026-05-20T10:02:00.000Z"),
+    activity("agent-1", "testing", "2026-05-20T10:05:00.000Z"),
+  ];
+
+  assert.deepEqual(activityFeedEvents(events, { now }).map((event) => event.agentId), [
+    "agent-2",
+    "agent-3",
+    "agent-1",
+    "agent-4",
+    "agent-5",
+  ]);
 });
 
 test("encodes activity as recency-faded biological markers", () => {

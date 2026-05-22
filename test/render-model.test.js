@@ -29,6 +29,8 @@ import {
   isUsableDraftSelection,
   canvasKeyboardAction,
   documentKeyboardAction,
+  discoveryFogRevealStyle,
+  discoveryFogVeilStyle,
   doubleClickMapAction,
   isLiveActivityEvent,
   labelBoxesOverlap,
@@ -202,6 +204,24 @@ test("applies fog rules to labels and source text disclosure", () => {
 
   assert.equal(shouldShowFogSourceText("visible"), true);
   assert.equal(shouldShowFogSourceText("unexplored", { selected: true }), true);
+});
+
+test("defines a layered discovery fog visual contract", () => {
+  const veil = discoveryFogVeilStyle();
+  assert.equal(veil.textureStep, 28);
+  assert.ok(veil.baseAlpha > veil.horizonAlpha);
+  assert.ok(veil.textureAlpha > 0 && veil.textureAlpha < 0.12);
+
+  const hidden = discoveryFogRevealStyle();
+  const visible = discoveryFogRevealStyle({ visibleFile: true });
+  const readable = discoveryFogRevealStyle({ visibleFile: true, readable: true });
+
+  assert.ok(visible.alpha > hidden.alpha);
+  assert.ok(readable.alpha > visible.alpha);
+  assert.ok(readable.core > visible.core);
+  assert.ok(readable.padding > hidden.padding);
+  assert.ok(readable.mid >= visible.mid);
+  assert.equal(readable.lobes, 1);
 });
 
 test("max zoom can make dense reference files readable on the canvas", () => {

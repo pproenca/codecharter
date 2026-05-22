@@ -20,6 +20,7 @@ export const ACTIVITY_TRAIL_MIN_SEGMENT_PX = 8;
 export const ACTIVITY_TRAIL_MAX_SEGMENT_PX = 220;
 export const ACTIVITY_TRAIL_TENSION = 0.72;
 export const ACTIVITY_TRAIL_MAX_GAP_MINUTES = 20;
+export const DISCOVERY_FOG_TEXTURE_STEP_PX = 28;
 
 export const DISTRICT_PALETTE = [
   { fill: [126, 176, 156], stroke: [41, 98, 73], label: "#24513d" },
@@ -411,6 +412,45 @@ export function shouldLabelFoggedFile({ file, box, scale, selected, fogState }) 
     return scale > 2.2 && box.width > 78 && box.height > 24;
   }
   return shouldLabelFile({ file, box, scale, selected });
+}
+
+export function discoveryFogVeilStyle() {
+  return {
+    baseAlpha: 0.88,
+    horizonAlpha: 0.76,
+    textureAlpha: 0.035,
+    textureStep: DISCOVERY_FOG_TEXTURE_STEP_PX,
+  };
+}
+
+export function discoveryFogRevealStyle({ visibleFile = false, readable = false } = {}) {
+  if (readable) {
+    return {
+      alpha: visibleFile ? 1 : 0.88,
+      core: 0.74,
+      lobes: 1,
+      mid: 0.98,
+      padding: visibleFile ? 68 : 36,
+    };
+  }
+
+  if (visibleFile) {
+    return {
+      alpha: 0.96,
+      core: 0.72,
+      lobes: 1,
+      mid: 0.98,
+      padding: 64,
+    };
+  }
+
+  return {
+    alpha: 0.28,
+    core: 0.32,
+    lobes: 1,
+    mid: 0.76,
+    padding: 28,
+  };
 }
 
 export function fileLabelPriority({ file, selected }) {

@@ -18,6 +18,8 @@ import {
   canvasKeyboardAction,
   canRenderSourceText,
   documentKeyboardAction,
+  discoveryFogRevealStyle,
+  discoveryFogVeilStyle,
   doubleClickMapAction,
   draftSelectionFromDrag,
   fileLabelPriority,
@@ -91,6 +93,8 @@ const canvas = document.querySelector("#mapCanvas");
 const ctx = canvas.getContext("2d");
 const fogMaskCanvas = document.createElement("canvas");
 const fogMaskCtx = fogMaskCanvas.getContext("2d");
+const fogLayerCanvas = document.createElement("canvas");
+const fogLayerCtx = fogLayerCanvas.getContext("2d");
 const mapArea = document.querySelector(".map-area");
 const DEFAULT_MAP_LEVEL = "file";
 const SAVE_AND_COPY_LABEL = "Save and copy Codex prompt";
@@ -723,6 +727,9 @@ function resize() {
   fogMaskCanvas.width = Math.max(1, Math.floor(canvas.width * FOG_MASK_SCALE));
   fogMaskCanvas.height = Math.max(1, Math.floor(canvas.height * FOG_MASK_SCALE));
   fogMaskCtx.setTransform(dpr * FOG_MASK_SCALE, 0, 0, dpr * FOG_MASK_SCALE, 0, 0);
+  fogLayerCanvas.width = canvas.width;
+  fogLayerCanvas.height = canvas.height;
+  fogLayerCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
 function render() {
@@ -810,17 +817,62 @@ function activityDiscoveryEnabled() {
 function drawDiscoveryFogOverlay(rect) {
   buildDiscoveryFogMask(rect);
 
+  fogLayerCtx.save();
+  fogLayerCtx.clearRect(0, 0, rect.width, rect.height);
+  drawDiscoveryVeil(rect, fogLayerCtx);
+
+  fogLayerCtx.globalCompositeOperation = "destination-out";
+  fogLayerCtx.drawImage(fogMaskCanvas, 0, 0, rect.width, rect.height);
+  fogLayerCtx.restore();
+
   ctx.save();
-  ctx.fillStyle = "rgba(1, 5, 9, 0.86)";
-  ctx.fillRect(0, 0, rect.width, rect.height);
-
-  ctx.globalCompositeOperation = "destination-out";
-  ctx.drawImage(fogMaskCanvas, 0, 0, rect.width, rect.height);
-
-  ctx.globalCompositeOperation = "source-over";
-  drawDiscoveryGlowTrails();
-  drawDiscoveryGlows();
+  ctx.drawImage(fogLayerCanvas, 0, 0, rect.width, rect.height);
   ctx.restore();
+}
+
+function drawDiscoveryVeil(rect, targetCtx = ctx) {
+  const style = discoveryFogVeilStyle();
+  const gradient = targetCtx.createLinearGradient(0, 0, rect.width, rect.height);
+  gradient.addColorStop(0, `rgba(1, 7, 11, ${style.baseAlpha})`);
+  gradient.addColorStop(0.54, `rgba(3, 16, 14, ${style.baseAlpha * 0.96})`);
+  gradient.addColorStop(1, `rgba(8, 13, 20, ${style.horizonAlpha})`);
+  targetCtx.fillStyle = gradient;
+  targetCtx.fillRect(0, 0, rect.width, rect.height);
+
+  drawDiscoveryVeilTexture(rect, style, targetCtx);
+
+  const vignette = targetCtx.createRadialGradient(
+    rect.width * 0.48,
+    rect.height * 0.48,
+    0,
+    rect.width * 0.5,
+    rect.height * 0.5,
+    Math.max(rect.width, rect.height) * 0.72,
+  );
+  vignette.addColorStop(0, "rgba(0, 0, 0, 0)");
+  vignette.addColorStop(1, "rgba(0, 0, 0, 0.22)");
+  targetCtx.fillStyle = vignette;
+  targetCtx.fillRect(0, 0, rect.width, rect.height);
+}
+
+function drawDiscoveryVeilTexture(rect, style, targetCtx = ctx) {
+  const step = style.textureStep;
+  targetCtx.save();
+  targetCtx.fillStyle = `rgba(190, 244, 216, ${style.textureAlpha})`;
+  for (let y = -step; y < rect.height + step; y += step) {
+    const row = Math.floor(y / step);
+    for (let x = -step; x < rect.width + step; x += step) {
+      const column = Math.floor(x / step);
+      const unit = integerNoise(column, row);
+      if (unit < 0.52) continue;
+      const size = 1 + unit * 1.8;
+      const offsetX = (integerNoise(column + 19, row - 7) - 0.5) * step * 0.44;
+      const offsetY = (integerNoise(column - 11, row + 23) - 0.5) * step * 0.44;
+      targetCtx.globalAlpha = style.textureAlpha * (0.35 + unit * 0.75);
+      targetCtx.fillRect(x + offsetX, y + offsetY, size, size);
+    }
+  }
+  targetCtx.restore();
 }
 
 function buildDiscoveryFogMask(rect) {
@@ -849,15 +901,13 @@ function drawDiscoveryFogReveals(targetCtx) {
     const box = screenBounds(file.bounds);
     const visibleFile = fog.visibleFiles.has(path);
     const readable = state.view.scale > 2 && canRenderSourceText(file, box);
-    const padding = visibleFile ? 54 : 22;
-    if (!visible(expandedBox(box, visibleFile ? 68 : 30))) continue;
-    drawFogReveal(path, box, {
-      alpha: readable ? visibleFile ? 0.96 : 0.78 : visibleFile ? 0.34 : 0.08,
-      padding,
-      core: readable ? 0.62 : visibleFile ? 0.38 : 0.3,
-      mid: readable ? 0.96 : visibleFile ? 0.86 : 0.72,
-      lobes: visibleFile ? 2 : 1,
-    }, targetCtx);
+    const revealStyle = discoveryFogRevealStyle({ visibleFile, readable });
+    if (!visible(expandedBox(box, revealStyle.padding + 14))) continue;
+    if (readable) {
+      drawReadableFogReveal(box, revealStyle, targetCtx);
+    } else {
+      drawFogReveal(path, box, revealStyle, targetCtx);
+    }
   }
 }
 
@@ -889,44 +939,18 @@ function strokeFogTrail(targetCtx, points, { alpha, lineWidth }) {
   if (drawMyceliumPathForContext(targetCtx, points)) targetCtx.stroke();
 }
 
-function drawDiscoveryGlows() {
-  const fog = state.activityFog;
-  if (!fog) return;
-  for (const path of fog.visitedFiles) {
-    const file = state.map.files[path];
-    if (!file) continue;
-    const box = screenBounds(file.bounds);
-    const visibleFile = fog.visibleFiles.has(path);
-    if (!visible(expandedBox(box, visibleFile ? 68 : 30))) continue;
-    drawDiscoveryGlow(path, box, {
-      alpha: visibleFile ? 0.1 : 0.03,
-      padding: visibleFile ? 54 : 22,
-      lobes: 1,
-    });
-  }
-}
+function drawReadableFogReveal(box, { alpha, padding }, targetCtx = ctx) {
+  const x = Math.max(0, box.x - padding);
+  const y = Math.max(0, box.y - padding);
+  const right = Math.min(canvas.clientWidth, box.x + box.width + padding);
+  const bottom = Math.min(canvas.clientHeight, box.y + box.height + padding);
+  if (right <= x || bottom <= y) return;
 
-function drawDiscoveryGlowTrails() {
-  const events = sortedActivityEvents(state.activity);
-  if (events.length < 2) return;
-  ctx.save();
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.filter = "blur(12px)";
-  for (const agentEvents of activityTrailGroups(events)) {
-    for (const points of activityTrailPointGroups(activityTrailPoints(agentEvents))) {
-      strokeDiscoveryGlowTrail(points, { alpha: 0.04, lineWidth: 72 });
-    }
-  }
-  ctx.filter = "none";
-  ctx.restore();
-}
-
-function strokeDiscoveryGlowTrail(points, { alpha, lineWidth }) {
-  ctx.strokeStyle = `rgba(126, 170, 140, ${alpha})`;
-  ctx.lineWidth = lineWidth;
-  ctx.beginPath();
-  if (drawMyceliumPathForContext(ctx, points)) ctx.stroke();
+  targetCtx.save();
+  targetCtx.filter = "blur(10px)";
+  targetCtx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+  targetCtx.fillRect(x, y, right - x, bottom - y);
+  targetCtx.restore();
 }
 
 function drawFogReveal(key, box, { alpha, padding, core, mid, lobes = 3 }, targetCtx = ctx) {
@@ -968,41 +992,6 @@ function drawFogRevealGradient({ x, y, radiusX, radiusY, alpha, core, mid }, tar
   targetCtx.arc(0, 0, 1, 0, Math.PI * 2);
   targetCtx.fill();
   targetCtx.restore();
-}
-
-function drawDiscoveryGlow(key, box, { alpha, padding, lobes = 2 }) {
-  const radiusX = Math.max(18, box.width / 2 + padding);
-  const radiusY = Math.max(18, box.height / 2 + padding);
-  const centerX = box.x + box.width / 2;
-  const centerY = box.y + box.height / 2;
-  drawDiscoveryGlowGradient({ x: centerX, y: centerY, radiusX, radiusY, alpha });
-
-  for (let index = 0; index < lobes; index += 1) {
-    const angle = hashUnit(`${key}:glow-angle:${index}`) * Math.PI * 2;
-    const distance = 0.18 + hashUnit(`${key}:glow-distance:${index}`) * 0.18;
-    drawDiscoveryGlowGradient({
-      x: centerX + Math.cos(angle) * radiusX * distance,
-      y: centerY + Math.sin(angle) * radiusY * distance,
-      radiusX: radiusX * 0.55,
-      radiusY: radiusY * 0.55,
-      alpha: alpha * 0.7,
-    });
-  }
-}
-
-function drawDiscoveryGlowGradient({ x, y, radiusX, radiusY, alpha }) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(radiusX, radiusY);
-  const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
-  gradient.addColorStop(0, `rgba(126, 170, 140, ${alpha})`);
-  gradient.addColorStop(0.64, `rgba(83, 125, 103, ${alpha * 0.52})`);
-  gradient.addColorStop(1, "rgba(83, 125, 103, 0)");
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.arc(0, 0, 1, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
 }
 
 function drawMyceliumPathForContext(targetCtx, points) {
@@ -1160,15 +1149,13 @@ function drawFiles() {
 }
 
 function folderFogStyle(style, fogState, depth, selected, discoveryMode = false) {
+  if (discoveryMode) {
+    return {
+      ...style,
+      lineWidth: selected ? 2.6 : depth === 1 ? 2.1 : 1,
+    };
+  }
   if (selected || fogState === "visible") {
-    if (discoveryMode && !selected) {
-      return {
-        fill: depth === 1 ? "rgba(65, 91, 75, 0.18)" : "rgba(65, 91, 75, 0.1)",
-        stroke: depth === 1 ? "rgba(138, 174, 151, 0.34)" : "rgba(138, 174, 151, 0.22)",
-        label: "rgba(158, 196, 171, 0.8)",
-        lineWidth: depth === 1 ? 2 : 1,
-      };
-    }
     return {
       ...style,
       lineWidth: selected ? 2.6 : depth === 1 ? 2.1 : 1,
@@ -1191,14 +1178,13 @@ function folderFogStyle(style, fogState, depth, selected, discoveryMode = false)
 }
 
 function organicRegionFogStyle(style, fogState, depth, selected, discoveryMode = false) {
+  if (discoveryMode) {
+    return {
+      ...style,
+      lineWidth: selected ? 2.8 : depth === 1 ? 2.4 : 1.4,
+    };
+  }
   if (selected || fogState === "visible") {
-    if (discoveryMode && !selected) {
-      return {
-        fill: depth === 1 ? "rgba(58, 91, 70, 0.13)" : "rgba(58, 91, 70, 0.075)",
-        stroke: depth === 1 ? "rgba(136, 176, 148, 0.3)" : "rgba(136, 176, 148, 0.2)",
-        lineWidth: depth === 1 ? 2.2 : 1.3,
-      };
-    }
     return {
       ...style,
       lineWidth: selected ? 2.8 : depth === 1 ? 2.4 : 1.4,
@@ -1227,15 +1213,15 @@ function fileFogStyle({ fogState, selected, visualState, discoveryMode = false }
       lineWidth: 2.6,
     };
   }
+  if (discoveryMode) {
+    return {
+      fill: "rgba(235, 248, 241, 0.48)",
+      stroke: visualState === "aggregate" ? "rgba(18, 128, 98, 0.16)" : "rgba(18, 128, 98, 0.34)",
+      label: "rgba(3, 87, 67, 0.84)",
+      lineWidth: visualState === "aggregate" ? 0.35 : state.view.scale > 2.2 ? 1 : 0.65,
+    };
+  }
   if (fogState === "visible") {
-    if (discoveryMode) {
-      return {
-        fill: "rgba(117, 142, 126, 0.5)",
-        stroke: visualState === "aggregate" ? "rgba(119, 171, 143, 0.18)" : "rgba(139, 188, 158, 0.36)",
-        label: "rgba(157, 215, 181, 0.86)",
-        lineWidth: visualState === "aggregate" ? 0.35 : state.view.scale > 2.2 ? 1 : 0.65,
-      };
-    }
     return {
       fill: "rgba(235, 248, 241, 0.48)",
       stroke: visualState === "aggregate" ? "rgba(18, 128, 98, 0.16)" : "rgba(18, 128, 98, 0.34)",
@@ -1504,6 +1490,7 @@ function drawActivityMembranes(events, latestByAgent, { discoveryMode = false } 
     const latest = latestByAgent.get(activityActorKey(event)) === event;
     const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.id === event.id;
     const encoding = activityVisualEncoding(event, { latest, selected });
+    if (discoveryMode && state.view.scale > 6 && !selected) continue;
     if (discoveryMode && !latest && !selected) continue;
     if (encoding.membraneAlpha <= 0.08 && !selected) continue;
 
@@ -1673,6 +1660,12 @@ function hexToRgba(hex, alpha) {
 
 function hashUnit(value) {
   return hashString(value) / 0xffffffff;
+}
+
+function integerNoise(x, y) {
+  let value = Math.imul(x, 374761393) ^ Math.imul(y, 668265263);
+  value = Math.imul(value ^ (value >>> 13), 1274126177);
+  return ((value ^ (value >>> 16)) >>> 0) / 0xffffffff;
 }
 
 function renderActivityFeed() {

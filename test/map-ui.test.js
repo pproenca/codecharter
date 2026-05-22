@@ -151,14 +151,15 @@ test("activity discovery hides unexplored files and reveals visited files", asyn
   const { page, boot, baseUrl } = await startMapUiHarness(t);
   await boot();
 
-  const appCenter = { x: 0.48, y: 0.47 };
+  const activityMarker = { x: 0.48, y: 0.47 };
+  const revealCore = { x: 0.62, y: 0.47 };
   const revealFeather = { x: 0.86, y: 0.47 };
   const farFog = { x: 0.94, y: 0.47 };
-  const normalPixel = await canvasPixelAtWorld(page, appCenter);
+  const normalPixel = await canvasPixelAtWorld(page, revealCore);
 
   await page.getByLabel("Activity & Discovery").click();
   await page.waitForTimeout(100);
-  const unexploredPixel = await canvasPixelAtWorld(page, appCenter);
+  const unexploredPixel = await canvasPixelAtWorld(page, revealCore);
 
   assert.equal(await page.locator("#showActivity").isChecked(), true);
   assert.ok(pixelBrightness(unexploredPixel) < pixelBrightness(normalPixel) * 0.45);
@@ -186,13 +187,14 @@ test("activity discovery hides unexplored files and reveals visited files", asyn
       1,
     ).data;
     return pixel[0] + pixel[1] + pixel[2] > 160;
-  }, appCenter);
+  }, activityMarker);
 
-  const visitedPixel = await canvasPixelAtWorld(page, appCenter);
+  const visitedPixel = await canvasPixelAtWorld(page, revealCore);
   const featherPixel = await canvasPixelAtWorld(page, revealFeather);
   const farFogPixel = await canvasPixelAtWorld(page, farFog);
   assert.ok(pixelBrightness(visitedPixel) > pixelBrightness(unexploredPixel) * 2);
-  assert.ok(pixelBrightness(visitedPixel) < pixelBrightness(normalPixel) * 0.8);
+  assert.ok(pixelBrightness(visitedPixel) > pixelBrightness(normalPixel) * 0.75);
+  assert.ok(pixelBrightness(visitedPixel) < pixelBrightness(normalPixel) * 1.12);
   assert.ok(pixelBrightness(featherPixel) > pixelBrightness(farFogPixel) * 1.4);
   assert.ok(pixelBrightness(featherPixel) < pixelBrightness(visitedPixel) * 0.85);
 });

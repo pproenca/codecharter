@@ -17,7 +17,7 @@
       "source": "pproenca/dot-skills",
       "sourceType": "github",
       "skillPath": "skills/.experimental/code-map-visualization/SKILL.md",
-      "computedHash": "0e2b958dbc3216395e1b7b4486a2816e9a7d510d6c263cd830f484120684ce83"
+      "computedHash": "789e607d95284bac8b3ce27ceb5817bc1a318b15d6bbafbb640330ae0c262e16"
     },
     "computer-science-algorithms": {
       "source": "pproenca/dot-skills",
@@ -71,13 +71,19 @@
       "source": "pproenca/dot-skills",
       "sourceType": "github",
       "skillPath": "skills/.experimental/implementation-design-patterns/SKILL.md",
-      "computedHash": "6a18213da0c4469ecb6a9578482ab289409afe96207a9c59550c2b2869d9a1fb"
+      "computedHash": "4fabb636ed635f2bb059ce80839dfe0143267d8343b3f855e3a4d87e1c9de8a1"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
       "computedHash": "ef32aea0a8fab9b365ff9e08a95f8d353e20ca21ea46ec2e73587c86dd341351"
+    },
+    "migrate-js-to-modern-typescript": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/.experimental/migrate-js-to-modern-typescript/SKILL.md",
+      "computedHash": "e7e8c2537dfa21e9c86e971cc4bc37f4b7830b8927fb2f561a65347bff4ff37a"
     },
     "prototype": {
       "source": "mattpocock/skills",

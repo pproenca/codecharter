@@ -89,6 +89,45 @@ test("keyboard save persists an annotation, copies the Codex prompt, and switche
   assert.equal(annotations.annotations[0].id, saved.id);
 });
 
+test("saved annotation action pointer stays anchored to edge selections", async (t) => {
+  const { page, boot } = await startMapUiHarness(t);
+  await boot();
+
+  await drawReadySelection(page, {
+    from: { x: 850, y: 190 },
+    to: { x: 940, y: 260 },
+  });
+  await page.getByRole("textbox", { name: "Annotation comment" }).fill("Edge annotation");
+
+  const saveResponse = page.waitForResponse((response) =>
+    response.request().method() === "POST"
+    && response.url().endsWith("/api/annotations")
+    && response.status() === 201,
+  );
+  await page.getByRole("button", { name: "Save & Copy Prompt" }).click();
+  const saved = (await (await saveResponse).json()).annotation;
+  await page.getByRole("button", { name: "Copy Prompt" }).waitFor({ state: "visible" });
+
+  const pointerGeometry = await page.locator("#annotationActions").evaluate((element, bounds) => {
+    const rect = element.getBoundingClientRect();
+    const canvas = document.querySelector("#mapCanvas").getBoundingClientRect();
+    const before = getComputedStyle(element, "::before");
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(element).transform);
+    const pointerX = rect.left + Number.parseFloat(before.left) * matrix.a;
+    const tolerance = Number.parseFloat(before.width) / 2 + 1;
+    return {
+      pointerX,
+      targetCenterX: canvas.left + (bounds.x + bounds.width / 2) * canvas.width,
+      tolerance,
+    };
+  }, saved.geometry.bounds);
+
+  assert.ok(
+    Math.abs(pointerGeometry.pointerX - pointerGeometry.targetCenterX) <= pointerGeometry.tolerance,
+    `annotation action pointer drifted ${Math.abs(pointerGeometry.pointerX - pointerGeometry.targetCenterX).toFixed(1)}px from selected region`,
+  );
+});
+
 test("annotation hash route boots selected annotation and keyboard copy/delete use public UI state", async (t) => {
   const { page, boot, baseUrl } = await startMapUiHarness(t);
   const annotation = await createAnnotation(baseUrl, { comment: "Route boot annotation" });
@@ -303,16 +342,12 @@ test("map tools stay edge anchored instead of covering the map center", async (t
   assert.ok(geometry.width <= 340);
 });
 
-test("map tools expose primary controls and tuck rare actions into a menu", async (t) => {
+test("map tools expose the core controls without a flyout", async (t) => {
   const { page, boot } = await startMapUiHarness(t);
   await boot();
 
-  const closedState = await page.locator(".map-tool-palette").evaluate((element) => {
-    const visibleControlNames = Array.from(element.children)
-      .flatMap((child) => {
-        if (child.matches(".map-action-menu")) return [child.querySelector("summary")].filter(Boolean);
-        return Array.from(child.querySelectorAll(".icon-tool"));
-      })
+  const toolbarState = await page.locator(".map-tool-palette").evaluate((element) => {
+    const visibleControlNames = Array.from(element.querySelectorAll(".icon-tool"))
       .filter((control) => {
         const rect = control.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0;
@@ -322,39 +357,42 @@ test("map tools expose primary controls and tuck rare actions into a menu", asyn
     return {
       hasActionMenu: Boolean(element.querySelector(".map-action-menu")),
       visibleControlNames,
-      zoomInVisible: element.querySelector("#zoomInTool")?.getBoundingClientRect().width > 0,
+      hasZoomButtons: Boolean(element.querySelector("#zoomInTool, #zoomOutTool")),
+      fitVisible: element.querySelector("#resetViewTool")?.getBoundingClientRect().width > 0,
       clearVisible: element.querySelector("#clearActivityTool")?.getBoundingClientRect().width > 0,
     };
   });
 
-  assert.equal(closedState.hasActionMenu, true);
-  assert.deepEqual(closedState.visibleControlNames, [
+  assert.equal(toolbarState.hasActionMenu, false);
+  assert.deepEqual(toolbarState.visibleControlNames, [
     "Select",
     "Pan",
     "Draw Selection",
+    "Fit codebase",
     "Activity & Discovery",
-    "More map actions",
+    "Clear activity history",
   ]);
-  assert.equal(closedState.zoomInVisible, false);
-  assert.equal(closedState.clearVisible, false);
-
-  await page.getByLabel("More map actions").click();
-  await page.getByRole("button", { name: "Zoom in" }).waitFor({ state: "visible" });
-  assert.equal(await page.getByRole("button", { name: "Clear activity history" }).isVisible(), true);
+  assert.equal(toolbarState.hasZoomButtons, false);
+  assert.equal(toolbarState.fitVisible, true);
+  assert.equal(toolbarState.clearVisible, true);
 });
 
-test("more actions menu exposes button semantics and expanded state", async (t) => {
+test("fit codebase is a primary recovery action", async (t) => {
   const { page, boot } = await startMapUiHarness(t);
   await boot();
 
-  const menuTrigger = page.getByRole("button", { name: "More map actions" });
-  await menuTrigger.waitFor({ state: "visible" });
-  assert.equal(await menuTrigger.getAttribute("aria-expanded"), "false");
+  await page.locator("#mapCanvas").focus();
+  await page.keyboard.press("+");
+  await page.waitForFunction(() => {
+    const match = document.querySelector("#viewportReadout")?.textContent?.match(/scale ([0-9.]+)/);
+    return match && Number(match[1]) > 1.02;
+  });
 
-  await menuTrigger.click();
-  await page.waitForFunction(() => document.querySelector(".menu-trigger")?.getAttribute("aria-expanded") === "true");
-  assert.equal(await menuTrigger.getAttribute("aria-expanded"), "true");
-  await page.getByRole("button", { name: "Fit codebase" }).waitFor({ state: "visible" });
+  await page.getByRole("button", { name: "Fit codebase" }).click();
+  await page.waitForFunction(() => {
+    const match = document.querySelector("#viewportReadout")?.textContent?.match(/scale ([0-9.]+)/);
+    return match && Number(match[1]) <= 1.02;
+  });
 });
 
 test("map status is a compact overlay instead of a full-width footer", async (t) => {
@@ -400,8 +438,8 @@ test("clear activity requires a deliberate hold", async (t) => {
   assert.equal(response.status, 202);
   await page.waitForFunction(() => fetch("/api/activity").then((res) => res.json()).then((body) => body.events.length === 1));
 
-  await page.getByLabel("More map actions").click();
   const clearButton = page.getByRole("button", { name: "Clear activity history" });
+  await clearButton.waitFor({ state: "visible" });
   await clearButton.click();
   assert.equal((await getJson(`${baseUrl}/api/activity`)).events.length, 1);
 

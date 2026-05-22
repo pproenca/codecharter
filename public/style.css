@@ -229,8 +229,7 @@ label.icon-tool {
 
 @media (hover: hover) and (pointer: fine) {
   .map-tool-palette .icon-tool:hover:not(:disabled),
-  label.icon-tool:hover,
-  .menu-trigger:hover {
+  label.icon-tool:hover {
     background: rgba(255, 255, 255, 0.11);
     border-color: rgba(218, 241, 229, 0.1);
     color: #ffffff;
@@ -247,16 +246,14 @@ label.icon-tool {
 }
 
 .map-tool-palette .icon-tool.active,
-.map-tool-palette .toggle-tool:has(input:checked),
-.map-action-menu[open] > .menu-trigger {
+.map-tool-palette .toggle-tool:has(input:checked) {
   background: rgba(190, 244, 216, 0.18);
   border-color: rgba(190, 244, 216, 0.26);
   color: #eafff2;
 }
 
 .map-tool-palette .icon-tool:active:not(:disabled),
-.toggle-tool:active,
-.menu-trigger:active {
+.toggle-tool:active {
   background: rgba(255, 255, 255, 0.14);
   transform: scale(0.98);
 }
@@ -269,53 +266,6 @@ label.icon-tool {
 .toggle-tool:has(input:focus-visible) {
   outline: 2px solid rgba(37, 99, 235, 0.78);
   outline-offset: 2px;
-}
-
-.map-action-menu {
-  display: grid;
-  position: relative;
-}
-
-.menu-trigger {
-  list-style: none;
-}
-
-.menu-trigger::-webkit-details-marker {
-  display: none;
-}
-
-.map-action-panel {
-  backdrop-filter: blur(18px) saturate(1.14);
-  background: rgba(14, 24, 29, 0.9);
-  border: 1px solid rgba(218, 241, 229, 0.16);
-  border-radius: 999px;
-  box-shadow:
-    0 16px 36px rgba(5, 13, 17, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  color: rgba(241, 248, 244, 0.88);
-  display: flex;
-  gap: 2px;
-  left: 0;
-  opacity: 1;
-  padding: 3px;
-  position: absolute;
-  top: calc(100% + 8px);
-  transform: translateY(0) scale(1);
-  transform-origin: left top;
-  transition:
-    opacity 160ms var(--ease-out),
-    transform 160ms var(--ease-out);
-}
-
-.map-action-menu:not([open]) .map-action-panel {
-  display: none;
-}
-
-@starting-style {
-  .map-action-menu[open] .map-action-panel {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.97);
-  }
 }
 
 .hold-action::before {
@@ -380,7 +330,7 @@ label.icon-tool {
   transition:
     opacity 180ms var(--ease-out),
     transform 180ms var(--ease-out);
-  transform-origin: top center;
+  transform-origin: var(--annotation-pointer-x, 50%) top;
   transform: translateY(0) scale(1);
   width: min(360px, calc(100vw - 32px));
 }
@@ -390,7 +340,7 @@ label.icon-tool {
   border: solid rgba(218, 241, 229, 0.16);
   content: "";
   height: 10px;
-  left: 50%;
+  left: var(--annotation-pointer-x, 50%);
   position: absolute;
   transform: translateX(-50%) rotate(45deg);
   width: 10px;
@@ -402,7 +352,7 @@ label.icon-tool {
 }
 
 .annotation-actions[data-placement="above"] {
-  transform-origin: bottom center;
+  transform-origin: var(--annotation-pointer-x, 50%) bottom;
 }
 
 .annotation-actions[data-placement="above"]::before {
@@ -561,6 +511,15 @@ label.icon-tool {
   width: 32px;
 }
 
+.map-tool-palette .secondary-tool {
+  opacity: 0.72;
+}
+
+.map-tool-palette:hover .secondary-tool,
+.map-tool-palette:focus-within .secondary-tool {
+  opacity: 0.9;
+}
+
 .selection-actions .danger-action,
 .annotation-action-buttons .danger-action {
   background: rgba(185, 28, 28, 0.16);
@@ -608,7 +567,6 @@ label.icon-tool {
   button,
   label.icon-tool,
   .map-tool-palette,
-  .map-action-panel,
   .selection-popover,
   .annotation-actions,
   .hold-action::before {

@@ -157,6 +157,28 @@ test("stabilizes existing districts while placing new nested folders in growth a
   assert.notDeepEqual(second.folders.src.growthArea, previousSrc.growthArea);
 });
 
+test("recompacts stale root layouts when ignored districts leave visible empty geography", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-stale-root-"));
+  await execFileAsync("git", ["init"], { cwd: root });
+  await mkdir(join(root, "src"), { recursive: true });
+  await mkdir(join(root, ".agents", "skills", "local"), { recursive: true });
+  await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
+  await writeFile(
+    join(root, ".agents", "skills", "local", "SKILL.md"),
+    Array.from({ length: 500 }, (_, index) => `instruction_${index}: keep this stable`).join("\n"),
+  );
+
+  const first = await generateCodemap({ root });
+  assert.ok(first.folders[".agents"]);
+
+  await writeFile(join(root, ".gitignore"), ".agents/\n");
+  const second = await generateCodemap({ root, previousCodemap: first });
+
+  assert.equal(second.folders[".agents"], undefined);
+  assert.notDeepEqual(second.folders.src.bounds, first.folders.src.bounds);
+  assert.ok(rootChildOccupancy(second) > 0.75);
+});
+
 test("does not anchor a district map to an obsolete projection", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-projection-"));
   await execFileAsync("git", ["init"], { cwd: root });
@@ -216,4 +238,17 @@ function isInside(bounds, container) {
     && bounds.y >= container.y
     && bounds.x + bounds.width <= container.x + container.width
     && bounds.y + bounds.height <= container.y + container.height;
+}
+
+function rootChildOccupancy(codemap) {
+  const root = codemap.folders[""];
+  const rootArea = area(root.bounds);
+  let childArea = 0;
+  for (const path of root.children.folders) childArea += area(codemap.folders[path].bounds);
+  for (const path of root.children.files) childArea += area(codemap.files[path].bounds);
+  return childArea / rootArea;
+}
+
+function area(bounds) {
+  return bounds.width * bounds.height;
 }

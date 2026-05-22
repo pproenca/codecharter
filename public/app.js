@@ -179,8 +179,6 @@ function createMapControls(root = document) {
     ["searchResult", "#searchResult"],
     ["selectTool", "#selectTool"],
     ["panTool", "#panTool"],
-    ["zoomInTool", "#zoomInTool"],
-    ["zoomOutTool", "#zoomOutTool"],
     ["resetViewTool", "#resetViewTool"],
     ["drawTool", "#drawTool"],
     ["clearActivityTool", "#clearActivityTool"],
@@ -320,8 +318,6 @@ function bindEvents() {
     setPanMode();
     render();
   });
-  controls.zoomInTool?.addEventListener("click", () => zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true }));
-  controls.zoomOutTool?.addEventListener("click", () => zoomAt(viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR, { animate: true }));
   controls.resetViewTool?.addEventListener("click", () => fitCodebaseView({ animate: true }));
 
   controls.searchForm?.addEventListener("submit", searchMap);
@@ -331,7 +327,6 @@ function bindEvents() {
   controls.editAnnotation?.addEventListener("click", editSelectedAnnotation);
   controls.deleteAnnotationAction?.addEventListener("click", deleteSelectedAnnotation);
   controls.activityForm?.addEventListener("submit", addActivity);
-  document.querySelector(".map-action-menu")?.addEventListener("toggle", updateActionMenuExpanded);
   bindClearActivityHold();
 
   mapArea.addEventListener("wheel", onWheel, { passive: false });
@@ -347,7 +342,6 @@ function bindEvents() {
   canvas.setAttribute("role", "application");
   canvas.setAttribute("aria-label", "CodeCharter map canvas. Use the pointer tool to select items, the hand tool or Space drag to pan, arrow keys to pan, plus and minus to zoom, double click to zoom in, 0 to fit the codebase, Enter to select the center, and Escape to cancel the current action.");
   canvas.addEventListener("keydown", onCanvasKeyDown);
-  updateActionMenuExpanded();
   updateInteractionModeUi();
 }
 
@@ -675,12 +669,6 @@ function updateInteractionModeUi() {
   canvas.classList.toggle("is-panning", mode.panning);
 }
 
-function updateActionMenuExpanded() {
-  const menu = document.querySelector(".map-action-menu");
-  const trigger = menu?.querySelector(".menu-trigger");
-  trigger?.setAttribute("aria-expanded", String(Boolean(menu?.open)));
-}
-
 function clearDraftSelection() {
   clearPendingAnnotationDelete();
   state.dragging = null;
@@ -757,6 +745,7 @@ function positionAnnotationActions(annotation, { visible = true } = {}) {
     panel?.style.removeProperty("left");
     panel?.style.removeProperty("top");
     panel?.style.removeProperty("bottom");
+    panel?.style.removeProperty("--annotation-pointer-x");
     panel?.removeAttribute("data-placement");
     return;
   }
@@ -779,6 +768,7 @@ function positionAnnotationActions(annotation, { visible = true } = {}) {
 
   panel.style.left = `${left}px`;
   panel.style.top = `${top}px`;
+  panel.style.setProperty("--annotation-pointer-x", `${centerX - left}px`);
   panel.setAttribute("data-placement", fitsBelow ? "below" : "above");
 }
 

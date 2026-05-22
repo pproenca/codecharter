@@ -15,6 +15,32 @@ test("finds visible overlap bounds between named drawn selections", () => {
   assert.deepEqual(overlaps[0].bounds, { x: 0.3, y: 0.2, width: 0.2, height: 0.2 });
 });
 
+test("keeps overlap results ordered by original drawn selection pairs", () => {
+  const overlaps = findNamedPlaceOverlaps([
+    namedRect("late-x", "Late X", { x: 0.7, y: 0.1, width: 0.2, height: 0.2 }),
+    namedRect("wide", "Wide", { x: 0.1, y: 0.1, width: 0.8, height: 0.2 }),
+    namedRect("early-x", "Early X", { x: 0.05, y: 0.1, width: 0.2, height: 0.2 }),
+    namedRect("middle", "Middle", { x: 0.3, y: 0.1, width: 0.2, height: 0.2 }),
+  ]);
+
+  assert.deepEqual(overlaps.map((overlap) => overlap.placeIds), [
+    ["late-x", "wide"],
+    ["wide", "early-x"],
+    ["wide", "middle"],
+  ]);
+});
+
+test("ignores non-rect places and selections that only touch edges", () => {
+  const overlaps = findNamedPlaceOverlaps([
+    namedRect("a", "A", { x: 0, y: 0, width: 0.2, height: 0.2 }),
+    namedRect("touching", "Touching", { x: 0.2, y: 0, width: 0.2, height: 0.2 }),
+    { id: "annotation", name: "Annotation", kind: "mapAnnotation", geometry: { type: "rect", bounds: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } } },
+    { id: "polygon", name: "Polygon", kind: "drawnSelection", geometry: { type: "polygon" } },
+  ]);
+
+  assert.deepEqual(overlaps, []);
+});
+
 function namedRect(id, name, bounds) {
   return {
     id,

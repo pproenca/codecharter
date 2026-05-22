@@ -1,23 +1,38 @@
 import { intersects, roundBounds } from "./geometry.js";
 
 export function findNamedPlaceOverlaps(places) {
-  const drawn = places.filter((place) => place.kind === "drawnSelection" && place.geometry?.type === "rect");
+  const drawn = places
+    .map((place, index) => ({ place, index }))
+    .filter(({ place }) => place.kind === "drawnSelection" && place.geometry?.type === "rect")
+    .sort((a, b) => a.place.geometry.bounds.x - b.place.geometry.bounds.x || a.index - b.index);
   const overlaps = [];
+  const active = [];
 
-  for (let i = 0; i < drawn.length; i += 1) {
-    for (let j = i + 1; j < drawn.length; j += 1) {
-      const a = drawn[i];
-      const b = drawn[j];
-      if (!intersects(a.geometry.bounds, b.geometry.bounds)) continue;
+  for (const candidate of drawn) {
+    const bounds = candidate.place.geometry.bounds;
+    for (let index = active.length - 1; index >= 0; index -= 1) {
+      if (active[index].place.geometry.bounds.x + active[index].place.geometry.bounds.width <= bounds.x) {
+        active.splice(index, 1);
+      }
+    }
+
+    for (const other of active) {
+      if (!intersects(other.place.geometry.bounds, bounds)) continue;
+      const [left, right] = other.index < candidate.index ? [other, candidate] : [candidate, other];
       overlaps.push({
-        placeIds: [a.id, b.id],
-        names: [a.name, b.name],
-        bounds: intersectionBounds(a.geometry.bounds, b.geometry.bounds),
+        order: [left.index, right.index],
+        placeIds: [left.place.id, right.place.id],
+        names: [left.place.name, right.place.name],
+        bounds: intersectionBounds(left.place.geometry.bounds, right.place.geometry.bounds),
       });
     }
+
+    active.push(candidate);
   }
 
-  return overlaps;
+  return overlaps
+    .sort((a, b) => a.order[0] - b.order[0] || a.order[1] - b.order[1])
+    .map(({ order, ...overlap }) => overlap);
 }
 
 function intersectionBounds(a, b) {

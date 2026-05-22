@@ -104,17 +104,22 @@ function namedPlaceSearchMatch({ namedPlaces, query }) {
 }
 
 function fileSearchMatch({ codemap, query }) {
-  const file = Object.values(codemap.files).find((candidate) =>
-    candidate.path.toLowerCase().includes(query) || candidate.geo.geohash.startsWith(query)
-  );
+  const file = firstSearchTarget(codemap.files, query);
   return file ? { type: "file", label: `File: ${file.path}`, file } : null;
 }
 
 function folderSearchMatch({ codemap, query }) {
-  const folder = Object.values(codemap.folders).find((candidate) =>
-    candidate.path.toLowerCase().includes(query) || candidate.geo.geohash.startsWith(query)
-  );
+  const folder = firstSearchTarget(codemap.folders, query);
   return folder ? { type: "folder", label: `Folder: ${folder.path || "."}`, folder } : null;
+}
+
+function firstSearchTarget(targets, query) {
+  for (const path in targets) {
+    if (!Object.hasOwn(targets, path)) continue;
+    const target = targets[path];
+    if (target.path.toLowerCase().includes(query) || target.geo.geohash.startsWith(query)) return target;
+  }
+  return null;
 }
 
 export function detailBand(scale) {
@@ -676,6 +681,33 @@ export function hitTestTargets(codemap, point) {
   const folder = bestContainingTarget(codemap.folders, point, (target) => target.path);
   if (folder) return { ...folder, targetType: "folder" };
 
+  return null;
+}
+
+export function hitTestAnnotations(namedPlaces, point, { radiusX = 0, radiusY = 0 } = {}) {
+  for (let index = namedPlaces.length - 1; index >= 0; index -= 1) {
+    const place = namedPlaces[index];
+    if (place.kind !== "mapAnnotation" || !place.geometry?.bounds) continue;
+    if (containsBoundsPoint(place.geometry.bounds, point)) return { ...place, targetType: "annotation" };
+    const center = boundsCenter(place.geometry.bounds);
+    if (Math.abs(point.x - center.x) <= radiusX && Math.abs(point.y - center.y) <= radiusY) {
+      return { ...place, targetType: "annotation" };
+    }
+  }
+  return null;
+}
+
+export function hitTestActivityEvents(events, point, { radiusX = 0, radiusY = 0, now, maxAgeMinutes } = {}) {
+  const visibleEvents = sortedActivityEvents(events, Number.POSITIVE_INFINITY, { now, maxAgeMinutes });
+  for (let index = visibleEvents.length - 1; index >= 0; index -= 1) {
+    const event = visibleEvents[index];
+    for (const bounds of activityFragmentBounds(event)) {
+      const center = boundsCenter(bounds);
+      if (Math.abs(point.x - center.x) <= radiusX && Math.abs(point.y - center.y) <= radiusY) {
+        return { ...event, targetType: "activity" };
+      }
+    }
+  }
   return null;
 }
 

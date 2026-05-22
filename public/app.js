@@ -15,7 +15,6 @@ import {
   cachedSourceRange,
   canvasKeyboardAction,
   canRenderSourceText,
-  containsBoundsPoint,
   documentKeyboardAction,
   doubleClickMapAction,
   draftSelectionFromDrag,
@@ -27,6 +26,8 @@ import {
   folderStyle,
   hashString,
   hashRouteFocusIntent,
+  hitTestActivityEvents,
+  hitTestAnnotations,
   hitTestTargets,
   interactionModeUiState,
   isSpaceKeyEvent,
@@ -1833,29 +1834,14 @@ function hitTest(point) {
 function hitTestAnnotation(point) {
   const radiusX = 15 / (canvas.clientWidth * state.view.scale);
   const radiusY = 15 / (canvas.clientHeight * state.view.scale);
-  const annotations = state.namedPlaces
-    .filter((place) => place.kind === "mapAnnotation")
-    .reverse();
-  const annotation = annotations.find((place) => {
-    if (containsBoundsPoint(place.geometry.bounds, point)) return true;
-    const center = boundsCenter(place.geometry.bounds);
-    return Math.abs(point.x - center.x) <= radiusX && Math.abs(point.y - center.y) <= radiusY;
-  });
-  return annotation ? { ...annotation, targetType: "annotation" } : null;
+  return hitTestAnnotations(state.namedPlaces, point, { radiusX, radiusY });
 }
 
 function hitTestActivity(point) {
   if (!layerEnabled("showActivity")) return null;
   const radiusX = 13 / (canvas.clientWidth * state.view.scale);
   const radiusY = 13 / (canvas.clientHeight * state.view.scale);
-  const events = [...sortedActivityEvents(state.activity)].reverse();
-  const event = events.find((candidate) => {
-    return activityFragmentBounds(candidate).some((bounds) => {
-      const center = boundsCenter(bounds);
-      return Math.abs(point.x - center.x) <= radiusX && Math.abs(point.y - center.y) <= radiusY;
-    });
-  });
-  return event ? { ...event, targetType: "activity" } : null;
+  return hitTestActivityEvents(state.activity, point, { radiusX, radiusY });
 }
 
 function zoomToBounds(bounds, paddingFactor = 1.2) {

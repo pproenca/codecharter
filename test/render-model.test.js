@@ -53,6 +53,8 @@ import {
   sourcePanelState,
   sourceRangeCacheKey,
   formatSourceLines,
+  hitTestActivityEvents,
+  hitTestAnnotations,
   sourcePanelLineRangeForBox,
   sortedActivityEvents,
   viewForBounds,
@@ -550,6 +552,41 @@ test("resolves map search matches by navigation priority", () => {
   assert.equal(folder.label, "Folder: src/features");
 });
 
+test("keeps map search priority and first matching target order", () => {
+  const codemap = {
+    files: {
+      "src/app.ts": {
+        path: "src/app.ts",
+        bounds: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+        geo: { geohash: "u10000000000", lat: 0, lon: 0 },
+      },
+      "src/app-helper.ts": {
+        path: "src/app-helper.ts",
+        bounds: { x: 0.2, y: 0.1, width: 0.2, height: 0.2 },
+        geo: { geohash: "u10001000000", lat: 0, lon: 0 },
+      },
+    },
+    folders: {
+      "src/app": {
+        path: "src/app",
+        bounds: { x: 0.1, y: 0.1, width: 0.4, height: 0.4 },
+        geo: { geohash: "u10000000000", lat: 0, lon: 0 },
+      },
+    },
+  };
+  const namedPlaces = [{
+    id: "place-without-bounds",
+    kind: "drawnSelection",
+    name: "app",
+    geometry: {},
+  }];
+
+  const match = mapSearchMatch(codemap, namedPlaces, "app");
+
+  assert.equal(match.type, "file");
+  assert.equal(match.file.path, "src/app.ts");
+});
+
 test("derives map search actions without binding to browser effects", () => {
   assert.deepEqual(mapSearchAction(null), { type: "noMatch" });
   assert.deepEqual(mapSearchAction({ type: "annotation", label: "Annotation: App note" }), { type: "focusPlace" });
@@ -670,6 +707,61 @@ test("hit-testing breaks equal-area target ties by path", () => {
 
   assert.equal(hit.targetType, "file");
   assert.equal(hit.path, "src/a.js");
+});
+
+test("hit-testing annotations prefers the newest visible annotation without allocating reversed candidates", () => {
+  const annotations = [
+    {
+      id: "older",
+      name: "Older",
+      kind: "mapAnnotation",
+      geometry: { bounds: { x: 0.2, y: 0.2, width: 0.2, height: 0.2 } },
+    },
+    {
+      id: "selection",
+      name: "Selection",
+      kind: "drawnSelection",
+      geometry: { bounds: { x: 0.25, y: 0.25, width: 0.2, height: 0.2 } },
+    },
+    {
+      id: "newer",
+      name: "Newer",
+      kind: "mapAnnotation",
+      geometry: { bounds: { x: 0.21, y: 0.21, width: 0.2, height: 0.2 } },
+    },
+  ];
+
+  const hit = hitTestAnnotations(annotations, { x: 0.3, y: 0.3 });
+
+  assert.equal(hit.targetType, "annotation");
+  assert.equal(hit.id, "newer");
+});
+
+test("hit-testing activity prefers the newest live event near a fragment center", () => {
+  const now = Date.parse("2026-05-20T12:00:00.000Z");
+  const older = activity("codex", "reading", "2026-05-20T10:00:00.000Z", {
+    id: "older",
+    address: {
+      bounds: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+      fragments: [{ bounds: { x: 0.2, y: 0.2, width: 0.04, height: 0.04 } }],
+    },
+  });
+  const newer = activity("codex", "editing", "2026-05-20T10:03:00.000Z", {
+    id: "newer",
+    address: {
+      bounds: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+      fragments: [{ bounds: { x: 0.205, y: 0.205, width: 0.04, height: 0.04 } }],
+    },
+  });
+
+  const hit = hitTestActivityEvents([newer, older], { x: 0.222, y: 0.222 }, {
+    radiusX: 0.03,
+    radiusY: 0.03,
+    now,
+  });
+
+  assert.equal(hit.targetType, "activity");
+  assert.equal(hit.id, "newer");
 });
 
 test("derives organic region contours deterministically from world bounds", () => {

@@ -73,13 +73,24 @@ export class DistrictLayoutEngine {
   }
 
   orderedForLayout(children) {
-    return [...children].sort((a, b) => {
-      const typeDelta = this.typeRank(a) - this.typeRank(b);
+    const ordered = [];
+    for (const child of children) {
+      ordered.push({
+        child,
+        typeRank: this.typeRank(child),
+        layoutWeight: this.layoutWeight(child),
+      });
+    }
+    ordered.sort((a, b) => {
+      const typeDelta = a.typeRank - b.typeRank;
       if (typeDelta !== 0) return typeDelta;
-      const weightDelta = this.layoutWeight(b) - this.layoutWeight(a);
+      const weightDelta = b.layoutWeight - a.layoutWeight;
       if (Math.abs(weightDelta) > 1e-9) return weightDelta;
-      return a.path.localeCompare(b.path);
+      return a.child.path.localeCompare(b.child.path);
     });
+    const childrenForLayout = [];
+    for (const entry of ordered) childrenForLayout.push(entry.child);
+    return childrenForLayout;
   }
 
   layoutWeight(child) {
@@ -137,9 +148,18 @@ export class DistrictLayoutEngine {
 
   splitEntries(entries) {
     const split = this.splitEntryRange(entries, 0, entries.length, this.prefixWeights(entries));
+    const first = [];
+    const second = [];
+    for (let index = 0; index < entries.length; index += 1) {
+      if (index < split) {
+        first.push(entries[index]);
+      } else {
+        second.push(entries[index]);
+      }
+    }
     return {
-      first: entries.slice(0, split),
-      second: entries.slice(split),
+      first,
+      second,
     };
   }
 
@@ -173,22 +193,27 @@ export class DistrictLayoutEngine {
 
   stripLayout(children, bounds) {
     let totalWeight = 0;
-    for (const child of children) totalWeight += this.layoutWeight(child);
+    const weighted = [];
+    for (const child of children) {
+      const weight = this.layoutWeight(child);
+      totalWeight += weight;
+      weighted.push({ child, weight });
+    }
     const horizontal = bounds.width >= bounds.height;
     let cursor = horizontal ? bounds.x : bounds.y;
     const rectangles = [];
 
-    for (let index = 0; index < children.length; index += 1) {
-      const item = children[index];
-      const isLast = index === children.length - 1;
+    for (let index = 0; index < weighted.length; index += 1) {
+      const { child, weight } = weighted[index];
+      const isLast = index === weighted.length - 1;
       const span = isLast
         ? (horizontal ? bounds.x + bounds.width : bounds.y + bounds.height) - cursor
-        : ((horizontal ? bounds.width : bounds.height) * this.layoutWeight(item)) / totalWeight;
+        : ((horizontal ? bounds.width : bounds.height) * weight) / totalWeight;
       const childBounds = horizontal
         ? { x: cursor, y: bounds.y, width: span, height: bounds.height }
         : { x: bounds.x, y: cursor, width: bounds.width, height: span };
       cursor += span;
-      rectangles.push({ item, bounds: childBounds });
+      rectangles.push({ item: child, bounds: childBounds });
     }
 
     return rectangles;

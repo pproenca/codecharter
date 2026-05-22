@@ -106,16 +106,19 @@ async function mapChangedRanges(root, paths, concurrency) {
   const changes = new Array(paths.length);
   let next = 0;
   const workerCount = Math.max(1, Math.min(paths.length, concurrency));
-  const workers = Array.from({ length: workerCount }, async () => {
-    while (next < paths.length) {
-      const index = next;
-      next += 1;
-      changes[index] = {
-        path: paths[index],
-        ...await changedLineRange(root, paths[index]),
-      };
-    }
-  });
+  const workers = [];
+  for (let worker = 0; worker < workerCount; worker += 1) {
+    workers.push((async () => {
+      while (next < paths.length) {
+        const index = next;
+        next += 1;
+        changes[index] = {
+          path: paths[index],
+          ...await changedLineRange(root, paths[index]),
+        };
+      }
+    })());
+  }
   await Promise.all(workers);
   return changes;
 }

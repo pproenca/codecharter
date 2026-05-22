@@ -632,6 +632,27 @@ test("codecharter codex-hook maps tail reads with normalized relative paths", as
   assert.equal(event.note, "Codex read src/app.ts");
   assert.equal(event.sessionId, "session-tail-read");
   assert.deepEqual(event.address.lineRange, { start: 2, end: 3 });
+
+  await execFileWithInput("node", [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "codex-hook",
+  ], {
+    cwd: root,
+    input: JSON.stringify({
+      ...payload,
+      session_id: "session-tail-compact-read",
+      turn_id: "turn-tail-compact-read",
+      tool_input: { cmd: "tail -n2 ./src/app.ts" },
+    }),
+  });
+
+  const compactLines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
+  assert.equal(compactLines.length, 2);
+  const compactEvent = JSON.parse(compactLines[1]);
+  assert.equal(compactEvent.activityState, "reading");
+  assert.equal(compactEvent.note, "Codex read src/app.ts");
+  assert.equal(compactEvent.sessionId, "session-tail-compact-read");
+  assert.deepEqual(compactEvent.address.lineRange, { start: 2, end: 3 });
 });
 
 test("codecharter codex-hook does not use dirty-file fallback for Codex Desktop reads", async () => {

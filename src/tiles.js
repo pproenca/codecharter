@@ -45,7 +45,9 @@ export function buildTileIndex(codemap, level = "file") {
     addTarget(tiles, tilePrefixForTarget(target, level), target);
   }
 
-  const tileEntries = [...tiles.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const tileEntries = [];
+  for (const entry of tiles.entries()) tileEntries.push(entry);
+  tileEntries.sort(([a], [b]) => a.localeCompare(b));
   const index = [];
   for (const [prefix, targets] of tileEntries) {
     index.push({ prefix, level, targets });
@@ -69,7 +71,9 @@ export function visiblePrefixes(codemap, level = "file") {
   for (const target of rawMapTargets(codemap)) {
     prefixes.add(tilePrefixForTarget(target, level));
   }
-  return [...prefixes].sort((a, b) => a.localeCompare(b));
+  const sorted = [];
+  for (const prefix of prefixes) sorted.push(prefix);
+  return sorted.sort((a, b) => a.localeCompare(b));
 }
 
 function addTarget(tiles, prefix, target) {
@@ -93,7 +97,11 @@ function* rawMapTargets(codemap) {
 }
 
 function sortedTargets(targets) {
-  return Object.values(targets).sort((left, right) => left.path.localeCompare(right.path));
+  const sorted = [];
+  for (const target of objectValues(targets)) {
+    sorted.push(target);
+  }
+  return sorted.sort((left, right) => left.path.localeCompare(right.path));
 }
 
 function matchingTargets(targets, targetType, level, prefix) {

@@ -64,13 +64,21 @@ export class CodexHooksMerger {
       hooks: { ...this.objectOrEmpty(existing?.hooks) },
     };
 
-    for (const [eventName, groups] of Object.entries(next.hooks)) {
-      next.hooks[eventName] = Array.isArray(groups)
-        ? groups.map((group) => this.withoutCodecharterHandlers(group)).filter((group) => !this.isEmptyManagedHookGroup(eventName, group))
-        : groups;
+    for (const eventName in next.hooks) {
+      if (!Object.hasOwn(next.hooks, eventName)) continue;
+      const groups = next.hooks[eventName];
+      if (!Array.isArray(groups)) continue;
+      const keptGroups = [];
+      for (const group of groups) {
+        const withoutManaged = this.withoutCodecharterHandlers(group);
+        if (!this.isEmptyManagedHookGroup(eventName, withoutManaged)) keptGroups.push(withoutManaged);
+      }
+      next.hooks[eventName] = keptGroups;
     }
 
-    for (const [eventName, desiredGroups] of Object.entries(desired.hooks)) {
+    for (const eventName in desired.hooks) {
+      if (!Object.hasOwn(desired.hooks, eventName)) continue;
+      const desiredGroups = desired.hooks[eventName];
       const existingGroups = Array.isArray(next.hooks[eventName]) ? next.hooks[eventName] : [];
       next.hooks[eventName] = this.mergeHookGroups(existingGroups, desiredGroups);
     }
@@ -79,24 +87,36 @@ export class CodexHooksMerger {
   }
 
   mergeHookGroups(existingGroups, desiredGroups) {
-    const groups = existingGroups.map((group) => ({
-      ...group,
-      hooks: Array.isArray(group.hooks) ? [...group.hooks] : [],
-    }));
+    const groups = [];
+    const groupIndexesByMatcher = new Map();
+    const hookKeysByGroup = [];
+
+    for (const group of existingGroups) {
+      const hooks = Array.isArray(group.hooks) ? [...group.hooks] : [];
+      groups.push({ ...group, hooks });
+      const matcher = group.matcher ?? "";
+      if (!groupIndexesByMatcher.has(matcher)) groupIndexesByMatcher.set(matcher, groups.length - 1);
+      hookKeysByGroup.push(this.hookKeySet(hooks));
+    }
 
     for (const desiredGroup of desiredGroups) {
-      const index = groups.findIndex((group) => (group.matcher ?? "") === (desiredGroup.matcher ?? ""));
-      if (index === -1) {
-        groups.push({
-          ...desiredGroup,
-          hooks: [...desiredGroup.hooks],
-        });
+      const matcher = desiredGroup.matcher ?? "";
+      const index = groupIndexesByMatcher.get(matcher);
+      if (index === undefined) {
+        const hooks = [...desiredGroup.hooks];
+        groups.push({ ...desiredGroup, hooks });
+        groupIndexesByMatcher.set(matcher, groups.length - 1);
+        hookKeysByGroup.push(this.hookKeySet(hooks));
         continue;
       }
 
       const group = groups[index];
+      const hookKeys = hookKeysByGroup[index];
       for (const hook of desiredGroup.hooks) {
-        if (!group.hooks.some((existingHook) => this.sameHook(existingHook, hook))) group.hooks.push(hook);
+        const key = this.hookKey(hook);
+        if (hookKeys.has(key)) continue;
+        group.hooks.push(hook);
+        hookKeys.add(key);
       }
     }
 
@@ -104,7 +124,12 @@ export class CodexHooksMerger {
   }
 
   withoutCodecharterHandlers(group) {
-    const hooks = Array.isArray(group.hooks) ? group.hooks.filter((hook) => !this.isCodecharterHook(hook)) : [];
+    const hooks = [];
+    if (Array.isArray(group.hooks)) {
+      for (const hook of group.hooks) {
+        if (!this.isCodecharterHook(hook)) hooks.push(hook);
+      }
+    }
     return { ...group, hooks };
   }
 
@@ -121,6 +146,16 @@ export class CodexHooksMerger {
 
   sameHook(left, right) {
     return left?.type === right?.type && left?.command === right?.command;
+  }
+
+  hookKeySet(hooks) {
+    const keys = new Set();
+    for (const hook of hooks) keys.add(this.hookKey(hook));
+    return keys;
+  }
+
+  hookKey(hook) {
+    return JSON.stringify([hook?.type, hook?.command]);
   }
 
   objectOrEmpty(value) {
@@ -154,7 +189,12 @@ export async function ensurePackageDevDependency(root) {
   const version = await currentPackageVersion();
   const desiredSpec = `^${version}`;
   const dependencySections = ["devDependencies", "dependencies", "optionalDependencies", "peerDependencies"];
-  const existingSection = dependencySections.find((section) => packageJson[section]?.codecharter);
+  let existingSection;
+  for (const section of dependencySections) {
+    if (!packageJson[section]?.codecharter) continue;
+    existingSection = section;
+    break;
+  }
 
   if (existingSection) {
     if (packageJson[existingSection].codecharter === desiredSpec) return { skipped: false, changed: false };

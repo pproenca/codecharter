@@ -17,9 +17,31 @@ const ROOT_MAP_PATH = "codecharter.json";
 const LEGACY_MAP_PATH = "codemap.json";
 const DEFAULT_ACTIVITY_PATH = ".codecharter/activity.jsonl";
 const DEFAULT_CHANGE_RANGE_CONCURRENCY = 32;
+const GENERIC_READ_COMMAND_STRATEGY = { pathCandidates: genericReadPathCandidates, lineRange: emptyLineRange };
+const READ_OPTIONS_WITH_VALUE = new Set(["-n", "--lines", "-e", "--expression"]);
+const RG_OPTIONS_WITH_VALUE = new Set([
+  "-e",
+  "--regexp",
+  "-g",
+  "--glob",
+  "-t",
+  "--type",
+  "-T",
+  "--type-not",
+  "-m",
+  "--max-count",
+  "-A",
+  "--after-context",
+  "-B",
+  "--before-context",
+  "-C",
+  "--context",
+]);
 
 const READ_COMMAND_STRATEGIES = new Map([
-  ...["cat", "nl", "less"].map((commandName) => [commandName, { pathCandidates: genericReadPathCandidates, lineRange: emptyLineRange }]),
+  ["cat", GENERIC_READ_COMMAND_STRATEGY],
+  ["nl", GENERIC_READ_COMMAND_STRATEGY],
+  ["less", GENERIC_READ_COMMAND_STRATEGY],
   ["head", { pathCandidates: optionAwareReadPathCandidates, lineRange: headLineRange }],
   ["tail", { pathCandidates: optionAwareReadPathCandidates, lineRange: tailLineRange }],
   ["sed", { pathCandidates: sedPathCandidates, lineRange: sedLineRange }],
@@ -87,7 +109,9 @@ async function codexHookEvents({ root, mapPath, payload }) {
   if (writeChanges.length > 0) {
     codemap = await refreshCodemap(root, mapPath, previousCodemap);
   }
-  const changes = [...readChanges, ...writeChanges];
+  const changes = [];
+  for (const change of readChanges) changes.push(change);
+  for (const change of writeChanges) changes.push(change);
   const events = [];
   for (const change of changes) {
     try {
@@ -270,7 +294,9 @@ function findShellCommand(value) {
     if (nestedCommand) return nestedCommand;
   }
 
-  for (const child of Object.values(value)) {
+  for (const key in value) {
+    if (!Object.hasOwn(value, key)) continue;
+    const child = value[key];
     const nestedCommand = findShellCommand(child);
     if (nestedCommand) return nestedCommand;
   }
@@ -287,16 +313,19 @@ async function mapChangedRanges(root, paths, concurrency) {
   const changes = new Array(paths.length);
   let next = 0;
   const workerCount = Math.max(1, Math.min(paths.length, concurrency));
-  const workers = Array.from({ length: workerCount }, async () => {
-    while (next < paths.length) {
-      const index = next;
-      next += 1;
-      changes[index] = {
-        path: paths[index],
-        ...await changedLineRange(root, paths[index]),
-      };
-    }
-  });
+  const workers = [];
+  for (let worker = 0; worker < workerCount; worker += 1) {
+    workers.push((async () => {
+      while (next < paths.length) {
+        const index = next;
+        next += 1;
+        changes[index] = {
+          path: paths[index],
+          ...await changedLineRange(root, paths[index]),
+        };
+      }
+    })());
+  }
   await Promise.all(workers);
   return changes;
 }
@@ -334,12 +363,13 @@ function isStructuredWriteTool(toolName) {
 }
 
 function toolInputText(input) {
-  return [
-    input.command,
-    input.cmd,
-    input.patch,
-    input.input,
-  ].filter((value) => typeof value === "string").join("\n");
+  let text = "";
+  for (const key of ["command", "cmd", "patch", "input"]) {
+    const value = input[key];
+    if (typeof value !== "string") continue;
+    text = text ? `${text}\n${value}` : value;
+  }
+  return text;
 }
 
 function applyPatchPaths(text) {
@@ -364,7 +394,9 @@ function collectStructuredToolPaths(value, paths) {
     return;
   }
 
-  for (const [key, child] of Object.entries(value)) {
+  for (const key in value) {
+    if (!Object.hasOwn(value, key)) continue;
+    const child = value[key];
     if (isPathKey(key) && typeof child === "string") {
       paths.push(child);
       continue;
@@ -456,28 +488,11 @@ function ripgrepPathCandidates({ tokens, codemap }) {
 }
 
 function readOptionConsumesNext(token) {
-  return ["-n", "--lines", "-e", "--expression"].includes(token);
+  return READ_OPTIONS_WITH_VALUE.has(token);
 }
 
 function rgOptionConsumesNext(token) {
-  return [
-    "-e",
-    "--regexp",
-    "-g",
-    "--glob",
-    "-t",
-    "--type",
-    "-T",
-    "--type-not",
-    "-m",
-    "--max-count",
-    "-A",
-    "--after-context",
-    "-B",
-    "--before-context",
-    "-C",
-    "--context",
-  ].includes(token);
+  return RG_OPTIONS_WITH_VALUE.has(token);
 }
 
 function emptyLineRange() {
@@ -518,9 +533,12 @@ function tailLineRange({ root, tokens, codemap }) {
 }
 
 function numericOption(tokens, name) {
-  const index = tokens.indexOf(name);
-  if (index !== -1) return Number(tokens[index + 1]);
-  const compact = tokens.find((token) => token.startsWith(name) && token.length > name.length);
+  let compact;
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token === name) return Number(tokens[index + 1]);
+    if (compact === undefined && token.startsWith(name) && token.length > name.length) compact = token;
+  }
   return compact ? Number(compact.slice(name.length)) : undefined;
 }
 

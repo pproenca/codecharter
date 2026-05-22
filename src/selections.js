@@ -164,7 +164,9 @@ function intersectingTargets(targets, bounds, resolve) {
 function sortedUniqueGeohashes(targets) {
   const geohashes = new Set();
   for (const target of targets) geohashes.add(target.geohash);
-  return [...geohashes].sort((a, b) => a.localeCompare(b));
+  const sorted = [];
+  for (const geohash of geohashes) sorted.push(geohash);
+  return sorted.sort((a, b) => a.localeCompare(b));
 }
 
 function spatialFrameForGeometry(geometry, level) {
@@ -216,14 +218,12 @@ function withAnnotationPrompt(annotation) {
 function codexPromptForAnnotation(annotation) {
   const comment = annotation.comment?.trim() || "<empty>";
   const reference = doubleQuote(annotation.deepLink);
-  return [
-    `CodeCharter annotation: ${annotation.deepLink}`,
-    `Targets: ${annotation.resolvedTargets.length}`,
-    `Note: ${comment}`,
-    `CLI: codecharter --json resolve ${reference}`,
-    `Fallback: npx --yes codecharter --json resolve ${reference}`,
-    "Use resolve output; read only needed resolvedTargets. Do not use browser automation unless asked.",
-  ].filter(Boolean).join("\n");
+  return `CodeCharter annotation: ${annotation.deepLink}\n`
+    + `Targets: ${annotation.resolvedTargets.length}\n`
+    + `Note: ${comment}\n`
+    + `CLI: codecharter --json resolve ${reference}\n`
+    + `Fallback: npx --yes codecharter --json resolve ${reference}\n`
+    + "Use resolve output; read only needed resolvedTargets. Do not use browser automation unless asked.";
 }
 
 function doubleQuote(value) {

@@ -94,6 +94,33 @@ test("annotation hash route boots selected annotation and keyboard copy/delete u
   assert.equal(annotations.annotations.length, 0);
 });
 
+test("annotation hash route focuses annotations created after boot", async (t) => {
+  const { page, boot, baseUrl } = await startMapUiHarness(t);
+  await boot();
+  const annotation = await createAnnotation(baseUrl, { comment: "Late route annotation" });
+
+  await page.evaluate((id) => {
+    window.location.hash = `#/annotation/${id}`;
+  }, annotation.id);
+
+  await page.getByRole("button", { name: "Copy Codex prompt" }).waitFor({ state: "visible" });
+  await page.locator("#mapCanvas").focus();
+  await page.keyboard.press("Control+C");
+  await page.waitForFunction(() => navigator.clipboard.readText().then((text) => text.includes("Late route annotation")));
+
+  await page.evaluate(() => {
+    window.location.hash = "#";
+  });
+  await page.waitForFunction(() => window.location.hash === "");
+
+  await page.evaluate((id) => {
+    window.location.hash = `#/annotation/${id}`;
+  }, annotation.id);
+
+  await page.getByRole("button", { name: "Copy Codex prompt" }).waitFor({ state: "visible" });
+  assert.equal(new URL(page.url()).hash, `#/annotation/${annotation.id}`);
+});
+
 async function drawReadySelection(page) {
   const resolveResponse = waitForSelectionResolve(page);
   await drawSelection(page);

@@ -115,6 +115,8 @@ function createMapApplicationState() {
     organicRegionFolders: [],
     mapVersion: "",
     namedPlaces: [],
+    namedPlacesById: new Map(),
+    namedPlaceIndexesById: new Map(),
     overlaps: [],
     activity: [],
     sourceCache,
@@ -140,7 +142,7 @@ function createMapApplicationState() {
 }
 
 function createMapControls(root = document) {
-  const controls = Object.fromEntries([
+  const controlSelectors = [
     ["summary", "#mapSummary"],
     ["hover", "#hoverReadout"],
     ["viewport", "#viewportReadout"],
@@ -174,18 +176,28 @@ function createMapControls(root = document) {
     ["showGrid", "#showGrid"],
     ["activityFeed", "#activityFeed"],
     ["activityForm", "#activityForm"],
-  ].map(([name, selector]) => [name, root.querySelector(selector)]));
+  ];
+  const controls = {};
+  for (const [name, selector] of controlSelectors) {
+    controls[name] = root.querySelector(selector);
+  }
 
   return {
     ...controls,
-    layerToggles: () => [
-      controls.showFolders,
-      controls.showOrganicRegions,
-      controls.showFiles,
-      controls.showNames,
-      controls.showActivity,
-      controls.showGrid,
-    ].filter(Boolean),
+    layerToggles: () => {
+      const toggles = [];
+      for (const control of [
+        controls.showFolders,
+        controls.showOrganicRegions,
+        controls.showFiles,
+        controls.showNames,
+        controls.showActivity,
+        controls.showGrid,
+      ]) {
+        if (control) toggles.push(control);
+      }
+      return toggles;
+    },
   };
 }
 
@@ -207,7 +219,7 @@ async function boot() {
     fetchJson("/api/activity"),
   ]);
   applyMap(map, mapVersion.version);
-  state.namedPlaces = names.places;
+  setNamedPlaces(names.places);
   state.overlaps = names.overlaps ?? [];
   state.activity = activity.events;
   state.activitySignature = activitySignature(state.activity);
@@ -222,8 +234,8 @@ async function boot() {
 function applyMap(map, version) {
   const previousSelection = state.selectedTarget;
   state.map = map;
-  state.mapFolders = Object.values(map.folders);
-  state.mapFiles = Object.values(map.files);
+  state.mapFolders = objectValues(map.folders);
+  state.mapFiles = objectValues(map.files);
   state.organicRegionFolders = organicRegionFolders(map);
   state.mapVersion = version ?? state.mapVersion;
   state.clearSourceState();
@@ -235,6 +247,14 @@ function applyMap(map, version) {
 
 function reconcileSelectedTarget(target) {
   state.selectedTarget = reconciledSelectedTarget(state.map, target);
+}
+
+function objectValues(value) {
+  const values = [];
+  for (const key in value) {
+    if (Object.hasOwn(value, key)) values.push(value[key]);
+  }
+  return values;
 }
 
 function bindEvents() {
@@ -310,7 +330,7 @@ async function refreshMap() {
       fetchJson("/api/named-places"),
     ]);
     applyMap(map, mapVersion.version);
-    state.namedPlaces = names.places;
+    setNamedPlaces(names.places);
     state.overlaps = names.overlaps ?? [];
     render();
   } catch (error) {
@@ -460,7 +480,8 @@ async function applyHashRoute() {
 }
 
 async function focusAnnotationRoute(id, routeToken) {
-  let annotation = state.namedPlaces.find((place) => place.kind === "mapAnnotation" && place.id === id);
+  let annotation = state.namedPlacesById.get(id);
+  if (annotation?.kind !== "mapAnnotation") annotation = null;
   if (!annotation) {
     try {
       annotation = (await fetchJson(`/api/annotations/${encodeURIComponent(id)}`)).annotation;
@@ -606,13 +627,27 @@ function resetSelectionOverlay() {
   updateSelectionPopover();
 }
 
+function setNamedPlaces(places) {
+  state.namedPlaces = places;
+  state.namedPlacesById = new Map();
+  state.namedPlaceIndexesById = new Map();
+  for (let index = 0; index < places.length; index += 1) {
+    const place = places[index];
+    if (!place?.id) continue;
+    state.namedPlacesById.set(place.id, place);
+    state.namedPlaceIndexesById.set(place.id, index);
+  }
+}
+
 function upsertNamedPlace(place) {
-  const index = state.namedPlaces.findIndex((candidate) => candidate.id === place.id);
-  if (index === -1) {
+  const index = state.namedPlaceIndexesById.get(place.id);
+  if (index === undefined) {
     state.namedPlaces.push(place);
+    if (place?.id) state.namedPlaceIndexesById.set(place.id, state.namedPlaces.length - 1);
   } else {
     state.namedPlaces[index] = place;
   }
+  if (place?.id) state.namedPlacesById.set(place.id, place);
 }
 
 function updateSelectionPopover() {
@@ -1682,7 +1717,7 @@ async function saveSelection() {
     href: window.location.href,
   })));
   const saved = await savedPromise;
-  state.namedPlaces.push(saved.annotation);
+  upsertNamedPlace(saved.annotation);
   const copied = await copiedPromise;
   state.selectedTarget = { ...saved.annotation, targetType: "annotation" };
   syncHashRoute(createAnnotationHashRoute(saved.annotation.id));
@@ -1732,8 +1767,15 @@ async function deleteSelectedAnnotation() {
 }
 
 function removeNamedPlace(id) {
-  const index = state.namedPlaces.findIndex((place) => place.id === id);
-  if (index !== -1) state.namedPlaces.splice(index, 1);
+  const index = state.namedPlaceIndexesById.get(id);
+  if (index === undefined) return;
+  state.namedPlaces.splice(index, 1);
+  state.namedPlacesById.delete(id);
+  state.namedPlaceIndexesById.delete(id);
+  for (let nextIndex = index; nextIndex < state.namedPlaces.length; nextIndex += 1) {
+    const place = state.namedPlaces[nextIndex];
+    if (place?.id) state.namedPlaceIndexesById.set(place.id, nextIndex);
+  }
 }
 
 async function copySelectedAnnotationPrompt() {
@@ -1810,7 +1852,7 @@ function setSaveButtonLabel(label = SAVE_AND_COPY_LABEL) {
 async function addActivity(event) {
   event.preventDefault();
   if (!controls.activityForm) return;
-  const data = Object.fromEntries(new FormData(controls.activityForm).entries());
+  const data = formDataObject(new FormData(controls.activityForm));
   await postJson("/api/activity", {
     agentId: data.agentId,
     activityState: data.activityState,
@@ -1819,6 +1861,12 @@ async function addActivity(event) {
     lineEnd: Number(data.lineEnd),
   });
   setTimeout(refreshActivity, 250);
+}
+
+function formDataObject(formData) {
+  const data = {};
+  for (const [key, value] of formData) data[key] = value;
+  return data;
 }
 
 async function clearActivityHistory() {

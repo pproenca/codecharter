@@ -15,7 +15,8 @@ const DEFAULT_EXCLUDED_FILES = new Set([
 const DEFAULT_SCAN_CONCURRENCY = 32;
 
 export async function listIncludedFiles(root, { excludePaths = [] } = {}) {
-  const excluded = new Set(excludePaths.map((path) => normalizeRepoPath(root, path)));
+  const excluded = new Set();
+  for (const path of excludePaths) excluded.add(normalizeRepoPath(root, path));
   const { stdout } = await execFileAsync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], {
     cwd: root,
     maxBuffer: 10 * 1024 * 1024,
@@ -63,13 +64,16 @@ async function scanPaths(root, paths, concurrency) {
   const results = new Array(paths.length);
   let next = 0;
   const workerCount = Math.max(1, Math.min(paths.length, Number(concurrency) || DEFAULT_SCAN_CONCURRENCY));
-  const workers = Array.from({ length: workerCount }, async () => {
-    while (next < paths.length) {
-      const index = next;
-      next += 1;
-      results[index] = await scanPath(root, paths[index]);
-    }
-  });
+  const workers = [];
+  for (let worker = 0; worker < workerCount; worker += 1) {
+    workers.push((async () => {
+      while (next < paths.length) {
+        const index = next;
+        next += 1;
+        results[index] = await scanPath(root, paths[index]);
+      }
+    })());
+  }
   await Promise.all(workers);
   return results;
 }

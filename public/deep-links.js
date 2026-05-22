@@ -79,7 +79,9 @@ export function boundsFromRouteParams(params) {
 
 function searchParams(metadata) {
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(metadata)) {
+  for (const key in metadata) {
+    if (!Object.hasOwn(metadata, key)) continue;
+    const value = metadata[key];
     if (value !== undefined && value !== "") params.set(key, value);
   }
   return params;

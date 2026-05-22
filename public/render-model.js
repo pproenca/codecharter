@@ -91,7 +91,12 @@ function actionFor(actions, key) {
 }
 
 function namedPlaceSearchMatch({ namedPlaces, query }) {
-  const namedPlace = namedPlaces.find((place) => place.name?.toLowerCase().includes(query));
+  let namedPlace;
+  for (const place of namedPlaces) {
+    if (!place.name?.toLowerCase().includes(query)) continue;
+    namedPlace = place;
+    break;
+  }
   if (!namedPlace?.geometry?.bounds) return null;
 
   const annotation = namedPlace.kind === "mapAnnotation";
@@ -149,7 +154,7 @@ export function folderDepth(path) {
 
 export function organicRegionFolders(codemap) {
   const folders = [];
-  for (const folder of Object.values(codemap.folders ?? {})) {
+  for (const folder of objectValues(codemap.folders ?? {})) {
     if (!folder.path) continue;
     folders.push({ folder, depth: folderDepth(folder.path) });
   }
@@ -860,7 +865,11 @@ export function activityPrimaryBounds(event) {
 }
 
 export function simplifyTrailPoints(points, minDistance = ACTIVITY_TRAIL_MIN_SEGMENT_PX) {
-  if (points.length <= 2) return [...points];
+  if (points.length <= 2) {
+    const copy = [];
+    for (const point of points) copy.push(point);
+    return copy;
+  }
   const simplified = [points[0]];
 
   for (let index = 1; index < points.length - 1; index += 1) {
@@ -971,9 +980,9 @@ export function isLiveActivityEvent(event, { now = Date.now(), maxAgeMinutes = A
 }
 
 export function sortedActivityEvents(events, limit = 80, options = {}) {
-  if (limit <= 0) return liveActivityEventsInTimeOrder(events, options).slice(-limit);
+  if (limit <= 0) return liveActivityEventsFromOffset(events, -limit, options);
   if (!liveActivityEventsAreInTimeOrder(events, options)) {
-    return liveActivityEventsInTimeOrder(events, options).slice(-limit);
+    return liveActivityEventsTailInTimeOrder(events, limit, options);
   }
   return liveActivityEventsTail(events, limit, options);
 }
@@ -1005,7 +1014,11 @@ export function latestActivityByAgent(events, options = {}) {
     liveIndex += 1;
   }
 
-  const summaries = [...byAgent.values()].sort((a, b) => a.firstTimestamp - b.firstTimestamp || a.firstIndex - b.firstIndex);
+  const summaries = [];
+  for (const summary of byAgent.values()) summaries.push(summary);
+  if (!activitySummariesAreInFirstSeenOrder(summaries)) {
+    summaries.sort((a, b) => a.firstTimestamp - b.firstTimestamp || a.firstIndex - b.firstIndex);
+  }
   const latest = new Map();
   for (const summary of summaries) {
     latest.set(summary.key, summary.event);
@@ -1031,18 +1044,40 @@ export function activityActorKey(event) {
   return `${event?.agentId ?? "agent"}:${event?.threadId ?? event?.sessionId ?? "manual"}`;
 }
 
+function activitySummariesAreInFirstSeenOrder(summaries) {
+  let previousTimestamp = Number.NEGATIVE_INFINITY;
+  let previousIndex = -1;
+  for (const summary of summaries) {
+    if (
+      summary.firstTimestamp < previousTimestamp
+      || (summary.firstTimestamp === previousTimestamp && summary.firstIndex < previousIndex)
+    ) {
+      return false;
+    }
+    previousTimestamp = summary.firstTimestamp;
+    previousIndex = summary.firstIndex;
+  }
+  return true;
+}
+
 function insertActivityFeedEvent(feed, event, timestamp, limit) {
   let index = 0;
-  while (index < feed.length && feed[index].timestamp >= timestamp) index += 1;
+  while (index < feed.length && compareActivityFeedItems(feed[index], { timestamp }) <= 0) index += 1;
   if (index >= limit) return;
   feed.splice(index, 0, { event, timestamp });
   if (feed.length > limit) feed.pop();
 }
 
 function activityFeedEventsViaSort(events, options) {
-  return [...latestActivityByAgent(events, options).values()]
-    .sort((a, b) => activitySortTimestamp(b) - activitySortTimestamp(a))
-    .slice(0, 5);
+  const feed = [];
+  for (const event of latestActivityByAgent(events, options).values()) {
+    insertActivityFeedEvent(feed, event, activitySortTimestamp(event), 5);
+  }
+  const eventsForFeed = [];
+  for (const item of feed) {
+    eventsForFeed.push(item.event);
+  }
+  return eventsForFeed;
 }
 
 function latestActivityByAgentViaSort(events, options) {
@@ -1053,13 +1088,45 @@ function latestActivityByAgentViaSort(events, options) {
   return latest;
 }
 
+function compareActivityFeedItems(left, right) {
+  const result = right.timestamp - left.timestamp;
+  return Number.isNaN(result) ? 0 : result;
+}
+
 function liveActivityEventsInTimeOrder(events, options) {
   const liveEvents = [];
   for (const event of events) {
     if (!isLiveActivityEvent(event, options)) continue;
     liveEvents.push(event);
   }
-  return liveEvents.sort((a, b) => activitySortTimestamp(a) - activitySortTimestamp(b));
+  return liveEvents.sort(compareActivityEventsByTime);
+}
+
+function liveActivityEventsFromOffset(events, offset, options) {
+  const ordered = liveActivityEventsInTimeOrder(events, options);
+  const liveEvents = [];
+  const start = Math.max(0, offset);
+  for (let index = start; index < ordered.length; index += 1) {
+    liveEvents.push(ordered[index]);
+  }
+  return liveEvents;
+}
+
+function liveActivityEventsTailInTimeOrder(events, limit, options) {
+  if (!Number.isFinite(limit)) return liveActivityEventsInTimeOrder(events, options);
+  const liveEvents = [];
+  for (const event of events) {
+    if (!isLiveActivityEvent(event, options)) continue;
+    insertActivityEventInTimeOrder(liveEvents, event, limit);
+  }
+  return liveEvents;
+}
+
+function insertActivityEventInTimeOrder(events, event, limit) {
+  let index = 0;
+  while (index < events.length && compareActivityEventsByTime(events[index], event) <= 0) index += 1;
+  events.splice(index, 0, event);
+  if (events.length > limit) events.shift();
 }
 
 function liveActivityEventsAreInTimeOrder(events, options) {
@@ -1085,6 +1152,11 @@ function liveActivityEventsTail(events, limit, options) {
 
 function activitySortTimestamp(event) {
   return Date.parse(event.timestamp ?? 0);
+}
+
+function compareActivityEventsByTime(left, right) {
+  const result = activitySortTimestamp(left) - activitySortTimestamp(right);
+  return Number.isNaN(result) ? 0 : result;
 }
 
 function activityAgeMinutes(event, now) {
@@ -1142,7 +1214,7 @@ function compareTargetAreaThenPath(a, b) {
 
 function bestContainingTarget(targets, point, accept = () => true) {
   let best = null;
-  for (const target of Object.values(targets)) {
+  for (const target of objectValues(targets)) {
     if (!accept(target) || !containsBoundsPoint(target.bounds, point)) continue;
     if (!best || compareTargetAreaThenPath(target, best) < 0) best = target;
   }

@@ -136,22 +136,21 @@ function geohashedFragmentsWithCoverage(fragments) {
 }
 
 function sortedUnique(values) {
-  const unique = values instanceof Set ? [...values] : [...new Set(values)];
+  const source = values instanceof Set ? values : new Set(values);
+  const unique = [];
+  for (const value of source) unique.push(value);
   return unique.sort((a, b) => a.localeCompare(b));
 }
 
 function breadcrumbForPath(path) {
-  let breadcrumb = "";
+  const segments = [];
   let segmentStart = 0;
   for (let index = 0; index <= path.length; index += 1) {
     if (index < path.length && path[index] !== "/") continue;
-    if (index > segmentStart) {
-      if (breadcrumb) breadcrumb += " > ";
-      breadcrumb += path.slice(segmentStart, index);
-    }
+    if (index > segmentStart) segments.push(path.slice(segmentStart, index));
     segmentStart = index + 1;
   }
-  return breadcrumb || ".";
+  return segments.length ? segments.join(" > ") : ".";
 }
 
 function deepLink(level, geohash, metadata) {

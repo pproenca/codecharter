@@ -73,7 +73,9 @@ function childPaths(children) {
 
 function serializeFolders(folders) {
   const serialized = {};
-  for (const [path, folder] of Object.entries(folders)) {
+  for (const path in folders) {
+    if (!Object.hasOwn(folders, path)) continue;
+    const folder = folders[path];
     serialized[path] = serializeFolder(folder);
   }
   return serialized;
@@ -95,7 +97,9 @@ function serializeFile(file) {
 
 function serializeFiles(files) {
   const serialized = {};
-  for (const [path, file] of Object.entries(files)) {
+  for (const path in files) {
+    if (!Object.hasOwn(files, path)) continue;
+    const file = files[path];
     serialized[path] = serializeFile(file);
   }
   return serialized;

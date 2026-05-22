@@ -1,5 +1,8 @@
 const BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz";
-const BASE32_DECODE = Object.fromEntries([...BASE32].map((char, index) => [char, index]));
+const BASE32_DECODE = {};
+for (let index = 0; index < BASE32.length; index += 1) {
+  BASE32_DECODE[BASE32[index]] = index;
+}
 const GEOHASH_EAST_EDGE_EPSILON = 1e-12;
 
 export function codePlaneDescriptor() {
@@ -31,7 +34,7 @@ export function encodeGeohash(lat, lon, precision = 12) {
   let evenBit = true;
   let bit = 0;
   let charIndex = 0;
-  let geohash = "";
+  const geohash = [];
 
   while (geohash.length < precision) {
     if (evenBit) {
@@ -58,13 +61,13 @@ export function encodeGeohash(lat, lon, precision = 12) {
     bit += 1;
 
     if (bit === 5) {
-      geohash += BASE32[charIndex];
+      geohash.push(BASE32[charIndex]);
       bit = 0;
       charIndex = 0;
     }
   }
 
-  return geohash;
+  return geohash.join("");
 }
 
 export function decodeGeohashBounds(geohash) {

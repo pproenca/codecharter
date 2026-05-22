@@ -41,16 +41,27 @@ export class FolderNode {
   }
 
   sortedChildren() {
-    return [...this.sortedFolders(), ...this.sortedFiles()];
+    const children = [];
+    for (const folder of this.sortedFolders()) children.push(folder);
+    for (const file of this.sortedFiles()) children.push(file);
+    return children;
   }
 
   sortedFolders() {
-    if (!this.sortedFolderCache) this.sortedFolderCache = [...this.folders.values()].sort(compareNodeNames);
+    if (!this.sortedFolderCache) {
+      const folders = [];
+      for (const folder of this.folders.values()) folders.push(folder);
+      this.sortedFolderCache = folders.sort(compareNodeNames);
+    }
     return this.sortedFolderCache;
   }
 
   sortedFiles() {
-    if (!this.sortedFileCache) this.sortedFileCache = [...this.files.values()].sort(compareNodeNames);
+    if (!this.sortedFileCache) {
+      const files = [];
+      for (const file of this.files.values()) files.push(file);
+      this.sortedFileCache = files.sort(compareNodeNames);
+    }
     return this.sortedFileCache;
   }
 

@@ -934,6 +934,30 @@ test("sorts activity events and keeps the latest visible state by agent", () => 
   assert.equal(activityStateStyle("blocked").fill, activityStateStyle("reviewing").fill);
 });
 
+test("keeps bounded sorted activity events chronological when input arrives out of order", () => {
+  const now = Date.parse("2026-05-20T12:00:00.000Z");
+  const events = [
+    activity("agent-3", "reading", "2026-05-20T10:03:00.000Z"),
+    activity("agent-1", "reading", "2026-05-20T10:01:00.000Z"),
+    activity("agent-4", "reading", "2026-05-20T10:04:00.000Z"),
+    activity("agent-2", "reading", "2026-05-20T10:02:00.000Z"),
+  ];
+
+  assert.deepEqual(sortedActivityEvents(events, 3, { now }).map((event) => event.agentId), ["agent-2", "agent-3", "agent-4"]);
+});
+
+test("preserves existing non-positive activity event limit semantics", () => {
+  const now = Date.parse("2026-05-20T12:00:00.000Z");
+  const events = [
+    activity("agent-1", "reading", "2026-05-20T10:01:00.000Z"),
+    activity("agent-2", "reading", "2026-05-20T10:02:00.000Z"),
+    activity("agent-3", "reading", "2026-05-20T10:03:00.000Z"),
+  ];
+
+  assert.deepEqual(sortedActivityEvents(events, 0, { now }).map((event) => event.agentId), ["agent-1", "agent-2", "agent-3"]);
+  assert.deepEqual(sortedActivityEvents(events, -1, { now }).map((event) => event.agentId), ["agent-2", "agent-3"]);
+});
+
 test("keeps latest activity separately for each Codex thread", () => {
   const now = Date.parse("2026-05-20T12:00:00.000Z");
   const events = [
@@ -983,6 +1007,17 @@ test("selects the activity feed as the five newest latest-agent events with stab
     "agent-4",
     "agent-5",
   ]);
+});
+
+test("keeps activity feed fallback order stable for invalid live timestamps", () => {
+  const now = Date.parse("2026-05-20T12:00:00.000Z");
+  const events = [
+    activity("invalid", "reading", "not-a-date"),
+    activity("newer", "editing", "2026-05-20T10:06:00.000Z"),
+    activity("older", "testing", "2026-05-20T10:05:00.000Z"),
+  ];
+
+  assert.deepEqual(activityFeedEvents(events, { now }).map((event) => event.agentId), ["invalid", "newer", "older"]);
 });
 
 test("encodes activity as recency-faded biological markers", () => {

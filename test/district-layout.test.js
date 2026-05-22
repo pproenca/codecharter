@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { layoutChildren } from "../src/district-layout.js";
+import { DistrictLayoutEngine, layoutChildren } from "../src/district-layout.js";
 
 test("places weighted district children deterministically by type, weight, and path", () => {
   const children = [
@@ -18,6 +18,19 @@ test("places weighted district children deterministically by type, weight, and p
     "src/feature": { x: 0.028, y: 0.552408339148, width: 0.529861318474, height: 0.419591660852 },
     "src/large.ts": { x: 0.565861318474, y: 0.028, width: 0.406138681526, height: 0.785333333333 },
     "src/small.ts": { x: 0.565861318474, y: 0.821333333333, width: 0.406138681526, height: 0.150666666667 },
+  });
+});
+
+test("splits district layout entries into the closest balanced weight groups", () => {
+  const first = { item: file("src/a.ts", 1), weight: 1 };
+  const second = { item: file("src/b.ts", 1), weight: 1 };
+  const third = { item: file("src/c.ts", 8), weight: 8 };
+
+  const split = new DistrictLayoutEngine().splitEntries([first, second, third]);
+
+  assert.deepEqual(split, {
+    first: [first, second],
+    second: [third],
   });
 });
 

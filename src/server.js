@@ -253,7 +253,12 @@ async function getAnnotationApi(state, request, response, url, match) {
   const codemap = await loadCodemap(state);
   const id = decodeURIComponent(match.params.rest);
   const store = refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }));
-  const annotation = store.places.find((place) => place.kind === "mapAnnotation" && place.id === id);
+  let annotation;
+  for (const place of store.places) {
+    if (place.kind !== "mapAnnotation" || place.id !== id) continue;
+    annotation = place;
+    break;
+  }
   if (!annotation) throw httpError(404, `No annotation found for id: ${id}`);
   sendJson(response, 200, { annotation });
 }
@@ -371,7 +376,9 @@ function mergeActivityEvents(...groups) {
       byId.set(event.id ?? `${event.timestamp}:${event.agentId}:${event.note}`, event);
     }
   }
-  return [...byId.values()].sort((left, right) => {
+  const events = [];
+  for (const event of byId.values()) events.push(event);
+  return events.sort((left, right) => {
     const byTime = String(left.timestamp ?? "").localeCompare(String(right.timestamp ?? ""));
     return byTime || String(left.id ?? "").localeCompare(String(right.id ?? ""));
   });

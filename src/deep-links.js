@@ -39,7 +39,7 @@ export function parseCodemapDeepLink(value) {
   return {
     kind,
     locator,
-    metadata: Object.fromEntries(url.searchParams.entries()),
+    metadata: metadataFromSearchParams(url.searchParams),
   };
 }
 
@@ -64,10 +64,18 @@ export function createSelectionHashRoute({ level = "file", bounds }) {
 
 function searchParams(metadata) {
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(metadata)) {
+  for (const key in metadata) {
+    if (!Object.hasOwn(metadata, key)) continue;
+    const value = metadata[key];
     if (value !== undefined && value !== "") params.set(key, value);
   }
   return params;
+}
+
+function metadataFromSearchParams(params) {
+  const metadata = {};
+  for (const [key, value] of params) metadata[key] = value;
+  return metadata;
 }
 
 function formatRouteNumber(value) {

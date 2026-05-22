@@ -97,8 +97,8 @@ const fogLayerCanvas = document.createElement("canvas");
 const fogLayerCtx = fogLayerCanvas.getContext("2d");
 const mapArea = document.querySelector(".map-area");
 const DEFAULT_MAP_LEVEL = "file";
-const SAVE_AND_COPY_LABEL = "Save and copy Codex prompt";
-const COPY_PROMPT_LABEL = "Copy Codex prompt";
+const SAVE_AND_COPY_LABEL = "Save & Copy Prompt";
+const COPY_PROMPT_LABEL = "Copy Prompt";
 const DELETE_ANNOTATION_LABEL = "Delete";
 const CONFIRM_DELETE_ANNOTATION_LABEL = "Confirm Delete";
 const CAMERA_ANIMATION_MS = 280;
@@ -152,6 +152,7 @@ function createMapApplicationState() {
     spacePanning: false,
     draftSelection: null,
     resolvedSelection: null,
+    editingAnnotation: null,
     selectedTarget: null,
     clearSourceState() {
       sourceCache.clear();
@@ -167,6 +168,10 @@ function createMapControls(root = document) {
     ["viewport", "#viewportReadout"],
     ["selectionPopover", "#selectionPopover"],
     ["annotationActions", "#annotationActions"],
+    ["selectionContext", "#selectionContext"],
+    ["annotationTitle", "#annotationTitle"],
+    ["annotationMeta", "#annotationMeta"],
+    ["annotationFeedback", "#annotationFeedback"],
     ["inspectorTitle", "#inspectorTitle"],
     ["inspectorSubtitle", "#inspectorSubtitle"],
     ["searchForm", "#searchForm"],
@@ -182,6 +187,7 @@ function createMapControls(root = document) {
     ["saveSelection", "#saveSelection"],
     ["deleteAnnotation", "#deleteAnnotation"],
     ["copyAnnotationPrompt", "#copyAnnotationPrompt"],
+    ["editAnnotation", "#editAnnotation"],
     ["deleteAnnotationAction", "#deleteAnnotationAction"],
     ["selectionComment", "#selectionComment"],
     ["selectionStatus", "#selectionStatus"],
@@ -225,6 +231,7 @@ let applyingRoute = false;
 let routeSequence = 0;
 let clearActivityHold = null;
 let pendingAnnotationDelete = null;
+let copyPromptLabelTimer = null;
 const pollingErrors = new Map();
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -321,6 +328,7 @@ function bindEvents() {
   controls.saveSelection?.addEventListener("click", saveSelection);
   controls.deleteAnnotation?.addEventListener("click", deleteSelectedAnnotation);
   controls.copyAnnotationPrompt?.addEventListener("click", copySelectedAnnotationPrompt);
+  controls.editAnnotation?.addEventListener("click", editSelectedAnnotation);
   controls.deleteAnnotationAction?.addEventListener("click", deleteSelectedAnnotation);
   controls.activityForm?.addEventListener("submit", addActivity);
   document.querySelector(".map-action-menu")?.addEventListener("toggle", updateActionMenuExpanded);
@@ -619,10 +627,13 @@ function isCurrentRoute(routeToken) {
 function setDrawMode(enabled) {
   state.drawing = enabled;
   state.panning = false;
-  if (enabled) state.selectedTarget = null;
+  if (enabled) {
+    state.selectedTarget = null;
+    state.editingAnnotation = null;
+  }
   if (!enabled) clearDraftSelection();
   updateInteractionModeUi();
-  setSelectionStatus(enabled ? "Draw mode on." : "Draw mode off.");
+  setSelectionStatus(enabled ? "Drag an area. Esc cancels." : "Draw mode off.");
   updateSelectionPopover();
 }
 
@@ -675,6 +686,7 @@ function clearDraftSelection() {
   state.dragging = null;
   state.draftSelection = null;
   state.resolvedSelection = null;
+  state.editingAnnotation = null;
   if (controls.saveSelection) controls.saveSelection.disabled = true;
   setSaveButtonLabel();
   updateSelectionPopover();
@@ -687,6 +699,7 @@ function resetSelectionOverlay() {
   state.panning = false;
   state.draftSelection = null;
   state.resolvedSelection = null;
+  state.editingAnnotation = null;
   if (controls.selectionComment) controls.selectionComment.value = "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
   if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = true;
@@ -721,15 +734,52 @@ function upsertNamedPlace(place) {
 
 function updateSelectionPopover() {
   const selectedAnnotation = state.selectedTarget?.targetType === "annotation";
+  const isEditing = Boolean(state.editingAnnotation);
   const hasDraft = Boolean(state.draftSelection || state.resolvedSelection);
   const selectionReady = Boolean(state.resolvedSelection);
-  if (controls.selectionPopover) controls.selectionPopover.hidden = !hasDraft;
-  if (controls.annotationActions) controls.annotationActions.hidden = !selectedAnnotation || hasDraft;
-  if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = !selectedAnnotation;
+  const activeAnnotation = selectedAnnotation ? state.selectedTarget : null;
+  if (controls.selectionPopover) controls.selectionPopover.hidden = !(hasDraft || isEditing);
+  if (controls.annotationActions) controls.annotationActions.hidden = !selectedAnnotation || hasDraft || isEditing;
+  if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = !isEditing;
+  setText(controls.selectionContext, selectionContextLabel(state.resolvedSelection ?? state.editingAnnotation));
+  setText(controls.annotationTitle, annotationTitle(activeAnnotation));
+  setText(controls.annotationMeta, selectionContextLabel(activeAnnotation));
+  positionAnnotationActions(activeAnnotation, { visible: selectedAnnotation && !hasDraft && !isEditing });
   if (controls.saveSelection) {
-    controls.saveSelection.disabled = !(selectionReady || selectedAnnotation);
-    setSaveButtonLabel(selectedAnnotation ? COPY_PROMPT_LABEL : selectionReady ? SAVE_AND_COPY_LABEL : "Resolving selection...");
+    controls.saveSelection.disabled = !(selectionReady || isEditing);
+    setSaveButtonLabel(isEditing ? COPY_PROMPT_LABEL : selectionReady ? SAVE_AND_COPY_LABEL : "Resolving selection...");
   }
+}
+
+function positionAnnotationActions(annotation, { visible = true } = {}) {
+  const panel = controls.annotationActions;
+  if (!panel || !visible || !annotation?.geometry?.bounds) {
+    panel?.style.removeProperty("left");
+    panel?.style.removeProperty("top");
+    panel?.style.removeProperty("bottom");
+    panel?.removeAttribute("data-placement");
+    return;
+  }
+
+  const margin = 16;
+  const gap = 12;
+  const statusReserve = 56;
+  const target = screenBounds(annotation.geometry.bounds);
+  const panelWidth = Math.min(360, Math.max(260, canvas.clientWidth - margin * 2));
+  panel.style.width = `${panelWidth}px`;
+  panel.style.bottom = "auto";
+
+  const panelHeight = panel.offsetHeight || 98;
+  const centerX = target.x + target.width / 2;
+  const left = clamp(centerX - panelWidth / 2, margin, Math.max(margin, canvas.clientWidth - panelWidth - margin));
+  const belowTop = target.y + target.height + gap;
+  const aboveTop = target.y - panelHeight - gap;
+  const fitsBelow = belowTop + panelHeight <= canvas.clientHeight - statusReserve;
+  const top = fitsBelow ? belowTop : Math.max(margin, aboveTop);
+
+  panel.style.left = `${left}px`;
+  panel.style.top = `${top}px`;
+  panel.setAttribute("data-placement", fitsBelow ? "below" : "above");
 }
 
 function resize() {
@@ -764,6 +814,9 @@ function render() {
   if (activityDiscoveryEnabled()) drawDiscoveryFogOverlay(rect);
   if (activityDiscoveryEnabled()) drawActivity();
   renderActivityFeed();
+  positionAnnotationActions(state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null, {
+    visible: Boolean(state.selectedTarget?.targetType === "annotation" && !state.draftSelection && !state.resolvedSelection && !state.editingAnnotation),
+  });
 }
 
 function bindClearActivityHold() {
@@ -1862,6 +1915,16 @@ function isButtonTarget(target) {
 
 function cancelCurrentInteraction() {
   cancelPendingClickSelection();
+  if (state.editingAnnotation) {
+    state.editingAnnotation = null;
+    if (controls.selectionComment) controls.selectionComment.value = "";
+    updateSelectionPopover();
+    setSelectionStatus("Edit cancelled.");
+    render();
+    canvas.focus({ preventScroll: true });
+    return;
+  }
+
   if (state.dragging || state.draftSelection || state.resolvedSelection || state.drawing) {
     resetSelectionOverlay();
     clearSelectionHashRoute();
@@ -2105,11 +2168,28 @@ function selectAnnotation(annotation) {
   state.selectedTarget = { ...annotation, targetType: "annotation" };
   state.draftSelection = null;
   state.resolvedSelection = null;
+  state.editingAnnotation = null;
   syncHashRoute(createAnnotationHashRoute(annotation.id));
   if (controls.selectionComment) controls.selectionComment.value = "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
   setSaveButtonLabel();
+  setCopyButtonLabel();
+  setAnnotationFeedback("");
   updateSelectionPopover();
+  render();
+}
+
+function editSelectedAnnotation() {
+  const annotation = state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null;
+  if (!annotation) return;
+  clearPendingAnnotationDelete();
+  state.editingAnnotation = annotation;
+  state.draftSelection = null;
+  state.resolvedSelection = null;
+  if (controls.selectionComment) controls.selectionComment.value = annotation.comment ?? "";
+  updateSelectionPopover();
+  focusSelectionComment();
+  setSelectionStatus("Adjust the prompt text, then copy or press Escape.");
   render();
 }
 
@@ -2144,6 +2224,23 @@ function setSearchResult(message) {
 
 function setText(element, value) {
   if (element) element.textContent = value;
+}
+
+function selectionContextLabel(selection) {
+  if (!selection) return "";
+  const targets = selection.resolvedTargets ?? [];
+  const targetCount = targets.length;
+  const targetLabel = targetCount === 1 ? "1 file" : `${targetCount} files`;
+  const level = selection.level ?? selection.spatialFrame?.level ?? DEFAULT_MAP_LEVEL;
+  const prefix = selection.coveringSet?.[0] ?? selection.spatialFrame?.corners?.northWest ?? "";
+  return [targetLabel, `${level} level`, prefix].filter(Boolean).join(" · ");
+}
+
+function annotationTitle(annotation) {
+  const title = annotation?.comment?.trim().split(/\r?\n/).find(Boolean)
+    ?? annotation?.name?.trim()
+    ?? "";
+  return title || "Map annotation";
 }
 
 function applySourcePanel(panel) {
@@ -2184,19 +2281,27 @@ async function previewSelection({ routeToken = null } = {}) {
 
 async function saveSelection() {
   clearPendingAnnotationDelete();
-  if (state.selectedTarget?.targetType === "annotation" && !state.resolvedSelection) {
+  if (state.selectedTarget?.targetType === "annotation" && !state.resolvedSelection && !state.editingAnnotation) {
     await copySelectedAnnotationPrompt();
     return;
   }
-  if (!state.resolvedSelection) return;
+  const editingAnnotation = state.editingAnnotation;
+  if (editingAnnotation) {
+    await copyEditedAnnotationPrompt(editingAnnotation);
+    return;
+  }
+  const selection = state.resolvedSelection;
+  if (!selection) return;
   const comment = controls.selectionComment?.value.trim() ?? "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
-  setSelectionStatus("Saving annotation…");
-  const savedPromise = postJson("/api/annotations", {
+  setSaveButtonLabel("Saving...");
+  setSelectionStatus("Saving annotation...");
+  const payload = {
     comment,
-    level: DEFAULT_MAP_LEVEL,
-    geometry: state.resolvedSelection.geometry,
-  });
+    level: selection.level ?? DEFAULT_MAP_LEVEL,
+    geometry: selection.geometry,
+  };
+  const savedPromise = postJson("/api/annotations", payload);
   const copiedPromise = copyDeferredToClipboard(savedPromise.then((saved) => annotationClipboardText(saved.annotation, {
     origin: window.location.origin,
     href: window.location.href,
@@ -2210,16 +2315,36 @@ async function saveSelection() {
   state.panning = false;
   state.draftSelection = null;
   state.resolvedSelection = null;
+  state.editingAnnotation = null;
   updateInteractionModeUi();
   updateSelectionPopover();
-  setSaveButtonLabel(copied ? "Codex prompt copied" : "Saved. Copy failed");
-  setSelectionStatus(copied ? "Annotation saved and Codex prompt copied." : "Annotation saved. Copy failed.");
+  setCopyButtonLabel();
+  setSaveButtonLabel(copied ? "Copied" : "Saved. Copy failed");
+  setAnnotationFeedback(copied ? "Prompt copied to clipboard." : "Saved, but clipboard copy failed.", copied ? "success" : "error");
+  setSelectionStatus(copied ? "Copied." : "Saved. Copy failed.");
   render();
+}
+
+async function copyEditedAnnotationPrompt(annotation) {
+  const comment = controls.selectionComment?.value.trim() ?? "";
+  const copied = await copyToClipboard(annotationClipboardText({ ...annotation, comment }, {
+    origin: window.location.origin,
+    href: window.location.href,
+  }));
+  state.editingAnnotation = null;
+  if (controls.selectionComment) controls.selectionComment.value = "";
+  updateSelectionPopover();
+  setCopyButtonLabel(copied ? "Copied" : "Copy failed", { reset: true });
+  setAnnotationFeedback(copied ? "Prompt copied to clipboard." : "Copy failed. Try Copy Prompt again.", copied ? "success" : "error");
+  setSelectionStatus(copied ? "Copied." : "Copy failed.");
+  render();
+  return copied;
 }
 
 function clearAnnotationForm() {
   clearPendingAnnotationDelete();
   if (state.draftSelection || state.resolvedSelection) return;
+  state.editingAnnotation = null;
   if (controls.selectionComment) controls.selectionComment.value = "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
   if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = true;
@@ -2242,6 +2367,7 @@ async function deleteSelectedAnnotation() {
   state.selectedTarget = null;
   state.draftSelection = null;
   state.resolvedSelection = null;
+  state.editingAnnotation = null;
   if (controls.selectionComment) controls.selectionComment.value = "";
   if (window.location.hash === createAnnotationHashRoute(annotation.id)) {
     window.history.replaceState(null, "", "#");
@@ -2249,6 +2375,7 @@ async function deleteSelectedAnnotation() {
   setDeleteButtonsDisabled(false);
   if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = true;
   setSaveButtonLabel();
+  setCopyButtonLabel();
   setDeleteButtonLabel();
   setSelectionStatus("Annotation deleted.");
   updateSelectionPopover();
@@ -2309,8 +2436,9 @@ async function copySelectedAnnotationPrompt() {
     origin: window.location.origin,
     href: window.location.href,
   }));
-  setSaveButtonLabel(copied ? "Codex prompt copied" : "Copy failed");
-  setSelectionStatus(copied ? "Codex prompt copied." : "Copy failed.");
+  setCopyButtonLabel(copied ? "Copied" : "Copy failed", { reset: true });
+  setAnnotationFeedback(copied ? "Prompt copied to clipboard." : "Copy failed. Try Copy Prompt again.", copied ? "success" : "error");
+  setSelectionStatus(copied ? "Copied." : "Copy failed.");
   return copied;
 }
 
@@ -2321,6 +2449,16 @@ function focusSelectionComment() {
 
 function setSelectionStatus(message) {
   if (controls.selectionStatus) controls.selectionStatus.textContent = message;
+}
+
+function setAnnotationFeedback(message, tone = "neutral") {
+  if (!controls.annotationFeedback) return;
+  controls.annotationFeedback.textContent = message;
+  controls.annotationFeedback.hidden = !message;
+  controls.annotationFeedback.dataset.tone = tone;
+  positionAnnotationActions(state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null, {
+    visible: Boolean(state.selectedTarget?.targetType === "annotation" && !state.draftSelection && !state.resolvedSelection && !state.editingAnnotation),
+  });
 }
 
 async function copyToClipboard(text) {
@@ -2371,6 +2509,21 @@ function copyToClipboardFallback(text) {
 
 function setSaveButtonLabel(label = SAVE_AND_COPY_LABEL) {
   if (controls.saveSelection) controls.saveSelection.textContent = label;
+}
+
+function setCopyButtonLabel(label = COPY_PROMPT_LABEL, { reset = false } = {}) {
+  if (!controls.copyAnnotationPrompt) return;
+  if (copyPromptLabelTimer) {
+    window.clearTimeout(copyPromptLabelTimer);
+    copyPromptLabelTimer = null;
+  }
+  controls.copyAnnotationPrompt.textContent = label;
+  if (reset) {
+    copyPromptLabelTimer = window.setTimeout(() => {
+      copyPromptLabelTimer = null;
+      setCopyButtonLabel();
+    }, 1600);
+  }
 }
 
 async function addActivity(event) {

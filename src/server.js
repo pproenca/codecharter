@@ -35,6 +35,7 @@ const API_ROUTES = Object.freeze([
   apiRoute("POST", "/api/named-places", postNamedPlacesApi),
   apiRoute("GET", "/api/annotations", getAnnotationsApi),
   apiRoute("GET", "/api/annotations/", getAnnotationApi, { prefix: true }),
+  apiRoute("PUT", "/api/annotations/", putAnnotationApi, { prefix: true }),
   apiRoute("DELETE", "/api/annotations/", deleteAnnotationApi, { prefix: true }),
   apiRoute("POST", "/api/annotations", postAnnotationsApi),
   apiRoute("POST", "/api/selections/resolve", postSelectionResolveApi),
@@ -272,6 +273,24 @@ async function deleteAnnotationApi(state, request, response, url, match) {
     if (index === -1) throw httpError(404, `No annotation found for id: ${id}`);
     const [annotation] = store.places.splice(index, 1);
     return { deleted: true, annotation };
+  });
+  sendJson(response, 200, result);
+}
+
+async function putAnnotationApi(state, request, response, url, match) {
+  const codemap = await loadCodemap(state);
+  const id = decodeURIComponent(match.params.rest);
+  const body = await readBody(request);
+  const result = await mutateNamedPlaces(state, (store) => {
+    const index = store.places.findIndex((place) => place.kind === "mapAnnotation" && place.id === id);
+    if (index === -1) throw httpError(404, `No annotation found for id: ${id}`);
+    const previous = store.places[index];
+    const annotation = {
+      ...createMapAnnotation(codemap, { ...body, id }),
+      createdAt: previous.createdAt,
+    };
+    store.places[index] = annotation;
+    return { annotation };
   });
   sendJson(response, 200, result);
 }

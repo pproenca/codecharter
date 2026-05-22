@@ -91,17 +91,26 @@
         </div>
 
         <div id="selectionPopover" class="selection-popover" hidden>
+          <div id="selectionContext" class="selection-context" aria-live="polite"></div>
           <textarea id="selectionComment" name="annotationComment" rows="4" autocomplete="off" placeholder="Ask Codex or leave a comment…" aria-label="Annotation comment"></textarea>
           <div class="selection-actions">
-            <button id="saveSelection" type="button" disabled>Save and copy Codex prompt</button>
+            <button id="saveSelection" type="button" disabled>Save &amp; Copy Prompt</button>
             <button id="deleteAnnotation" class="danger-action" type="button" hidden>Delete</button>
           </div>
           <div id="selectionStatus" class="sr-only" role="status" aria-live="polite"></div>
         </div>
 
         <div id="annotationActions" class="annotation-actions" hidden>
-          <button id="copyAnnotationPrompt" type="button">Copy Codex prompt</button>
-          <button id="deleteAnnotationAction" class="danger-action" type="button">Delete</button>
+          <div class="annotation-summary">
+            <strong id="annotationTitle">Map annotation</strong>
+            <span id="annotationMeta"></span>
+          </div>
+          <div id="annotationFeedback" class="annotation-feedback" role="status" aria-live="polite" hidden></div>
+          <div class="annotation-action-buttons">
+            <button id="copyAnnotationPrompt" type="button">Copy Prompt</button>
+            <button id="editAnnotation" type="button">Edit</button>
+            <button id="deleteAnnotationAction" class="danger-action" type="button">Delete</button>
+          </div>
         </div>
 
         <footer class="map-status">

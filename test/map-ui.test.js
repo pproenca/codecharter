@@ -12,7 +12,8 @@ test("drawing a map selection opens the annotation textbox and enables save", as
   await comment.waitFor({ state: "visible" });
 
   assert.equal(await comment.evaluate((element) => document.activeElement === element), true);
-  assert.equal(await page.getByRole("button", { name: "Save and copy Codex prompt" }).isEnabled(), true);
+  assert.equal(await page.getByRole("button", { name: "Save & Copy Prompt" }).isEnabled(), true);
+  assert.match(await page.locator("#selectionContext").innerText(), /\d+ file/);
   assert.match(page.url(), /#\/selection\?level=file&bounds=/);
 
   const composerStyle = await page.locator("#selectionPopover").evaluate((element) => {
@@ -35,7 +36,7 @@ test("selection hash route boots into a ready annotation draft and Escape cleans
   await resolveResponse;
 
   await page.getByRole("textbox", { name: "Annotation comment" }).waitFor({ state: "visible" });
-  assert.equal(await page.getByRole("button", { name: "Save and copy Codex prompt" }).isEnabled(), true);
+  assert.equal(await page.getByRole("button", { name: "Save & Copy Prompt" }).isEnabled(), true);
   assert.equal(await page.locator("#drawTool").getAttribute("aria-pressed"), "true");
 
   await page.keyboard.press("Escape");
@@ -61,8 +62,23 @@ test("keyboard save persists an annotation, copies the Codex prompt, and switche
   const saved = (await (await saveResponse).json()).annotation;
 
   await page.waitForFunction((id) => window.location.hash === `#/annotation/${id}`, saved.id);
-  await page.getByRole("button", { name: "Copy Codex prompt" }).waitFor({ state: "visible" });
+  await page.getByRole("button", { name: "Copy Prompt" }).waitFor({ state: "visible" });
+  await page.getByText("Review the app boot path").waitFor({ state: "visible" });
   assert.equal(new URL(page.url()).hash, `#/annotation/${saved.id}`);
+
+  const actionGeometry = await page.locator("#annotationActions").evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      top: rect.top,
+      bottom: rect.bottom,
+      viewportHeight: window.innerHeight,
+      styleBottom: element.style.bottom,
+      styleTop: element.style.top,
+    };
+  });
+  assert.ok(actionGeometry.styleTop.endsWith("px"));
+  assert.equal(actionGeometry.styleBottom, "auto");
+  assert.ok(actionGeometry.bottom < actionGeometry.viewportHeight - 72);
 
   const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
   assert.match(clipboardText, new RegExp(`CodeCharter annotation: codecharter://annotation/${saved.id}`));
@@ -79,7 +95,8 @@ test("annotation hash route boots selected annotation and keyboard copy/delete u
 
   await boot(`/#/annotation/${annotation.id}`);
 
-  await page.getByRole("button", { name: "Copy Codex prompt" }).waitFor({ state: "visible" });
+  await page.getByRole("button", { name: "Copy Prompt" }).waitFor({ state: "visible" });
+  await page.getByText("Route boot annotation").waitFor({ state: "visible" });
   assert.equal(new URL(page.url()).hash, `#/annotation/${annotation.id}`);
   assert.equal(await page.locator("#selectionPopover").isHidden(), true);
 
@@ -104,6 +121,40 @@ test("annotation hash route boots selected annotation and keyboard copy/delete u
   assert.equal(annotations.annotations.length, 0);
 });
 
+test("saved annotation preview can reopen, adjust prompt text, and copy without saving", async (t) => {
+  const { page, boot, baseUrl } = await startMapUiHarness(t);
+  const annotation = await createAnnotation(baseUrl, { comment: "Initial annotation note" });
+
+  await boot(`/#/annotation/${annotation.id}`);
+  await page.getByText("Initial annotation note").waitFor({ state: "visible" });
+
+  await page.getByRole("button", { name: "Edit" }).click();
+  const comment = page.getByRole("textbox", { name: "Annotation comment" });
+  await comment.waitFor({ state: "visible" });
+  assert.equal(await comment.inputValue(), "Initial annotation note");
+  await comment.fill("Updated annotation note");
+
+  let updateRequested = false;
+  page.on("request", (request) => {
+    if (request.method() === "PUT" && request.url().endsWith(`/api/annotations/${annotation.id}`)) {
+      updateRequested = true;
+    }
+  });
+  await page.getByRole("button", { name: "Copy Prompt" }).click();
+
+  await page.getByText("Initial annotation note").waitFor({ state: "visible" });
+  await page.getByText("Prompt copied to clipboard.").waitFor({ state: "visible" });
+  assert.equal(await page.locator("#selectionPopover").isHidden(), true);
+  assert.equal(await page.getByRole("button", { name: "Copied" }).isVisible(), true);
+
+  const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+  assert.match(clipboardText, /Note: Updated annotation note/);
+  assert.equal(updateRequested, false);
+
+  const annotations = await getJson(`${baseUrl}/api/annotations`);
+  assert.equal(annotations.annotations[0].comment, "Initial annotation note");
+});
+
 test("annotation hash route focuses annotations created after boot", async (t) => {
   const { page, boot, baseUrl } = await startMapUiHarness(t);
   await boot();
@@ -113,7 +164,7 @@ test("annotation hash route focuses annotations created after boot", async (t) =
     window.location.hash = `#/annotation/${id}`;
   }, annotation.id);
 
-  await page.getByRole("button", { name: "Copy Codex prompt" }).waitFor({ state: "visible" });
+  await page.getByRole("button", { name: "Copy Prompt" }).waitFor({ state: "visible" });
   await page.locator("#mapCanvas").focus();
   await page.keyboard.press("Control+C");
   await page.waitForFunction(() => navigator.clipboard.readText().then((text) => text.includes("Late route annotation")));
@@ -127,7 +178,7 @@ test("annotation hash route focuses annotations created after boot", async (t) =
     window.location.hash = `#/annotation/${id}`;
   }, annotation.id);
 
-  await page.getByRole("button", { name: "Copy Codex prompt" }).waitFor({ state: "visible" });
+  await page.getByRole("button", { name: "Copy Prompt" }).waitFor({ state: "visible" });
   assert.equal(new URL(page.url()).hash, `#/annotation/${annotation.id}`);
 });
 

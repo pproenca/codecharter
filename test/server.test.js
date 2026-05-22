@@ -397,6 +397,40 @@ test("deletes saved map annotations", async () => {
   }
 });
 
+test("updates saved map annotations", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-update-annotation-"));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
+
+  const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  try {
+    const created = await postJson(`${baseUrl}/api/annotations`, {
+      comment: "before edit",
+      level: "file",
+      geometry: { type: "rect", bounds: { x: 0, y: 0, width: 1, height: 1 } },
+    });
+
+    const updated = await putJson(`${baseUrl}/api/annotations/${created.annotation.id}`, {
+      comment: "after edit",
+      level: "file",
+      geometry: created.annotation.geometry,
+    });
+
+    assert.equal(updated.annotation.id, created.annotation.id);
+    assert.equal(updated.annotation.comment, "after edit");
+    assert.equal(updated.annotation.createdAt, created.annotation.createdAt);
+    assert.ok(updated.annotation.updatedAt);
+
+    const annotations = await getJson(`${baseUrl}/api/annotations`);
+    assert.equal(annotations.annotations.length, 1);
+    assert.equal(annotations.annotations[0].comment, "after edit");
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
 test("preserves concurrent annotation writes", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-concurrent-annotations-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
@@ -533,6 +567,16 @@ async function postJsonResponse(url, body) {
 
 async function deleteJson(url) {
   const response = await fetch(url, { method: "DELETE" });
+  if (!response.ok) assert.fail(await response.text());
+  return response.json();
+}
+
+async function putJson(url, body) {
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
   if (!response.ok) assert.fail(await response.text());
   return response.json();
 }

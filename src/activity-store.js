@@ -105,7 +105,11 @@ function trimOldest(events, maxEvents) {
 export async function appendActivityEvents(archivePath, events) {
   if (!events.length) return;
   await mkdir(dirname(archivePath), { recursive: true });
-  await appendFile(archivePath, events.map((event) => JSON.stringify(event)).join("\n") + "\n");
+  const lines = new Array(events.length);
+  for (let index = 0; index < events.length; index += 1) {
+    lines[index] = JSON.stringify(events[index]);
+  }
+  await appendFile(archivePath, `${lines.join("\n")}\n`);
 }
 
 export async function ensureActivityArchive(archivePath) {

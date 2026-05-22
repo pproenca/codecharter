@@ -36,7 +36,7 @@ export function createAnnotationHashRoute(id) {
 export function createSelectionHashRoute({ level = "file", bounds }) {
   const params = new URLSearchParams({
     level,
-    bounds: [bounds.x, bounds.y, bounds.width, bounds.height].map(formatRouteNumber).join(","),
+    bounds: formatRouteBounds(bounds),
   });
   return `#/selection?${params.toString()}`;
 }
@@ -44,8 +44,10 @@ export function createSelectionHashRoute({ level = "file", bounds }) {
 export function parseHashRoute(hash) {
   if (!hash || hash === "#") return null;
   const value = hash.startsWith("#") ? hash.slice(1) : hash;
-  const [path, query = ""] = value.split("?");
-  const parts = path.split("/").filter(Boolean).map(decodeURIComponent);
+  const queryStart = value.indexOf("?");
+  const path = queryStart === -1 ? value : value.slice(0, queryStart);
+  const query = queryStart === -1 ? "" : value.slice(queryStart + 1);
+  const parts = routeParts(path);
   const params = new URLSearchParams(query);
 
   if (parts[0] === "annotation" && parts[1]) {
@@ -64,7 +66,7 @@ export function parseHashRoute(hash) {
 }
 
 export function boundsFromRouteParams(params) {
-  const values = (params.get("bounds") ?? "").split(",").map(Number);
+  const values = parseBoundsParam(params.get("bounds") ?? "");
   if (values.length !== 4 || values.some((value) => !Number.isFinite(value))) return null;
   if (!isValidSelectionBounds(values)) return null;
   return {
@@ -85,6 +87,32 @@ function searchParams(metadata) {
 
 function formatRouteNumber(value) {
   return Number(value).toFixed(12).replace(/\.?0+$/, "");
+}
+
+function formatRouteBounds(bounds) {
+  return `${formatRouteNumber(bounds.x)},${formatRouteNumber(bounds.y)},${formatRouteNumber(bounds.width)},${formatRouteNumber(bounds.height)}`;
+}
+
+function routeParts(path) {
+  const parts = [];
+  let start = 0;
+  for (let index = 0; index <= path.length; index += 1) {
+    if (index < path.length && path[index] !== "/") continue;
+    if (index > start) parts.push(decodeURIComponent(path.slice(start, index)));
+    start = index + 1;
+  }
+  return parts;
+}
+
+function parseBoundsParam(value) {
+  const bounds = [];
+  let start = 0;
+  for (let index = 0; index <= value.length; index += 1) {
+    if (index < value.length && value[index] !== ",") continue;
+    bounds.push(Number(value.slice(start, index)));
+    start = index + 1;
+  }
+  return bounds;
 }
 
 function isValidSelectionBounds([x, y, width, height]) {

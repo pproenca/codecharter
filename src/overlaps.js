@@ -1,10 +1,12 @@
 import { intersects, roundBounds } from "./geometry.js";
 
 export function findNamedPlaceOverlaps(places) {
-  const drawn = places
-    .map((place, index) => ({ place, index }))
-    .filter(({ place }) => place.kind === "drawnSelection" && place.geometry?.type === "rect")
-    .sort((a, b) => a.place.geometry.bounds.x - b.place.geometry.bounds.x || a.index - b.index);
+  const drawn = [];
+  for (let index = 0; index < places.length; index += 1) {
+    const place = places[index];
+    if (place.kind === "drawnSelection" && place.geometry?.type === "rect") drawn.push({ place, index });
+  }
+  drawn.sort((a, b) => a.place.geometry.bounds.x - b.place.geometry.bounds.x || a.index - b.index);
   const overlaps = [];
   const active = [];
 
@@ -30,9 +32,12 @@ export function findNamedPlaceOverlaps(places) {
     active.push(candidate);
   }
 
-  return overlaps
-    .sort((a, b) => a.order[0] - b.order[0] || a.order[1] - b.order[1])
-    .map(({ order, ...overlap }) => overlap);
+  overlaps.sort((a, b) => a.order[0] - b.order[0] || a.order[1] - b.order[1]);
+  const results = [];
+  for (const { order, ...overlap } of overlaps) {
+    results.push(overlap);
+  }
+  return results;
 }
 
 function intersectionBounds(a, b) {

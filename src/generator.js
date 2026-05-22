@@ -37,12 +37,8 @@ export async function generateCodemap({ root, excludePaths = DEFAULT_EXCLUDE_PAT
     },
     mapLevels: MAP_LEVELS,
     codePlane: codePlaneDescriptor(),
-    folders: Object.fromEntries(
-      Object.entries(folders).map(([path, folder]) => [path, serializeFolder(folder)]),
-    ),
-    files: Object.fromEntries(
-      Object.entries(files).map(([path, file]) => [path, serializeFile(file)]),
-    ),
+    folders: serializeFolders(folders),
+    files: serializeFiles(files),
   };
 }
 
@@ -62,11 +58,25 @@ function serializeFolder(folder) {
     lineCount: folder.lineCount,
     weight: folder.weight,
     children: {
-      folders: sortedFolders(folder).map((child) => child.path),
-      files: sortedFiles(folder).map((child) => child.path),
+      folders: childPaths(sortedFolders(folder)),
+      files: childPaths(sortedFiles(folder)),
     },
     growthArea: folder.growthArea,
   };
+}
+
+function childPaths(children) {
+  const paths = [];
+  for (const child of children) paths.push(child.path);
+  return paths;
+}
+
+function serializeFolders(folders) {
+  const serialized = {};
+  for (const [path, folder] of Object.entries(folders)) {
+    serialized[path] = serializeFolder(folder);
+  }
+  return serialized;
 }
 
 function serializeFile(file) {
@@ -81,4 +91,12 @@ function serializeFile(file) {
     maxLineLength: file.maxLineLength,
     weight: file.weight,
   };
+}
+
+function serializeFiles(files) {
+  const serialized = {};
+  for (const [path, file] of Object.entries(files)) {
+    serialized[path] = serializeFile(file);
+  }
+  return serialized;
 }

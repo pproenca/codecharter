@@ -185,12 +185,24 @@ export function organicRegionPoints(bounds, key, depth = 1) {
   const minInset = 0.018;
   const baseInset = clamp(0.024 + depth * 0.004, minInset, 0.058);
   const wobble = clamp(0.018 - depth * 0.002, 0.006, 0.018);
-  const edgeEntries = edgePositions.map((t, index) => ({ t, index }));
+  const points = [];
 
-  return ORGANIC_REGION_EDGES.flatMap(([side, reversed, point]) => {
-    const entries = reversed ? edgeEntries.toReversed() : edgeEntries;
-    return entries.map(({ t, index }) => point(bounds, t, edgeInset(key, side, index, baseInset, wobble)));
-  });
+  for (const [side, reversed, point] of ORGANIC_REGION_EDGES) {
+    if (reversed) {
+      for (let index = edgePositions.length - 1; index >= 0; index -= 1) {
+        const t = edgePositions[index];
+        points.push(point(bounds, t, edgeInset(key, side, index, baseInset, wobble)));
+      }
+      continue;
+    }
+
+    for (let index = 0; index < edgePositions.length; index += 1) {
+      const t = edgePositions[index];
+      points.push(point(bounds, t, edgeInset(key, side, index, baseInset, wobble)));
+    }
+  }
+
+  return points;
 }
 
 export function shouldDrawFolder(scale, depth, box) {

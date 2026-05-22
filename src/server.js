@@ -246,7 +246,7 @@ function createNamedPlace(codemap, body) {
 async function getAnnotationsApi(state, request, response) {
   const codemap = await loadCodemap(state);
   const store = refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }));
-  sendJson(response, 200, { annotations: store.places.filter((place) => place.kind === "mapAnnotation") });
+  sendJson(response, 200, { annotations: mapAnnotations(store.places) });
 }
 
 async function getAnnotationApi(state, request, response, url, match) {
@@ -399,8 +399,24 @@ function withOverlaps(store) {
 function refreshNamedPlaces(codemap, store) {
   return {
     ...store,
-    places: (store.places ?? []).map((place) => refreshPlaceResolution(codemap, place)),
+    places: refreshPlaces(codemap, store.places ?? []),
   };
+}
+
+function mapAnnotations(places) {
+  const annotations = [];
+  for (const place of places) {
+    if (place.kind === "mapAnnotation") annotations.push(place);
+  }
+  return annotations;
+}
+
+function refreshPlaces(codemap, places) {
+  const refreshed = [];
+  for (const place of places) {
+    refreshed.push(refreshPlaceResolution(codemap, place));
+  }
+  return refreshed;
 }
 
 function requiredParam(url, name) {

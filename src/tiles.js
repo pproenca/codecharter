@@ -45,9 +45,12 @@ export function buildTileIndex(codemap, level = "file") {
     addTarget(tiles, tilePrefixForTarget(target, level), target);
   }
 
-  return [...tiles.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([prefix, targets]) => ({ prefix, level, targets }));
+  const tileEntries = [...tiles.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const index = [];
+  for (const [prefix, targets] of tileEntries) {
+    index.push({ prefix, level, targets });
+  }
+  return index;
 }
 
 export function getTile(codemap, { level = "file", prefix }) {
@@ -99,7 +102,11 @@ function matchingTargets(targets, targetType, level, prefix) {
     if (tilePrefixForTarget(target, level) === prefix) matches.push(target);
   }
   matches.sort((left, right) => left.path.localeCompare(right.path));
-  return matches.map((target) => serializeTarget(target, targetType));
+  const serialized = [];
+  for (const target of matches) {
+    serialized.push(serializeTarget(target, targetType));
+  }
+  return serialized;
 }
 
 function serializeTarget(target, targetType) {

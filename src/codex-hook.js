@@ -16,6 +16,7 @@ const DEFAULT_MAP_PATH = ".codecharter/codecharter.json";
 const ROOT_MAP_PATH = "codecharter.json";
 const LEGACY_MAP_PATH = "codemap.json";
 const DEFAULT_ACTIVITY_PATH = ".codecharter/activity.jsonl";
+const DEFAULT_CHANGE_RANGE_CONCURRENCY = 32;
 
 const READ_COMMAND_STRATEGIES = new Map([
   ...["cat", "nl", "less"].map((commandName) => [commandName, { pathCandidates: genericReadPathCandidates, lineRange: emptyLineRange }]),
@@ -181,10 +182,6 @@ function inferActivityState(payload) {
   return "editing";
 }
 
-function readCommandChanges(root, codemap, payload) {
-  return readCommandActivity(root, codemap, payload).changes;
-}
-
 function readCommandActivity(root, codemap, payload) {
   if (!isShellTool(payload)) return { changes: [], matchedReadCommand: false };
   const command = shellCommand(payload);
@@ -264,25 +261,27 @@ function findShellCommand(value) {
   return "";
 }
 
-function isReadShellCommand(payload) {
-  if (!isShellTool(payload)) return false;
-  const command = shellCommand(payload);
-  if (!command) return false;
-
-  for (const segment of command.split(/\n|&&|;/)) {
-    const tokens = shellWords(segment);
-    if (tokens.length === 0) continue;
-    if (readCommandStrategy(basename(tokens[0]))) return true;
-  }
-  return false;
-}
-
 async function toolInputChanges(root, payload) {
   const paths = toolInputPaths(root, payload);
-  return Promise.all(paths.map(async (path) => ({
-    path,
-    ...await changedLineRange(root, path),
-  })));
+  return mapChangedRanges(root, paths, DEFAULT_CHANGE_RANGE_CONCURRENCY);
+}
+
+async function mapChangedRanges(root, paths, concurrency) {
+  const changes = new Array(paths.length);
+  let next = 0;
+  const workerCount = Math.max(1, Math.min(paths.length, concurrency));
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (next < paths.length) {
+      const index = next;
+      next += 1;
+      changes[index] = {
+        path: paths[index],
+        ...await changedLineRange(root, paths[index]),
+      };
+    }
+  });
+  await Promise.all(workers);
+  return changes;
 }
 
 function toolInputPaths(root, payload) {
@@ -297,7 +296,11 @@ function toolInputPaths(root, payload) {
     }
   }
 
-  return [...paths].filter(Boolean);
+  const result = [];
+  for (const path of paths) {
+    if (path) result.push(path);
+  }
+  return result;
 }
 
 function isStructuredWriteTool(toolName) {
@@ -323,9 +326,12 @@ function toolInputText(input) {
 }
 
 function applyPatchPaths(text) {
-  return [...text.matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm)]
-    .map((match) => match[1].trim())
-    .filter(Boolean);
+  const paths = [];
+  for (const match of text.matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm)) {
+    const path = match[1].trim();
+    if (path) paths.push(path);
+  }
+  return paths;
 }
 
 function structuredToolPaths(value) {
@@ -355,8 +361,11 @@ function isPathKey(key) {
 }
 
 function shellWords(segment) {
-  return [...segment.matchAll(/"([^"]*)"|'([^']*)'|[^\s]+/g)]
-    .map((match) => match[1] ?? match[2] ?? match[0]);
+  const words = [];
+  for (const match of segment.matchAll(/"([^"]*)"|'([^']*)'|[^\s]+/g)) {
+    words.push(match[1] ?? match[2] ?? match[0]);
+  }
+  return words;
 }
 
 function readCommandStrategy(commandName) {
@@ -476,9 +485,14 @@ function headLineRange({ tokens }) {
 }
 
 function tailLineRange({ root, tokens, codemap }) {
-  const path = readCommandPathCandidates("tail", tokens, codemap, root)
-    .map((candidate) => normalizeCommandPath(root, candidate))
-    .find((candidate) => codemap.files?.[candidate]);
+  let path;
+  for (const candidate of readCommandPathCandidates("tail", tokens, codemap, root)) {
+    const normalized = normalizeCommandPath(root, candidate);
+    if (codemap.files?.[normalized]) {
+      path = normalized;
+      break;
+    }
+  }
   const count = numericOption(tokens, "-n");
   const lineCount = path ? codemap.files[path]?.lineCount : undefined;
   if (count && lineCount) return { lineStart: Math.max(1, lineCount - count + 1), lineEnd: lineCount };
@@ -516,12 +530,10 @@ async function readCodemap(mapPath) {
 }
 
 async function resolveMapPath(root, configuredPath) {
-  const candidates = [
-    configuredPath,
-    DEFAULT_MAP_PATH,
-    ROOT_MAP_PATH,
-    LEGACY_MAP_PATH,
-  ].filter(Boolean).map((path) => resolveFromRoot(root, path));
+  const candidates = [];
+  for (const path of [configuredPath, DEFAULT_MAP_PATH, ROOT_MAP_PATH, LEGACY_MAP_PATH]) {
+    if (path) candidates.push(resolveFromRoot(root, path));
+  }
 
   for (const candidate of candidates) {
     try {

@@ -57,7 +57,7 @@ export function createSelectionHashRoute({ level = "file", bounds }) {
   if (!bounds) throw new Error("Selection bounds are required");
   const params = new URLSearchParams({
     level,
-    bounds: [bounds.x, bounds.y, bounds.width, bounds.height].map(formatRouteNumber).join(","),
+    bounds: formatRouteBounds(bounds),
   });
   return `#/selection?${params.toString()}`;
 }
@@ -72,4 +72,8 @@ function searchParams(metadata) {
 
 function formatRouteNumber(value) {
   return Number(value).toFixed(12).replace(/\.?0+$/, "");
+}
+
+function formatRouteBounds(bounds) {
+  return `${formatRouteNumber(bounds.x)},${formatRouteNumber(bounds.y)},${formatRouteNumber(bounds.width)},${formatRouteNumber(bounds.height)}`;
 }

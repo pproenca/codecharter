@@ -96,10 +96,14 @@ export class DistrictLayoutEngine {
   layoutRectangles(children, preferredBounds, fallbackBounds) {
     const bounds = hasUsableArea(preferredBounds) ? preferredBounds : fallbackBounds;
     if (!hasUsableArea(bounds)) {
-      return children.map((item) => ({ item, bounds }));
+      const rectangles = [];
+      for (const item of children) rectangles.push({ item, bounds });
+      return rectangles;
     }
 
-    const rectangles = this.binaryPartition(children.map((item) => ({ item, weight: this.layoutWeight(item) })), bounds);
+    const entries = [];
+    for (const item of children) entries.push({ item, weight: this.layoutWeight(item) });
+    const rectangles = this.binaryPartition(entries, bounds);
     return rectangles.length === children.length ? rectangles : this.stripLayout(children, bounds);
   }
 
@@ -168,11 +172,14 @@ export class DistrictLayoutEngine {
   }
 
   stripLayout(children, bounds) {
-    const totalWeight = children.reduce((sum, child) => sum + this.layoutWeight(child), 0);
+    let totalWeight = 0;
+    for (const child of children) totalWeight += this.layoutWeight(child);
     const horizontal = bounds.width >= bounds.height;
     let cursor = horizontal ? bounds.x : bounds.y;
+    const rectangles = [];
 
-    return children.map((item, index) => {
+    for (let index = 0; index < children.length; index += 1) {
+      const item = children[index];
       const isLast = index === children.length - 1;
       const span = isLast
         ? (horizontal ? bounds.x + bounds.width : bounds.y + bounds.height) - cursor
@@ -181,8 +188,10 @@ export class DistrictLayoutEngine {
         ? { x: cursor, y: bounds.y, width: span, height: bounds.height }
         : { x: bounds.x, y: cursor, width: bounds.width, height: span };
       cursor += span;
-      return { item, bounds: childBounds };
-    });
+      rectangles.push({ item, bounds: childBounds });
+    }
+
+    return rectangles;
   }
 
   reserveGrowthArea(bounds, fraction) {

@@ -72,7 +72,7 @@ function tokenFragments(diff) {
   const fragments = [];
   let nextLine = null;
 
-  for (const rawLine of diff.split("\n")) {
+  for (const rawLine of diffLines(diff)) {
     const hunk = rawLine.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);
     if (hunk) {
       nextLine = Number(hunk[1]);
@@ -96,6 +96,15 @@ function tokenFragments(diff) {
   }
 
   return fragments;
+}
+
+function* diffLines(diff) {
+  let start = 0;
+  for (let index = 0; index <= diff.length; index += 1) {
+    if (index < diff.length && diff[index] !== "\n") continue;
+    yield diff.slice(start, diff[index - 1] === "\r" ? index - 1 : index);
+    start = index + 1;
+  }
 }
 
 function columnSpanFromFragments(fragments) {

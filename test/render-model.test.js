@@ -494,10 +494,13 @@ test("formats annotation clipboard text with deep links and browser URLs", () =>
   });
 
   assert.match(text, /CodeCharter annotation: codecharter:\/\/annotation\/annotation-1/);
-  assert.match(text, /Targets: 2/);
   assert.match(text, /Note: Check this region/);
-  assert.match(text, /CLI: codecharter --json resolve "codecharter:\/\/annotation\/annotation-1" --server "http:\/\/127\.0\.0\.1:3000"/);
+  assert.match(text, /Resolve: npx --yes codecharter@latest --json resolve "codecharter:\/\/annotation\/annotation-1" --server "http:\/\/127\.0\.0\.1:3000"/);
   assert.match(text, /CodeCharter URL: http:\/\/127\.0\.0\.1:3000\/#\/annotation\/annotation-1/);
+  assert.doesNotMatch(text, /Targets:/);
+  assert.doesNotMatch(text, /CLI: codecharter/);
+  assert.doesNotMatch(text, /Fallback:/);
+  assert.doesNotMatch(text, /Use resolve output/);
   assert.doesNotMatch(text, /src\/app\.ts/);
 });
 

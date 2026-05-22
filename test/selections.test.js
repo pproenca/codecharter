@@ -102,11 +102,12 @@ test("creates map annotations with a Codex-ready spatial prompt", () => {
   assert.equal(annotation.browserHash, `#/annotation/${annotation.id}`);
   assert.equal(annotation.resolvedTargets.length, 1);
   assert.match(annotation.codexPrompt, /CodeCharter annotation: codecharter:\/\/annotation\//);
-  assert.match(annotation.codexPrompt, /CLI: codecharter --json resolve "codecharter:\/\/annotation\//);
-  assert.match(annotation.codexPrompt, /Fallback: npx --yes codecharter --json resolve "codecharter:\/\/annotation\//);
-  assert.match(annotation.codexPrompt, /Targets: 1/);
+  assert.match(annotation.codexPrompt, /Resolve: npx --yes codecharter@latest --json resolve "codecharter:\/\/annotation\//);
   assert.match(annotation.codexPrompt, /Note: hey explore this area/);
-  assert.match(annotation.codexPrompt, /Do not use browser automation unless asked/);
+  assert.doesNotMatch(annotation.codexPrompt, /Targets:/);
+  assert.doesNotMatch(annotation.codexPrompt, /CLI: codecharter/);
+  assert.doesNotMatch(annotation.codexPrompt, /Fallback:/);
+  assert.doesNotMatch(annotation.codexPrompt, /Do not use browser automation unless asked/);
   assert.doesNotMatch(annotation.codexPrompt, /#\/annotation\//);
   assert.doesNotMatch(annotation.codexPrompt, /Spatial frame/);
   assert.doesNotMatch(annotation.codexPrompt, /Corner geohashes/);
@@ -156,7 +157,8 @@ test("refreshes map annotations against current geometry without changing identi
 
   assert.equal(refreshed.id, "annotation-1");
   assert.deepEqual(refreshed.resolvedTargets.map((target) => target.path), ["src/a.ts", "src/c.ts"]);
-  assert.match(refreshed.codexPrompt, /Targets: 2/);
+  assert.match(refreshed.codexPrompt, /Resolve: npx --yes codecharter@latest --json resolve "codecharter:\/\/annotation\/annotation-1"/);
+  assert.doesNotMatch(refreshed.codexPrompt, /Targets:/);
   assert.doesNotMatch(refreshed.codexPrompt, /s123456/);
   assert.doesNotMatch(refreshed.codexPrompt, /s999999/);
 });
@@ -176,7 +178,8 @@ test("keeps large annotation prompts compact by not dumping resolved target geoh
   });
 
   assert.equal(annotation.resolvedTargets.length, 40);
-  assert.match(annotation.codexPrompt, /Targets: 40/);
+  assert.match(annotation.codexPrompt, /Resolve: npx --yes codecharter@latest --json resolve "codecharter:\/\/annotation\//);
+  assert.doesNotMatch(annotation.codexPrompt, /Targets:/);
   assert.doesNotMatch(annotation.codexPrompt, /Corner geohashes:/);
   assert.doesNotMatch(annotation.codexPrompt, /s00000000000/);
   assert.doesNotMatch(annotation.codexPrompt, /src\/file-0\.ts/);

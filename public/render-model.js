@@ -624,11 +624,8 @@ export function annotationClipboardText(annotation, { origin = "", href = "" } =
   const comment = annotation.comment?.trim() || "<empty>";
   const prompt = [
     `CodeCharter annotation: ${reference}`,
-    `Targets: ${annotation.resolvedTargets?.length ?? annotation.targetCount ?? 0}`,
     `Note: ${comment}`,
-    `CLI: codecharter --json resolve ${doubleQuote(reference)}${serverFlag}`,
-    `Fallback: npx --yes codecharter --json resolve ${doubleQuote(reference)}${serverFlag}`,
-    "Use resolve output; read only needed resolvedTargets. If resolved target paths are not present in this workspace, report a CodeCharter map/workspace mismatch instead of guessing. Do not use browser automation unless asked.",
+    `Resolve: npx --yes codecharter@latest --json resolve ${doubleQuote(reference)}${serverFlag}`,
   ].join("\n");
   const shareUrl = annotationShareUrl(annotation, href);
   if (!shareUrl) return prompt;

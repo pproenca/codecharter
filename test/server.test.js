@@ -67,8 +67,11 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.equal(annotationResponse.annotation.deepLink, `codecharter://annotation/${annotationResponse.annotation.id}`);
     assert.equal(annotationResponse.annotation.browserHash, `#/annotation/${annotationResponse.annotation.id}`);
     assert.match(annotationResponse.annotation.codexPrompt, /CodeCharter annotation: codecharter:\/\/annotation\//);
-    assert.match(annotationResponse.annotation.codexPrompt, /CLI: codecharter --json resolve "codecharter:\/\/annotation\//);
+    assert.match(annotationResponse.annotation.codexPrompt, /Resolve: npx --yes codecharter@latest --json resolve "codecharter:\/\/annotation\//);
     assert.match(annotationResponse.annotation.codexPrompt, /Note: hey explore this area/);
+    assert.doesNotMatch(annotationResponse.annotation.codexPrompt, /Targets:/);
+    assert.doesNotMatch(annotationResponse.annotation.codexPrompt, /CLI: codecharter/);
+    assert.doesNotMatch(annotationResponse.annotation.codexPrompt, /Fallback:/);
     assert.doesNotMatch(annotationResponse.annotation.codexPrompt, /Browser route/);
     assert.doesNotMatch(annotationResponse.annotation.codexPrompt, /Corner geohashes/);
     assert.doesNotMatch(annotationResponse.annotation.codexPrompt, /src\/app\.ts/);

@@ -233,11 +233,8 @@ function codexPromptForAnnotation(annotation) {
   const comment = annotation.comment?.trim() || "<empty>";
   const reference = doubleQuote(annotation.deepLink);
   return `CodeCharter annotation: ${annotation.deepLink}\n`
-    + `Targets: ${annotation.resolvedTargets.length}\n`
     + `Note: ${comment}\n`
-    + `CLI: codecharter --json resolve ${reference}\n`
-    + `Fallback: npx --yes codecharter --json resolve ${reference}\n`
-    + "Use resolve output; read only needed resolvedTargets. Do not use browser automation unless asked.";
+    + `Resolve: npx --yes codecharter@latest --json resolve ${reference}`;
 }
 
 function doubleQuote(value) {

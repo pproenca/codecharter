@@ -653,7 +653,7 @@ export function fileLabelPriority({ file, selected }: { file: MapFile; selected?
 export function canRenderSourceText(file: MapFile, box: BoxSize): boolean {
   return box.width >= SOURCE_TEXT_MIN_WIDTH
     && lineHeightForFile(file, box) >= SOURCE_TEXT_MIN_LINE_HEIGHT
-    && file.lineCount > 0;
+    && (file.lineCount ?? 0) > 0;
 }
 
 export function sourceTextLayoutForBox(box: HorizontalBox, viewportWidth: number) {
@@ -669,7 +669,7 @@ export function sourceTextLayoutForBox(box: HorizontalBox, viewportWidth: number
 }
 
 export function lineHeightForFile(file: MapFile, box: BoxSize): number {
-  return box.height / Math.max(1, file.lineCount);
+  return box.height / Math.max(1, file.lineCount ?? 0);
 }
 
 export function labelBoxesOverlap(a: Bounds, b: Bounds): boolean {
@@ -792,22 +792,26 @@ export function viewForBounds(bounds: Bounds, viewport: Viewport, paddingFactor 
 }
 
 export function viewForReadableFile(file: MapFile, viewport: Viewport, lineRatio = 0.5, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE): View {
-  const widthScale = SOURCE_TEXT_MIN_WIDTH / Math.max(file.bounds.width * viewport.width, 0.001);
-  const lineScale = (SOURCE_TEXT_MIN_LINE_HEIGHT * Math.max(1, file.lineCount)) / Math.max(file.bounds.height * viewport.height, 0.001);
+  const bounds = file.bounds ?? { x: 0, y: 0, width: 1, height: 1 };
+  const lineCount = file.lineCount ?? 0;
+  const widthScale = SOURCE_TEXT_MIN_WIDTH / Math.max(bounds.width * viewport.width, 0.001);
+  const lineScale = (SOURCE_TEXT_MIN_LINE_HEIGHT * Math.max(1, lineCount)) / Math.max(bounds.height * viewport.height, 0.001);
   const scale = clamp(Math.max(widthScale, lineScale) * SOURCE_TEXT_ZOOM_HEADROOM, minScale, maxScale);
-  const screenWidth = file.bounds.width * viewport.width * scale;
-  const focusX = file.bounds.x + file.bounds.width / 2;
-  const focusY = file.bounds.y + file.bounds.height * clamp(lineRatio, 0, 1);
+  const screenWidth = bounds.width * viewport.width * scale;
+  const focusX = bounds.x + bounds.width / 2;
+  const focusY = bounds.y + bounds.height * clamp(lineRatio, 0, 1);
   return {
     scale,
     x: screenWidth > viewport.width * 0.9
-      ? file.bounds.x - 24 / (viewport.width * scale)
+      ? bounds.x - 24 / (viewport.width * scale)
       : focusX - 0.5 / scale,
     y: focusY - 0.5 / scale,
   };
 }
 
 export function visibleLineRangeForBox(file: MapFile, box: Bounds, viewportHeight: number): { start: number; end: number } | null {
+  const lineCount = file.lineCount ?? 0;
+  if (lineCount <= 0) return null;
   const top = Math.max(box.y, 0);
   const bottom = Math.min(box.y + box.height, viewportHeight);
   if (bottom <= top) return null;
@@ -815,23 +819,28 @@ export function visibleLineRangeForBox(file: MapFile, box: Bounds, viewportHeigh
   const startRatio = clamp((top - box.y) / box.height, 0, 1);
   const endRatio = clamp((bottom - box.y) / box.height, 0, 1);
   return {
-    start: Math.max(1, Math.floor(startRatio * file.lineCount) + 1),
-    end: Math.min(file.lineCount, Math.ceil(endRatio * file.lineCount)),
+    start: Math.max(1, Math.floor(startRatio * lineCount) + 1),
+    end: Math.min(lineCount, Math.ceil(endRatio * lineCount)),
   };
 }
 
 export function lineAtWorldPoint(file: MapFile, worldPoint: Point): number {
-  const rawLine = ((worldPoint.y - file.bounds.y) / file.bounds.height) * file.lineCount;
-  return Math.max(1, Math.min(file.lineCount, Math.floor(rawLine) + 1));
+  const bounds = file.bounds;
+  const lineCount = file.lineCount ?? 0;
+  if (!bounds || lineCount <= 0) return 1;
+  const rawLine = ((worldPoint.y - bounds.y) / bounds.height) * lineCount;
+  return Math.max(1, Math.min(lineCount, Math.floor(rawLine) + 1));
 }
 
-export function sourcePanelLineRangeForBox(file: MapFile, focusLine: number, box: Bounds, viewportHeight: number): { start: number; end: number } {
-  const visibleRange = canRenderSourceText(file, box) ? visibleLineRangeForBox(file, box, viewportHeight) : null;
+export function sourcePanelLineRangeForBox(file: MapFile, focusLine: number, box: BoxSize | Bounds, viewportHeight: number): { start: number; end: number } {
+  const visibleRange = canRenderSourceText(file, box) && isPositionedBox(box)
+    ? visibleLineRangeForBox(file, box, viewportHeight)
+    : null;
   if (visibleRange) return capLineRange(file, visibleRange.start, visibleRange.end, focusLine);
   return capLineRange(
     file,
     Math.max(1, focusLine - SOURCE_PANEL_CONTEXT_BEFORE),
-    Math.min(file.lineCount, focusLine + SOURCE_PANEL_CONTEXT_AFTER),
+    Math.min(file.lineCount ?? focusLine, focusLine + SOURCE_PANEL_CONTEXT_AFTER),
     focusLine,
   );
 }
@@ -890,6 +899,7 @@ export function formatSourceLines(source: { lines?: SourceLine[] }): string {
   const formatted = new Array(lines.length);
   for (let index = 0; index < lines.length; index += 1) {
     const item = lines[index];
+    if (!item) continue;
     formatted[index] = `${String(item.number).padStart(4, " ")}  ${item.text}`;
   }
   return formatted.join("\n");
@@ -960,6 +970,7 @@ export function cachedSourceRange(cache: SourceCache, path: string, lineStart: n
   const normalized = normalizeMapPath(path);
   for (const [cacheKey, source] of cache) {
     if (normalizeMapPath(source.path) !== normalized) continue;
+    if (!source.lineRange) continue;
     if (source.lineRange.start > lineStart || source.lineRange.end < lineEnd) continue;
     cache.delete(cacheKey);
     cache.set(cacheKey, source);
@@ -1061,7 +1072,7 @@ export function mapSelectionPanel(target: TargetHit | null | undefined) {
   }
 
   const inspectorTitle = target.targetType === "file" ? target.name : folderDisplayName(target);
-  const inspectorSubtitle = `${target.targetType}: ${target.path || "."} | ${target.geo.geohash}`;
+  const inspectorSubtitle = `${target.targetType}: ${target.path || "."} | ${target.geo?.geohash ?? "unresolved"}`;
   if (target.targetType === "folder") {
     return {
       inspectorTitle,
@@ -1083,10 +1094,10 @@ export function reconciledSelectedTarget(codemap: CodecharterCodemap, target: Na
 export function reconciledSelectedTarget(codemap: CodecharterCodemap, target: TargetHit | NamedPlace | ActivityEvent | null | undefined) {
   if (!target) return null;
   if (target.targetType === "file") {
-    return codemap.files[target.path] ? { ...codemap.files[target.path], targetType: "file" } : null;
+    return codemap.files?.[target.path] ? { ...codemap.files[target.path], targetType: "file" } : null;
   }
   if (target.targetType === "folder") {
-    return codemap.folders[target.path] ? { ...codemap.folders[target.path], targetType: "folder" } : null;
+    return codemap.folders?.[target.path] ? { ...codemap.folders[target.path], targetType: "folder" } : null;
   }
   return target;
 }
@@ -1110,7 +1121,7 @@ export function mapHoverLabel(hit: ActionHit & {
     const actor = thread ? `${hit.agentId ?? "agent"} ${shortActivityId(thread)}` : hit.agentId ?? "agent";
     return `activity: ${actor} ${normalizeActivityState(hit.activityState)} | ${hit.address?.geohash ?? "unresolved"}`;
   }
-  return `${hit.targetType}: ${hit.path} | ${hit.geo.geohash}`;
+  return `${hit.targetType}: ${hit.path} | ${hit.geo?.geohash ?? "unresolved"}`;
 }
 
 export function activityActorLabel(event: ActivityEvent): string {
@@ -1130,8 +1141,8 @@ export function folderDisplayName(folder: Pick<MapFolder, "path">): string {
 
 function mapTargetForPath(codemap: CodecharterCodemap, path: string): TargetHit | null {
   const normalized = normalizeMapPath(path);
-  if (codemap.files[normalized]) return { ...codemap.files[normalized], targetType: "file" };
-  if (codemap.folders[normalized]) return { ...codemap.folders[normalized], targetType: "folder" };
+  if (codemap.files?.[normalized]) return { ...codemap.files[normalized], targetType: "file" };
+  if (codemap.folders?.[normalized]) return { ...codemap.folders[normalized], targetType: "folder" };
   return null;
 }
 
@@ -1140,24 +1151,29 @@ function mapTargetForGeohash(codemap: CodecharterCodemap, geohash: string | unde
   if (!geohash) return null;
   if (targetType === "folder") {
     let fallback: MapFolder | null = null;
-    for (const target of objectValues(codemap.folders)) {
+    for (const target of objectValues(codemap.folders ?? {})) {
       if (!target.path) continue;
-      if (target.geo.geohash.startsWith(geohash)) return { ...target, targetType };
-      if (!fallback && geohash.startsWith(target.geo.geohash)) fallback = target;
+      const targetGeohash = target.geo?.geohash;
+      if (!targetGeohash) continue;
+      if (targetGeohash.startsWith(geohash)) return { ...target, targetType };
+      if (!fallback && geohash.startsWith(targetGeohash)) fallback = target;
     }
     return fallback ? { ...fallback, targetType } : null;
   }
   let fallback: MapFile | null = null;
-  for (const target of objectValues(codemap.files)) {
-    if (target.geo.geohash.startsWith(geohash)) return { ...target, targetType };
-    if (!fallback && geohash.startsWith(target.geo.geohash)) fallback = target;
+  for (const target of objectValues(codemap.files ?? {})) {
+    const targetGeohash = target.geo?.geohash;
+    if (!targetGeohash) continue;
+    if (targetGeohash.startsWith(geohash)) return { ...target, targetType };
+    if (!fallback && geohash.startsWith(targetGeohash)) fallback = target;
   }
   return fallback ? { ...fallback, targetType } : null;
 }
 
 function* objectValues<T>(values: Record<string, T>): Generator<T> {
   for (const key in values) {
-    if (Object.hasOwn(values, key)) yield values[key];
+    const value = values[key];
+    if (Object.hasOwn(values, key) && value !== undefined) yield value;
   }
 }
 
@@ -1172,11 +1188,11 @@ export function containsBoundsPoint(bounds: Bounds, point: Point): boolean {
     && point.y <= bounds.y + bounds.height;
 }
 
-export function hitTestTargets(codemap: CodecharterCodemap, point: Point): TargetHit | null {
-  const file = bestContainingTarget(codemap.files, point);
+export function hitTestTargets(codemap: CodecharterCodemap | null | undefined, point: Point): TargetHit | null {
+  const file = bestContainingTarget(codemap?.files ?? {}, point);
   if (file) return { ...file, targetType: "file" };
 
-  const folder = bestContainingTarget(codemap.folders, point, (target) => Boolean(target.path));
+  const folder = bestContainingTarget(codemap?.folders ?? {}, point, (target) => Boolean(target.path));
   if (folder) return { ...folder, targetType: "folder" };
 
   return null;
@@ -1185,6 +1201,7 @@ export function hitTestTargets(codemap: CodecharterCodemap, point: Point): Targe
 export function hitTestAnnotations(namedPlaces: NamedPlace[], point: Point, { radiusX = 0, radiusY = 0 } = {}): (NamedPlace & { targetType: "annotation" }) | null {
   for (let index = namedPlaces.length - 1; index >= 0; index -= 1) {
     const place = namedPlaces[index];
+    if (!place) continue;
     if (place.kind !== "mapAnnotation" || !place.geometry?.bounds) continue;
     if (containsBoundsPoint(place.geometry.bounds, point)) return { ...place, targetType: "annotation" };
     const center = boundsCenter(place.geometry.bounds);
@@ -1337,20 +1354,27 @@ export function simplifyTrailPoints(points: Point[], minDistance = ACTIVITY_TRAI
     for (const point of points) copy.push(point);
     return copy;
   }
-  const simplified = [points[0]];
+  const first = points[0];
+  if (!first) return [];
+  const simplified = [first];
 
   for (let index = 1; index < points.length - 1; index += 1) {
-    if (pointDistance(simplified[simplified.length - 1], points[index]) >= minDistance) {
-      simplified.push(points[index]);
+    const previous = simplified[simplified.length - 1];
+    const point = points[index];
+    if (!previous || !point) continue;
+    if (pointDistance(previous, point) >= minDistance) {
+      simplified.push(point);
     }
   }
 
   const last = points[points.length - 1];
-  if (pointDistance(simplified[simplified.length - 1], last) > 0) {
+  const previous = simplified[simplified.length - 1];
+  if (!last || !previous) return [];
+  if (pointDistance(previous, last) > 0) {
     simplified.push(last);
   }
 
-  return simplified.length > 1 ? simplified : [points[0], last];
+  return simplified.length > 1 ? simplified : [first, last];
 }
 
 export function activityTrailGroups(events: ActivityEvent[], {
@@ -1363,7 +1387,7 @@ export function activityTrailGroups(events: ActivityEvent[], {
     if (!activityPrimaryBounds(event)) continue;
     const key = activityTrailKey(event);
     if (!byTrail.has(key)) byTrail.set(key, []);
-    byTrail.get(key).push(event);
+    byTrail.get(key)?.push(event);
   }
 
   const groups: ActivityEvent[][] = [];
@@ -1414,6 +1438,7 @@ export function organicTrailSegments(points: Point[], {
     const start = trail[index];
     const end = trail[index + 1];
     const next = trail[index + 2] ?? end;
+    if (!previous || !start || !end || !next) continue;
     const scalar = tension / 6;
     const segmentDistance = pointDistance(start, end);
     segments.push({
@@ -1502,7 +1527,7 @@ export function activityFeedEvents(events: ActivityEvent[], options: ActivityFog
   }
   const eventsForFeed: ActivityEvent[] = [];
   for (const item of feed) {
-    eventsForFeed.push(item.event);
+    if (item.event) eventsForFeed.push(item.event);
   }
   return eventsForFeed;
 }
@@ -1529,7 +1554,11 @@ function activitySummariesAreInFirstSeenOrder(summaries: ActivitySummary[]): boo
 
 function insertActivityFeedEvent(feed: ActivityFeedItem[], event: ActivityEvent, timestamp: number, limit: number): void {
   let index = 0;
-  while (index < feed.length && compareActivityFeedItems(feed[index], { timestamp }) <= 0) index += 1;
+  while (index < feed.length) {
+    const item = feed[index];
+    if (!item || compareActivityFeedItems(item, { timestamp }) > 0) break;
+    index += 1;
+  }
   if (index >= limit) return;
   feed.splice(index, 0, { event, timestamp });
   if (feed.length > limit) feed.pop();
@@ -1542,7 +1571,7 @@ function activityFeedEventsViaSort(events: ActivityEvent[], options: ActivityFog
   }
   const eventsForFeed: ActivityEvent[] = [];
   for (const item of feed) {
-    eventsForFeed.push(item.event);
+    if (item.event) eventsForFeed.push(item.event);
   }
   return eventsForFeed;
 }
@@ -1574,7 +1603,8 @@ function liveActivityEventsFromOffset(events: ActivityEvent[], offset: number, o
   const liveEvents: ActivityEvent[] = [];
   const start = Math.max(0, offset);
   for (let index = start; index < ordered.length; index += 1) {
-    liveEvents.push(ordered[index]);
+    const event = ordered[index];
+    if (event) liveEvents.push(event);
   }
   return liveEvents;
 }
@@ -1591,7 +1621,11 @@ function liveActivityEventsTailInTimeOrder(events: ActivityEvent[], limit: numbe
 
 function insertActivityEventInTimeOrder(events: ActivityEvent[], event: ActivityEvent, limit: number): void {
   let index = 0;
-  while (index < events.length && compareActivityEventsByTime(events[index], event) <= 0) index += 1;
+  while (index < events.length) {
+    const current = events[index];
+    if (!current || compareActivityEventsByTime(current, event) > 0) break;
+    index += 1;
+  }
   events.splice(index, 0, event);
   if (events.length > limit) events.shift();
 }
@@ -1628,7 +1662,9 @@ function compareActivityEventsByTime(left: ActivityEvent, right: ActivityEvent):
 
 function activityEventsAreSorted(events: ActivityEvent[]): boolean {
   for (let index = 1; index < events.length; index += 1) {
-    if (compareActivityEventsByTime(events[index - 1], events[index]) > 0) return false;
+    const previous = events[index - 1];
+    const current = events[index];
+    if (!previous || !current || compareActivityEventsByTime(previous, current) > 0) return false;
   }
   return true;
 }
@@ -1659,7 +1695,9 @@ function compareActivityGroupsByTime(left: ActivityEvent[], right: ActivityEvent
 
 function activityGroupsAreSorted(groups: ActivityEvent[][]): boolean {
   for (let index = 1; index < groups.length; index += 1) {
-    if (compareActivityGroupsByTime(groups[index - 1], groups[index]) > 0) return false;
+    const previous = groups[index - 1];
+    const current = groups[index];
+    if (!previous || !current || compareActivityGroupsByTime(previous, current) > 0) return false;
   }
   return true;
 }
@@ -1680,15 +1718,18 @@ function edgeInset(key: string, edge: string, index: number, baseInset: number, 
 function capLineRange(file: MapFile, start: number, end: number, focusLine: number): { start: number; end: number } {
   if (end - start + 1 <= SOURCE_PANEL_MAX_LINES) return { start, end };
   const before = Math.floor(SOURCE_PANEL_MAX_LINES / 2);
-  const cappedStart = Math.max(1, Math.min(focusLine - before, file.lineCount - SOURCE_PANEL_MAX_LINES + 1));
+  const lineCount = file.lineCount ?? Math.max(end, focusLine, 1);
+  const cappedStart = Math.max(1, Math.min(focusLine - before, lineCount - SOURCE_PANEL_MAX_LINES + 1));
   return {
     start: cappedStart,
-    end: Math.min(file.lineCount, cappedStart + SOURCE_PANEL_MAX_LINES - 1),
+    end: Math.min(lineCount, cappedStart + SOURCE_PANEL_MAX_LINES - 1),
   };
 }
 
 function compareTargetAreaThenPath(a: MapTarget, b: MapTarget): number {
-  const areaDelta = a.bounds.width * a.bounds.height - b.bounds.width * b.bounds.height;
+  const aBounds = a.bounds ?? { width: 0, height: 0 };
+  const bBounds = b.bounds ?? { width: 0, height: 0 };
+  const areaDelta = aBounds.width * aBounds.height - bBounds.width * bBounds.height;
   if (Math.abs(areaDelta) > 1e-12) return areaDelta;
   return a.path.localeCompare(b.path);
 }
@@ -1696,7 +1737,7 @@ function compareTargetAreaThenPath(a: MapTarget, b: MapTarget): number {
 function bestContainingTarget<T extends MapTarget>(targets: MapTargetRecord<T>, point: Point, accept: (target: T) => boolean = (_target) => true): T | null {
   let best: T | null = null;
   for (const target of objectValues(targets)) {
-    if (!accept(target) || !containsBoundsPoint(target.bounds, point)) continue;
+    if (!target.bounds || !accept(target) || !containsBoundsPoint(target.bounds, point)) continue;
     if (!best || compareTargetAreaThenPath(target, best) < 0) best = target;
   }
   return best;
@@ -1708,6 +1749,15 @@ function pointDistance(a: Point, b: Point): number {
 
 function hashUnit(value: string): number {
   return hashString(value) / 0xffffffff;
+}
+
+function paletteForPath(path: string): PaletteColor {
+  return DISTRICT_PALETTE[hashString(firstPathSegment(path)) % DISTRICT_PALETTE.length]
+    ?? { fill: [126, 176, 156], stroke: [41, 98, 73], label: "#24513d" };
+}
+
+function isPositionedBox(box: BoxSize | Bounds): box is Bounds {
+  return typeof (box as PositionedBox).y === "number";
 }
 
 function clamp(value: number, min: number, max: number): number {

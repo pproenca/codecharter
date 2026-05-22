@@ -363,7 +363,7 @@ function createMapControls(root: Document = document): BrowserControls {
   return {
     ...controls,
     layerToggles: () => {
-      const toggles = [];
+      const toggles: BrowserControl[] = [];
       for (const control of [
         controls.showFolders,
         controls.showOrganicRegions,
@@ -417,8 +417,8 @@ async function boot() {
 function applyMap(map: CodecharterCodemap, version: string | undefined) {
   const previousSelection = state.selectedTarget;
   state.map = map;
-  state.mapFolders = objectValues(map.folders);
-  state.mapFiles = objectValues(map.files);
+  state.mapFolders = objectValues(map.folders ?? {});
+  state.mapFiles = objectValues(map.files ?? {});
   state.organicRegionFolders = organicRegionFolders(map);
   state.mapVersion = version ?? state.mapVersion;
   state.clearSourceState();
@@ -430,7 +430,9 @@ function applyMap(map: CodecharterCodemap, version: string | undefined) {
 }
 
 function reconcileSelectedTarget(target: HitTarget | null) {
-  state.selectedTarget = reconciledSelectedTarget(state.map, target) as HitTarget | null;
+  state.selectedTarget = state.map
+    ? reconciledSelectedTarget(state.map, target) as HitTarget | null
+    : target;
 }
 
 function rebuildActivityFog() {
@@ -440,7 +442,8 @@ function rebuildActivityFog() {
 function objectValues<T>(value: Record<string, T>): T[] {
   const values: T[] = [];
   for (const key in value) {
-    if (Object.hasOwn(value, key)) values.push(value[key]);
+    const item = value[key];
+    if (Object.hasOwn(value, key) && item !== undefined) values.push(item);
   }
   return values;
 }
@@ -591,18 +594,20 @@ const MAP_ROUTE_FOCUS_COMMANDS = commandDispatcher([
   ["focusFolder", (target: MapFolder) => {
     clearAnnotationForm();
     setText(controls.inspectorTitle, folderDisplayName(target));
-    setText(controls.inspectorSubtitle, `folder: ${target.path || "."} | ${target.geo.geohash}`);
+    setText(controls.inspectorSubtitle, `folder: ${target.path || "."} | ${target.geo?.geohash ?? "unresolved"}`);
     render();
   }],
 ]);
 
 const DOUBLE_CLICK_ACTION_COMMANDS = commandDispatcher([
   ["focusAnnotation", (hit: AnnotationHit) => {
+    if (!hasGeometryBounds(hit)) return;
     zoomToBounds(hit.geometry.bounds, 1.28);
     selectAnnotation(hit);
   }],
   ["selectFolder", (hit: TargetHit, world: Point) => {
     void selectMapTarget(world);
+    if (!hasBounds(hit)) return;
     zoomToBounds(hit.bounds, 1.35);
   }],
   ["selectFile", (hit: MapFile & { targetType: "file" }, world: Point) => {
@@ -616,6 +621,7 @@ const DOUBLE_CLICK_ACTION_COMMANDS = commandDispatcher([
 const MAP_TARGET_SELECTION_COMMANDS = commandDispatcher([
   ["clearSelection", clearMapSelection],
   ["focusAnnotation", (hit: AnnotationHit) => {
+    if (!hasGeometryBounds(hit)) return;
     zoomToBounds(hit.geometry.bounds, 1.35);
     selectAnnotation(hit);
   }],
@@ -629,22 +635,25 @@ const MAP_SEARCH_ACTION_COMMANDS = commandDispatcher([
     setSearchResult("No matching place found.");
   }],
   ["focusPlace", (match: SearchActionMatch & { place: NamedPlace; target?: AnnotationHit | null }) => {
+    if (!hasGeometryBounds(match.place)) return;
     zoomToBounds(match.place.geometry.bounds, 1.35);
     setSearchResult(match.label ?? "");
-    state.selectedTarget = match.target;
+    state.selectedTarget = match.target ?? null;
     if (state.selectedTarget?.targetType === "annotation") selectAnnotation(state.selectedTarget);
     render();
   }],
   ["focusFile", async (match: SearchActionMatch & { file: MapFile }) => {
+    if (!hasBounds(match.file)) return;
     zoomToReadableFile(match.file);
     await selectMapTarget(boundsCenter(match.file.bounds));
     setSearchResult(match.label ?? "");
   }],
   ["focusFolder", (match: SearchActionMatch & { folder: MapFolder }) => {
+    if (!hasBounds(match.folder)) return;
     zoomToBounds(match.folder.bounds, 1.6);
     state.selectedTarget = { ...match.folder, targetType: "folder" };
     setText(controls.inspectorTitle, folderDisplayName(match.folder));
-    setText(controls.inspectorSubtitle, `folder: ${match.folder.path || "."} | ${match.folder.geo.geohash}`);
+    setText(controls.inspectorSubtitle, `folder: ${match.folder.path || "."} | ${match.folder.geo?.geohash ?? "unresolved"}`);
     setSearchResult(match.label ?? "");
     render();
   }],
@@ -693,7 +702,7 @@ async function applyHashRoute() {
 }
 
 async function focusAnnotationRoute(id: string, routeToken: RouteToken) {
-  let annotation = state.namedPlacesById.get(id);
+  let annotation: NamedPlace | null | undefined = state.namedPlacesById.get(id);
   if (annotation?.kind !== "mapAnnotation") annotation = null;
   if (!annotation) {
     try {
@@ -727,9 +736,10 @@ async function focusSelectionRoute(params: URLSearchParams, routeToken: RouteTok
 }
 
 async function focusMapRoute(route: NonNullable<ReturnType<typeof parseHashRoute>>, routeToken: RouteToken) {
+  if (!state.map) return;
   const target = mapRouteTarget(state.map, route);
   const action = mapRouteFocusAction(target);
-  if (!action) return;
+  if (!target || !action || !hasBounds(target)) return;
 
   resetSelectionOverlay();
   const routeLineRange = target.targetType === "file" ? parseLineRange(route.params.get("lines")) : null;
@@ -744,8 +754,8 @@ async function focusMapRoute(route: NonNullable<ReturnType<typeof parseHashRoute
 
 async function showFileForRoute(file: MapFile, params: URLSearchParams, routeToken: RouteToken) {
   clearAnnotationForm();
-  setText(controls.inspectorTitle, file.name);
-  setText(controls.inspectorSubtitle, `file: ${file.path} | ${file.geo.geohash}`);
+  setText(controls.inspectorTitle, file.name ?? file.path);
+  setText(controls.inspectorSubtitle, `file: ${file.path} | ${file.geo?.geohash ?? "unresolved"}`);
 
   const lineRange = parseLineRange(params.get("lines"));
   if (!lineRange) {
@@ -868,11 +878,11 @@ function upsertNamedPlace(place: NamedPlace) {
   const index = state.namedPlaceIndexesById.get(place.id);
   if (index === undefined) {
     state.namedPlaces.push(place);
-    if (place?.id) state.namedPlaceIndexesById.set(place.id, state.namedPlaces.length - 1);
+    if (place.id) state.namedPlaceIndexesById.set(place.id, state.namedPlaces.length - 1);
   } else {
     state.namedPlaces[index] = place;
   }
-  if (place?.id) state.namedPlacesById.set(place.id, place);
+  if (place.id) state.namedPlacesById.set(place.id, place);
 }
 
 function updateSelectionPopover() {
@@ -945,7 +955,7 @@ function render() {
   const rect = canvas.getBoundingClientRect();
   frameLabels = [];
   ctx.clearRect(0, 0, rect.width, rect.height);
-  controls.viewport.textContent = `scale ${state.view.scale.toFixed(2)} | level ${DEFAULT_MAP_LEVEL}`;
+  setText(controls.viewport, `scale ${state.view.scale.toFixed(2)} | level ${DEFAULT_MAP_LEVEL}`);
 
   drawCompassRose();
   if (layerEnabled("showGrid", false)) drawGrid();
@@ -1108,8 +1118,8 @@ function drawDiscoveryFogReveals(targetCtx: CanvasRenderingContext2D) {
   const fog = state.activityFog;
   if (!fog) return;
   for (const path of fog.visitedFiles) {
-    const file = state.map.files[path];
-    if (!file) continue;
+    const file = state.map?.files?.[path];
+    if (!file?.bounds) continue;
     const box = screenBounds(file.bounds);
     const visibleFile = fog.visibleFiles.has(path);
     const readable = state.view.scale > 2 && canRenderSourceText(file, box);
@@ -1213,7 +1223,9 @@ function drawMyceliumPathForContext(targetCtx: CanvasRenderingContext2D, points:
   const segments = organicTrailSegments(points, { minDistance });
   if (segments.length === 0) return false;
 
-  targetCtx.moveTo(segments[0].start.x, segments[0].start.y);
+  const first = segments[0];
+  if (!first) return false;
+  targetCtx.moveTo(first.start.x, first.start.y);
   for (const segment of segments) {
     targetCtx.bezierCurveTo(
       segment.control1.x,
@@ -1272,7 +1284,7 @@ function drawCompassRose() {
 function drawFolders() {
   const fogEnabled = activityDiscoveryEnabled();
   for (const folder of state.mapFolders) {
-    if (!folder.path) continue;
+    if (!folder.path || !folder.bounds) continue;
     const box = screenBounds(folder.bounds);
     if (!visible(box)) continue;
     const depth = folderDepth(folder.path);
@@ -1301,6 +1313,7 @@ function drawFolders() {
 function drawOrganicRegions() {
   const fogEnabled = activityDiscoveryEnabled();
   for (const { folder, depth } of state.organicRegionFolders) {
+    if (!folder.bounds) continue;
     const box = screenBounds(folder.bounds);
     if (!visible(box)) continue;
     if (!shouldDrawOrganicRegion(state.view.scale, depth, box)) continue;
@@ -1326,6 +1339,7 @@ function drawFiles() {
   const fogEnabled = activityDiscoveryEnabled();
   let renderedSourceLines = 0;
   for (const file of state.mapFiles) {
+    if (!file.bounds) continue;
     const box = screenBounds(file.bounds);
     if (!visible(box)) continue;
     const selected = state.selectedTarget?.targetType === "file" && state.selectedTarget.path === file.path;
@@ -1340,7 +1354,7 @@ function drawFiles() {
     drawRect(box);
     if (shouldLabelFoggedFile({ file, box, scale: state.view.scale, selected, fogState })) {
       queueLabelInBox({
-        text: file.name,
+        text: file.name ?? file.path,
         box,
         color: style.label,
         size: 12,
@@ -1458,14 +1472,20 @@ function fileFogStyle({ fogState, selected, visualState, discoveryMode = false }
 }
 
 function drawOrganicPath(points: Point[]) {
-  const first = worldToScreen(points[0]);
-  const second = worldToScreen(points[1]);
+  const firstPoint = points[0];
+  const secondPoint = points[1];
+  if (!firstPoint || !secondPoint) return;
+  const first = worldToScreen(firstPoint);
+  const second = worldToScreen(secondPoint);
   ctx.beginPath();
   ctx.moveTo((first.x + second.x) / 2, (first.y + second.y) / 2);
 
   for (let index = 1; index <= points.length; index += 1) {
-    const control = worldToScreen(points[index % points.length]);
-    const next = worldToScreen(points[(index + 1) % points.length]);
+    const controlPoint = points[index % points.length];
+    const nextPoint = points[(index + 1) % points.length];
+    if (!controlPoint || !nextPoint) continue;
+    const control = worldToScreen(controlPoint);
+    const next = worldToScreen(nextPoint);
     ctx.quadraticCurveTo(control.x, control.y, (control.x + next.x) / 2, (control.y + next.y) / 2);
   }
 
@@ -1474,11 +1494,12 @@ function drawOrganicPath(points: Point[]) {
 
 function drawSourceText(file: MapFile, box: Bounds, remainingBudget: number): number {
   const visibleRange = visibleLineRange(file, box);
+  const lineCount = file.lineCount ?? 0;
   if (!visibleRange) return 0;
 
   const budgetedEnd = Math.min(visibleRange.end, visibleRange.start + remainingBudget - 1);
   const fetchStart = Math.max(1, visibleRange.start - SOURCE_TEXT_PREFETCH_LINES);
-  const fetchEnd = Math.min(file.lineCount, budgetedEnd + SOURCE_TEXT_PREFETCH_LINES);
+  const fetchEnd = Math.min(lineCount, budgetedEnd + SOURCE_TEXT_PREFETCH_LINES);
   const cacheKey = sourceRangeCacheKey(file.path, fetchStart, fetchEnd);
   const cached = cachedSourceRange(state.sourceCache, file.path, fetchStart, fetchEnd);
 
@@ -1489,7 +1510,7 @@ function drawSourceText(file: MapFile, box: Bounds, remainingBudget: number): nu
   }
 
   const linesByNumber = new Map<number | string, string>();
-  for (const line of cached.lines) {
+  for (const line of cached.lines ?? []) {
     linesByNumber.set(line.number, line.text);
   }
   const lineHeight = lineHeightForFile(file, box);
@@ -1551,7 +1572,7 @@ function truncateLine(text: string, maxChars: number) {
 }
 
 function drawLineBands(file: MapFile, box: Bounds) {
-  const lines = Math.min(file.lineCount, 80);
+  const lines = Math.min(file.lineCount ?? 0, 80);
   ctx.strokeStyle = "rgba(4, 120, 87, 0.18)";
   ctx.lineWidth = 1;
   for (let i = 1; i < lines; i += 1) {
@@ -1571,9 +1592,10 @@ function drawNamedPlaces() {
       continue;
     }
     if (place.kind !== "drawnSelection") continue;
+    if (!hasGeometryBounds(place)) continue;
     drawSelection(place.geometry.bounds, "rgba(245, 158, 11, 0.08)", "#f59e0b", []);
     const box = screenBounds(place.geometry.bounds);
-    drawLabel(place.name, box.x + 6, box.y + 16, "#92400e");
+    drawLabel(place.name ?? "", box.x + 6, box.y + 16, "#92400e");
   }
 
   annotations.forEach((annotation, index) => {
@@ -1583,17 +1605,18 @@ function drawNamedPlaces() {
 }
 
 function drawAnnotation(annotation: MapAnnotationPlace, markerNumber: number, selected: boolean) {
+  if (!hasGeometryBounds(annotation)) return;
   drawAnnotationMembrane(
     annotation.geometry.bounds,
     selected ? "rgba(37, 99, 235, 0.13)" : "rgba(37, 99, 235, 0.07)",
     selected ? "#1d4ed8" : "rgba(37, 99, 235, 0.8)",
     selected,
-    annotation.id ?? annotation.name,
+    annotation.id ?? annotation.name ?? "annotation",
   );
 
   const box = screenBounds(annotation.geometry.bounds);
   if (box.width > 68 && box.height > 22) {
-    drawLabel(annotation.name, box.x + 8, box.y + 18, "#1e3a8a", 12, "700");
+    drawLabel(annotation.name ?? "Annotation", box.x + 8, box.y + 18, "#1e3a8a", 12, "700");
   }
   drawAnnotationMarker(annotation, markerNumber, selected);
 }
@@ -1614,6 +1637,7 @@ function drawAnnotationMembrane(bounds: Bounds, fill: string, stroke: string, se
 }
 
 function drawAnnotationMarker(annotation: MapAnnotationPlace, markerNumber: number, selected: boolean) {
+  if (!hasGeometryBounds(annotation)) return;
   const center = worldToScreen(boundsCenter(annotation.geometry.bounds));
   const radius = selected ? 13 : 11;
   ctx.save();

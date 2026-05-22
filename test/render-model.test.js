@@ -12,11 +12,14 @@ import {
   activityActorKey,
   activityFeedEvents,
   annotationClipboardText,
+  buildActivityFogState,
   cachedSourceRange,
   canRenderSourceText,
   detailBand,
   draftSelectionFromDrag,
   fileVisualState,
+  fogStateForFile,
+  fogStateForFolder,
   folderDepth,
   folderDisplayName,
   folderStyle,
@@ -51,8 +54,11 @@ import {
   screenToWorldPoint,
   shouldDrawFolder,
   shouldDrawOrganicRegion,
+  shouldLabelFoggedFile,
   shouldLabelFile,
   simplifyTrailPoints,
+  shouldShowFogLabel,
+  shouldShowFogSourceText,
   rememberSourceRange,
   reconciledSelectedTarget,
   sourceContextRequest,
@@ -128,6 +134,74 @@ test("gates source text rendering by readable pixel geometry", () => {
     scale: 20,
     selected: true,
   }), false);
+});
+
+test("derives Age of Empires style fog state from activity without touching map geography", () => {
+  const now = Date.parse("2026-05-20T12:00:00.000Z");
+  const codemap = {
+    folders: {
+      "": { path: "" },
+      src: { path: "src" },
+      docs: { path: "docs" },
+    },
+    files: {
+      "src/app.ts": codeFile({ path: "src/app.ts", name: "app.ts" }),
+      "docs/guide.md": codeFile({ path: "docs/guide.md", name: "guide.md" }),
+      "src/other.ts": codeFile({ path: "src/other.ts", name: "other.ts" }),
+    },
+  };
+
+  const fog = buildActivityFogState(codemap, [
+    activity("codex", "reading", "2026-05-20T11:55:00.000Z", {
+      address: {
+        path: "src/app.ts",
+        bounds: { x: 0, y: 0, width: 0.1, height: 0.1 },
+        deepLink: "codecharter://file/s000000?path=src%2Fapp.ts",
+      },
+    }),
+    activity("codex", "editing", "2026-05-20T03:00:00.000Z", {
+      address: {
+        bounds: { x: 0, y: 0, width: 0.1, height: 0.1 },
+        deepLink: "codecharter://file/s000000?path=docs%2Fguide.md",
+      },
+    }),
+  ], { now });
+
+  assert.equal(fogStateForFile(fog, "src/app.ts"), "visible");
+  assert.equal(fogStateForFile(fog, "docs/guide.md"), "explored");
+  assert.equal(fogStateForFile(fog, "src/other.ts"), "unexplored");
+  assert.equal(fogStateForFile(fog, "src/other.ts", { selected: true }), "visible");
+  assert.equal(fogStateForFolder(fog, "src"), "visible");
+  assert.equal(fogStateForFolder(fog, "docs"), "explored");
+  assert.equal(fogStateForFolder(fog, ""), "visible");
+});
+
+test("applies fog rules to labels and source text disclosure", () => {
+  const file = codeFile({ path: "src/app.ts", name: "app.ts", lineCount: 20 });
+  const readableBox = { width: 320, height: 320 };
+
+  assert.equal(shouldShowFogLabel("unexplored"), false);
+  assert.equal(shouldShowFogSourceText("unexplored"), false);
+  assert.equal(shouldLabelFoggedFile({
+    file,
+    box: readableBox,
+    scale: 12,
+    selected: false,
+    fogState: "unexplored",
+  }), false);
+
+  assert.equal(shouldShowFogLabel("explored"), true);
+  assert.equal(shouldShowFogSourceText("explored"), false);
+  assert.equal(shouldLabelFoggedFile({
+    file,
+    box: readableBox,
+    scale: 12,
+    selected: false,
+    fogState: "explored",
+  }), true);
+
+  assert.equal(shouldShowFogSourceText("visible"), true);
+  assert.equal(shouldShowFogSourceText("unexplored", { selected: true }), true);
 });
 
 test("max zoom can make dense reference files readable on the canvas", () => {

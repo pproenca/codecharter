@@ -147,6 +147,112 @@ test("double click drills the camera into a file", async (t) => {
   assert.ok(await viewportScale(page) > initialScale);
 });
 
+test("activity discovery hides unexplored files and reveals visited files", async (t) => {
+  const { page, boot, baseUrl } = await startMapUiHarness(t);
+  await boot();
+
+  const appCenter = { x: 0.48, y: 0.47 };
+  const revealFeather = { x: 0.86, y: 0.47 };
+  const farFog = { x: 0.94, y: 0.47 };
+  const normalPixel = await canvasPixelAtWorld(page, appCenter);
+
+  await page.getByLabel("Activity & Discovery").click();
+  await page.waitForTimeout(100);
+  const unexploredPixel = await canvasPixelAtWorld(page, appCenter);
+
+  assert.equal(await page.locator("#showActivity").isChecked(), true);
+  assert.ok(pixelBrightness(unexploredPixel) < pixelBrightness(normalPixel) * 0.45);
+
+  const response = await fetch(`${baseUrl}/api/activity`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      agentId: "codex",
+      activityState: "reading",
+      path: "src/app.ts",
+      lineStart: 1,
+      lineEnd: 2,
+    }),
+  });
+  assert.equal(response.status, 202);
+
+  await page.waitForFunction((point) => {
+    const canvas = document.querySelector("#mapCanvas");
+    const context = canvas.getContext("2d");
+    const pixel = context.getImageData(
+      Math.floor(canvas.width * point.x),
+      Math.floor(canvas.height * point.y),
+      1,
+      1,
+    ).data;
+    return pixel[0] + pixel[1] + pixel[2] > 160;
+  }, appCenter);
+
+  const visitedPixel = await canvasPixelAtWorld(page, appCenter);
+  const featherPixel = await canvasPixelAtWorld(page, revealFeather);
+  const farFogPixel = await canvasPixelAtWorld(page, farFog);
+  assert.ok(pixelBrightness(visitedPixel) > pixelBrightness(unexploredPixel) * 2);
+  assert.ok(pixelBrightness(visitedPixel) < pixelBrightness(normalPixel) * 0.8);
+  assert.ok(pixelBrightness(featherPixel) > pixelBrightness(farFogPixel) * 1.4);
+  assert.ok(pixelBrightness(featherPixel) < pixelBrightness(visitedPixel) * 0.85);
+});
+
+test("activity discovery toggle keeps pointer activation visually settled", async (t) => {
+  const { page, boot } = await startMapUiHarness(t);
+  await boot();
+
+  await page.getByLabel("Activity & Discovery").click();
+
+  const toggleState = await page.locator(".toggle-tool").evaluate((element) => {
+    const icon = element.querySelector("svg");
+    const style = getComputedStyle(element);
+    const iconStyle = getComputedStyle(icon);
+    return {
+      checked: element.querySelector("input").checked,
+      iconTransform: iconStyle.transform,
+      outlineStyle: style.outlineStyle,
+      outlineWidth: style.outlineWidth,
+    };
+  });
+
+  assert.equal(toggleState.checked, true);
+  assert.equal(toggleState.iconTransform, "none");
+  assert.ok(toggleState.outlineStyle === "none" || toggleState.outlineWidth === "0px");
+});
+
+test("clear activity requires a deliberate hold", async (t) => {
+  const { page, boot, baseUrl } = await startMapUiHarness(t);
+  await boot();
+
+  const response = await fetch(`${baseUrl}/api/activity`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      agentId: "codex",
+      activityState: "reading",
+      path: "src/app.ts",
+      lineStart: 1,
+      lineEnd: 2,
+    }),
+  });
+  assert.equal(response.status, 202);
+  await page.waitForFunction(() => fetch("/api/activity").then((res) => res.json()).then((body) => body.events.length === 1));
+
+  const clearButton = page.getByRole("button", { name: "Clear activity history" });
+  await clearButton.click();
+  assert.equal((await getJson(`${baseUrl}/api/activity`)).events.length, 1);
+
+  const box = await clearButton.boundingBox();
+  assert.ok(box, "Clear activity button is not visible");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(950);
+  await page.mouse.up();
+
+  await page.waitForFunction(() => fetch("/api/activity").then((res) => res.json()).then((body) => body.events.length === 0));
+  assert.equal((await getJson(`${baseUrl}/api/activity`)).events.length, 0);
+});
+
 async function drawReadySelection(page) {
   const resolveResponse = waitForSelectionResolve(page);
   await drawSelection(page);
@@ -167,6 +273,28 @@ async function doubleClickMapWorld(page, point) {
   if (!box) throw new Error("Map canvas is not visible");
 
   await page.mouse.dblclick(box.x + box.width * point.x, box.y + box.height * point.y);
+}
+
+async function canvasPixelAtWorld(page, point) {
+  return page.evaluate(({ x, y }) => {
+    const canvas = document.querySelector("#mapCanvas");
+    const context = canvas.getContext("2d");
+    return Array.from(context.getImageData(
+      Math.floor(canvas.width * x),
+      Math.floor(canvas.height * y),
+      1,
+      1,
+    ).data);
+  }, point);
+}
+
+function pixelBrightness(pixel) {
+  const alpha = pixel[3] / 255;
+  const backdrop = 219;
+  return pixel[0] * alpha
+    + pixel[1] * alpha
+    + pixel[2] * alpha
+    + backdrop * (1 - alpha) * 3;
 }
 
 async function viewportScale(page) {

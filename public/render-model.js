@@ -349,6 +349,70 @@ export function shouldLabelFile({ file, box, scale, selected }) {
   return scale > 2.2 && box.width > 78 && box.height > 24;
 }
 
+export function buildActivityFogState(codemap, events, options = {}) {
+  const files = codemap?.files ?? {};
+  const folders = codemap?.folders ?? {};
+  const fileStates = new Map();
+  const folderStates = new Map();
+  const visitedFiles = new Set();
+  const visibleFiles = new Set();
+
+  for (const event of events ?? []) {
+    const path = activityEventFilePath(event, files);
+    if (!path) continue;
+    visitedFiles.add(path);
+    if (isLiveActivityEvent(event, options)) visibleFiles.add(path);
+  }
+
+  for (const path of visitedFiles) {
+    fileStates.set(path, "explored");
+    markAncestorFolderFog(folderStates, folders, path, "explored");
+  }
+
+  for (const path of visibleFiles) {
+    fileStates.set(path, "visible");
+    markAncestorFolderFog(folderStates, folders, path, "visible");
+  }
+
+  return {
+    files: fileStates,
+    folders: folderStates,
+    visitedFiles,
+    visibleFiles,
+  };
+}
+
+export function fogStateForFile(fog, fileOrPath, { selected = false } = {}) {
+  if (!fog) return "visible";
+  if (selected) return "visible";
+  const path = normalizeMapPath(typeof fileOrPath === "string" ? fileOrPath : fileOrPath?.path);
+  return fog.files.get(path) ?? "unexplored";
+}
+
+export function fogStateForFolder(fog, folderOrPath, { selected = false } = {}) {
+  if (!fog) return "visible";
+  if (selected) return "visible";
+  const path = normalizeMapPath(typeof folderOrPath === "string" ? folderOrPath : folderOrPath?.path);
+  return fog.folders.get(path) ?? "unexplored";
+}
+
+export function shouldShowFogLabel(fogState, { selected = false } = {}) {
+  return selected || fogState !== "unexplored";
+}
+
+export function shouldShowFogSourceText(fogState, { selected = false } = {}) {
+  return selected || fogState === "visible";
+}
+
+export function shouldLabelFoggedFile({ file, box, scale, selected, fogState }) {
+  if (!shouldShowFogLabel(fogState, { selected })) return false;
+  if (fogState === "explored" && canRenderSourceText(file, box)) {
+    if (landmarkScore(file) > 0 && box.width > 76 && box.height > 26) return true;
+    return scale > 2.2 && box.width > 78 && box.height > 24;
+  }
+  return shouldLabelFile({ file, box, scale, selected });
+}
+
 export function fileLabelPriority({ file, selected }) {
   return (selected ? 120 : 40) + landmarkScore(file);
 }
@@ -674,6 +738,47 @@ export function cachedSourceRange(cache, path, lineStart, lineEnd) {
 export function normalizeMapPath(path) {
   const normalized = String(path ?? "").replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+$/, "");
   return normalized === "." ? "" : normalized;
+}
+
+function activityEventFilePath(event, files) {
+  for (const candidate of [
+    event?.address?.path,
+    event?.path,
+    pathFromDeepLink(event?.address?.deepLink),
+  ]) {
+    const path = normalizeMapPath(candidate);
+    if (path && files[path]) return path;
+  }
+  return null;
+}
+
+function pathFromDeepLink(deepLink) {
+  if (!deepLink) return "";
+  try {
+    return new URL(deepLink).searchParams.get("path") ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function markAncestorFolderFog(folderStates, folders, filePath, fogState) {
+  if (Object.hasOwn(folders, "")) mergeFolderFogState(folderStates, "", fogState);
+  for (let index = filePath.indexOf("/"); index !== -1; index = filePath.indexOf("/", index + 1)) {
+    const folderPath = filePath.slice(0, index);
+    if (Object.hasOwn(folders, folderPath)) mergeFolderFogState(folderStates, folderPath, fogState);
+  }
+}
+
+function mergeFolderFogState(folderStates, folderPath, fogState) {
+  if (fogStateRank(fogState) > fogStateRank(folderStates.get(folderPath))) {
+    folderStates.set(folderPath, fogState);
+  }
+}
+
+function fogStateRank(fogState) {
+  if (fogState === "visible") return 2;
+  if (fogState === "explored") return 1;
+  return 0;
 }
 
 export function mapRouteTarget(codemap, route) {

@@ -13,7 +13,9 @@
   --route: rgba(40, 93, 143, 0.38);
   --name: #b7791f;
   --activity: #d9284a;
-  --shadow: 0 12px 30px rgba(20, 40, 55, 0.16);
+  --shadow: 0 10px 26px rgba(20, 40, 55, 0.14);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 * {
@@ -54,15 +56,24 @@ button {
   cursor: pointer;
   padding: 0 10px;
   touch-action: manipulation;
+  transition:
+    background-color 140ms var(--ease-out),
+    border-color 140ms var(--ease-out),
+    color 140ms var(--ease-out),
+    opacity 140ms var(--ease-out),
+    transform 140ms var(--ease-out);
 }
 
-button:hover:not(:disabled) {
-  background: #f4f8f5;
-  border-color: rgba(47, 70, 88, 0.32);
+@media (hover: hover) and (pointer: fine) {
+  button:hover:not(:disabled) {
+    background: #f4f8f5;
+    border-color: rgba(47, 70, 88, 0.32);
+  }
 }
 
 button:active:not(:disabled) {
   background: #e9f2ed;
+  transform: scale(0.98);
 }
 
 button:disabled {
@@ -146,6 +157,7 @@ select:focus-visible {
 
 .map-tool-palette {
   border: 1px solid var(--line);
+  border-radius: 8px;
   display: inline-flex;
   gap: 6px;
   left: 50%;
@@ -171,19 +183,56 @@ select:focus-visible {
   display: grid;
   justify-items: center;
   min-height: 0;
+  overflow: hidden;
   padding: 0;
   position: relative;
+  transform-origin: center;
   width: 40px;
+}
+
+label.icon-tool {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition:
+    background-color 140ms var(--ease-out),
+    border-color 140ms var(--ease-out),
+    color 140ms var(--ease-out),
+    transform 140ms var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  label.icon-tool:hover {
+    background: #f4f8f5;
+    border-color: rgba(47, 70, 88, 0.32);
+  }
 }
 
 .icon-tool svg {
   display: block;
   height: 21px;
   pointer-events: none;
+  position: relative;
+  z-index: 1;
   width: 21px;
 }
 
+.toggle-tool:has(input:checked) {
+  background: #e9f2ed;
+  border-color: rgba(18, 128, 98, 0.42);
+  color: #035743;
+}
+
+.toggle-tool:active {
+  transform: scale(0.98);
+}
+
 .icon-tool:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.78);
+  outline-offset: 2px;
+}
+
+.toggle-tool:has(input:focus-visible) {
   outline: 2px solid rgba(37, 99, 235, 0.78);
   outline-offset: 2px;
 }
@@ -194,13 +243,41 @@ select:focus-visible {
   color: #fff;
 }
 
+.hold-action::before {
+  background: rgba(185, 28, 28, 0.18);
+  clip-path: inset(0 100% 0 0);
+  content: "";
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+  transition:
+    clip-path 180ms var(--ease-out),
+    opacity 180ms var(--ease-out);
+  z-index: 0;
+}
+
+.hold-action.is-holding::before {
+  clip-path: inset(0 0 0 0);
+  opacity: 1;
+  transition:
+    clip-path 900ms linear,
+    opacity 120ms var(--ease-out);
+}
+
 .selection-popover {
   border: 1px solid var(--line);
+  border-radius: 8px;
   bottom: 62px;
   display: grid;
   gap: 8px;
   left: 16px;
   padding: 10px;
+  opacity: 1;
+  transition:
+    opacity 180ms var(--ease-out),
+    transform 180ms var(--ease-out);
+  transform-origin: left bottom;
+  transform: translateY(0) scale(1);
   width: min(420px, calc(100vw - 32px));
 }
 
@@ -210,11 +287,26 @@ select:focus-visible {
 
 .annotation-actions {
   border: 1px solid var(--line);
+  border-radius: 8px;
   bottom: 62px;
   display: flex;
   gap: 8px;
   left: 16px;
+  opacity: 1;
   padding: 8px;
+  transition:
+    opacity 180ms var(--ease-out),
+    transform 180ms var(--ease-out);
+  transform-origin: left bottom;
+  transform: translateY(0) scale(1);
+}
+
+@starting-style {
+  .selection-popover:not([hidden]),
+  .annotation-actions:not([hidden]) {
+    opacity: 0;
+    transform: translateY(4px) scale(0.97);
+  }
 }
 
 .annotation-actions[hidden] {
@@ -253,14 +345,32 @@ select:focus-visible {
   color: #991b1b;
 }
 
-.danger-action:hover:not(:disabled) {
-  background: #fee2e2;
-  border-color: rgba(185, 28, 28, 0.42);
+@media (hover: hover) and (pointer: fine) {
+  .danger-action:hover:not(:disabled) {
+    background: #fee2e2;
+    border-color: rgba(185, 28, 28, 0.42);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  label.icon-tool,
+  .selection-popover,
+  .annotation-actions,
+  .hold-action::before {
+    transition-duration: 1ms;
+  }
+
+  button:active:not(:disabled),
+  .toggle-tool:active {
+    transform: none;
+  }
 }
 
 .map-status {
   align-items: center;
   border: 1px solid var(--line);
+  border-radius: 8px;
   bottom: 14px;
   color: var(--muted);
   display: flex;

@@ -77,7 +77,6 @@ const MAP_SEARCH_MATCHERS = [
     fileSearchMatch,
     folderSearchMatch,
 ];
-const SEARCH_TARGET_ENTRIES = new WeakMap();
 const NAMED_PLACE_SEARCH_ENTRIES = new WeakMap();
 function actionFor(actions, key) {
     if (!key)
@@ -120,17 +119,6 @@ function folderSearchMatch({ codemap, query }) {
     return folder ? { type: "folder", label: `Folder: ${folder.path || "."}`, folder } : null;
 }
 function firstSearchTarget(targets, query) {
-    for (const entry of searchTargetEntries(targets)) {
-        if (entry.normalizedPath.includes(query) || entry.geohash.startsWith(query))
-            return entry.target;
-    }
-    return null;
-}
-function searchTargetEntries(targets) {
-    const cached = SEARCH_TARGET_ENTRIES.get(targets);
-    if (cached && searchTargetEntriesMatch(targets, cached))
-        return cached;
-    const entries = [];
     for (const key in targets) {
         if (!Object.hasOwn(targets, key))
             continue;
@@ -139,28 +127,10 @@ function searchTargetEntries(targets) {
             continue;
         const path = String(target.path ?? "");
         const geohash = String(target.geo?.geohash ?? "");
-        entries.push({ key, target, path, geohash, normalizedPath: path.toLowerCase() });
+        if (path.toLowerCase().includes(query) || geohash.startsWith(query))
+            return target;
     }
-    SEARCH_TARGET_ENTRIES.set(targets, entries);
-    return entries;
-}
-function searchTargetEntriesMatch(targets, entries) {
-    let index = 0;
-    for (const key in targets) {
-        if (!Object.hasOwn(targets, key))
-            continue;
-        const entry = entries[index];
-        const target = targets[key];
-        if (!entry
-            || entry.key !== key
-            || entry.target !== target
-            || entry.path !== String(target.path ?? "")
-            || entry.geohash !== String(target.geo?.geohash ?? "")) {
-            return false;
-        }
-        index += 1;
-    }
-    return index === entries.length;
+    return null;
 }
 function namedPlaceSearchEntries(namedPlaces) {
     const cached = NAMED_PLACE_SEARCH_ENTRIES.get(namedPlaces);
@@ -558,16 +528,19 @@ export function canvasKeyboardAction(event) {
         ArrowDown: { x: 0, y: KEYBOARD_PAN_PIXELS },
         ArrowUp: { x: 0, y: -KEYBOARD_PAN_PIXELS },
     };
-    const delta = keyDeltas[event.key];
+    const key = event.key;
+    if (!key)
+        return null;
+    const delta = keyDeltas[key];
     if (delta)
         return { type: "pan", delta };
-    if (event.key === "+" || event.key === "=")
+    if (key === "+" || key === "=")
         return { type: "zoomIn" };
-    if (event.key === "-" || event.key === "_")
+    if (key === "-" || key === "_")
         return { type: "zoomOut" };
-    if (event.key === "0")
+    if (key === "0")
         return { type: "fitCodebase" };
-    if (event.key === "Enter")
+    if (key === "Enter")
         return { type: "selectCenter" };
     return null;
 }
@@ -1542,7 +1515,7 @@ function paletteForPath(path) {
         ?? { fill: [126, 176, 156], stroke: [41, 98, 73], label: "#24513d" };
 }
 function isPositionedBox(box) {
-    return typeof box.y === "number";
+    return "y" in box && typeof box.y === "number";
 }
 function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);

@@ -803,7 +803,7 @@ async function doctor({ root, mapPath, server }: DoctorOptions): Promise<DoctorR
 async function cliStatus(root: string, currentVersion: string) {
   const localBinName = process.platform === "win32" ? "codecharter.cmd" : "codecharter";
   const packagePath = join(root, "package.json");
-  const packageJson = await readOptionalJson<PackageJson>(packagePath);
+  const packageJson = packageJsonFromValue(await readOptionalJson(packagePath)) ?? undefined;
   const expectedSpec = `^${currentVersion}`;
   return {
     command: "codecharter",
@@ -946,8 +946,14 @@ function stripArgumentSeparator(args: string[]): void {
 function optionalProperty<K extends string, T>(
   key: K,
   value: T,
-): { [P in K]?: Exclude<T, undefined> } {
-  return value === undefined ? {} : { [key]: value } as { [P in K]?: Exclude<T, undefined> };
+): Partial<Record<K, Exclude<T, undefined>>> {
+  const result: Partial<Record<K, Exclude<T, undefined>>> = {};
+  if (isDefined(value)) result[key] = value;
+  return result;
+}
+
+function isDefined<T>(value: T): value is Exclude<T, undefined> {
+  return value !== undefined;
 }
 
 function cliAddressRequest(
@@ -981,9 +987,9 @@ function addressRequest(
   };
 }
 
-async function readOptionalJson<T = unknown>(path: string): Promise<T | undefined> {
+async function readOptionalJson(path: string): Promise<unknown | undefined> {
   try {
-    return JSON.parse(await readFile(path, "utf8")) as T;
+    return JSON.parse(await readFile(path, "utf8"));
   } catch (error) {
     if (isErrnoException(error) && error.code === "ENOENT") return undefined;
     throw error;
@@ -1058,8 +1064,8 @@ async function listAnnotationsFromServer(origin: string): Promise<MapAnnotation[
 
 async function listAnnotationsFromStorage({ root, mapPath }: { root: string; mapPath: string }): Promise<MapAnnotation[]> {
   const storePath = join(root, ".codecharter", "named-places.json");
-  const store = await readOptionalJson<NamedPlacesFile>(storePath) ?? { places: [] };
-  const codemap = await readOptionalJson<CodecharterCodemap>(mapPath);
+  const store = namedPlacesFileFromValue(await readOptionalJson(storePath));
+  const codemap = codemapFromValue(await readOptionalJson(mapPath));
   return store.places
     .filter((place: { kind?: string }) => place.kind === "mapAnnotation")
     .map((annotation: MapAnnotation) => codemap ? refreshPlaceResolution(codemap, annotation) : annotation);
@@ -1083,11 +1089,11 @@ async function readAnnotation({ root, mapPath, reference, server }: AnnotationRe
 
 async function readAnnotationFromStorage({ root, mapPath, id }: AnnotationStorageOptions): Promise<MapAnnotation> {
   const storePath = join(root, ".codecharter", "named-places.json");
-  const store = await readOptionalJson<NamedPlacesFile>(storePath) ?? { places: [] };
+  const store = namedPlacesFileFromValue(await readOptionalJson(storePath));
   const annotation = store.places.find((place: { kind?: string; id?: string }) => place.kind === "mapAnnotation" && place.id === id);
   if (!annotation) throw new Error(`No annotation found for id: ${id}`);
 
-  const codemap = await readOptionalJson<CodecharterCodemap>(mapPath);
+  const codemap = codemapFromValue(await readOptionalJson(mapPath));
   return codemap ? refreshPlaceResolution(codemap, annotation) : annotation;
 }
 
@@ -1329,19 +1335,86 @@ function optionalNumber(value: string | undefined): number | undefined {
   return value === undefined ? undefined : Number(value);
 }
 
+function packageJsonFromValue(value: unknown): PackageJson | null {
+  const record = objectRecord(value);
+  if (!record) return null;
+  const packageJson: PackageJson = { ...record };
+  if (typeof record.name !== "string") delete packageJson.name;
+  for (const section of ["devDependencies", "dependencies", "optionalDependencies", "peerDependencies"] satisfies PackageDependencySection[]) {
+    const dependencies = stringRecordFromValue(record[section]);
+    if (dependencies) {
+      packageJson[section] = dependencies;
+    } else {
+      delete packageJson[section];
+    }
+  }
+  return packageJson;
+}
+
+function namedPlacesFileFromValue(value: unknown): NamedPlacesFile {
+  const record = objectRecord(value);
+  const places = Array.isArray(record?.places) ? record.places.filter(isMapAnnotation) : [];
+  return { places };
+}
+
+function codemapFromValue(value: unknown): CodecharterCodemap | undefined {
+  return isCodecharterCodemap(value) ? value : undefined;
+}
+
 function isCodecharterCodemap(value: unknown): value is CodecharterCodemap {
-  return Boolean(value)
-    && typeof value === "object"
-    && !Array.isArray(value)
-    && typeof (value as { files?: unknown }).files === "object"
-    && typeof (value as { folders?: unknown }).folders === "object";
+  const record = objectRecord(value);
+  return Boolean(record)
+    && typeof record?.files === "object"
+    && record.files !== null
+    && typeof record.folders === "object"
+    && record.folders !== null;
+}
+
+function isMapAnnotation(value: unknown): value is MapAnnotation {
+  const record = objectRecord(value);
+  return record?.kind === "mapAnnotation"
+    && typeof record.id === "string"
+    && typeof record.name === "string"
+    && typeof record.comment === "string"
+    && isMapLevel(record.level)
+    && objectRecord(record.geometry) !== null
+    && typeof record.createdAt === "string"
+    && typeof record.updatedAt === "string"
+    && typeof record.deepLink === "string"
+    && typeof record.browserHash === "string"
+    && typeof record.codexPrompt === "string";
+}
+
+function isMapLevel(value: unknown): value is MapAnnotation["level"] {
+  return value === "world"
+    || value === "region"
+    || value === "folder"
+    || value === "file"
+    || value === "code"
+    || value === "lineRange"
+    || value === "tokenRange";
+}
+
+function stringRecordFromValue(value: unknown): Record<string, string> | null {
+  const record = objectRecord(value);
+  if (!record) return null;
+  const strings: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(record)) {
+    if (typeof entry === "string") strings[key] = entry;
+  }
+  return strings;
+}
+
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
 }
 
 async function readPreviousCodemap(root: string, out: string): Promise<CodecharterCodemap | undefined> {
-  const current = await readOptionalJson<CodecharterCodemap>(out);
+  const current = codemapFromValue(await readOptionalJson(out));
   if (current) return current;
   if (relative(root, out) === DEFAULT_MAP_FILE) {
-    return await readOptionalJson<CodecharterCodemap>(join(root, ROOT_MAP_FILE)) ?? await readOptionalJson<CodecharterCodemap>(join(root, LEGACY_MAP_FILE));
+    return codemapFromValue(await readOptionalJson(join(root, ROOT_MAP_FILE)))
+      ?? codemapFromValue(await readOptionalJson(join(root, LEGACY_MAP_FILE)));
   }
   return undefined;
 }

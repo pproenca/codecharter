@@ -1,14 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
 import { ActivityEventBuilder, ActivityStateNormalizer, createActivityEvent } from "../src/activity.js";
+import { execFileText } from "../src/exec-file.ts";
 import type { CodecharterCodemap } from "../src/resolver.js";
-
-const execFileAsync = promisify(execFile);
 
 test("creates timestamped agent activity events at map addresses", () => {
   const event = createActivityEvent(
@@ -67,7 +64,7 @@ test("CLI appends Codex activity events to the JSONL activity archive", async ()
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
-  await execFileAsync("node", [
+  await execFileText("node", [
     join(process.cwd(), "bin/codemap.mts"),
     "activity",
     "src/app.ts",
@@ -94,7 +91,7 @@ test("CLI activity can report a deterministic token-range map address", async ()
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
-  await execFileAsync("node", [
+  await execFileText("node", [
     join(process.cwd(), "bin/codemap.mts"),
     "activity",
     "src/app.ts",
@@ -121,7 +118,7 @@ test("CLI resolve prints token-range map addresses", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-resolve-token-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
-  const { stdout } = await execFileAsync("node", [
+  const { stdout } = await execFileText("node", [
     join(process.cwd(), "bin/codemap.mts"),
     "--json",
     "resolve",
@@ -148,7 +145,7 @@ test("CLI resolve honors POSIX end-of-options before dash-prefixed paths", async
   };
   await writeFile(join(root, "codecharter.json"), JSON.stringify(codemap));
 
-  const { stdout } = await execFileAsync("node", [
+  const { stdout } = await execFileText("node", [
     join(process.cwd(), "bin/codemap.mts"),
     "--json",
     "resolve",
@@ -165,7 +162,7 @@ test("CLI resolve and activity default omitted range ends for token addresses", 
   const root = await mkdtemp(join(tmpdir(), "codecharter-cli-token-default-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
-  const { stdout: resolveStdout } = await execFileAsync("node", [
+  const { stdout: resolveStdout } = await execFileText("node", [
     join(process.cwd(), "bin/codemap.mts"),
     "--json",
     "resolve",
@@ -178,7 +175,7 @@ test("CLI resolve and activity default omitted range ends for token addresses", 
   ], { cwd: root });
   const resolvedAddress = JSON.parse(resolveStdout);
 
-  const { stdout: activityStdout } = await execFileAsync("node", [
+  const { stdout: activityStdout } = await execFileText("node", [
     join(process.cwd(), "bin/codemap.mts"),
     "--json",
     "activity",
@@ -203,7 +200,7 @@ test("CLI resolve reports the resolved address kind for deep links with range me
   const root = await mkdtemp(join(tmpdir(), "codecharter-resolve-link-kind-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
-  const { stdout } = await execFileAsync("node", [
+  const { stdout } = await execFileText("node", [
     join(process.cwd(), "bin/codemap.mts"),
     "--json",
     "resolve",
@@ -220,7 +217,7 @@ test("CLI activity telemetry never exits non-zero for an unmapped path", async (
   const root = await mkdtemp(join(tmpdir(), "codecharter-activity-missing-"));
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
-  const { stdout } = await execFileAsync("node", [
+  const { stdout } = await execFileText("node", [
     join(process.cwd(), "bin/codemap.mts"),
     "--json",
     "activity",
@@ -239,7 +236,7 @@ test("CLI activity clear truncates the local activity archive", async () => {
   await mkdir(join(root, ".codecharter"), { recursive: true });
   await writeFile(join(root, ".codecharter", "activity.jsonl"), `${JSON.stringify({ id: "event-1" })}\n`);
 
-  const { stdout } = await execFileAsync("node", [
+  const { stdout } = await execFileText("node", [
     join(process.cwd(), "bin/codemap.mts"),
     "--json",
     "clear",
@@ -256,7 +253,7 @@ test("CLI nested activity clear truncates the local activity archive", async () 
   await mkdir(join(root, ".codecharter"), { recursive: true });
   await writeFile(join(root, ".codecharter", "activity.jsonl"), `${JSON.stringify({ id: "event-1" })}\n`);
 
-  const { stdout } = await execFileAsync("node", [
+  const { stdout } = await execFileText("node", [
     join(process.cwd(), "bin/codemap.mts"),
     "--json",
     "activity",

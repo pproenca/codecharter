@@ -1,14 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { execFile, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { access, chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
+import { execFileText } from "../src/exec-file.ts";
 
-const execFileAsync = promisify(execFile);
 const TEST_COMMIT_CONFIG = [
   "-c", "user.name=CodeCharter",
   "-c", "user.email=codecharter@example.invalid",
@@ -21,9 +20,9 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
   await writeFile(join(root, "package.json"), JSON.stringify({ name: "sample-app", version: "1.0.0" }));
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
-  await execFileAsync("node", [
+  await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "init",
     "--root",
@@ -70,10 +69,10 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
   assert.match(gitignore, /^codecharter\.json$/m);
   assert.match(gitignore, /^codemap\.json$/m);
 
-  const { stdout: artifactStatus } = await execFileAsync("git", ["status", "--short", "--", ".codecharter/codecharter.json"], { cwd: root });
+  const { stdout: artifactStatus } = await execFileText("git", ["status", "--short", "--", ".codecharter/codecharter.json"], { cwd: root });
   assert.equal(artifactStatus, "");
 
-  const { stdout: doctorStdout } = await execFileAsync("node", [
+  const { stdout: doctorStdout } = await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "--json",
     "doctor",
@@ -116,9 +115,9 @@ test("codecharter init repairs old package dependency installs and missing skill
       ],
     },
   }));
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
-  const { stdout: beforeDoctorStdout } = await execFileAsync("node", [
+  const { stdout: beforeDoctorStdout } = await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "--json",
     "doctor",
@@ -131,7 +130,7 @@ test("codecharter init repairs old package dependency installs and missing skill
   assert.match(beforeDoctor.setup.missing.join(","), /codexSkill/);
   assert.match(beforeDoctor.setup.missing.join(","), /packageDependency/);
 
-  await execFileAsync("node", [
+  await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "init",
     "--root",
@@ -147,7 +146,7 @@ test("codecharter init repairs old package dependency installs and missing skill
   assert.match(skill, /If `command -v codecharter` fails/);
   assert.match(skill, /npx --yes codecharter@\d+\.\d+\.\d+/);
 
-  const { stdout: doctorStdout } = await execFileAsync("node", [
+  const { stdout: doctorStdout } = await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "--json",
     "doctor",
@@ -198,10 +197,10 @@ test("codecharter init merges Codex hooks without clobbering existing repo hooks
       ],
     },
   }));
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    await execFileAsync("node", [
+    await execFileText("node", [
       join(process.cwd(), "bin", "codemap.mts"),
       "init",
       "--root",
@@ -225,11 +224,11 @@ test("codecharter init preserves existing unmanaged local git hook content", asy
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
   await writeFile(join(root, "package.json"), JSON.stringify({ name: "sample-app", version: "1.0.0" }));
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
   await writeFile(join(root, ".git", "hooks", "post-merge"), "#!/bin/sh\necho existing-hook\n");
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    await execFileAsync("node", [
+    await execFileText("node", [
       join(process.cwd(), "bin", "codemap.mts"),
       "init",
       "--root",
@@ -243,7 +242,7 @@ test("codecharter init preserves existing unmanaged local git hook content", asy
   assert.equal(postMergeHook.match(/^#!\/bin\/sh/gm)?.length, 1);
   assert.match(postMergeHook, /echo existing-hook/);
   assert.equal(postMergeHook.match(/# >>> codecharter >>>/g)?.length, 1);
-  await execFileAsync("sh", ["-n", join(root, ".git", "hooks", "post-merge")], { cwd: root });
+  await execFileText("sh", ["-n", join(root, ".git", "hooks", "post-merge")], { cwd: root });
 });
 
 test("codecharter init quotes generated git hook map paths as literal data", async () => {
@@ -251,10 +250,10 @@ test("codecharter init quotes generated git hook map paths as literal data", asy
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
   await writeFile(join(root, "package.json"), JSON.stringify({ name: "sample-app", version: "1.0.0" }));
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
   const maliciousOut = ".codecharter/map'\"; touch pwned-by-hook; #.json";
-  await execFileAsync("node", [
+  await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "init",
     "--root",
@@ -269,8 +268,8 @@ test("codecharter init quotes generated git hook map paths as literal data", asy
   await writeFile(localBin, "#!/bin/sh\nexit 0\n");
   await chmod(localBin, 0o755);
 
-  await execFileAsync("sh", ["-n", join(root, ".git", "hooks", "post-merge")], { cwd: root });
-  await execFileAsync("sh", [join(root, ".git", "hooks", "post-merge")], { cwd: root });
+  await execFileText("sh", ["-n", join(root, ".git", "hooks", "post-merge")], { cwd: root });
+  await execFileText("sh", [join(root, ".git", "hooks", "post-merge")], { cwd: root });
 
   const hook = await readFile(join(root, ".git", "hooks", "post-merge"), "utf8");
   assert.match(hook, /map_path="\$repo_root"\/'/);
@@ -281,8 +280,8 @@ test("codecharter codex-hook appends mapped Codex activity without a daemon", as
   const root = await mkdtemp(join(tmpdir(), "codecharter-codex-hook-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
-  await execFileAsync("node", [
+  await execFileText("git", ["init"], { cwd: root });
+  await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "generate",
     "--root",
@@ -323,8 +322,8 @@ test("codecharter codex-hook records explicit Codex thread URIs", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-codex-thread-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
-  await execFileAsync("node", [
+  await execFileText("git", ["init"], { cwd: root });
+  await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "generate",
     "--root",
@@ -361,10 +360,10 @@ test("codecharter codex-hook scopes write activity to tool input paths", async (
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
   await writeFile(join(root, "src", "other.ts"), "export const other = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
-  await execFileAsync("git", ["add", "src/app.ts", "src/other.ts"], { cwd: root });
-  await execFileAsync("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
-  await execFileAsync("node", [
+  await execFileText("git", ["init"], { cwd: root });
+  await execFileText("git", ["add", "src/app.ts", "src/other.ts"], { cwd: root });
+  await execFileText("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
+  await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "generate",
     "--root",
@@ -404,10 +403,10 @@ test("codecharter codex-hook maps structured write-file tools without dirty-file
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
   await writeFile(join(root, "package.json"), JSON.stringify({ name: "sample-app", version: "1.0.0" }));
-  await execFileAsync("git", ["init"], { cwd: root });
-  await execFileAsync("git", ["add", "src/app.ts", "package.json"], { cwd: root });
-  await execFileAsync("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
-  await execFileAsync("node", [
+  await execFileText("git", ["init"], { cwd: root });
+  await execFileText("git", ["add", "src/app.ts", "package.json"], { cwd: root });
+  await execFileText("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
+  await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "generate",
     "--root",
@@ -446,10 +445,10 @@ test("codecharter codex-hook refreshes the map before resolving new file activit
   const root = await mkdtemp(join(tmpdir(), "codecharter-codex-hook-new-file-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
-  await execFileAsync("git", ["add", "src/app.ts"], { cwd: root });
-  await execFileAsync("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
-  await execFileAsync("node", [
+  await execFileText("git", ["init"], { cwd: root });
+  await execFileText("git", ["add", "src/app.ts"], { cwd: root });
+  await execFileText("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
+  await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "generate",
     "--root",
@@ -493,10 +492,10 @@ test("codecharter codex-hook maps Bash read commands as reading activity", async
     "export const other = false;",
     "",
   ].join("\n"));
-  await execFileAsync("git", ["init"], { cwd: root });
-  await execFileAsync("git", ["add", "src/app.ts"], { cwd: root });
-  await execFileAsync("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
-  await execFileAsync("node", [
+  await execFileText("git", ["init"], { cwd: root });
+  await execFileText("git", ["add", "src/app.ts"], { cwd: root });
+  await execFileText("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
+  await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "generate",
     "--root",
@@ -541,10 +540,10 @@ test("codecharter codex-hook maps sed reads under plural path segments", async (
     "Read me",
     "",
   ].join("\n"));
-  await execFileAsync("git", ["init"], { cwd: root });
-  await execFileAsync("git", ["add", "packages/feature/AGENTS.md"], { cwd: root });
-  await execFileAsync("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
-  await execFileAsync("node", [
+  await execFileText("git", ["init"], { cwd: root });
+  await execFileText("git", ["add", "packages/feature/AGENTS.md"], { cwd: root });
+  await execFileText("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
+  await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "generate",
     "--root",
@@ -586,10 +585,10 @@ test("codecharter codex-hook maps Codex app shell reads as reading activity", as
     "export const other = false;",
     "",
   ].join("\n"));
-  await execFileAsync("git", ["init"], { cwd: root });
-  await execFileAsync("git", ["add", "src/app.ts"], { cwd: root });
-  await execFileAsync("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
-  await execFileAsync("node", [
+  await execFileText("git", ["init"], { cwd: root });
+  await execFileText("git", ["add", "src/app.ts"], { cwd: root });
+  await execFileText("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
+  await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "generate",
     "--root",
@@ -631,10 +630,10 @@ test("codecharter codex-hook maps tail reads with normalized relative paths", as
     "export const third = true;",
     "",
   ].join("\n"));
-  await execFileAsync("git", ["init"], { cwd: root });
-  await execFileAsync("git", ["add", "src/app.ts"], { cwd: root });
-  await execFileAsync("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
-  await execFileAsync("node", [
+  await execFileText("git", ["init"], { cwd: root });
+  await execFileText("git", ["add", "src/app.ts"], { cwd: root });
+  await execFileText("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
+  await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "generate",
     "--root",
@@ -698,10 +697,10 @@ test("codecharter codex-hook does not use dirty-file fallback for Codex Desktop 
     "",
   ].join("\n"));
   await writeFile(join(root, "package.json"), JSON.stringify({ name: "sample-app", version: "1.0.0" }));
-  await execFileAsync("git", ["init"], { cwd: root });
-  await execFileAsync("git", ["add", "src/app.ts", "package.json"], { cwd: root });
-  await execFileAsync("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
-  await execFileAsync("node", [
+  await execFileText("git", ["init"], { cwd: root });
+  await execFileText("git", ["add", "src/app.ts", "package.json"], { cwd: root });
+  await execFileText("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
+  await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "generate",
     "--root",
@@ -742,10 +741,10 @@ test("codecharter codex-hook maps nested ripgrep directory reads as folder activ
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
   await writeFile(join(root, "package.json"), JSON.stringify({ name: "sample-app", version: "1.0.0" }));
-  await execFileAsync("git", ["init"], { cwd: root });
-  await execFileAsync("git", ["add", "src/app.ts", "package.json"], { cwd: root });
-  await execFileAsync("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
-  await execFileAsync("node", [
+  await execFileText("git", ["init"], { cwd: root });
+  await execFileText("git", ["add", "src/app.ts", "package.json"], { cwd: root });
+  await execFileText("git", [...TEST_COMMIT_CONFIG, "commit", "-m", "init"], { cwd: root });
+  await execFileText("node", [
     join(process.cwd(), "bin", "codemap.mts"),
     "generate",
     "--root",

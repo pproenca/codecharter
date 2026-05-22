@@ -1,17 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import { once } from "node:events";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
 import { UnifiedDiffChangeRangeParser, changedRangeFromUnifiedDiff, lineRangeFromUnifiedDiff } from "../src/activity-change-range.ts";
 import { ActivityWatcher, parseGitStatusPorcelain, startActivityWatcher } from "../src/activity-watcher.ts";
+import { execFileText } from "../src/exec-file.ts";
 import type { ActivityWatcherPayload } from "../src/activity-watcher.ts";
-
-const execFileAsync = promisify(execFile);
 
 test("parses git porcelain paths for watchable code files only", () => {
   const raw = [
@@ -135,8 +132,8 @@ test("watcher prepares changed map state before posting each new diff signature"
   const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.js"), "const app = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
-  await execFileAsync("git", ["add", "src/app.js"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
+  await execFileText("git", ["add", "src/app.js"], { cwd: root });
 
   const posted: ActivityWatcherPayload[] = [];
   let prepared = false;
@@ -181,7 +178,7 @@ test("watcher reports untracked code files as line ranges", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "new-file.js"), "const first = true;\nexport const second = first;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
   const posted: ActivityWatcherPayload[] = [];
   const watcher = startActivityWatcher({
@@ -212,7 +209,7 @@ test("watcher reports later edits to the same untracked file", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "new-file.js"), "const first = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
   const posted: ActivityWatcherPayload[] = [];
   const watcher = startActivityWatcher({
@@ -246,7 +243,7 @@ test("watcher reports whole-file ranges without relying on a trailing newline", 
   const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "new-file.js"), "const first = true;\n\nexport const third = first;");
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
   const posted: ActivityWatcherPayload[] = [];
   const watcher = startActivityWatcher({
@@ -277,7 +274,7 @@ test("watcher treats an empty untracked code file as a one-line range", async ()
   const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "empty.js"), "");
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
   const posted: ActivityWatcherPayload[] = [];
   const watcher = startActivityWatcher({
@@ -308,8 +305,8 @@ test("watcher polling does not wait for activity delivery", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.js"), "const app = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
-  await execFileAsync("git", ["add", "src/app.js"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
+  await execFileText("git", ["add", "src/app.js"], { cwd: root });
 
   let sendStarted = false;
   const watcher = startActivityWatcher({
@@ -339,7 +336,7 @@ test("watcher handles rejected activity delivery without unhandled rejections", 
   const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.js"), "const app = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
   const unhandled: unknown[] = [];
   const warnings: string[] = [];
@@ -380,7 +377,7 @@ test("watcher skips overlapping poll work", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.js"), "const app = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
   let prepareCount = 0;
   let releasePrepare: (() => void) | undefined;
@@ -426,8 +423,8 @@ test("watcher can post pre-resolved map addresses without path resolution at the
   const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.js"), "const app = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
-  await execFileAsync("git", ["add", "src/app.js"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
+  await execFileText("git", ["add", "src/app.js"], { cwd: root });
 
   const posted: ActivityWatcherPayload[] = [];
   const server = createServer(async (request, response) => {

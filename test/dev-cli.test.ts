@@ -1,15 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { execFile, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
+import { execFileText } from "../src/exec-file.ts";
 import { LOCAL_CODECHARTER_EXCLUDES } from "../src/local-git-exclude.ts";
-
-const execFileAsync = promisify(execFile);
 
 test("codemap activity exits non-zero when it rejects input", async () => {
   const cli = spawn(process.execPath, [
@@ -36,10 +34,10 @@ test("codecharter init validates TCP port boundaries", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-port-validation-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.js"), "export const app = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
   await assert.rejects(
-    execFileAsync(process.execPath, [
+    execFileText(process.execPath, [
       join(process.cwd(), "bin", "codemap.mts"),
       "init",
       "--root",
@@ -52,7 +50,7 @@ test("codecharter init validates TCP port boundaries", async () => {
   );
 
   await assert.rejects(
-    execFileAsync(process.execPath, [
+    execFileText(process.execPath, [
       join(process.cwd(), "bin", "codemap.mts"),
       "init",
       "--root",
@@ -64,7 +62,7 @@ test("codecharter init validates TCP port boundaries", async () => {
     /Port must be an integer from 1 to 65535/
   );
 
-  await execFileAsync(process.execPath, [
+  await execFileText(process.execPath, [
     join(process.cwd(), "bin", "codemap.mts"),
     "init",
     "--root",
@@ -80,7 +78,7 @@ test("codecharter dev is a one-command dogfood workflow", { timeout: 8000 }, asy
   const port = await freePort();
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.js"), "export const app = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
   const cli = spawn(process.execPath, [
     join(process.cwd(), "bin", "codemap.mts"),
@@ -130,7 +128,7 @@ test("codecharter init can initialize a fresh repo and start the viewer", { time
   const port = await freePort();
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.js"), "export const app = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
   const cli = spawn(process.execPath, [
     join(process.cwd(), "bin", "codemap.mts"),
@@ -180,7 +178,7 @@ test("codecharter init can initialize a fresh repo and start the viewer", { time
     assert.match(gitignore, /^codecharter\.json$/m);
     assert.match(gitignore, /^codemap\.json$/m);
 
-    const { stdout: artifactStatus } = await execFileAsync("git", ["status", "--short", "--", ".codecharter/codecharter.json"], { cwd: root });
+    const { stdout: artifactStatus } = await execFileText("git", ["status", "--short", "--", ".codecharter/codecharter.json"], { cwd: root });
     assert.equal(artifactStatus, "");
 
     const activity = await waitForActivity(port, "src/app.js");
@@ -196,7 +194,7 @@ test("codecharter dev --setup initializes a fresh repo and starts the viewer", {
   const port = await freePort();
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.js"), "export const app = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
   const cli = spawn(process.execPath, [
     join(process.cwd(), "bin", "codemap.mts"),
@@ -241,9 +239,9 @@ test("packed package supports the npx init and resolve path", { timeout: 20000 }
   const port = await freePort();
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.js"), "export const app = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
-  const { stdout } = await execFileAsync("npm", ["pack", "--silent", "--pack-destination", packDir], { cwd: process.cwd() });
+  const { stdout } = await execFileText("npm", ["pack", "--silent", "--pack-destination", packDir], { cwd: process.cwd() });
   const tarball = join(packDir, required(stdout.trim().split(/\r?\n/).at(-1)));
   const cli = spawn("npm", [
     "exec",
@@ -282,7 +280,7 @@ test("packed package supports the npx init and resolve path", { timeout: 20000 }
     const skillUi = await readFile(join(root, ".agents", "skills", "codecharter", "agents", "openai.yaml"), "utf8");
     assert.match(skillUi, /allow_implicit_invocation: true/);
 
-    const { stdout: resolveStdout } = await execFileAsync("npm", [
+    const { stdout: resolveStdout } = await execFileText("npm", [
       "exec",
       "--yes",
       "--package",

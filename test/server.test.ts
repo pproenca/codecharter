@@ -1,18 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
 import { appendFile, mkdtemp, writeFile, mkdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
-import { promisify } from "node:util";
+import { execFileText } from "../src/exec-file.ts";
 import { startServer } from "../src/server.ts";
 import type { MapAnnotation, ResolvedSelectionTarget } from "../src/selections.js";
 import type { SourceLine } from "../src/source.js";
-
-const execFileAsync = promisify(execFile);
 
 test("serves map, tiles, selections, named places, and activity APIs", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-server-"));
@@ -97,7 +94,7 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.equal(cliAnnotations.count, 1);
     assert.equal(cliAnnotations.annotations[0].id, annotationResponse.annotation.id);
 
-    const { stdout: plainAnnotation } = await execFileAsync(process.execPath, [
+    const { stdout: plainAnnotation } = await execFileText(process.execPath, [
       join(process.cwd(), "bin", "codemap.mts"),
       "annotation",
       `${baseUrl}/#/annotation/${annotationResponse.annotation.id}`,
@@ -116,7 +113,7 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.equal(cliApi.body.annotations.length, 1);
 
     try {
-      await execFileAsync(process.execPath, [
+      await execFileText(process.execPath, [
         join(process.cwd(), "bin", "codemap.mts"),
         "--json",
         "api",
@@ -499,7 +496,7 @@ test("CLI resolves annotation deep links from local storage without browser auto
       geometry: { type: "rect", bounds: { x: 0, y: 0, width: 1, height: 1 } },
     });
 
-    const { stdout } = await execFileAsync(process.execPath, [
+    const { stdout } = await execFileText(process.execPath, [
       join(process.cwd(), "bin", "codemap.mts"),
       "--json",
       "resolve",
@@ -522,7 +519,7 @@ test("CLI resolves annotation deep links from local storage without browser auto
     await once(server, "close");
   }
 
-  const { stdout } = await execFileAsync(process.execPath, [
+  const { stdout } = await execFileText(process.execPath, [
     join(process.cwd(), "bin", "codemap.mts"),
     "--json",
     "resolve",
@@ -608,7 +605,7 @@ async function putJson(url: string, body: unknown) {
 }
 
 async function runCliJson(args: readonly string[]) {
-  const { stdout } = await execFileAsync(process.execPath, [
+  const { stdout } = await execFileText(process.execPath, [
     join(process.cwd(), "bin", "codemap.mts"),
     "--json",
     ...args,

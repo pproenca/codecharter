@@ -1,19 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
 import { decodeGeohashBounds } from "../src/geohash.ts";
+import { execFileText } from "../src/exec-file.ts";
 import { generateCodemap } from "../src/generator.ts";
 import type { Bounds } from "../src/geometry.ts";
 
-const execFileAsync = promisify(execFile);
-
 test("generated spatial sidecar keeps geohash and containment invariants", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-spatial-invariants-"));
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
   await mkdir(join(root, "src", "features"), { recursive: true });
   await mkdir(join(root, "test"), { recursive: true });
   await writeFile(join(root, "src", "index.ts"), "export const app = true;\n");

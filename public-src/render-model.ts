@@ -79,13 +79,6 @@ export type MapAnnotationPlace = {
 export type NamedPlace = MapAnnotationPlace & {
   kind?: string;
 };
-type SearchTargetEntry<T extends MapTarget = MapTarget> = {
-  key: string;
-  target: T;
-  path: string;
-  geohash: string;
-  normalizedPath: string;
-};
 type NamedPlaceSearchEntry = {
   place: NamedPlace;
   name: string;
@@ -197,7 +190,6 @@ type ActivityHitOptions = {
   maxAgeMinutes?: number;
 };
 type ActivityTissueEncoding = { selected?: boolean };
-type PositionedBox = BoxSize & { y: number };
 
 export const DISTRICT_PALETTE: readonly PaletteColor[] = [
   { fill: [126, 176, 156], stroke: [41, 98, 73], label: "#24513d" },
@@ -263,7 +255,6 @@ const MAP_SEARCH_MATCHERS: Array<(context: SearchContext) => SearchMatch | null>
   folderSearchMatch,
 ];
 
-const SEARCH_TARGET_ENTRIES = new WeakMap<MapTargetRecord, SearchTargetEntry[]>();
 const NAMED_PLACE_SEARCH_ENTRIES = new WeakMap<NamedPlace[], NamedPlaceSearchEntry[]>();
 
 function actionFor(actions: Map<string, MapAction>, key: string | undefined) {
@@ -309,45 +300,15 @@ function folderSearchMatch({ codemap, query }: SearchContext): SearchMatch | nul
 }
 
 function firstSearchTarget<T extends MapTarget>(targets: MapTargetRecord<T>, query: string): T | null {
-  for (const entry of searchTargetEntries(targets)) {
-    if (entry.normalizedPath.includes(query) || entry.geohash.startsWith(query)) return entry.target;
-  }
-  return null;
-}
-
-function searchTargetEntries<T extends MapTarget>(targets: MapTargetRecord<T>): SearchTargetEntry<T>[] {
-  const cached = SEARCH_TARGET_ENTRIES.get(targets) as SearchTargetEntry<T>[] | undefined;
-  if (cached && searchTargetEntriesMatch(targets, cached)) return cached;
-
-  const entries: SearchTargetEntry<T>[] = [];
   for (const key in targets) {
     if (!Object.hasOwn(targets, key)) continue;
     const target = targets[key];
     if (!target) continue;
     const path = String(target.path ?? "");
     const geohash = String(target.geo?.geohash ?? "");
-    entries.push({ key, target, path, geohash, normalizedPath: path.toLowerCase() });
+    if (path.toLowerCase().includes(query) || geohash.startsWith(query)) return target;
   }
-  SEARCH_TARGET_ENTRIES.set(targets, entries);
-  return entries;
-}
-
-function searchTargetEntriesMatch<T extends MapTarget>(targets: MapTargetRecord<T>, entries: SearchTargetEntry<T>[]) {
-  let index = 0;
-  for (const key in targets) {
-    if (!Object.hasOwn(targets, key)) continue;
-    const entry = entries[index];
-    const target = targets[key];
-    if (!entry
-      || entry.key !== key
-      || entry.target !== target
-      || entry.path !== String(target.path ?? "")
-      || entry.geohash !== String(target.geo?.geohash ?? "")) {
-      return false;
-    }
-    index += 1;
-  }
-  return index === entries.length;
+  return null;
 }
 
 function namedPlaceSearchEntries(namedPlaces: NamedPlace[]): NamedPlaceSearchEntry[] {
@@ -742,18 +703,20 @@ export function panViewForDrag(drag: DragState, screen: Point, viewport: Viewpor
 }
 
 export function canvasKeyboardAction(event: KeyboardEventLike) {
-  const keyDeltas = {
+  const keyDeltas: Record<string, Point> = {
     ArrowRight: { x: KEYBOARD_PAN_PIXELS, y: 0 },
     ArrowLeft: { x: -KEYBOARD_PAN_PIXELS, y: 0 },
     ArrowDown: { x: 0, y: KEYBOARD_PAN_PIXELS },
     ArrowUp: { x: 0, y: -KEYBOARD_PAN_PIXELS },
   };
-  const delta = keyDeltas[event.key as keyof typeof keyDeltas];
+  const key = event.key;
+  if (!key) return null;
+  const delta = keyDeltas[key];
   if (delta) return { type: "pan", delta };
-  if (event.key === "+" || event.key === "=") return { type: "zoomIn" };
-  if (event.key === "-" || event.key === "_") return { type: "zoomOut" };
-  if (event.key === "0") return { type: "fitCodebase" };
-  if (event.key === "Enter") return { type: "selectCenter" };
+  if (key === "+" || key === "=") return { type: "zoomIn" };
+  if (key === "-" || key === "_") return { type: "zoomOut" };
+  if (key === "0") return { type: "fitCodebase" };
+  if (key === "Enter") return { type: "selectCenter" };
   return null;
 }
 
@@ -1767,7 +1730,7 @@ function paletteForPath(path: string): PaletteColor {
 }
 
 function isPositionedBox(box: BoxSize | Bounds): box is Bounds {
-  return typeof (box as PositionedBox).y === "number";
+  return "y" in box && typeof box.y === "number";
 }
 
 function clamp(value: number, min: number, max: number): number {

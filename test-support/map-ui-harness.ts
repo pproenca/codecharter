@@ -1,6 +1,5 @@
 import { once } from "node:events";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "playwright";
@@ -27,7 +26,8 @@ export async function startMapUiHarness(t: TestContext, { viewport = { width: 96
     port: 0,
     activityFlushIntervalMs: 20,
   });
-  const address = server.address() as AddressInfo;
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Expected test server to listen on a TCP port");
   const baseUrl = `http://127.0.0.1:${address.port}`;
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport });

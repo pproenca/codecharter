@@ -110,7 +110,44 @@ function createMapControls(root = document) {
         ["activityFeed", "#activityFeed"],
         ["activityForm", "#activityForm"],
     ];
-    const controls = {};
+    const controls = {
+        summary: null,
+        hover: null,
+        viewport: null,
+        selectionPopover: null,
+        annotationActions: null,
+        selectionContext: null,
+        annotationTitle: null,
+        annotationMeta: null,
+        annotationFeedback: null,
+        inspectorTitle: null,
+        inspectorSubtitle: null,
+        searchForm: null,
+        searchInput: null,
+        searchResult: null,
+        selectTool: null,
+        panTool: null,
+        resetViewTool: null,
+        drawTool: null,
+        clearActivityTool: null,
+        saveSelection: null,
+        deleteAnnotation: null,
+        copyAnnotationPrompt: null,
+        editAnnotation: null,
+        deleteAnnotationAction: null,
+        selectionComment: null,
+        selectionStatus: null,
+        sourceTitle: null,
+        sourceOutput: null,
+        showFolders: null,
+        showOrganicRegions: null,
+        showFiles: null,
+        showNames: null,
+        showActivity: null,
+        showGrid: null,
+        activityFeed: null,
+        activityForm: null,
+    };
     for (const [name, selector] of controlSelectors) {
         controls[name] = root.querySelector(selector);
     }
@@ -180,12 +217,25 @@ function applyMap(map, version) {
     reconcileSelectedTarget(previousSelection);
 }
 function reconcileSelectedTarget(target) {
-    state.selectedTarget = state.map
-        ? reconciledSelectedTarget(state.map, target)
-        : target;
+    if (!state.map) {
+        state.selectedTarget = target;
+        return;
+    }
+    const reconciled = reconciledSelectedTarget(state.map, target);
+    state.selectedTarget = isHitTarget(reconciled) ? reconciled : null;
+}
+function isHitTarget(value) {
+    const record = objectRecord(value);
+    return record?.targetType === "file"
+        || record?.targetType === "folder"
+        || record?.targetType === "annotation"
+        || record?.targetType === "activity";
 }
 function rebuildActivityFog() {
     state.activityFog = buildActivityFogState(state.map, state.activity);
+}
+function objectRecord(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
 }
 function objectValues(value) {
     const values = [];

@@ -1,19 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
 import { mkdtemp, readFile, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
+import { execFileText } from "../src/exec-file.ts";
 import { CODECHARTER_GITIGNORE_PATTERNS, ensureCodecharterGitignore, ensureLocalGitExcludes, LOCAL_CODECHARTER_EXCLUDES } from "../src/local-git-exclude.ts";
-
-const execFileAsync = promisify(execFile);
 
 test("adds CodeCharter artifact paths to local git excludes without touching tracked ignores", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-local-exclude-"));
   await mkdir(join(root, "src"));
   await writeFile(join(root, "src", "app.js"), "export const app = true;\n");
-  await execFileAsync("git", ["init"], { cwd: root });
+  await execFileText("git", ["init"], { cwd: root });
 
   const result = await ensureLocalGitExcludes(root);
   const exclude = await readFile(join(root, ".git", "info", "exclude"), "utf8");
@@ -23,7 +20,7 @@ test("adds CodeCharter artifact paths to local git excludes without touching tra
 
   await mkdir(join(root, ".codecharter"));
   await writeFile(join(root, ".codecharter", "activity.jsonl"), "{}\n");
-  const { stdout } = await execFileAsync("git", ["status", "--short", "--", ".codecharter/activity.jsonl"], { cwd: root });
+  const { stdout } = await execFileText("git", ["status", "--short", "--", ".codecharter/activity.jsonl"], { cwd: root });
   assert.equal(stdout, "");
 });
 

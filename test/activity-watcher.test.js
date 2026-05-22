@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { UnifiedDiffChangeRangeParser, changedRangeFromUnifiedDiff, lineRangeFromUnifiedDiff } from "../src/activity-change-range.js";
-import { parseGitStatusPorcelain, startActivityWatcher } from "../src/activity-watcher.js";
+import { ActivityWatcher, parseGitStatusPorcelain, startActivityWatcher } from "../src/activity-watcher.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -327,6 +327,52 @@ test("watcher polling does not wait for activity delivery", async () => {
   } finally {
     watcher.close();
   }
+});
+
+test("watcher skips overlapping poll work", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-watcher-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.js"), "const app = true;\n");
+  await execFileAsync("git", ["init"], { cwd: root });
+
+  let prepareCount = 0;
+  let releasePrepare;
+  let resolvePrepareStarted;
+  const prepareStarted = new Promise((resolve) => {
+    resolvePrepareStarted = resolve;
+  });
+  const prepareGate = new Promise((resolve) => {
+    releasePrepare = resolve;
+  });
+  const posted = [];
+  const watcher = new ActivityWatcher({
+    root,
+    endpoint: "http://127.0.0.1:1/api/activity",
+    intervalMs: 60_000,
+    throttleMs: 0,
+    prepareChanges: async () => {
+      prepareCount += 1;
+      resolvePrepareStarted();
+      await prepareGate;
+    },
+    postActivity: async (_endpoint, body) => {
+      posted.push(body);
+    },
+  });
+
+  const firstPoll = watcher.poll();
+  await prepareStarted;
+  const secondPoll = watcher.poll();
+  const secondPollState = await Promise.race([
+    secondPoll.then(() => "resolved"),
+    new Promise((resolve) => setTimeout(() => resolve("pending"), 50)),
+  ]);
+  releasePrepare();
+  await Promise.allSettled([firstPoll, secondPoll]);
+
+  assert.equal(secondPollState, "resolved");
+  assert.equal(prepareCount, 1);
+  assert.equal(posted.length, 1);
 });
 
 test("watcher can post pre-resolved map addresses without path resolution at the endpoint", async () => {

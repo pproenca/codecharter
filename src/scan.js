@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { extname, join, relative } from "node:path";
+import { extname, isAbsolute, join, relative } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { isCodeFile } from "./extensions.js";
@@ -54,8 +54,8 @@ export async function scanCodeFiles(root, options = {}) {
 
 export function normalizeRepoPath(root, path) {
   const normalized = path.replaceAll("\\", "/");
-  if (!normalized.startsWith("/") && !normalized.startsWith(".")) return normalized;
-  return relative(root, path).replaceAll("\\", "/");
+  if (isAbsolute(path)) return relative(root, path).replaceAll("\\", "/");
+  return normalized.startsWith("./") ? normalized.slice(2) : normalized;
 }
 
 function contentMetrics(content) {

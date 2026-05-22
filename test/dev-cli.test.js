@@ -11,6 +11,70 @@ import { LOCAL_CODECHARTER_EXCLUDES } from "../src/local-git-exclude.js";
 
 const execFileAsync = promisify(execFile);
 
+test("codemap activity exits non-zero when it rejects input", async () => {
+  const cli = spawn(process.execPath, [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "activity",
+  ], {
+    cwd: process.cwd(),
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let stdout = "";
+  let stderr = "";
+  cli.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
+  cli.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+
+  const [code] = await once(cli, "exit");
+
+  assert.equal(code, 1);
+  assert.match(stdout, /^accepted: false$/m);
+  assert.match(stdout, /^error: /m);
+  assert.equal(stderr, "");
+});
+
+test("codecharter init validates TCP port boundaries", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-port-validation-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.js"), "export const app = true;\n");
+  await execFileAsync("git", ["init"], { cwd: root });
+
+  await assert.rejects(
+    execFileAsync(process.execPath, [
+      join(process.cwd(), "bin", "codemap.mjs"),
+      "init",
+      "--root",
+      root,
+      "--port",
+      "0",
+      "--yes",
+    ]),
+    /Port must be an integer from 1 to 65535/
+  );
+
+  await assert.rejects(
+    execFileAsync(process.execPath, [
+      join(process.cwd(), "bin", "codemap.mjs"),
+      "init",
+      "--root",
+      root,
+      "--port",
+      "65536",
+      "--yes",
+    ]),
+    /Port must be an integer from 1 to 65535/
+  );
+
+  await execFileAsync(process.execPath, [
+    join(process.cwd(), "bin", "codemap.mjs"),
+    "init",
+    "--root",
+    root,
+    "--port",
+    "65535",
+    "--yes",
+  ]);
+});
+
 test("codecharter dev is a one-command dogfood workflow", { timeout: 8000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-dev-cli-"));
   const port = await freePort();

@@ -34,6 +34,7 @@ export class ActivityWatcher {
     this.recent = new Map();
     this.initialPoll = null;
     this.timer = null;
+    this.pollInFlight = false;
     this.poll = this.poll.bind(this);
     this.close = this.close.bind(this);
   }
@@ -58,34 +59,40 @@ export class ActivityWatcher {
   }
 
   async poll() {
-    const paths = await changedGitPaths(this.root);
-    const activePaths = new Set(paths);
-    const now = Date.now();
-    for (const path of this.recent.keys()) {
-      if (!activePaths.has(path)) this.recent.delete(path);
-    }
-
-    const changes = await changedRangesForPaths(this.root, paths);
-    await this.prepareChanges(changes);
-
-    for (const change of changes) {
-      const { path } = change;
-      const previous = this.recent.get(path);
-      if (previous?.signature === change.signature) continue;
-      if (previous && now - previous.timestamp < this.throttleMs) continue;
-      this.recent.set(path, { signature: change.signature, timestamp: now });
-      let payload;
-      try {
-        payload = this.createActivityPayload(change, {
-          agentId: this.agentId,
-          activityState: this.activityState,
-        });
-      } catch (error) {
-        console.warn(`warning: activity-watcher-skipped path=${path} error=${error.message}`);
-        continue;
+    if (this.pollInFlight) return;
+    this.pollInFlight = true;
+    try {
+      const paths = await changedGitPaths(this.root);
+      const activePaths = new Set(paths);
+      const now = Date.now();
+      for (const path of this.recent.keys()) {
+        if (!activePaths.has(path)) this.recent.delete(path);
       }
-      if (!payload) continue;
-      void this.postActivity(this.endpoint, payload);
+
+      const changes = await changedRangesForPaths(this.root, paths);
+      await this.prepareChanges(changes);
+
+      for (const change of changes) {
+        const { path } = change;
+        const previous = this.recent.get(path);
+        if (previous?.signature === change.signature) continue;
+        if (previous && now - previous.timestamp < this.throttleMs) continue;
+        this.recent.set(path, { signature: change.signature, timestamp: now });
+        let payload;
+        try {
+          payload = this.createActivityPayload(change, {
+            agentId: this.agentId,
+            activityState: this.activityState,
+          });
+        } catch (error) {
+          console.warn(`warning: activity-watcher-skipped path=${path} error=${error.message}`);
+          continue;
+        }
+        if (!payload) continue;
+        void this.postActivity(this.endpoint, payload);
+      }
+    } finally {
+      this.pollInFlight = false;
     }
   }
 }

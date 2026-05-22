@@ -354,6 +354,7 @@ class ActivityCommand extends CliCommand {
       printResult({ accepted: true, event }, jsonOutput, printActivityResult);
     } catch (error) {
       printResult({ accepted: false, error: error.message }, jsonOutput, printActivityResult);
+      process.exitCode = 1;
     }
   }
 }
@@ -407,7 +408,9 @@ const CLI_COMMANDS = [
 const COMMAND_REGISTRY = new CommandRegistry(CLI_COMMANDS, new HelpCommand());
 
 function assertPositiveIntegerPort(port) {
-  if (!Number.isInteger(port) || port < 1) throw new Error("Port must be a positive integer");
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("Port must be an integer from 1 to 65535");
+  }
 }
 
 async function setupAndRunDev({

@@ -26,6 +26,25 @@ test("lists git-visible code files with deterministic excludes", async () => {
   assert.deepEqual(await listIncludedFiles(root, { excludePaths: ["src/skip.ts"] }), ["src/a.ts", "src/z.ts"]);
 });
 
+test("keeps dot-prefixed excludes repo-relative when cwd differs from root", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-scan-root-"));
+  await execFileAsync("git", ["init"], { cwd: root });
+  await mkdir(join(root, ".codecharter"), { recursive: true });
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, ".codecharter", "config.js"), "export const generated = true;\n");
+  await writeFile(join(root, "src", "app.js"), "export const app = true;\n");
+
+  const previousCwd = process.cwd();
+  try {
+    process.chdir(tmpdir());
+    assert.deepEqual(await listIncludedFiles(root, {
+      excludePaths: ["./.codecharter/config.js"],
+    }), ["src/app.js"]);
+  } finally {
+    process.chdir(previousCwd);
+  }
+});
+
 test("generates a path-keyed map sidecar from gitignore-filtered code files", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-"));
   await execFileAsync("git", ["init"], { cwd: root });

@@ -69,6 +69,20 @@ test("caps live activity memory to the newest events", async () => {
   }
 });
 
+test("returns activity snapshots without exposing the live events array", async () => {
+  const store = createActivityStore({ flushIntervalMs: 60_000 });
+
+  try {
+    store.add(activityEvent("event-1"));
+    const snapshot = store.snapshot();
+    snapshot.events.push(activityEvent("event-2"));
+
+    assert.deepEqual(store.snapshot().events.map((event) => event.id), ["event-1"]);
+  } finally {
+    await store.close();
+  }
+});
+
 test("recovers failed archive flushes before later queued activity", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-activity-store-"));
   const blockedArchivePath = join(root, "blocked-archive");

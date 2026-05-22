@@ -50,7 +50,7 @@ export class ActivityStore {
   }
 
   snapshot() {
-    return { events: [...this.events] };
+    return { events: copyArray(this.events) };
   }
 
   async flush() {
@@ -120,6 +120,14 @@ export class ActivityStore {
 
 function trimOldest(events, maxEvents) {
   if (events.length > maxEvents) events.splice(0, events.length - maxEvents);
+}
+
+function copyArray(values) {
+  const copy = new Array(values.length);
+  for (let index = 0; index < values.length; index += 1) {
+    copy[index] = values[index];
+  }
+  return copy;
 }
 
 export async function appendActivityEvents(archivePath, events) {

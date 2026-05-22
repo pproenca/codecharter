@@ -838,6 +838,59 @@ test("hit-testing activity prefers the newest live event near a fragment center"
   assert.equal(hit.id, "newer");
 });
 
+test("hit-testing activity ignores expired newer events while choosing the newest matching live event", () => {
+  const now = Date.parse("2026-05-20T12:00:00.000Z");
+  const oldLive = activity("codex", "reading", "2026-05-20T10:00:00.000Z", {
+    id: "old-live",
+    address: { bounds: { x: 0.2, y: 0.2, width: 0.04, height: 0.04 } },
+  });
+  const newestLiveMiss = activity("codex", "testing", "2026-05-20T10:04:00.000Z", {
+    id: "newest-live-miss",
+    address: { bounds: { x: 0.8, y: 0.8, width: 0.04, height: 0.04 } },
+  });
+  const newerLiveHit = activity("codex", "editing", "2026-05-20T10:03:00.000Z", {
+    id: "newer-live-hit",
+    address: { bounds: { x: 0.205, y: 0.205, width: 0.04, height: 0.04 } },
+  });
+  const expiredHit = activity("codex", "reviewing", "2026-05-19T10:05:00.000Z", {
+    id: "expired-hit",
+    address: { bounds: { x: 0.21, y: 0.21, width: 0.04, height: 0.04 } },
+  });
+
+  const hit = hitTestActivityEvents([newestLiveMiss, oldLive, expiredHit, newerLiveHit], { x: 0.222, y: 0.222 }, {
+    radiusX: 0.03,
+    radiusY: 0.03,
+    now,
+    maxAgeMinutes: 180,
+  });
+
+  assert.equal(hit.id, "newer-live-hit");
+});
+
+test("hit-testing activity uses fragment centers instead of aggregate centers", () => {
+  const now = Date.parse("2026-05-20T12:00:00.000Z");
+  const event = activity("codex", "editing", "2026-05-20T11:59:00.000Z", {
+    address: {
+      bounds: { x: 0.2, y: 0.2, width: 0.2, height: 0.2 },
+      fragments: [{ bounds: { x: 0.7, y: 0.7, width: 0.04, height: 0.04 } }],
+    },
+  });
+
+  assert.equal(hitTestActivityEvents([event], { x: 0.3, y: 0.3 }, {
+    radiusX: 0.02,
+    radiusY: 0.02,
+    now,
+  }), null);
+
+  const hit = hitTestActivityEvents([event], { x: 0.72, y: 0.72 }, {
+    radiusX: 0.02,
+    radiusY: 0.02,
+    now,
+  });
+
+  assert.equal(hit.id, event.id);
+});
+
 test("derives organic region contours deterministically from world bounds", () => {
   const bounds = { x: 0.12, y: 0.2, width: 0.32, height: 0.18 };
   const first = organicRegionPoints(bounds, "src/features", 2);

@@ -825,17 +825,35 @@ export function hitTestAnnotations(namedPlaces, point, { radiusX = 0, radiusY = 
 }
 
 export function hitTestActivityEvents(events, point, { radiusX = 0, radiusY = 0, now, maxAgeMinutes } = {}) {
-  const visibleEvents = sortedActivityEvents(events, Number.POSITIVE_INFINITY, { now, maxAgeMinutes });
-  for (let index = visibleEvents.length - 1; index >= 0; index -= 1) {
-    const event = visibleEvents[index];
-    for (const bounds of activityFragmentBounds(event)) {
-      const center = boundsCenter(bounds);
-      if (Math.abs(point.x - center.x) <= radiusX && Math.abs(point.y - center.y) <= radiusY) {
-        return { ...event, targetType: "activity" };
-      }
-    }
+  const options = { now, maxAgeMinutes };
+  let best = null;
+  for (const event of events) {
+    if (!isLiveActivityEvent(event, options)) continue;
+    if (!activityEventHitsPoint(event, point, radiusX, radiusY)) continue;
+    if (!best || compareActivityEventsByTime(best, event) <= 0) best = event;
   }
-  return null;
+  return best ? { ...best, targetType: "activity" } : null;
+}
+
+function activityEventHitsPoint(event, point, radiusX, radiusY) {
+  const fragments = event?.address?.fragments;
+  if (Array.isArray(fragments)) {
+    let foundFragmentBounds = false;
+    for (const fragment of fragments) {
+      if (!fragment.bounds) continue;
+      foundFragmentBounds = true;
+      if (boundsCenterHitsPoint(fragment.bounds, point, radiusX, radiusY)) return true;
+    }
+    if (foundFragmentBounds) return false;
+  }
+  return event?.address?.bounds
+    ? boundsCenterHitsPoint(event.address.bounds, point, radiusX, radiusY)
+    : false;
+}
+
+function boundsCenterHitsPoint(bounds, point, radiusX, radiusY) {
+  const center = boundsCenter(bounds);
+  return Math.abs(point.x - center.x) <= radiusX && Math.abs(point.y - center.y) <= radiusY;
 }
 
 export function rgba(rgb, alpha) {

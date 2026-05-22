@@ -240,7 +240,7 @@ function applyMap(map, version) {
   state.mapVersion = version ?? state.mapVersion;
   state.clearSourceState();
   if (controls.summary) {
-    controls.summary.textContent = `${Object.keys(map.files).length} files, ${Object.keys(map.folders).length} folders`;
+    controls.summary.textContent = `${state.mapFiles.length} files, ${state.mapFolders.length} folders`;
   }
   reconcileSelectedTarget(previousSelection);
 }

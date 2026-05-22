@@ -92,7 +92,7 @@ export class CodexHooksMerger {
     const hookKeysByGroup = [];
 
     for (const group of existingGroups) {
-      const hooks = Array.isArray(group.hooks) ? [...group.hooks] : [];
+      const hooks = copyArray(group.hooks);
       groups.push({ ...group, hooks });
       const matcher = group.matcher ?? "";
       if (!groupIndexesByMatcher.has(matcher)) groupIndexesByMatcher.set(matcher, groups.length - 1);
@@ -103,7 +103,7 @@ export class CodexHooksMerger {
       const matcher = desiredGroup.matcher ?? "";
       const index = groupIndexesByMatcher.get(matcher);
       if (index === undefined) {
-        const hooks = [...desiredGroup.hooks];
+        const hooks = copyArray(desiredGroup.hooks);
         groups.push({ ...desiredGroup, hooks });
         groupIndexesByMatcher.set(matcher, groups.length - 1);
         hookKeysByGroup.push(this.hookKeySet(hooks));
@@ -161,6 +161,15 @@ export class CodexHooksMerger {
   objectOrEmpty(value) {
     return value && typeof value === "object" && !Array.isArray(value) ? value : {};
   }
+}
+
+function copyArray(value) {
+  if (!Array.isArray(value)) return [];
+  const copy = new Array(value.length);
+  for (let index = 0; index < value.length; index += 1) {
+    copy[index] = value[index];
+  }
+  return copy;
 }
 
 export async function initializeCodecharter({

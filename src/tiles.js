@@ -56,13 +56,13 @@ export function buildTileIndex(codemap, level = "file") {
 }
 
 export function getTile(codemap, { level = "file", prefix }) {
+  const targets = [];
+  appendMatchingTargets(targets, codemap.folders, "folder", level, prefix);
+  appendMatchingTargets(targets, codemap.files, "file", level, prefix);
   return {
     prefix,
     level,
-    targets: [
-      ...matchingTargets(codemap.folders, "folder", level, prefix),
-      ...matchingTargets(codemap.files, "file", level, prefix),
-    ],
+    targets,
   };
 }
 
@@ -104,17 +104,15 @@ function sortedTargets(targets) {
   return targetsAreSorted(sorted) ? sorted : sorted.sort((left, right) => left.path.localeCompare(right.path));
 }
 
-function matchingTargets(targets, targetType, level, prefix) {
+function appendMatchingTargets(serialized, targets, targetType, level, prefix) {
   const matches = [];
   for (const target of objectValues(targets)) {
     if (tilePrefixForTarget(target, level) === prefix) matches.push(target);
   }
   if (!targetsAreSorted(matches)) matches.sort((left, right) => left.path.localeCompare(right.path));
-  const serialized = [];
   for (const target of matches) {
     serialized.push(serializeTarget(target, targetType));
   }
-  return serialized;
 }
 
 function* objectValues(values) {

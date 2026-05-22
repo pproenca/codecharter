@@ -283,7 +283,7 @@ function findShellCommand(value) {
     const nested = value[key];
     if (typeof nested === "string") {
       const parsed = parseHookPayload(nested);
-      if (parsed && typeof parsed === "object" && Object.keys(parsed).length > 0) {
+      if (parsed && typeof parsed === "object" && hasOwnEnumerableProperty(parsed)) {
         const parsedCommand = findShellCommand(parsed);
         if (parsedCommand) return parsedCommand;
       }
@@ -558,6 +558,13 @@ function parseHookPayload(input) {
   } catch {
     return {};
   }
+}
+
+function hasOwnEnumerableProperty(value) {
+  for (const key in value) {
+    if (Object.hasOwn(value, key)) return true;
+  }
+  return false;
 }
 
 async function readCodemap(mapPath) {

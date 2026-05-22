@@ -75,7 +75,7 @@ function resolveCodeRangeAddress(file, request) {
   const level = geometry.tokenRange || geometry.hasTokenFragments ? "tokenRange" : "lineRange";
   const geo = geoForBounds(geometry.anchorBounds, level);
   const lines = `${geometry.lineRange.start}-${geometry.lineRange.end}`;
-  const fragments = geometry.fragments ? geohashedFragments(geometry.fragments) : undefined;
+  const fragmentCoverage = geometry.fragments ? geohashedFragmentsWithCoverage(geometry.fragments) : null;
 
   return {
     level,
@@ -88,8 +88,8 @@ function resolveCodeRangeAddress(file, request) {
     geo,
     lineRange: geometry.lineRange,
     ...(geometry.tokenRange ? { tokenRange: geometry.tokenRange } : {}),
-    ...(fragments ? { coveringSet: sortedUnique(fragments.map((fragment) => fragment.geohash)) } : {}),
-    ...(fragments ? { fragments } : {}),
+    ...(fragmentCoverage ? { coveringSet: fragmentCoverage.coveringSet } : {}),
+    ...(fragmentCoverage ? { fragments: fragmentCoverage.fragments } : {}),
   };
 }
 
@@ -110,22 +110,34 @@ function hasCodeRangeRequest(request) {
 }
 
 function geohashedFragments(fragments) {
-  return fragments.map((fragment) => {
+  return geohashedFragmentsWithCoverage(fragments).fragments;
+}
+
+function geohashedFragmentsWithCoverage(fragments) {
+  const coverage = new Set();
+  const mapped = [];
+  for (const fragment of fragments) {
     const level = fragment.tokenRange ? "tokenRange" : "lineRange";
     const geohash = geoForBounds(fragment.bounds, level).geohash;
-    return {
+    coverage.add(geohash);
+    mapped.push({
       level,
       targetType: level,
       geohash,
       lineRange: fragment.lineRange,
       ...(fragment.tokenRange ? { tokenRange: fragment.tokenRange } : {}),
       bounds: fragment.bounds,
-    };
-  });
+    });
+  }
+  return {
+    fragments: mapped,
+    coveringSet: sortedUnique(coverage),
+  };
 }
 
 function sortedUnique(values) {
-  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+  const unique = values instanceof Set ? [...values] : [...new Set(values)];
+  return unique.sort((a, b) => a.localeCompare(b));
 }
 
 function breadcrumbForPath(path) {

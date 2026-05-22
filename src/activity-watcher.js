@@ -8,6 +8,7 @@ import { isCodeFile } from "./extensions.js";
 const execFileAsync = promisify(execFile);
 const DEFAULT_INTERVAL_MS = 1800;
 const DEFAULT_THROTTLE_MS = 5000;
+const DEFAULT_CHANGE_RANGE_CONCURRENCY = 32;
 
 export class ActivityWatcher {
   constructor({
@@ -98,21 +99,46 @@ export async function changedCodeChanges(root) {
 }
 
 function changedRangesForPaths(root, paths) {
-  return Promise.all(paths.map(async (path) => ({
-    path,
-    ...await changedLineRange(root, path),
-  })));
+  return mapChangedRanges(root, paths, DEFAULT_CHANGE_RANGE_CONCURRENCY);
+}
+
+async function mapChangedRanges(root, paths, concurrency) {
+  const changes = new Array(paths.length);
+  let next = 0;
+  const workerCount = Math.max(1, Math.min(paths.length, concurrency));
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (next < paths.length) {
+      const index = next;
+      next += 1;
+      changes[index] = {
+        path: paths[index],
+        ...await changedLineRange(root, paths[index]),
+      };
+    }
+  });
+  await Promise.all(workers);
+  return changes;
 }
 
 export function parseGitStatusPorcelain(raw) {
-  const entries = raw.split("\0").filter(Boolean);
   const paths = [];
 
-  for (let index = 0; index < entries.length; index += 1) {
-    const entry = entries[index];
+  let start = 0;
+  for (let index = 0; index <= raw.length; index += 1) {
+    if (index < raw.length && raw[index] !== "\0") continue;
+    if (index === start) {
+      start = index + 1;
+      continue;
+    }
+    const entry = raw.slice(start, index);
+    start = index + 1;
     const status = entry.slice(0, 2);
     const path = entry.slice(3);
-    if (status.includes("R") || status.includes("C")) index += 1;
+    if (status.includes("R") || status.includes("C")) {
+      const nextStart = raw.indexOf("\0", start);
+      start = nextStart === -1 ? raw.length : nextStart + 1;
+      index = start - 1;
+    }
     if (isActivityWatchablePath(path)) paths.push(path);
   }
 

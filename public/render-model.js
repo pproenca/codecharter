@@ -142,6 +142,15 @@ export function folderDepth(path) {
   return path ? path.split("/").length : 0;
 }
 
+export function organicRegionFolders(codemap) {
+  const folders = [];
+  for (const folder of Object.values(codemap.folders ?? {})) {
+    if (!folder.path) continue;
+    folders.push({ folder, depth: folderDepth(folder.path) });
+  }
+  return folders.sort((a, b) => a.depth - b.depth || a.folder.path.localeCompare(b.folder.path));
+}
+
 export function folderStyle(path, depth) {
   const base = DISTRICT_PALETTE[hashString(path.split("/")[0]) % DISTRICT_PALETTE.length];
   const fillAlpha = depth === 1 ? 0.18 : 0.09;
@@ -787,14 +796,25 @@ export function activityTissueBox(screenBox, encoding = {}) {
 }
 
 export function activityFragmentBounds(event) {
-  const fragments = event?.address?.fragments
-    ?.map((fragment) => fragment.bounds)
-    .filter(Boolean) ?? [];
-  return fragments.length ? fragments : event?.address?.bounds ? [event.address.bounds] : [];
+  const fragments = event?.address?.fragments;
+  if (Array.isArray(fragments)) {
+    const bounds = [];
+    for (const fragment of fragments) {
+      if (fragment.bounds) bounds.push(fragment.bounds);
+    }
+    if (bounds.length) return bounds;
+  }
+  return event?.address?.bounds ? [event.address.bounds] : [];
 }
 
 export function activityPrimaryBounds(event) {
-  return activityFragmentBounds(event)[0] ?? event?.address?.bounds ?? null;
+  const fragments = event?.address?.fragments;
+  if (Array.isArray(fragments)) {
+    for (const fragment of fragments) {
+      if (fragment.bounds) return fragment.bounds;
+    }
+  }
+  return event?.address?.bounds ?? null;
 }
 
 export function simplifyTrailPoints(points, minDistance = ACTIVITY_TRAIL_MIN_SEGMENT_PX) {

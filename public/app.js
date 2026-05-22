@@ -49,6 +49,7 @@ import {
   mapTargetSelectionAction,
   normalizeActivityState,
   organicTrailSegments,
+  organicRegionFolders,
   organicRegionPoints,
   organicRegionStyle,
   panViewForDrag,
@@ -109,6 +110,9 @@ function createMapApplicationState() {
   const pendingSourceRequests = new Set();
   return {
     map: null,
+    mapFolders: [],
+    mapFiles: [],
+    organicRegionFolders: [],
     mapVersion: "",
     namedPlaces: [],
     overlaps: [],
@@ -218,6 +222,9 @@ async function boot() {
 function applyMap(map, version) {
   const previousSelection = state.selectedTarget;
   state.map = map;
+  state.mapFolders = Object.values(map.folders);
+  state.mapFiles = Object.values(map.files);
+  state.organicRegionFolders = organicRegionFolders(map);
   state.mapVersion = version ?? state.mapVersion;
   state.clearSourceState();
   if (controls.summary) {
@@ -686,7 +693,7 @@ function drawCompassRose() {
 }
 
 function drawFolders() {
-  for (const folder of Object.values(state.map.folders)) {
+  for (const folder of state.mapFolders) {
     if (!folder.path) continue;
     const box = screenBounds(folder.bounds);
     if (!visible(box)) continue;
@@ -711,12 +718,7 @@ function drawFolders() {
 }
 
 function drawOrganicRegions() {
-  const folders = Object.values(state.map.folders)
-    .filter((folder) => folder.path)
-    .map((folder) => ({ folder, depth: folderDepth(folder.path) }))
-    .sort((a, b) => a.depth - b.depth || a.folder.path.localeCompare(b.folder.path));
-
-  for (const { folder, depth } of folders) {
+  for (const { folder, depth } of state.organicRegionFolders) {
     const box = screenBounds(folder.bounds);
     if (!visible(box)) continue;
     if (!shouldDrawOrganicRegion(state.view.scale, depth, box)) continue;
@@ -737,7 +739,7 @@ function drawOrganicRegions() {
 
 function drawFiles() {
   let renderedSourceLines = 0;
-  for (const file of Object.values(state.map.files)) {
+  for (const file of state.mapFiles) {
     const box = screenBounds(file.bounds);
     if (!visible(box)) continue;
     const selected = state.selectedTarget?.path === file.path;
@@ -1081,10 +1083,12 @@ function activityTrailSelected(events) {
 }
 
 function activityTrailPoints(events) {
-  return events
-    .map((event) => activityPrimaryBounds(event))
-    .filter(Boolean)
-    .map((bounds) => worldToScreen(boundsCenter(bounds)));
+  const points = [];
+  for (const event of events) {
+    const bounds = activityPrimaryBounds(event);
+    if (bounds) points.push(worldToScreen(boundsCenter(bounds)));
+  }
+  return points;
 }
 
 function strokeOrganicTrail(points, { color, lineWidth }) {

@@ -36,6 +36,7 @@ import {
   mapTargetSelectionAction,
   mapHoverLabel,
   maxFolderDepthForScale,
+  organicRegionFolders,
   organicRegionPoints,
   organicTrailSegments,
   panViewForDrag,
@@ -73,6 +74,25 @@ test("maps zoom scale into deterministic perceptual detail bands", () => {
   assert.equal(detailBand(12), "source");
   assert.equal(maxFolderDepthForScale(1), 1);
   assert.equal(maxFolderDepthForScale(3), 3);
+});
+
+test("orders organic region folders by depth and path without the root", () => {
+  const codemap = {
+    folders: {
+      "src/z": { path: "src/z" },
+      "src": { path: "src" },
+      "": { path: "" },
+      "src/a": { path: "src/a" },
+      "docs": { path: "docs" },
+    },
+  };
+
+  assert.deepEqual(organicRegionFolders(codemap).map(({ folder, depth }) => [folder.path, depth]), [
+    ["docs", 1],
+    ["src", 1],
+    ["src/a", 2],
+    ["src/z", 2],
+  ]);
 });
 
 test("gates source text rendering by readable pixel geometry", () => {

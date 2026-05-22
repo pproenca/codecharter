@@ -255,11 +255,11 @@ export async function initializeCodecharter({
 }: InitializeCodecharterOptions) {
   return new CodecharterInitializer().initialize({
     root,
-    mapPath,
     installCodex,
     installGitHooks,
     fresh,
-    writeCodemap,
+    ...(mapPath === undefined ? {} : { mapPath }),
+    ...(writeCodemap === undefined ? {} : { writeCodemap }),
   });
 }
 

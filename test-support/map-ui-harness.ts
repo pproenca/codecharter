@@ -5,8 +5,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "playwright";
 import { startServer } from "../src/server.ts";
+import type { TestContext } from "node:test";
+import type { Page } from "playwright";
+import type { Bounds } from "../src/geometry.js";
 
-export async function startMapUiHarness(t, { viewport = { width: 960, height: 720 } } = {}) {
+type Point = {
+  x: number;
+  y: number;
+};
+
+export async function startMapUiHarness(t: TestContext, { viewport = { width: 960, height: 720 } } = {}) {
   const root = await mkdtemp(join(tmpdir(), "codecharter-map-ui-"));
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "app.ts"), "const app = true;\nexport default app;\n");
@@ -17,7 +25,6 @@ export async function startMapUiHarness(t, { viewport = { width: 960, height: 72
     root,
     mapPath: join(root, "codecharter.json"),
     port: 0,
-    activityArchivePath: undefined,
     activityFlushIntervalMs: 20,
   });
   const address = server.address() as AddressInfo;
@@ -47,7 +54,7 @@ export async function startMapUiHarness(t, { viewport = { width: 960, height: 72
   };
 }
 
-export async function drawSelection(page, { from = { x: 220, y: 180 }, to = { x: 520, y: 430 } } = {}) {
+export async function drawSelection(page: Page, { from = { x: 220, y: 180 }, to = { x: 520, y: 430 } }: { from?: Point; to?: Point } = {}) {
   const canvas = page.locator("#mapCanvas");
   const box = await canvas.boundingBox();
   if (!box) throw new Error("Map canvas is not visible");
@@ -59,10 +66,10 @@ export async function drawSelection(page, { from = { x: 220, y: 180 }, to = { x:
   await page.mouse.up();
 }
 
-export async function createAnnotation(baseUrl, {
+export async function createAnnotation(baseUrl: string, {
   comment = "Review this mapped area",
   bounds = { x: 0.2, y: 0.2, width: 0.3, height: 0.3 },
-} = {}) {
+}: { comment?: string; bounds?: Bounds } = {}) {
   const response = await fetch(`${baseUrl}/api/annotations`, {
     method: "POST",
     headers: { "content-type": "application/json" },

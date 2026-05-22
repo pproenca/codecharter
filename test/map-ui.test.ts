@@ -1,6 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createAnnotation, drawSelection, startMapUiHarness } from "../test-support/map-ui-harness.ts";
+import type { Page, Response } from "playwright";
+
+type Point = {
+  x: number;
+  y: number;
+};
+
+type ActivityApiEvent = {
+  address?: {
+    path?: string;
+    lineRange?: {
+      start?: number;
+    };
+  };
+};
 
 test("drawing a map selection opens the annotation textbox and enables save", async (t) => {
   const { page, boot } = await startMapUiHarness(t);
@@ -110,7 +125,9 @@ test("saved annotation action pointer stays anchored to edge selections", async 
 
   const pointerGeometry = await page.locator("#annotationActions").evaluate((element, bounds) => {
     const rect = element.getBoundingClientRect();
-    const canvas = document.querySelector("#mapCanvas").getBoundingClientRect();
+    const canvasElement = document.querySelector("#mapCanvas");
+    if (!canvasElement) throw new Error("Expected map canvas");
+    const canvas = canvasElement.getBoundingClientRect();
     const before = getComputedStyle(element, "::before");
     const matrix = new DOMMatrixReadOnly(getComputedStyle(element).transform);
     const pointerX = rect.left + Number.parseFloat(before.left) * matrix.a;
@@ -288,7 +305,8 @@ test("activity discovery hides unexplored files and reveals visited files", asyn
       1,
       1,
     ).data;
-    return pixel[0] + pixel[1] + pixel[2] > 160;
+    const [red = 0, green = 0, blue = 0] = pixel;
+    return red + green + blue > 160;
   }, activityMarker);
 
   const visitedPixel = await canvasPixelAtWorld(page, revealCore);
@@ -309,10 +327,12 @@ test("activity discovery toggle keeps pointer activation visually settled", asyn
 
   const toggleState = await page.locator(".toggle-tool").evaluate((element) => {
     const icon = element.querySelector("svg");
+    const input = element.querySelector("input");
+    if (!icon || !input) throw new Error("Expected activity toggle icon and input");
     const style = getComputedStyle(element);
     const iconStyle = getComputedStyle(icon);
     return {
-      checked: element.querySelector("input").checked,
+      checked: input.checked,
       iconTransform: iconStyle.transform,
       outlineStyle: style.outlineStyle,
       outlineWidth: style.outlineWidth,
@@ -330,7 +350,9 @@ test("map tools stay edge anchored instead of covering the map center", async (t
 
   const geometry = await page.locator(".map-tool-palette").evaluate((element) => {
     const rect = element.getBoundingClientRect();
-    const canvas = document.querySelector("#mapCanvas").getBoundingClientRect();
+    const canvasElement = document.querySelector("#mapCanvas");
+    if (!canvasElement) throw new Error("Expected map canvas");
+    const canvas = canvasElement.getBoundingClientRect();
     return {
       left: rect.left - canvas.left,
       centerX: rect.left + rect.width / 2 - canvas.left,
@@ -360,8 +382,8 @@ test("map tools expose the core controls without a flyout", async (t) => {
       hasActionMenu: Boolean(element.querySelector(".map-action-menu")),
       visibleControlNames,
       hasZoomButtons: Boolean(element.querySelector("#zoomInTool, #zoomOutTool")),
-      fitVisible: element.querySelector("#resetViewTool")?.getBoundingClientRect().width > 0,
-      clearVisible: element.querySelector("#clearActivityTool")?.getBoundingClientRect().width > 0,
+      fitVisible: (element.querySelector("#resetViewTool")?.getBoundingClientRect().width ?? 0) > 0,
+      clearVisible: (element.querySelector("#clearActivityTool")?.getBoundingClientRect().width ?? 0) > 0,
     };
   });
 
@@ -403,7 +425,9 @@ test("map status is a compact overlay instead of a full-width footer", async (t)
 
   const geometry = await page.locator(".map-status").evaluate((element) => {
     const rect = element.getBoundingClientRect();
-    const canvas = document.querySelector("#mapCanvas").getBoundingClientRect();
+    const canvasElement = document.querySelector("#mapCanvas");
+    if (!canvasElement) throw new Error("Expected map canvas");
+    const canvas = canvasElement.getBoundingClientRect();
     const style = getComputedStyle(element);
     return {
       background: style.backgroundColor,
@@ -477,7 +501,7 @@ test("activity discovery zooms visited code into a readable revealed view", asyn
   await page.waitForResponse(async (pollResponse) => {
     if (!pollResponse.url().endsWith("/api/activity") || pollResponse.request().method() !== "GET") return false;
     const body = await pollResponse.json();
-    return body.events?.some((event) => event.address?.path === "src/long.ts" && event.address?.lineRange?.start === 52);
+    return body.events?.some((event: ActivityApiEvent) => event.address?.path === "src/long.ts" && event.address?.lineRange?.start === 52);
   });
 
   const initialScale = await viewportScale(page);
@@ -513,13 +537,13 @@ test("line-range hash routes open discovered code at a readable source scale", a
   assert.match(new URL(page.url()).hash, /lines=52-54/);
 });
 
-async function drawReadySelection(page, options = {}) {
+async function drawReadySelection(page: Page, options: Parameters<typeof drawSelection>[1] = {}) {
   const resolveResponse = waitForSelectionResolve(page);
   await drawSelection(page, options);
   await resolveResponse;
 }
 
-async function clickMapWorld(page, point) {
+async function clickMapWorld(page: Page, point: Point) {
   const canvas = page.locator("#mapCanvas");
   const box = await canvas.boundingBox();
   if (!box) throw new Error("Map canvas is not visible");
@@ -527,7 +551,7 @@ async function clickMapWorld(page, point) {
   await page.mouse.click(box.x + box.width * point.x, box.y + box.height * point.y);
 }
 
-async function doubleClickMapWorld(page, point) {
+async function doubleClickMapWorld(page: Page, point: Point) {
   const canvas = page.locator("#mapCanvas");
   const box = await canvas.boundingBox();
   if (!box) throw new Error("Map canvas is not visible");
@@ -535,8 +559,8 @@ async function doubleClickMapWorld(page, point) {
   await page.mouse.dblclick(box.x + box.width * point.x, box.y + box.height * point.y);
 }
 
-async function canvasPixelAtWorld(page, point) {
-  return page.evaluate(({ x, y }) => {
+async function canvasPixelAtWorld(page: Page, point: Point) {
+  return page.evaluate(({ x, y }: Point) => {
     const canvas = document.querySelector("#mapCanvas");
     if (!(canvas instanceof HTMLCanvasElement)) throw new Error("Map canvas missing");
     const context = canvas.getContext("2d");
@@ -550,31 +574,32 @@ async function canvasPixelAtWorld(page, point) {
   }, point);
 }
 
-function pixelBrightness(pixel) {
-  const alpha = pixel[3] / 255;
+function pixelBrightness(pixel: [number, number, number, number] | number[]) {
+  const [red = 0, green = 0, blue = 0, rawAlpha = 0] = pixel;
+  const alpha = rawAlpha / 255;
   const backdrop = 219;
-  return pixel[0] * alpha
-    + pixel[1] * alpha
-    + pixel[2] * alpha
+  return red * alpha
+    + green * alpha
+    + blue * alpha
     + backdrop * (1 - alpha) * 3;
 }
 
-async function viewportScale(page) {
+async function viewportScale(page: Page) {
   const text = await page.locator("#viewportReadout").innerText();
   const match = text.match(/scale ([0-9.]+)/);
   assert.ok(match, `No scale in viewport readout: ${text}`);
   return Number(match[1]);
 }
 
-function waitForSelectionResolve(page) {
-  return page.waitForResponse((response) =>
+function waitForSelectionResolve(page: Page) {
+  return page.waitForResponse((response: Response) =>
     response.request().method() === "POST"
     && response.url().endsWith("/api/selections/resolve")
     && response.status() === 200,
   );
 }
 
-async function getJson(url) {
+async function getJson(url: string) {
   const response = await fetch(url);
   assert.equal(response.ok, true);
   return response.json();

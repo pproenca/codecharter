@@ -6,8 +6,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
 import { createServer } from "node:http";
+import type { Server } from "node:http";
 import { promisify } from "node:util";
 import { startServer } from "../src/server.ts";
+import type { MapAnnotation, ResolvedSelectionTarget } from "../src/selections.js";
+import type { SourceLine } from "../src/source.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -42,10 +45,10 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     assert.equal(resolved.targetType, "lineRange");
 
     const source = await getJson(`${baseUrl}/api/source?path=src/app.ts&lineStart=1&lineEnd=2`);
-    assert.deepEqual(source.lines.map((line) => line.text), ["const app = true;", "export default app;"]);
+    assert.deepEqual(source.lines.map((line: SourceLine) => line.text), ["const app = true;", "export default app;"]);
 
     const sourceViaOrdinaryPath = await getJson(`${baseUrl}/api/source?path=./src/app.ts&lineStart=1&lineEnd=2`);
-    assert.deepEqual(sourceViaOrdinaryPath.lines.map((line) => line.text), ["const app = true;", "export default app;"]);
+    assert.deepEqual(sourceViaOrdinaryPath.lines.map((line: SourceLine) => line.text), ["const app = true;", "export default app;"]);
 
     const namedPlaceResponse = await postJson(`${baseUrl}/api/named-places`, {
       name: "App Area",
@@ -449,7 +452,7 @@ test("preserves concurrent annotation writes", async () => {
 
     const annotations = await getJson(`${baseUrl}/api/annotations`);
     assert.deepEqual(
-      annotations.annotations.map((annotation) => annotation.id).sort(),
+      annotations.annotations.map((annotation: MapAnnotation) => annotation.id).sort(),
       created.map(({ annotation }) => annotation.id).sort(),
     );
   } finally {
@@ -490,7 +493,7 @@ test("CLI resolves annotation deep links from local storage without browser auto
     assert.equal(result.source, "storage");
     assert.equal(result.annotation.id, created.annotation.id);
     assert.equal(result.targetCount, 1);
-    assert.deepEqual(result.resolvedTargets.map((target) => target.path), ["src/app.ts"]);
+    assert.deepEqual(result.resolvedTargets.map((target: ResolvedSelectionTarget) => target.path), ["src/app.ts"]);
     assert.equal(result.annotation.codexPrompt.includes("Geohash coverage"), false);
   } finally {
     server.close();
@@ -511,7 +514,7 @@ test("CLI resolves annotation deep links from local storage without browser auto
   assert.equal(offline.source, "storage");
   assert.equal(offline.annotation.id, created.annotation.id);
   assert.equal(offline.targetCount, 1);
-  assert.deepEqual(offline.resolvedTargets.map((target) => target.path), ["src/app.ts"]);
+  assert.deepEqual(offline.resolvedTargets.map((target: ResolvedSelectionTarget) => target.path), ["src/app.ts"]);
 });
 
 test("uses the next available port when the requested port is occupied", async () => {
@@ -540,19 +543,19 @@ test("uses the next available port when the requested port is occupied", async (
   }
 });
 
-async function getJson(url) {
+async function getJson(url: string) {
   const response = await fetch(url);
   if (!response.ok) assert.fail(await response.text());
   return response.json();
 }
 
-async function postJson(url, body) {
+async function postJson(url: string, body: unknown) {
   const response = await postJsonResponse(url, body);
   if (!response.ok) assert.fail(JSON.stringify(response.body));
   return response.body;
 }
 
-async function postJsonResponse(url, body) {
+async function postJsonResponse(url: string, body: unknown) {
   const response = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -566,13 +569,13 @@ async function postJsonResponse(url, body) {
   };
 }
 
-async function deleteJson(url) {
+async function deleteJson(url: string) {
   const response = await fetch(url, { method: "DELETE" });
   if (!response.ok) assert.fail(await response.text());
   return response.json();
 }
 
-async function putJson(url, body) {
+async function putJson(url: string, body: unknown) {
   const response = await fetch(url, {
     method: "PUT",
     headers: { "content-type": "application/json" },
@@ -582,7 +585,7 @@ async function putJson(url, body) {
   return response.json();
 }
 
-async function runCliJson(args) {
+async function runCliJson(args: readonly string[]) {
   const { stdout } = await execFileAsync(process.execPath, [
     join(process.cwd(), "bin", "codemap.mts"),
     "--json",
@@ -591,7 +594,7 @@ async function runCliJson(args) {
   return JSON.parse(stdout);
 }
 
-async function waitForActivityEvent(baseUrl) {
+async function waitForActivityEvent(baseUrl: string) {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const activity = await getJson(`${baseUrl}/api/activity`);
     if (activity.events.length > 0) return activity;
@@ -600,7 +603,7 @@ async function waitForActivityEvent(baseUrl) {
   assert.fail("Activity event was not visible in memory");
 }
 
-async function waitForActivityArchive(root) {
+async function waitForActivityArchive(root: string) {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     try {
       const raw = await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8");
@@ -622,7 +625,7 @@ function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error;
 }
 
-async function waitForMapVersion(baseUrl, previousVersion) {
+async function waitForMapVersion(baseUrl: string, previousVersion: string) {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const mapVersion = await getJson(`${baseUrl}/api/map-version`);
     if (mapVersion.version !== previousVersion) return mapVersion;
@@ -652,13 +655,13 @@ async function listenOnFreePort() {
   return server;
 }
 
-function serverPort(server) {
+function serverPort(server: Server) {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Expected TCP test server");
   return address.port;
 }
 
-function sampleCodemap({ includeExtraFile = false } = {}) {
+function sampleCodemap({ includeExtraFile = false }: { includeExtraFile?: boolean } = {}) {
   return {
     version: 1,
     mapLevels: { world: 1, region: 2, folder: 4, file: 7, code: 10, lineRange: 12, tokenRange: 12 },

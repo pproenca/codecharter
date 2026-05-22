@@ -157,7 +157,7 @@ test("clear prevents failed in-flight flush batches from being restored", async 
   }
 });
 
-function activityEvent(id) {
+function activityEvent(id: string) {
   return {
     id,
     agentId: "codex",

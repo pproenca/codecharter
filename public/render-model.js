@@ -431,7 +431,12 @@ export function shouldLabelFoggedFile({ file, box, scale, selected, fogState }) 
             return true;
         return scale > 2.2 && box.width > 78 && box.height > 24;
     }
-    return shouldLabelFile({ file, box, scale, selected });
+    return shouldLabelFile({
+        file,
+        box,
+        scale,
+        ...(selected === undefined ? {} : { selected }),
+    });
 }
 export function discoveryFogVeilStyle() {
     return {
@@ -765,7 +770,10 @@ export function rememberSourceRange(cache, cacheKey, source, limit = SOURCE_CACH
         cache.delete(cacheKey);
     cache.set(cacheKey, source);
     while (cache.size > limit) {
-        cache.delete(cache.keys().next().value);
+        const oldestKey = cache.keys().next().value;
+        if (oldestKey === undefined)
+            break;
+        cache.delete(oldestKey);
     }
 }
 export function cachedSourceRange(cache, path, lineStart, lineEnd) {
@@ -1009,7 +1017,10 @@ export function hitTestAnnotations(namedPlaces, point, { radiusX = 0, radiusY = 
     return null;
 }
 export function hitTestActivityEvents(events, point, { radiusX = 0, radiusY = 0, now, maxAgeMinutes } = {}) {
-    const options = { now, maxAgeMinutes };
+    const options = {
+        ...(now === undefined ? {} : { now }),
+        ...(maxAgeMinutes === undefined ? {} : { maxAgeMinutes }),
+    };
     let best = null;
     for (const event of events) {
         if (!isLiveActivityEvent(event, options))

@@ -137,7 +137,7 @@ export async function startServer({
     activityArchivePath: resolvedActivityArchivePath,
     activityStore: createActivityStore({
       archivePath: resolvedActivityArchivePath,
-      flushIntervalMs: activityFlushIntervalMs,
+      ...(activityFlushIntervalMs === undefined ? {} : { flushIntervalMs: activityFlushIntervalMs }),
     }),
   };
 
@@ -282,7 +282,13 @@ async function getResolveApi(state: ServerState, _request: IncomingMessage, resp
   const lineEnd = optionalNumber(url.searchParams.get("lineEnd"));
   const columnStart = optionalNumber(url.searchParams.get("columnStart"));
   const columnEnd = optionalNumber(url.searchParams.get("columnEnd"));
-  sendJson(response, 200, resolveAddress(codemap, { path, lineStart, lineEnd, columnStart, columnEnd }));
+  sendJson(response, 200, resolveAddress(codemap, {
+    path,
+    ...(lineStart === undefined ? {} : { lineStart }),
+    ...(lineEnd === undefined ? {} : { lineEnd }),
+    ...(columnStart === undefined ? {} : { columnStart }),
+    ...(columnEnd === undefined ? {} : { columnEnd }),
+  }));
 }
 
 async function getSourceApi(state: ServerState, _request: IncomingMessage, response: ServerResponse, url: URL): Promise<void> {
@@ -290,9 +296,10 @@ async function getSourceApi(state: ServerState, _request: IncomingMessage, respo
   const path = requiredParam(url, "path");
   const file = codemap.files[normalizePathForMap(path)];
   if (!file) throw httpError(404, `No source file found for path: ${path}`);
+  const lineEnd = optionalNumber(url.searchParams.get("lineEnd"));
   sendJson(response, 200, await readSourceRange(state.root, file, {
     lineStart: optionalNumber(url.searchParams.get("lineStart")) ?? 1,
-    lineEnd: optionalNumber(url.searchParams.get("lineEnd")),
+    ...(lineEnd === undefined ? {} : { lineEnd }),
   }));
 }
 

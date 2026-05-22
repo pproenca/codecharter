@@ -1973,13 +1973,13 @@ async function selectActivityEvent(event, { zoomReadable = false } = {}) {
     const path = pathFromActivity(event);
     if (!path) {
         applySourcePanel(sourcePanelState({
-            deepLink: event.address?.deepLink,
             fallbackOutput: event.note || "Activity selected.",
+            ...(event.address?.deepLink === undefined ? {} : { deepLink: event.address.deepLink }),
         }));
         render();
         return;
     }
-    const lineRange = event.address?.lineRange ?? { start: 1, end: undefined };
+    const lineRange = event.address?.lineRange ?? { start: 1 };
     if (zoomReadable) {
         const file = state.map?.files?.[path];
         if (file)

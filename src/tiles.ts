@@ -189,10 +189,10 @@ function serializeTarget(target: TileMapTarget, targetType: TileTargetType): Til
   return {
     targetType,
     path: target.path,
-    name: target.name,
     bounds: target.bounds,
     geo: target.geo,
-    lineCount: target.lineCount,
-    weight: target.weight,
+    ...(target.name === undefined ? {} : { name: target.name }),
+    ...(target.lineCount === undefined ? {} : { lineCount: target.lineCount }),
+    ...(target.weight === undefined ? {} : { weight: target.weight }),
   };
 }

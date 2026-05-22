@@ -78,6 +78,7 @@ import {
   worldToScreenPoint,
   zoomViewAt,
 } from "../public-src/render-model.ts";
+import type { Bounds, Point } from "../public-src/render-model.js";
 
 const hitTestActivityEventsForTest = hitTestActivityEvents as (
   events: unknown[],
@@ -769,7 +770,14 @@ test("keeps map search priority and first matching target order", () => {
 });
 
 test("map search reflects target and place updates after earlier searches", () => {
-  const codemap = {
+  const codemap: {
+    files: Record<string, {
+      path: string;
+      bounds: Bounds;
+      geo: { geohash: string; lat: number; lon: number };
+    }>;
+    folders: Record<string, never>;
+  } = {
     files: {
       "src/app.ts": {
         path: "src/app.ts",
@@ -1388,18 +1396,18 @@ function roundPoint(point: Record<string, number>) {
   );
 }
 
-function colorChannels(rgba) {
+function colorChannels(rgba: string) {
   return rgba.slice(0, rgba.lastIndexOf(","));
 }
 
-function ratio(point, bounds) {
+function ratio(point: Point, bounds: Bounds) {
   return {
     x: Number(((point.x - bounds.x) / bounds.width).toFixed(12)),
     y: Number(((point.y - bounds.y) / bounds.height).toFixed(12)),
   };
 }
 
-function roundPoints(points) {
+function roundPoints(points: Point[]) {
   return points.map((point) => [
     Number(point.x.toFixed(12)),
     Number(point.y.toFixed(12)),

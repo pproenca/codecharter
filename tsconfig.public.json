@@ -16,7 +16,8 @@
     "strictNullChecks": true,
     "useUnknownInCatchVariables": true,
     "noUncheckedIndexedAccess": true,
-    "strict": false
+    "exactOptionalPropertyTypes": true,
+    "strict": true
   },
   "include": ["public-src/**/*.ts"]
 }

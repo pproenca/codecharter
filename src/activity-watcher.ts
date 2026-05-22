@@ -269,12 +269,12 @@ function defaultActivityPayload(change: CodeChange, { agentId, activityState }: 
     agentId,
     activityState,
     path: change.path,
-    lineStart: change.lineStart,
-    lineEnd: change.lineEnd,
-    columnStart: change.columnStart,
-    columnEnd: change.columnEnd,
-    fragments: change.fragments,
     note: "codecharter dev watcher",
+    ...(change.lineStart === undefined ? {} : { lineStart: change.lineStart }),
+    ...(change.lineEnd === undefined ? {} : { lineEnd: change.lineEnd }),
+    ...(change.columnStart === undefined ? {} : { columnStart: change.columnStart }),
+    ...(change.columnEnd === undefined ? {} : { columnEnd: change.columnEnd }),
+    ...(change.fragments === undefined ? {} : { fragments: change.fragments }),
   };
 }
 

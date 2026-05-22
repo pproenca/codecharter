@@ -53,7 +53,7 @@ test("resolves world-level selections to the root code map region", () => {
 
   assert.deepEqual(result.coveringSet, ["s"]);
   assert.deepEqual(result.resolvedTargets.map((target) => target.path), [""]);
-  assert.equal(result.resolvedTargets[0].targetType, "folder");
+  assert.equal(required(result.resolvedTargets[0]).targetType, "folder");
 });
 
 test("resolves region selections to non-root folders", () => {
@@ -63,7 +63,7 @@ test("resolves region selections to non-root folders", () => {
   });
 
   assert.deepEqual(result.resolvedTargets.map((target) => target.path), ["src"]);
-  assert.equal(result.resolvedTargets[0].targetType, "folder");
+  assert.equal(required(result.resolvedTargets[0]).targetType, "folder");
 });
 
 test("rejects degenerate drawn selections before resolving map targets", () => {
@@ -193,10 +193,11 @@ test("resolves detailed drawn selections to line coordinates", () => {
   });
 
   assert.equal(result.resolvedTargets.length, 1);
-  assert.equal(result.resolvedTargets[0].targetType, "lineRange");
-  assert.deepEqual(result.resolvedTargets[0].lineRange, { start: 2, end: 3 });
-  assert.equal(result.resolvedTargets[0].address.targetType, "lineRange");
-  assert.equal(result.coveringSet[0].length, 12);
+  const target = required(result.resolvedTargets[0]);
+  assert.equal(target.targetType, "lineRange");
+  assert.deepEqual(target.lineRange, { start: 2, end: 3 });
+  assert.equal(required(target.address).targetType, "lineRange");
+  assert.equal(required(result.coveringSet[0]).length, 12);
 });
 
 test("resolves token-level drawn selections to line and column coordinates", () => {
@@ -206,20 +207,26 @@ test("resolves token-level drawn selections to line and column coordinates", () 
   });
 
   assert.equal(result.resolvedTargets.length, 1);
-  assert.equal(result.resolvedTargets[0].targetType, "tokenRange");
-  assert.deepEqual(result.resolvedTargets[0].lineRange, { start: 2, end: 3 });
-  assert.deepEqual(result.resolvedTargets[0].tokenRange, { start: 5, end: 8 });
-  assert.equal(result.resolvedTargets[0].address.targetType, "tokenRange");
+  const target = required(result.resolvedTargets[0]);
+  assert.equal(target.targetType, "tokenRange");
+  assert.deepEqual(target.lineRange, { start: 2, end: 3 });
+  assert.deepEqual(target.tokenRange, { start: 5, end: 8 });
+  assert.equal(required(target.address).targetType, "tokenRange");
 });
 
-function target(path, geohash, bounds) {
+function target(path: string, geohash: string, bounds: { x: number; y: number; width: number; height: number }) {
   return {
     path,
-    name: path.split("/").at(-1),
+    name: path.split("/").at(-1) ?? path,
     bounds,
     geo: { geohash, lat: 0, lon: 0 },
     lineCount: 10,
     maxLineLength: 20,
     weight: 10,
   };
+}
+
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value);
+  return value;
 }

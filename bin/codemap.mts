@@ -15,7 +15,7 @@ import { generateCodemap } from "../src/generator.ts";
 import { initializeCodecharter } from "../src/init.ts";
 import { ensureCodecharterGitignore, ensureLocalGitExcludes } from "../src/local-git-exclude.ts";
 import { resolveAddress } from "../src/resolver.ts";
-import type { CodecharterCodemap } from "../src/resolver.js";
+import type { AddressRequest, CodecharterCodemap } from "../src/resolver.js";
 import { refreshPlaceResolution } from "../src/selections.ts";
 import { startServer } from "../src/server.ts";
 import { writeJson } from "../src/store.ts";
@@ -94,6 +94,12 @@ type CliAddressRequest = {
   lineEndRaw?: string;
   columnStartRaw?: string;
   columnEndRaw?: string;
+};
+type CliAddressRequestParts = {
+  lineStartRaw: string | undefined;
+  lineEndRaw: string | undefined;
+  columnStartRaw: string | undefined;
+  columnEndRaw: string | undefined;
 };
 type ServerOption = {
   server?: string;
@@ -319,7 +325,7 @@ class DoctorCommand extends CliCommand {
     const server = takeOption(args, "--server", undefined);
     stripArgumentSeparator(args);
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
-    const result = await doctor({ root, mapPath, server });
+    const result = await doctor({ root, mapPath, ...optionalProperty("server", server) });
     if (jsonOutput) printJson(result);
     else printDoctor(result);
   }
@@ -458,12 +464,17 @@ class ResolveCommand extends CliCommand {
     if (args.length > 3) throw new Error(`Unknown arguments: ${args.slice(3).join(" ")}`);
 
     if (isCodecharterDeepLink(reference)) {
-      const resolved = await resolveDeepLink({ root, mapPath, reference, server });
+      const resolved = await resolveDeepLink({ root, mapPath, reference, ...optionalProperty("server", server) });
       printResult(resolved, jsonOutput, printResolvedDeepLink);
       return;
     }
 
-    const address = await resolveCliAddress(mapPath, { path: reference, lineStartRaw, lineEndRaw, columnStartRaw, columnEndRaw });
+    const address = await resolveCliAddress(mapPath, cliAddressRequest(reference, {
+      lineStartRaw,
+      lineEndRaw,
+      columnStartRaw,
+      columnEndRaw,
+    }));
     printResult(address, jsonOutput, printResolvedAddress);
   }
 }
@@ -482,7 +493,7 @@ class AnnotationCommand extends CliCommand {
     if (!reference) throw new Error("annotation requires an id, codecharter://annotation link, or CodeCharter URL");
     if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
 
-    printResult(await readAnnotation({ root, mapPath, reference, server }), jsonOutput, printAnnotation);
+    printResult(await readAnnotation({ root, mapPath, reference, ...optionalProperty("server", server) }), jsonOutput, printAnnotation);
   }
 }
 
@@ -499,7 +510,12 @@ class AnnotationsCommand extends CliCommand {
     stripArgumentSeparator(args);
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
-    printResult(await listAnnotations({ root, mapPath, server, limit }), jsonOutput, printAnnotations);
+    printResult(await listAnnotations({
+      root,
+      mapPath,
+      ...optionalProperty("server", server),
+      ...optionalProperty("limit", limit),
+    }), jsonOutput, printAnnotations);
   }
 }
 
@@ -515,7 +531,7 @@ class ApiCommand extends CliCommand {
     if (!reference) throw new Error("api requires a local /api path or CodeCharter API URL");
     if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
 
-    printResult(await readApi({ reference, server }), jsonOutput, printApi);
+    printResult(await readApi({ reference, ...optionalProperty("server", server) }), jsonOutput, printApi);
   }
 }
 
@@ -547,7 +563,12 @@ class ActivityCommand extends CliCommand {
         throw new Error("activity requires a path");
       }
 
-      const address = await resolveCliAddress(mapPath, { path, lineStartRaw, lineEndRaw, columnStartRaw, columnEndRaw });
+      const address = await resolveCliAddress(mapPath, cliAddressRequest(path, {
+        lineStartRaw,
+        lineEndRaw,
+        columnStartRaw,
+        columnEndRaw,
+      }));
       const event = createActivityEvent(address, { agentId, activityState, note });
       await appendActivityEvents(outPath, [event]);
       printResult({ accepted: true, event }, jsonOutput, printActivityResult);
@@ -633,7 +654,16 @@ async function setupAndRunDev({
     installGitHooks,
   });
   const initialCodemap = isCodecharterCodemap(setupResult.codemap) ? setupResult.codemap : undefined;
-  await runDevServer({ root, mapPath, port, agentId, watch, fresh: false, open, initialCodemap });
+  await runDevServer({
+    root,
+    mapPath,
+    port,
+    agentId,
+    watch,
+    fresh: false,
+    open,
+    ...optionalProperty("initialCodemap", initialCodemap),
+  });
   if (printHooksNext) console.log("next: /hooks");
 }
 
@@ -644,7 +674,7 @@ async function runClearActivityCommand(args: string[], jsonOutput: boolean): Pro
   stripArgumentSeparator(args);
   if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
-  printResult(await clearActivity({ outPath, server }), jsonOutput, printActivityClearResult);
+  printResult(await clearActivity({ outPath, ...optionalProperty("server", server) }), jsonOutput, printActivityClearResult);
 }
 
 async function clearActivity({ outPath, server }: ClearActivityOptions) {
@@ -666,7 +696,7 @@ async function resolveDeepLink({ root, mapPath, reference, server }: DeepLinkRes
     return {
       kind: "annotation",
       reference,
-      ...await readAnnotation({ root, mapPath, reference, server }),
+      ...await readAnnotation({ root, mapPath, reference, ...optionalProperty("server", server) }),
     };
   }
 
@@ -689,7 +719,7 @@ async function resolveCliAddress(mapPath: string, { path, lineStartRaw, lineEndR
   const codemap = JSON.parse(await readFile(mapPath, "utf8"));
   const lineStart = optionalNumber(lineStartRaw);
   const lineEnd = lineEndRaw === undefined ? lineStart : optionalNumber(lineEndRaw);
-  return resolveAddress(codemap, { path, lineStart, lineEnd, columnStart, columnEnd });
+  return resolveAddress(codemap, addressRequest(path, { lineStart, lineEnd, columnStart, columnEnd }));
 }
 
 function requestFromDeepLink(parsed: ParsedCodemapDeepLink): CliAddressRequest & { lineStart?: number; lineEnd?: number; columnStart?: number; columnEnd?: number } {
@@ -764,7 +794,7 @@ async function doctor({ root, mapPath, server }: DoctorOptions): Promise<DoctorR
     setup: {
       ready: missingSetup.length === 0,
       missing: missingSetup,
-      nextStep: missingSetup.length ? "Run `codecharter init` from the target repo." : undefined,
+      ...optionalProperty("nextStep", missingSetup.length ? "Run `codecharter init` from the target repo." : undefined),
     },
     checks,
   };
@@ -913,6 +943,44 @@ function stripArgumentSeparator(args: string[]): void {
   if (args[0] === "--") args.shift();
 }
 
+function optionalProperty<K extends string, T>(
+  key: K,
+  value: T,
+): { [P in K]?: Exclude<T, undefined> } {
+  return value === undefined ? {} : { [key]: value } as { [P in K]?: Exclude<T, undefined> };
+}
+
+function cliAddressRequest(
+  path: string,
+  { lineStartRaw, lineEndRaw, columnStartRaw, columnEndRaw }: CliAddressRequestParts,
+): CliAddressRequest {
+  return {
+    path,
+    ...optionalProperty("lineStartRaw", lineStartRaw),
+    ...optionalProperty("lineEndRaw", lineEndRaw),
+    ...optionalProperty("columnStartRaw", columnStartRaw),
+    ...optionalProperty("columnEndRaw", columnEndRaw),
+  };
+}
+
+function addressRequest(
+  path: string,
+  { lineStart, lineEnd, columnStart, columnEnd }: {
+    lineStart: AddressRequest["lineStart"] | undefined;
+    lineEnd: AddressRequest["lineEnd"] | undefined;
+    columnStart: AddressRequest["columnStart"] | undefined;
+    columnEnd: AddressRequest["columnEnd"] | undefined;
+  },
+): AddressRequest {
+  return {
+    path,
+    ...optionalProperty("lineStart", lineStart),
+    ...optionalProperty("lineEnd", lineEnd),
+    ...optionalProperty("columnStart", columnStart),
+    ...optionalProperty("columnEnd", columnEnd),
+  };
+}
+
 async function readOptionalJson<T = unknown>(path: string): Promise<T | undefined> {
   try {
     return JSON.parse(await readFile(path, "utf8")) as T;
@@ -927,7 +995,7 @@ async function writeCodemap({ root, out, fresh = false, quiet = false }: WriteCo
   const codemap = await generateCodemap({
     root,
     excludePaths: sortedUnique([relative(root, out), ...METADATA_EXCLUDE_PATHS]),
-    previousCodemap,
+    ...optionalProperty("previousCodemap", previousCodemap),
   });
   await writeJson(out, codemap);
   if (!quiet) {
@@ -1131,7 +1199,7 @@ async function jsonFileStatus(path: string): Promise<JsonFileStatus> {
       exists: true,
       ok: true,
       validJson: true,
-      keys: value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value).sort() : undefined,
+      ...optionalProperty("keys", value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value).sort() : undefined),
     };
   } catch (error) {
     return {

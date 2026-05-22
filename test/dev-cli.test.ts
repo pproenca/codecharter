@@ -302,29 +302,29 @@ test("packed package supports the npx init and resolve path", { timeout: 20000 }
   }
 });
 
-async function fetchText(url) {
+async function fetchText(url: string) {
   const response = await fetch(url);
   if (!response.ok) assert.fail(await response.text());
   return response.text();
 }
 
-async function getJson(url) {
+async function getJson(url: string) {
   const response = await fetch(url);
   if (!response.ok) assert.fail(await response.text());
   return response.json();
 }
 
-async function waitForActivity(port, path = "src/app.js") {
+async function waitForActivity(port: number, path = "src/app.js") {
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const activity = await getJson(`http://127.0.0.1:${port}/api/activity`);
-    const event = activity.events.find((item) => item.address?.deepLink?.includes(`path=${encodeURIComponent(path)}`));
+    const event = activity.events.find((item: { address?: { deepLink?: string } }) => item.address?.deepLink?.includes(`path=${encodeURIComponent(path)}`));
     if (event) return event;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   assert.fail(`Timed out waiting for activity on ${path}`);
 }
 
-async function waitFor(predicate, output) {
+async function waitFor(predicate: () => boolean, output: () => string) {
   for (let attempt = 0; attempt < 80; attempt += 1) {
     if (predicate()) return;
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -332,7 +332,7 @@ async function waitFor(predicate, output) {
   assert.fail(`Timed out waiting for dev CLI readiness\n${output()}`);
 }
 
-async function waitForExit(child) {
+async function waitForExit(child: ReturnType<typeof spawn>) {
   if (child.exitCode !== null || child.signalCode !== null) return;
   await Promise.race([
     once(child, "exit"),
@@ -341,13 +341,13 @@ async function waitForExit(child) {
   if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
 }
 
-function killProcessGroup(child) {
+function killProcessGroup(child: ReturnType<typeof spawn>) {
   if (process.platform === "win32") {
     child.kill("SIGTERM");
     return;
   }
   try {
-    process.kill(-child.pid, "SIGTERM");
+    process.kill(-required(child.pid), "SIGTERM");
   } catch {
     child.kill("SIGTERM");
   }
@@ -370,12 +370,12 @@ function required<T>(value: T | null | undefined): T {
   return value;
 }
 
-function serverPort(server) {
+function serverPort(server: ReturnType<typeof createServer>) {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Expected TCP test server");
   return address.port;
 }
 
-function escapeRegExp(value) {
+function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

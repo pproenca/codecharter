@@ -42,6 +42,6 @@ test("adds CodeCharter outputs to the repo gitignore during setup", async () => 
   assert.deepEqual(second.patternsAdded, []);
 });
 
-function escapeRegExp(value) {
+function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

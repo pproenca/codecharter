@@ -383,12 +383,12 @@ test("watcher skips overlapping poll work", async () => {
   await execFileAsync("git", ["init"], { cwd: root });
 
   let prepareCount = 0;
-  let releasePrepare;
-  let resolvePrepareStarted;
-  const prepareStarted = new Promise((resolve) => {
+  let releasePrepare: (() => void) | undefined;
+  let resolvePrepareStarted: (() => void) | undefined;
+  const prepareStarted = new Promise<void>((resolve) => {
     resolvePrepareStarted = resolve;
   });
-  const prepareGate = new Promise((resolve) => {
+  const prepareGate = new Promise<void>((resolve) => {
     releasePrepare = resolve;
   });
   const posted: ActivityWatcherPayload[] = [];
@@ -399,7 +399,7 @@ test("watcher skips overlapping poll work", async () => {
     throttleMs: 0,
     prepareChanges: async () => {
       prepareCount += 1;
-      resolvePrepareStarted();
+      required(resolvePrepareStarted)();
       await prepareGate;
     },
     postActivity: async (_endpoint, body) => {
@@ -414,7 +414,7 @@ test("watcher skips overlapping poll work", async () => {
     secondPoll.then(() => "resolved"),
     new Promise((resolve) => setTimeout(() => resolve("pending"), 50)),
   ]);
-  releasePrepare();
+  required(releasePrepare)();
   await Promise.allSettled([firstPoll, secondPoll]);
 
   assert.equal(secondPollState, "resolved");

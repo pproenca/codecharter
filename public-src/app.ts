@@ -154,7 +154,9 @@ type BrowserControlName =
 type BrowserControls = Record<BrowserControlName, BrowserControl | null> & {
   layerToggles: () => BrowserControl[];
 };
-type BrowserCommand = (...args: unknown[]) => unknown;
+type BrowserCommand = {
+  command(...args: unknown[]): unknown;
+}["command"];
 type HashRouteIntent =
   | { type: "annotation"; id: string }
   | { type: "selection"; params: URLSearchParams }
@@ -2319,14 +2321,14 @@ async function selectActivityEvent(event: ActivityEvent, { zoomReadable = false 
   const path = pathFromActivity(event);
   if (!path) {
     applySourcePanel(sourcePanelState({
-      deepLink: event.address?.deepLink,
       fallbackOutput: event.note || "Activity selected.",
+      ...(event.address?.deepLink === undefined ? {} : { deepLink: event.address.deepLink }),
     }));
     render();
     return;
   }
 
-  const lineRange = event.address?.lineRange ?? { start: 1, end: undefined };
+  const lineRange = event.address?.lineRange ?? { start: 1 };
   if (zoomReadable) {
     const file = state.map?.files?.[path];
     if (file) zoomToReadableFile(file, lineRatioForLine(file, lineRange.start));

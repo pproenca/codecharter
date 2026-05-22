@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { ActivityEventBuilder, ActivityStateNormalizer, createActivityEvent } from "../src/activity.js";
+import type { CodecharterCodemap } from "../src/resolver.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -142,7 +143,7 @@ test("CLI resolve honors POSIX end-of-options before dash-prefixed paths", async
   const root = await mkdtemp(join(tmpdir(), "codecharter-posix-options-"));
   const codemap = sampleCodemap();
   codemap.files["--json"] = {
-    ...codemap.files["src/app.ts"],
+    ...required(codemap.files["src/app.ts"]),
     path: "--json",
   };
   await writeFile(join(root, "codecharter.json"), JSON.stringify(codemap));
@@ -268,7 +269,7 @@ test("CLI nested activity clear truncates the local activity archive", async () 
   assert.equal(await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8"), "");
 });
 
-function sampleCodemap() {
+function sampleCodemap(): CodecharterCodemap & { version: number; mapLevels: Record<string, number> } {
   return {
     version: 1,
     mapLevels: { world: 1, region: 2, folder: 4, file: 7, code: 10, lineRange: 12, tokenRange: 12 },

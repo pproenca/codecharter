@@ -187,7 +187,7 @@ function serializeFolder(folder: FolderNode): SerializedFolder {
       folders: childPaths(sortedFolders(folder)),
       files: childPaths(sortedFiles(folder)),
     },
-    growthArea: folder.growthArea,
+    ...(folder.growthArea === undefined ? {} : { growthArea: folder.growthArea }),
   };
 }
 

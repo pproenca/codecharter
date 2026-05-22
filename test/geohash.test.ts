@@ -121,7 +121,7 @@ test("rejects non-finite code-plane coordinates before encoding", () => {
   );
 });
 
-function decodedGeohashToCodeBounds(bounds) {
+function decodedGeohashToCodeBounds(bounds: ReturnType<typeof decodeGeohashBounds>) {
   const x1 = (bounds.lon.min + 180) / 360;
   const x2 = (bounds.lon.max + 180) / 360;
   const y1 = (90 - bounds.lat.max) / 180;

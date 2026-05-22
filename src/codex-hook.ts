@@ -163,15 +163,7 @@ export async function runCodexHook({ input = "", cwd = process.cwd() }: RunCodex
 async function codexHookEvents({ root, mapPath, payload }: CodexHookEventsOptions): Promise<StoredActivityEvent[]> {
   const threadId = codexThreadId(payload);
   const threadUri = codexThreadUri(payload, threadId);
-  const base = {
-    agentId: "codex",
-    hookEventName: payload.hook_event_name,
-    sessionId: payload.session_id,
-    threadId,
-    threadUri,
-    turnId: payload.turn_id,
-    model: payload.model,
-  };
+  const base = hookEventBase(payload, threadId, threadUri);
 
   if (payload.hook_event_name === "SessionStart") {
     return [heartbeatEvent({ ...base, activityState: "reading", note: `Codex session ${payload.source ?? "started"}` })];
@@ -206,15 +198,9 @@ async function codexHookEvents({ root, mapPath, payload }: CodexHookEventsOption
       const address = resolveChangeAddress(codemap, previousCodemap, change);
       events.push(createActivityEvent(address, {
         id: randomUUID(),
-        agentId: "codex",
         activityState: change.activityState ?? activityState,
         note: change.note ?? `Codex ${payload.tool_name ?? "tool"} activity`,
-        hookEventName: payload.hook_event_name,
-        sessionId: payload.session_id,
-        threadId,
-        threadUri,
-        turnId: payload.turn_id,
-        model: payload.model,
+        ...hookEventBase(payload, threadId, threadUri),
       }));
     } catch {
       // Unmapped paths are ignored; the map update hooks will catch up separately.
@@ -224,6 +210,18 @@ async function codexHookEvents({ root, mapPath, payload }: CodexHookEventsOption
     events.push(heartbeatEvent({ ...base, activityState, note: "Codex ran tests" }));
   }
   return events;
+}
+
+function hookEventBase(payload: HookPayload, threadId: string | undefined, threadUri: string | undefined): HookEventBase {
+  return {
+    agentId: "codex",
+    ...(payload.hook_event_name === undefined ? {} : { hookEventName: payload.hook_event_name }),
+    ...(payload.session_id === undefined ? {} : { sessionId: payload.session_id }),
+    ...(threadId === undefined ? {} : { threadId }),
+    ...(threadUri === undefined ? {} : { threadUri }),
+    ...(payload.turn_id === undefined ? {} : { turnId: payload.turn_id }),
+    ...(payload.model === undefined ? {} : { model: payload.model }),
+  };
 }
 
 async function refreshCodemap(root: string, mapPath: string, previousCodemap: CodecharterCodemap): Promise<CodecharterCodemap> {

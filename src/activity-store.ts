@@ -28,15 +28,15 @@ export function createActivityStore({
   maxArchiveQueueEvents = DEFAULT_MAX_ARCHIVE_QUEUE_EVENTS,
 }: ActivityStoreOptions = {}): ActivityStore {
   return new ActivityStore({
-    archivePath,
     flushIntervalMs,
     maxMemoryEvents,
     maxArchiveQueueEvents,
+    ...(archivePath === undefined ? {} : { archivePath }),
   });
 }
 
 export class ActivityStore {
-  archivePath?: string;
+  archivePath: string | undefined;
   private readonly maxMemoryEvents: number;
   private readonly maxArchiveQueueEvents: number;
   private events: StoredActivityEvent[];

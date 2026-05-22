@@ -57,7 +57,7 @@ export function lineRangeFromUnifiedDiff(diff: string): LineRange {
   if (range.lineStart === undefined) return {};
   return {
     lineStart: range.lineStart,
-    lineEnd: range.lineEnd,
+    ...(range.lineEnd === undefined ? {} : { lineEnd: range.lineEnd }),
   };
 }
 

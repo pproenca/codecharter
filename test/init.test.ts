@@ -38,7 +38,7 @@ test("codecharter init writes project config, map, Codex hooks, and local git ho
   const sidecar = JSON.parse(await readFile(join(root, ".codecharter", "codecharter.json"), "utf8"));
   assert.ok(sidecar.files["src/app.ts"]);
 
-  const hooksJson = JSON.parse(await readFile(join(root, ".codex", "hooks.json"), "utf8"));
+  const hooksJson: HooksJson = JSON.parse(await readFile(join(root, ".codex", "hooks.json"), "utf8"));
   assert.ok(hooksJson.hooks.PostToolUse);
   assert.match(JSON.stringify(hooksJson.hooks.PostToolUse), /exec_command/);
   await access(join(root, ".codex", "hooks", "codecharter-codex-hook.mjs"), constants.X_OK);
@@ -210,11 +210,13 @@ test("codecharter init merges Codex hooks without clobbering existing repo hooks
     ], { cwd: root });
   }
 
-  const hooksJson = JSON.parse(await readFile(join(root, ".codex", "hooks.json"), "utf8"));
+  const hooksJson: HooksJson = JSON.parse(await readFile(join(root, ".codex", "hooks.json"), "utf8"));
   assert.equal(hooksJson.custom.preserved, true);
-  assert.equal(hooksJson.hooks.PreToolUse[0].hooks[0].command, "node .codex/hooks/existing-pre.mjs");
-  assert.equal(hooksJson.hooks.PostToolUse[0].hooks[0].command, "node .codex/hooks/existing-post.mjs");
-  assert.equal(hooksJson.hooks.PostToolUse.some((group) => (group.hooks ?? []).length === 0), false);
+  const preToolUse = required(hooksJson.hooks.PreToolUse);
+  const postToolUse = required(hooksJson.hooks.PostToolUse);
+  assert.equal(required(required(preToolUse[0]).hooks)[0]?.command, "node .codex/hooks/existing-pre.mjs");
+  assert.equal(required(required(postToolUse[0]).hooks)[0]?.command, "node .codex/hooks/existing-post.mjs");
+  assert.equal(postToolUse.some((group) => (group.hooks ?? []).length === 0), false);
   assert.equal(countCodecharterHooks(hooksJson), 3);
 });
 
@@ -306,7 +308,7 @@ test("codecharter codex-hook appends mapped Codex activity without a daemon", as
   ], { cwd: root, input: JSON.stringify(payload) });
 
   const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
-  const event = JSON.parse(lines[0]);
+  const event = JSON.parse(required(lines[0]));
   assert.equal(event.agentId, "codex");
   assert.equal(event.activityState, "editing");
   assert.equal(event.hookEventName, "PostToolUse");
@@ -349,7 +351,7 @@ test("codecharter codex-hook records explicit Codex thread URIs", async () => {
   ], { cwd: root, input: JSON.stringify(payload) });
 
   const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
-  const event = JSON.parse(lines[0]);
+  const event = JSON.parse(required(lines[0]));
   assert.equal(event.threadId, "019e4c43-dd59-7f30-aea5-c00e63abc63f");
   assert.equal(event.threadUri, "codex://threads/019e4c43-dd59-7f30-aea5-c00e63abc63f");
 });
@@ -392,7 +394,7 @@ test("codecharter codex-hook scopes write activity to tool input paths", async (
 
   const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
   assert.equal(lines.length, 1);
-  const event = JSON.parse(lines[0]);
+  const event = JSON.parse(required(lines[0]));
   assert.equal(event.address.path, "src/app.ts");
   assert.equal(event.sessionId, "session-scoped");
 });
@@ -435,7 +437,7 @@ test("codecharter codex-hook maps structured write-file tools without dirty-file
 
   const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
   assert.equal(lines.length, 1);
-  const event = JSON.parse(lines[0]);
+  const event = JSON.parse(required(lines[0]));
   assert.equal(event.address.path, "src/app.ts");
   assert.equal(event.sessionId, "session-write-file");
 });
@@ -475,7 +477,7 @@ test("codecharter codex-hook refreshes the map before resolving new file activit
   ], { cwd: root, input: JSON.stringify(payload) });
 
   const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
-  const event = JSON.parse(lines[0]);
+  const event = JSON.parse(required(lines[0]));
   assert.equal(event.address.path, "src/new.ts");
   assert.equal(event.address.targetType, "lineRange");
 
@@ -520,7 +522,7 @@ test("codecharter codex-hook maps Bash read commands as reading activity", async
   ], { cwd: root, input: JSON.stringify(payload) });
 
   const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
-  const event = JSON.parse(lines[0]);
+  const event = JSON.parse(required(lines[0]));
   assert.equal(event.agentId, "codex");
   assert.equal(event.activityState, "reading");
   assert.equal(event.note, "Codex read src/app.ts");
@@ -569,7 +571,7 @@ test("codecharter codex-hook maps sed reads under plural path segments", async (
 
   const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
   assert.equal(lines.length, 1);
-  const event = JSON.parse(lines[0]);
+  const event = JSON.parse(required(lines[0]));
   assert.equal(event.activityState, "reading");
   assert.equal(event.note, "Codex read packages/feature/AGENTS.md");
   assert.deepEqual(event.address.lineRange, { start: 1, end: 2 });
@@ -613,7 +615,7 @@ test("codecharter codex-hook maps Codex app shell reads as reading activity", as
   ], { cwd: root, input: JSON.stringify(payload) });
 
   const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
-  const event = JSON.parse(lines[0]);
+  const event = JSON.parse(required(lines[0]));
   assert.equal(event.activityState, "reading");
   assert.equal(event.note, "Codex read src/app.ts");
   assert.equal(event.sessionId, "session-app-read");
@@ -659,7 +661,7 @@ test("codecharter codex-hook maps tail reads with normalized relative paths", as
 
   const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
   assert.equal(lines.length, 1);
-  const event = JSON.parse(lines[0]);
+  const event = JSON.parse(required(lines[0]));
   assert.equal(event.activityState, "reading");
   assert.equal(event.note, "Codex read src/app.ts");
   assert.equal(event.sessionId, "session-tail-read");
@@ -680,7 +682,7 @@ test("codecharter codex-hook maps tail reads with normalized relative paths", as
 
   const compactLines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
   assert.equal(compactLines.length, 2);
-  const compactEvent = JSON.parse(compactLines[1]);
+  const compactEvent = JSON.parse(required(compactLines[1]));
   assert.equal(compactEvent.activityState, "reading");
   assert.equal(compactEvent.note, "Codex read src/app.ts");
   assert.equal(compactEvent.sessionId, "session-tail-compact-read");
@@ -727,7 +729,7 @@ test("codecharter codex-hook does not use dirty-file fallback for Codex Desktop 
 
   const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
   assert.equal(lines.length, 1);
-  const event = JSON.parse(lines[0]);
+  const event = JSON.parse(required(lines[0]));
   assert.equal(event.activityState, "reading");
   assert.equal(event.note, "Codex read src/app.ts");
   assert.equal(event.sessionId, "session-desktop-read");
@@ -771,14 +773,14 @@ test("codecharter codex-hook maps nested ripgrep directory reads as folder activ
 
   const lines = (await readFile(join(root, ".codecharter", "activity.jsonl"), "utf8")).trim().split("\n");
   assert.equal(lines.length, 1);
-  const event = JSON.parse(lines[0]);
+  const event = JSON.parse(required(lines[0]));
   assert.equal(event.activityState, "reading");
   assert.equal(event.note, "Codex read src");
   assert.equal(event.address.targetType, "folder");
   assert.equal(event.address.path, "src");
 });
 
-async function execFileWithInput(command, args, { cwd, input }) {
+async function execFileWithInput(command: string, args: readonly string[], { cwd, input }: { cwd: string; input: string }) {
   const child = spawn(command, args, { cwd, stdio: ["pipe", "pipe", "pipe"] });
   let stderr = "";
   child.stderr.on("data", (chunk) => {
@@ -789,10 +791,20 @@ async function execFileWithInput(command, args, { cwd, input }) {
   if (code !== 0) assert.fail(stderr);
 }
 
-function countCodecharterHooks(hooksJson: { hooks: Record<string, Array<{ hooks: Array<{ command?: string }> }>> }) {
+type HooksJson = {
+  custom: { preserved: boolean };
+  hooks: Record<string, Array<{ hooks?: Array<{ command?: string }> }>>;
+};
+
+function countCodecharterHooks(hooksJson: HooksJson) {
   const command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/codecharter-codex-hook.mjs"';
   return Object.values(hooksJson.hooks)
     .flat()
-    .flatMap((group) => group.hooks)
+    .flatMap((group) => group.hooks ?? [])
     .filter((hook) => hook.command === command).length;
+}
+
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value);
+  return value;
 }

@@ -124,7 +124,7 @@ test("stabilizes existing file addresses when new files are added", async () => 
 
   const first = await generateCodemap({ root });
   const previousApp = required(first.files["src/app.ts"]);
-  const previousSrcGrowth = required(first.folders.src).growthArea;
+  const previousSrcGrowth = required(required(first.folders.src).growthArea);
 
   await writeFile(join(root, "src", "new-feature.ts"), "export const feature = true;\n");
 
@@ -159,7 +159,7 @@ test("stabilizes existing districts while placing new nested folders in growth a
 
   assert.deepEqual(nextApp.bounds, previousApp.bounds);
   assert.deepEqual(nextApp.geo, previousApp.geo);
-  assert.equal(isInside(featureFolder.bounds, previousSrc.growthArea), true);
+  assert.equal(isInside(featureFolder.bounds, required(previousSrc.growthArea)), true);
   assert.equal(isInside(featureFile.bounds, featureFolder.bounds), true);
   assert.equal(typeof featureFolder.geo.geohash, "string");
   assert.equal(typeof featureFile.geo.geohash, "string");

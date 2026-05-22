@@ -229,7 +229,7 @@ function resolvedCodeTarget(
     path: file.path,
     geohash: address.geohash.slice(0, precision),
     bounds: address.bounds,
-    lineRange: address.lineRange,
+    ...(address.lineRange === undefined ? {} : { lineRange: address.lineRange }),
     ...(address.tokenRange ? { tokenRange: address.tokenRange } : {}),
     address,
   };

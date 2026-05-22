@@ -42,9 +42,9 @@ function stabilizeFolder(folder: StableFolderNode, previous: PreviousCodemapLayo
     if (previousFolder.geo) folder.geo = previousFolder.geo;
     folder.growthArea = previousFolder.growthArea ?? previousFolder.bounds;
   } else {
-    folder.bounds = folder.bounds ?? fallbackBounds;
+    if (!folder.bounds && fallbackBounds) folder.bounds = fallbackBounds;
     assignAddress(folder);
-    folder.growthArea = folder.growthArea ?? folder.bounds;
+    if (!folder.growthArea && folder.bounds) folder.growthArea = folder.bounds;
   }
 
   const newChildren: StableMapNode[] = [];

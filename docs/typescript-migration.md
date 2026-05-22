@@ -26,6 +26,6 @@ Target conventions:
 - Local source entrypoints may import converted runtime modules with `.ts` extensions; `tsconfig.build.json` rewrites those relative extensions to `.js` for emitted files.
 - Browser modules must keep browser-local imports ending in `.js`, because the static server serves generated JavaScript from `public/`.
 - Exported functions and classes should get explicit parameter and return types as they are converted.
-- Use `unknown` and narrowing at JSON, filesystem, process, fetch, and request-body boundaries.
+- Use `unknown` and narrowing at JSON, filesystem, process, fetch, and request-body boundaries; adapt parsed JSON through small local guard/builder functions before calling typed domain functions.
 - Use `@ts-expect-error` only for temporary migration suppressions, with a nearby explanation.
 - Reach for design patterns only when they make an existing boundary clearer during migration; avoid unrelated pattern refactors.

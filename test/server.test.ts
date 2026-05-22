@@ -276,6 +276,28 @@ test("reports malformed JSON request bodies as client errors", async () => {
   }
 });
 
+test("rejects non-object JSON request bodies as client errors", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-non-object-json-"));
+  await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
+
+  const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
+  const baseUrl = `http://127.0.0.1:${serverPort(server)}`;
+
+  try {
+    const response = await fetch(`${baseUrl}/api/annotations`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "[]",
+    });
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "JSON body must be an object" });
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
 test("accepts pre-resolved activity without reading the map sidecar", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-address-activity-"));
   await writeFile(join(root, "codecharter.json"), "{");

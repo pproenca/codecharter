@@ -3,16 +3,27 @@ import type { ExecFileOptions } from "node:child_process";
 import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
 import { readJson, writeJson } from "./store.ts";
 
+type ExecFileTextOptions = Omit<ExecFileOptions, "encoding"> & {
+  encoding?: BufferEncoding;
+};
 type ExecFileAsync = (
   file: string,
   args: readonly string[],
-  options: ExecFileOptions & { encoding?: BufferEncoding },
+  options: ExecFileTextOptions,
 ) => Promise<{ stdout: string; stderr: string }>;
 
-const execFileAsync = promisify(execFile) as ExecFileAsync;
+const execFileAsync: ExecFileAsync = (file, args, options) =>
+  new Promise((resolve, reject) => {
+    execFile(file, [...args], { ...options, encoding: options.encoding ?? "utf8" }, (error, stdout, stderr) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
+  });
 
 const CODECHARTER_DIR = ".codecharter";
 const CODEX_DIR = ".codex";
@@ -38,7 +49,9 @@ type CodecharterConfig = {
   agents?: {
     codex?: {
       activityPath?: string;
+      [key: string]: unknown;
     };
+    [key: string]: unknown;
   };
 };
 
@@ -219,18 +232,17 @@ export class CodexHooksMerger {
   }
 
   configOrEmpty(value: unknown): CodexHooksConfig {
-    if (!value || typeof value !== "object" || Array.isArray(value)) return { hooks: {} };
-    const hooks = this.hooksRecord((value as { hooks?: unknown }).hooks);
-    return { ...value, hooks } as CodexHooksConfig;
+    const record = objectRecord(value);
+    if (!record) return { hooks: {} };
+    return { ...record, hooks: this.hooksRecord(record.hooks) };
   }
 
   hooksRecord(value: unknown): Record<string, CodexHookGroup[]> {
-    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const record = objectRecord(value);
+    if (!record) return {};
     const hooks: Record<string, CodexHookGroup[]> = {};
-    for (const eventName in value as Record<string, unknown>) {
-      if (!Object.hasOwn(value, eventName)) continue;
-      const groups = (value as Record<string, unknown>)[eventName];
-      if (Array.isArray(groups)) hooks[eventName] = groups as CodexHookGroup[];
+    for (const [eventName, groups] of Object.entries(record)) {
+      if (Array.isArray(groups)) hooks[eventName] = groups.flatMap(codexHookGroupFromValue);
     }
     return hooks;
   }
@@ -265,7 +277,7 @@ export async function initializeCodecharter({
 
 export async function ensurePackageDevDependency(root: string): Promise<{ skipped: boolean; changed?: boolean }> {
   const packagePath = join(root, "package.json");
-  const packageJson = await readJson(packagePath, null) as PackageJson | null;
+  const packageJson = packageJsonFromValue(await readJson(packagePath, null));
   if (!packageJson || packageJson.name === "codecharter") return { skipped: true };
 
   const version = await currentPackageVersion();
@@ -303,7 +315,7 @@ export async function ensurePackageDevDependency(root: string): Promise<{ skippe
 
 export async function ensureCodecharterConfig(root: string, mapPath: string): Promise<string> {
   const configPath = join(root, CODECHARTER_DIR, "config.json");
-  const existing = await readJson(configPath, {}) as CodecharterConfig;
+  const existing = codecharterConfigFromValue(await readJson(configPath, {}));
   await writeJson(configPath, {
     version: 1,
     mapPath: normalizeRelative(root, mapPath),
@@ -542,7 +554,7 @@ function escapeRegExp(value: string): string {
 
 async function currentPackageVersion(): Promise<string> {
   const packagePath = fileURLToPath(new URL("../package.json", import.meta.url));
-  const packageJson = await readJson(packagePath, { version: "0.1.0" }) as PackageJson;
+  const packageJson = packageJsonFromValue(await readJson(packagePath, { version: "0.1.0" })) ?? {};
   return packageJson.version ?? "0.1.0";
 }
 
@@ -558,4 +570,113 @@ export async function pathExists(path: string): Promise<boolean> {
 
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error;
+}
+
+function packageJsonFromValue(value: unknown): PackageJson | null {
+  const record = objectRecord(value);
+  if (!record) return null;
+  const packageJson: PackageJson = { ...record };
+  if (typeof record.name !== "string") delete packageJson.name;
+  if (typeof record.version !== "string") delete packageJson.version;
+  for (const section of ["devDependencies", "dependencies", "optionalDependencies", "peerDependencies"] satisfies PackageDependencySection[]) {
+    const dependencies = stringRecordFromValue(record[section]);
+    if (dependencies) {
+      packageJson[section] = dependencies;
+    } else {
+      delete packageJson[section];
+    }
+  }
+  return packageJson;
+}
+
+function codecharterConfigFromValue(value: unknown): CodecharterConfig {
+  const record = objectRecord(value);
+  if (!record) return {};
+  const legacyMapPaths = stringArrayFromValue(record.legacyMapPaths);
+  const agents = codecharterAgentsFromValue(record.agents);
+  return {
+    ...(typeof record.activityPath === "string" ? { activityPath: record.activityPath } : {}),
+    ...(legacyMapPaths ? { legacyMapPaths } : {}),
+    ...(agents ? { agents } : {}),
+  };
+}
+
+function codecharterAgentsFromValue(value: unknown): CodecharterConfig["agents"] | undefined {
+  const record = objectRecord(value);
+  if (!record) return undefined;
+  const agents: NonNullable<CodecharterConfig["agents"]> = { ...record };
+  const codex = objectRecord(record.codex);
+  if (codex) {
+    agents.codex = {
+      ...codex,
+      ...(typeof codex.activityPath === "string" ? { activityPath: codex.activityPath } : {}),
+    };
+  } else {
+    delete agents.codex;
+  }
+  return agents;
+}
+
+function codexHookGroupFromValue(value: unknown): CodexHookGroup[] {
+  const record = objectRecord(value);
+  if (!record) return [];
+  const group: CodexHookGroup = { ...record };
+  if (typeof record.matcher === "string") {
+    group.matcher = record.matcher;
+  } else {
+    delete group.matcher;
+  }
+  if (Array.isArray(record.hooks)) {
+    group.hooks = record.hooks.flatMap(codexHookFromValue);
+  } else {
+    delete group.hooks;
+  }
+  return [group];
+}
+
+function codexHookFromValue(value: unknown): CodexHook[] {
+  const record = objectRecord(value);
+  if (!record) return [];
+  const hook: CodexHook = { ...record };
+  if (typeof record.type === "string") {
+    hook.type = record.type;
+  } else {
+    delete hook.type;
+  }
+  if (typeof record.command === "string") {
+    hook.command = record.command;
+  } else {
+    delete hook.command;
+  }
+  if (typeof record.timeout === "number") {
+    hook.timeout = record.timeout;
+  } else {
+    delete hook.timeout;
+  }
+  if (typeof record.statusMessage === "string") {
+    hook.statusMessage = record.statusMessage;
+  } else {
+    delete hook.statusMessage;
+  }
+  return [hook];
+}
+
+function stringRecordFromValue(value: unknown): Record<string, string> | null {
+  const record = objectRecord(value);
+  if (!record) return null;
+  const strings: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(record)) {
+    if (typeof entry === "string") strings[key] = entry;
+  }
+  return strings;
+}
+
+function stringArrayFromValue(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const strings = value.filter((entry) => typeof entry === "string");
+  return strings.length === value.length ? strings : null;
+}
+
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
 }

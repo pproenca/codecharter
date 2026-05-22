@@ -3,7 +3,6 @@ import type { ExecFileOptions } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
-import { promisify } from "node:util";
 import { changedCodeChanges, changedLineRange } from "./activity-watcher.ts";
 import { appendActivityEvents, ensureActivityArchive } from "./activity-store.ts";
 import { createActivityEvent } from "./activity.ts";
@@ -16,13 +15,25 @@ import type { CodeChange } from "./activity-watcher.js";
 import type { AddressRequest } from "./resolver.js";
 import type { CodecharterCodemap } from "./resolver.js";
 
+type ExecFileTextOptions = Omit<ExecFileOptions, "encoding"> & {
+  encoding?: BufferEncoding;
+};
 type ExecFileAsync = (
   file: string,
   args: readonly string[],
-  options: ExecFileOptions & { encoding?: BufferEncoding },
+  options: ExecFileTextOptions,
 ) => Promise<{ stdout: string; stderr: string }>;
 
-const execFileAsync = promisify(execFile) as ExecFileAsync;
+const execFileAsync: ExecFileAsync = (file, args, options) =>
+  new Promise((resolve, reject) => {
+    execFile(file, [...args], { ...options, encoding: options.encoding ?? "utf8" }, (error, stdout, stderr) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
+  });
 const DEFAULT_CONFIG_PATH = ".codecharter/config.json";
 const DEFAULT_MAP_PATH = ".codecharter/codecharter.json";
 const ROOT_MAP_PATH = "codecharter.json";
@@ -151,7 +162,7 @@ const READ_PATH_STOP_TOKENS = new Set(["|", ">", "2>"]);
 export async function runCodexHook({ input = "", cwd = process.cwd() }: RunCodexHookOptions = {}) {
   const payload = parseHookPayload(input);
   const root = await resolveRoot(payload.cwd ?? cwd);
-  const config = await readJson(join(root, DEFAULT_CONFIG_PATH), {}) as CodexHookConfig;
+  const config = codexHookConfigFromValue(await readJson(join(root, DEFAULT_CONFIG_PATH), {}));
   const activityPath = resolveFromRoot(root, config.agents?.codex?.activityPath ?? config.activityPath ?? DEFAULT_ACTIVITY_PATH);
   const mapPath = await resolveMapPath(root, config.mapPath);
   const events = await codexHookEvents({ root, mapPath, payload });
@@ -709,9 +720,32 @@ function resolveFromRoot(root: string, path: string): string {
 }
 
 function objectRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  return value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
 }
 
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error;
+}
+
+function codexHookConfigFromValue(value: unknown): CodexHookConfig {
+  const record = objectRecord(value);
+  if (!record) return {};
+  const agents = codexHookAgentsFromValue(record.agents);
+  return {
+    ...(typeof record.mapPath === "string" ? { mapPath: record.mapPath } : {}),
+    ...(typeof record.activityPath === "string" ? { activityPath: record.activityPath } : {}),
+    ...(agents ? { agents } : {}),
+  };
+}
+
+function codexHookAgentsFromValue(value: unknown): CodexHookConfig["agents"] | undefined {
+  const record = objectRecord(value);
+  if (!record) return undefined;
+  const codex = objectRecord(record.codex);
+  if (!codex) return {};
+  return {
+    codex: {
+      ...(typeof codex.activityPath === "string" ? { activityPath: codex.activityPath } : {}),
+    },
+  };
 }

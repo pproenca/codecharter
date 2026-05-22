@@ -17,9 +17,9 @@ import { readJson, writeJson } from "./store.ts";
 import { buildTileIndex, getTile, visiblePrefixes } from "./tiles.ts";
 import type { ActivityAddress, ActivityEvent, ActivityEventInput } from "./activity.js";
 import type { StoredActivityEvent } from "./activity-store.js";
-import type { CodecharterCodemap } from "./resolver.js";
+import type { AddressRequest, CodecharterCodemap } from "./resolver.js";
 import type { MapLevel } from "./levels.js";
-import type { MapAnnotation, NamedAddress, NamedSelection, SelectionInput } from "./selections.js";
+import type { MapAnnotation, NamedAddress, NamedSelection, SelectionGeometry, SelectionInput } from "./selections.js";
 
 const MIME_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -161,7 +161,7 @@ export async function startServer({
 }
 
 async function configuredActivityArchivePath(root: string): Promise<string> {
-  const config = await readJson(join(root, ".codecharter", "config.json"), {}) as ServerConfig;
+  const config = serverConfigFromValue(await readJson(join(root, ".codecharter", "config.json"), {}));
   const configured = config.agents?.codex?.activityPath ?? config.activityPath ?? DEFAULT_ACTIVITY_ARCHIVE;
   return isAbsolute(configured) ? configured : resolve(root, configured);
 }
@@ -319,18 +319,12 @@ async function postNamedPlacesApi(state: ServerState, request: IncomingMessage, 
   sendJson(response, 201, result);
 }
 
-type NamedPlaceCreator = (codemap: CodecharterCodemap, body: SelectionInput & { address?: unknown }) => NamedPlace;
-
-const NAMED_PLACE_CREATORS = new Map<string, NamedPlaceCreator>();
-NAMED_PLACE_CREATORS.set("drawnSelection", createNamedSelection as NamedPlaceCreator);
-NAMED_PLACE_CREATORS.set("mapAddress", (_codemap, body) =>
-  createNamedAddress(body as unknown as { id?: string; name?: string; address: Record<string, unknown> }));
-
 function createNamedPlace(codemap: CodecharterCodemap, body: JsonObject): NamedPlace {
   const kind = body.kind ?? "drawnSelection";
-  const create = NAMED_PLACE_CREATORS.get(String(kind));
-  if (!create) throw httpError(400, `Unknown named-place kind: ${kind}`);
-  return create(codemap, body as SelectionInput & { address?: unknown });
+  if (kind === "drawnSelection") return createNamedSelection(codemap, selectionInputFromBody(body));
+  if (kind === "mapAnnotation") return createMapAnnotation(codemap, selectionInputFromBody(body));
+  if (kind === "mapAddress") return createNamedAddress(namedAddressInputFromBody(body));
+  throw httpError(400, `Unknown named-place kind: ${String(kind)}`);
 }
 
 async function getAnnotationsApi(state: ServerState, _request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -392,7 +386,7 @@ async function putAnnotationApi(
     const previous = store.places[index];
     if (!previous) throw httpError(404, `No annotation found for id: ${id}`);
     const annotation = {
-      ...createMapAnnotation(codemap, { ...body, id } as SelectionInput),
+      ...createMapAnnotation(codemap, selectionInputFromBody(body, { id })),
       createdAt: previous.createdAt,
     };
     store.places[index] = annotation;
@@ -405,7 +399,7 @@ async function postAnnotationsApi(state: ServerState, request: IncomingMessage, 
   const codemap = await loadCodemap(state);
   const body = await readBody(request);
   const result = await mutateNamedPlaces(state, (store) => {
-    const annotation = createMapAnnotation(codemap, body as SelectionInput);
+    const annotation = createMapAnnotation(codemap, selectionInputFromBody(body));
     store.places.push(annotation);
     return { annotation };
   });
@@ -426,7 +420,7 @@ async function mutateNamedPlaces<T>(state: ServerState, mutate: (store: NamedPla
 async function postSelectionResolveApi(state: ServerState, request: IncomingMessage, response: ServerResponse): Promise<void> {
   const codemap = await loadCodemap(state);
   const body = await readBody(request);
-  sendJson(response, 200, createNamedSelection(codemap, { ...body, name: String(body.name ?? "Preview") } as SelectionInput));
+  sendJson(response, 200, createNamedSelection(codemap, selectionInputFromBody(body, { name: String(body.name ?? "Preview") })));
 }
 
 async function getActivityApi(state: ServerState, _request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -471,8 +465,8 @@ async function loadMapVersion(state: ServerState): Promise<{ version: string }> 
 function acceptActivityRequest(state: ServerState, request: IncomingMessage): void {
   readBody(request)
     .then(async (body) => {
-      const activityBody = body as ActivityEventInput & { address?: ActivityAddress } & Parameters<typeof resolveAddress>[1];
-      const address = activityBody.address ?? resolveAddress(await loadCodemap(state), activityBody);
+      const activityBody = activityEventInputFromBody(body);
+      const address = activityAddressFromBody(body) ?? resolveAddress(await loadCodemap(state), addressRequestFromBody(body));
       state.activityStore.add(createActivityEvent(address, activityBody));
     })
     .catch((error) => {
@@ -496,7 +490,7 @@ async function readActivityArchive(path: string): Promise<StoredActivityEvent[]>
       if (!line.trim()) continue;
       try {
         const event = JSON.parse(line);
-        if (event && typeof event === "object") events.push(event as StoredActivityEvent);
+        if (isJsonObject(event)) events.push(storedActivityEventFromRecord(event));
       } catch {
         // Ignore incomplete trailing writes or malformed external activity lines.
       }
@@ -541,7 +535,10 @@ async function readBody(request: IncomingMessage): Promise<JsonObject> {
   for await (const chunk of request) chunks.push(Buffer.from(chunk));
   const raw = Buffer.concat(chunks).toString("utf8");
   try {
-    return raw ? JSON.parse(raw) : {};
+    if (!raw) return {};
+    const value = JSON.parse(raw);
+    if (isJsonObject(value)) return value;
+    throw httpError(400, "JSON body must be an object");
   } catch (error) {
     if (error instanceof SyntaxError) throw httpError(400, "Invalid JSON body");
     throw error;
@@ -600,9 +597,7 @@ function optionalNumber(value: string | null): number | undefined {
 }
 
 function httpError(statusCode: number, message: string): HttpError {
-  const error = new Error(message) as HttpError;
-  error.statusCode = statusCode;
-  return error;
+  return Object.assign(new Error(message), { statusCode });
 }
 
 function serverPort(address: string | AddressInfo | null): number {
@@ -611,14 +606,127 @@ function serverPort(address: string | AddressInfo | null): number {
 }
 
 function normalizeNamedPlacesStore(store: unknown): NamedPlacesStore {
-  if (!store || typeof store !== "object") return { places: [] };
-  const places = (store as { places?: unknown }).places;
-  return { places: Array.isArray(places) ? places as NamedPlace[] : [] };
+  if (!isJsonObject(store)) return { places: [] };
+  const places = getObjectProperty(store, "places");
+  return { places: Array.isArray(places) ? places.filter(isNamedPlace) : [] };
 }
 
 function mapLevelParam(value: string): MapLevel {
-  if (Object.hasOwn(MAP_LEVELS, value)) return value as MapLevel;
+  if (isMapLevel(value)) return value;
   throw httpError(400, `Unknown map level: ${value}`);
+}
+
+function serverConfigFromValue(value: unknown): ServerConfig {
+  if (!isJsonObject(value)) return {};
+  const agents = getObjectProperty(value, "agents");
+  const codex = isJsonObject(agents) ? getObjectProperty(agents, "codex") : undefined;
+  const config: ServerConfig = {};
+  if (typeof value.activityPath === "string") config.activityPath = value.activityPath;
+  if (isJsonObject(codex)) {
+    const codexConfig: NonNullable<NonNullable<ServerConfig["agents"]>["codex"]> = {};
+    if (typeof codex.activityPath === "string") codexConfig.activityPath = codex.activityPath;
+    config.agents = { codex: codexConfig };
+  }
+  return config;
+}
+
+function selectionInputFromBody(body: JsonObject, overrides: Partial<Pick<SelectionInput, "id" | "name" | "comment" | "level">> = {}): SelectionInput {
+  const input: SelectionInput = { geometry: selectionGeometryFromValue(body.geometry) };
+  if (typeof body.id === "string") input.id = body.id;
+  if (typeof body.name === "string") input.name = body.name;
+  if (typeof body.comment === "string") input.comment = body.comment;
+  if (typeof body.level === "string" && isMapLevel(body.level)) input.level = body.level;
+  return { ...input, ...overrides };
+}
+
+function selectionGeometryFromValue(value: unknown): SelectionGeometry {
+  if (!isJsonObject(value) || value.type !== "rect") {
+    throw new Error("Only rectangle drawn selections are supported in v1");
+  }
+  return {
+    type: "rect",
+    bounds: boundsFromValue(value.bounds),
+  };
+}
+
+function boundsFromValue(value: unknown): SelectionGeometry["bounds"] {
+  if (!isJsonObject(value)) throw new Error("Selection bounds must be an object");
+  return {
+    x: numberFromValue(value.x),
+    y: numberFromValue(value.y),
+    width: numberFromValue(value.width),
+    height: numberFromValue(value.height),
+  };
+}
+
+function namedAddressInputFromBody(body: JsonObject): Parameters<typeof createNamedAddress>[0] {
+  const address = body.address;
+  if (!isJsonObject(address)) throw httpError(400, "Map address named places require an address object");
+  const input: Parameters<typeof createNamedAddress>[0] = { address };
+  if (typeof body.id === "string") input.id = body.id;
+  if (typeof body.name === "string") input.name = body.name;
+  return input;
+}
+
+function activityEventInputFromBody(body: JsonObject): ActivityEventInput {
+  const input: ActivityEventInput = {};
+  if (typeof body.id === "string") input.id = body.id;
+  if (typeof body.agentId === "string") input.agentId = body.agentId;
+  if (typeof body.activityState === "string") input.activityState = body.activityState;
+  if (typeof body.state === "string") input.state = body.state;
+  if (typeof body.timestamp === "string") input.timestamp = body.timestamp;
+  if (typeof body.note === "string") input.note = body.note;
+  if (typeof body.hookEventName === "string") input.hookEventName = body.hookEventName;
+  if (typeof body.sessionId === "string") input.sessionId = body.sessionId;
+  if (typeof body.threadId === "string") input.threadId = body.threadId;
+  if (typeof body.threadUri === "string") input.threadUri = body.threadUri;
+  if (typeof body.turnId === "string") input.turnId = body.turnId;
+  if (typeof body.model === "string") input.model = body.model;
+  return input;
+}
+
+function activityAddressFromBody(body: JsonObject): ActivityAddress | undefined {
+  return isJsonObject(body.address) ? body.address : undefined;
+}
+
+function addressRequestFromBody(body: JsonObject): AddressRequest {
+  if (typeof body.path !== "string") throw new Error("Activity path is required when address is not provided");
+  const request: AddressRequest = { path: body.path };
+  if (typeof body.lineStart === "string" || typeof body.lineStart === "number") request.lineStart = body.lineStart;
+  if (typeof body.lineEnd === "string" || typeof body.lineEnd === "number") request.lineEnd = body.lineEnd;
+  if (typeof body.columnStart === "string" || typeof body.columnStart === "number") request.columnStart = body.columnStart;
+  if (typeof body.columnEnd === "string" || typeof body.columnEnd === "number") request.columnEnd = body.columnEnd;
+  return request;
+}
+
+function storedActivityEventFromRecord(record: JsonObject): StoredActivityEvent {
+  const event: StoredActivityEvent = {};
+  for (const [key, value] of Object.entries(record)) event[key] = value;
+  if (typeof record.id === "string") event.id = record.id;
+  return event;
+}
+
+function isNamedPlace(value: unknown): value is NamedPlace {
+  if (!isJsonObject(value)) return false;
+  return value.kind === "drawnSelection" || value.kind === "mapAnnotation" || value.kind === "mapAddress";
+}
+
+function numberFromValue(value: unknown): number {
+  const number = Number(value);
+  if (!Number.isFinite(number)) throw new Error(`Expected finite number, received: ${String(value)}`);
+  return number;
+}
+
+function isMapLevel(value: string): value is MapLevel {
+  return Object.hasOwn(MAP_LEVELS, value);
+}
+
+function getObjectProperty(value: JsonObject, key: string): unknown {
+  return Object.hasOwn(value, key) ? value[key] : undefined;
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isErrnoException(error: unknown): error is PollingError {

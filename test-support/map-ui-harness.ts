@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "playwright";
-import { startServer } from "../src/server.js";
+import { startServer } from "../src/server.ts";
 
 export async function startMapUiHarness(t, { viewport = { width: 960, height: 720 } } = {}) {
   const root = await mkdtemp(join(tmpdir(), "codecharter-map-ui-"));

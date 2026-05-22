@@ -4,6 +4,7 @@
     "noEmit": false,
     "declaration": false,
     "sourceMap": true,
+    "rewriteRelativeImportExtensions": true,
     "outDir": "dist",
     "rootDir": "."
   },

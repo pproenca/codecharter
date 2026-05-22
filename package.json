@@ -17,22 +17,21 @@
     "access": "public"
   },
   "files": [
-    "bin",
-    "src",
-    "public",
+    "dist",
     "README.md"
   ],
   "bin": {
-    "codecharter": "bin/codemap.mjs",
-    "codemap": "bin/codemap.mjs"
+    "codecharter": "dist/bin/codemap.mjs",
+    "codemap": "dist/bin/codemap.mjs"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "codecharter": "node ./bin/codemap.mjs",
-    "codemap": "node ./bin/codemap.mjs",
-    "setup": "node ./bin/codemap.mjs init --yes",
-    "dev": "node ./bin/codemap.mjs dev",
-    "serve": "node ./bin/codemap.mjs serve",
+    "build": "tsc -p tsconfig.build.json && cp public/index.html public/style.css dist/public/ && cp package.json dist/package.json",
+    "codecharter": "node ./bin/codemap.mts",
+    "codemap": "node ./bin/codemap.mts",
+    "setup": "node ./bin/codemap.mts init --yes",
+    "dev": "node ./bin/codemap.mts dev",
+    "serve": "node ./bin/codemap.mts serve",
+    "prepack": "tsc -p tsconfig.build.json && cp public/index.html public/style.css dist/public/ && cp package.json dist/package.json",
     "typecheck": "tsc --noEmit",
     "test": "tsx test-support/run-tests.mts"
   },

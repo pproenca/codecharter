@@ -34,6 +34,19 @@ test("splits district layout entries into the closest balanced weight groups", (
   });
 });
 
+test("splits district layout entries at the earlier balanced point on ties", () => {
+  const first = { item: file("src/a.ts", 2), weight: 2 };
+  const second = { item: file("src/b.ts", 4), weight: 4 };
+  const third = { item: file("src/c.ts", 2), weight: 2 };
+
+  const split = new DistrictLayoutEngine().splitEntries([first, second, third]);
+
+  assert.deepEqual(split, {
+    first: [first],
+    second: [second, third],
+  });
+});
+
 function folder(path, weight, childCount = 0) {
   return {
     type: "folder",

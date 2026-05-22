@@ -124,7 +124,7 @@ export class DistrictLayoutEngine {
       return rectangles;
     }
 
-    const split = this.splitEntryRange(entries, start, end, prefixWeights);
+    const split = this.splitEntryRange(start, end, prefixWeights);
     const firstWeight = this.rangeWeight(prefixWeights, start, split);
     const totalWeight = this.rangeWeight(prefixWeights, start, end);
     const ratio = totalWeight > 0 ? firstWeight / totalWeight : 0.5;
@@ -141,7 +141,7 @@ export class DistrictLayoutEngine {
   }
 
   splitEntries(entries) {
-    const split = this.splitEntryRange(entries, 0, entries.length, this.prefixWeights(entries));
+    const split = this.splitEntryRange(0, entries.length, this.prefixWeights(entries));
     const first = [];
     const second = [];
     for (let index = 0; index < entries.length; index += 1) {
@@ -157,22 +157,26 @@ export class DistrictLayoutEngine {
     };
   }
 
-  splitEntryRange(entries, start, end, prefixWeights) {
+  splitEntryRange(start, end, prefixWeights) {
     const totalWeight = this.rangeWeight(prefixWeights, start, end);
-    let bestIndex = 1;
-    let bestDelta = Infinity;
-    let runningWeight = 0;
+    const targetWeight = prefixWeights[start] + totalWeight / 2;
+    const candidate = this.firstSplitAtOrAfterWeight(prefixWeights, start + 1, end - 1, targetWeight);
+    const previous = candidate > start + 1 ? candidate - 1 : candidate;
+    const candidateDelta = Math.abs(totalWeight / 2 - this.rangeWeight(prefixWeights, start, candidate));
+    const previousDelta = Math.abs(totalWeight / 2 - this.rangeWeight(prefixWeights, start, previous));
+    return previousDelta <= candidateDelta ? previous : candidate;
+  }
 
-    for (let index = start; index < end - 1; index += 1) {
-      runningWeight += entries[index].weight;
-      const delta = Math.abs(totalWeight / 2 - runningWeight);
-      if (delta < bestDelta) {
-        bestDelta = delta;
-        bestIndex = index + 1 - start;
+  firstSplitAtOrAfterWeight(prefixWeights, low, high, targetWeight) {
+    while (low < high) {
+      const mid = Math.floor((low + high) / 2);
+      if (prefixWeights[mid] < targetWeight) {
+        low = mid + 1;
+      } else {
+        high = mid;
       }
     }
-
-    return start + bestIndex;
+    return low;
   }
 
   prefixWeights(entries) {

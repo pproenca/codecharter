@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { createServer } from "node:http";
+import { createServer, type IncomingMessage, type Server } from "node:http";
 import { once } from "node:events";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { UnifiedDiffChangeRangeParser, changedRangeFromUnifiedDiff, lineRangeFromUnifiedDiff } from "../src/activity-change-range.ts";
 import { ActivityWatcher, parseGitStatusPorcelain, startActivityWatcher } from "../src/activity-watcher.ts";
+import type { ActivityWatcherPayload } from "../src/activity-watcher.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -137,7 +138,7 @@ test("watcher prepares changed map state before posting each new diff signature"
   await execFileAsync("git", ["init"], { cwd: root });
   await execFileAsync("git", ["add", "src/app.js"], { cwd: root });
 
-  const posted = [];
+  const posted: ActivityWatcherPayload[] = [];
   let prepared = false;
   const server = createServer(async (request, response) => {
     assert.equal(prepared, true);
@@ -156,16 +157,17 @@ test("watcher prepares changed map state before posting each new diff signature"
     intervalMs: 20,
     throttleMs: 0,
     prepareChanges: async (changes) => {
-      assert.equal(changes[0].path, "src/app.js");
+      assert.equal(required(changes[0]).path, "src/app.js");
       prepared = true;
     },
   });
 
   try {
     await waitFor(() => posted.length === 1);
-    assert.equal(posted[0].path, "src/app.js");
-    assert.deepEqual({ lineStart: posted[0].lineStart, lineEnd: posted[0].lineEnd }, { lineStart: 1, lineEnd: 1 });
-    assert.deepEqual({ columnStart: posted[0].columnStart, columnEnd: posted[0].columnEnd }, { columnStart: 1, columnEnd: 17 });
+    const first = required(posted[0]);
+    assert.equal(first.path, "src/app.js");
+    assert.deepEqual({ lineStart: first.lineStart, lineEnd: first.lineEnd }, { lineStart: 1, lineEnd: 1 });
+    assert.deepEqual({ columnStart: first.columnStart, columnEnd: first.columnEnd }, { columnStart: 1, columnEnd: 17 });
     await new Promise((resolve) => setTimeout(resolve, 80));
     assert.equal(posted.length, 1);
   } finally {
@@ -181,7 +183,7 @@ test("watcher reports untracked code files as line ranges", async () => {
   await writeFile(join(root, "src", "new-file.js"), "const first = true;\nexport const second = first;\n");
   await execFileAsync("git", ["init"], { cwd: root });
 
-  const posted = [];
+  const posted: ActivityWatcherPayload[] = [];
   const watcher = startActivityWatcher({
     root,
     endpoint: "http://127.0.0.1:1/api/activity",
@@ -195,9 +197,10 @@ test("watcher reports untracked code files as line ranges", async () => {
   try {
     watcher.close();
     await watcher.poll();
-    assert.equal(posted[0].path, "src/new-file.js");
+    const first = required(posted[0]);
+    assert.equal(first.path, "src/new-file.js");
     assert.deepEqual(
-      { lineStart: posted[0].lineStart, lineEnd: posted[0].lineEnd },
+      { lineStart: first.lineStart, lineEnd: first.lineEnd },
       { lineStart: 1, lineEnd: 2 },
     );
   } finally {
@@ -211,7 +214,7 @@ test("watcher reports later edits to the same untracked file", async () => {
   await writeFile(join(root, "src", "new-file.js"), "const first = true;\n");
   await execFileAsync("git", ["init"], { cwd: root });
 
-  const posted = [];
+  const posted: ActivityWatcherPayload[] = [];
   const watcher = startActivityWatcher({
     root,
     endpoint: "http://127.0.0.1:1/api/activity",
@@ -229,8 +232,9 @@ test("watcher reports later edits to the same untracked file", async () => {
     await watcher.poll();
 
     assert.equal(posted.length, 2);
+    const second = required(posted[1]);
     assert.deepEqual(
-      { lineStart: posted[1].lineStart, lineEnd: posted[1].lineEnd },
+      { lineStart: second.lineStart, lineEnd: second.lineEnd },
       { lineStart: 1, lineEnd: 2 },
     );
   } finally {
@@ -244,7 +248,7 @@ test("watcher reports whole-file ranges without relying on a trailing newline", 
   await writeFile(join(root, "src", "new-file.js"), "const first = true;\n\nexport const third = first;");
   await execFileAsync("git", ["init"], { cwd: root });
 
-  const posted = [];
+  const posted: ActivityWatcherPayload[] = [];
   const watcher = startActivityWatcher({
     root,
     endpoint: "http://127.0.0.1:1/api/activity",
@@ -258,9 +262,10 @@ test("watcher reports whole-file ranges without relying on a trailing newline", 
   try {
     watcher.close();
     await watcher.poll();
-    assert.equal(posted[0].path, "src/new-file.js");
+    const first = required(posted[0]);
+    assert.equal(first.path, "src/new-file.js");
     assert.deepEqual(
-      { lineStart: posted[0].lineStart, lineEnd: posted[0].lineEnd },
+      { lineStart: first.lineStart, lineEnd: first.lineEnd },
       { lineStart: 1, lineEnd: 3 },
     );
   } finally {
@@ -274,7 +279,7 @@ test("watcher treats an empty untracked code file as a one-line range", async ()
   await writeFile(join(root, "src", "empty.js"), "");
   await execFileAsync("git", ["init"], { cwd: root });
 
-  const posted = [];
+  const posted: ActivityWatcherPayload[] = [];
   const watcher = startActivityWatcher({
     root,
     endpoint: "http://127.0.0.1:1/api/activity",
@@ -288,9 +293,10 @@ test("watcher treats an empty untracked code file as a one-line range", async ()
   try {
     watcher.close();
     await watcher.poll();
-    assert.equal(posted[0].path, "src/empty.js");
+    const first = required(posted[0]);
+    assert.equal(first.path, "src/empty.js");
     assert.deepEqual(
-      { lineStart: posted[0].lineStart, lineEnd: posted[0].lineEnd },
+      { lineStart: first.lineStart, lineEnd: first.lineEnd },
       { lineStart: 1, lineEnd: 1 },
     );
   } finally {
@@ -335,15 +341,15 @@ test("watcher handles rejected activity delivery without unhandled rejections", 
   await writeFile(join(root, "src", "app.js"), "const app = true;\n");
   await execFileAsync("git", ["init"], { cwd: root });
 
-  const unhandled = [];
-  const warnings = [];
-  const onUnhandledRejection = (error) => {
+  const unhandled: unknown[] = [];
+  const warnings: string[] = [];
+  const onUnhandledRejection = (error: unknown) => {
     unhandled.push(error);
   };
   const originalWarn = console.warn;
   process.on("unhandledRejection", onUnhandledRejection);
-  console.warn = (message) => {
-    warnings.push(message);
+  console.warn = (message?: unknown) => {
+    warnings.push(String(message));
   };
   const watcher = startActivityWatcher({
     root,
@@ -360,8 +366,9 @@ test("watcher handles rejected activity delivery without unhandled rejections", 
     await watcher.poll();
     await new Promise((resolve) => setTimeout(resolve, 20));
     assert.equal(unhandled.length, 0);
-    assert.match(warnings[0], /activity-watcher-post-skipped/);
-    assert.match(warnings[0], /send failed/);
+    const warning = required(warnings[0]);
+    assert.match(warning, /activity-watcher-post-skipped/);
+    assert.match(warning, /send failed/);
   } finally {
     watcher.close();
     process.off("unhandledRejection", onUnhandledRejection);
@@ -384,7 +391,7 @@ test("watcher skips overlapping poll work", async () => {
   const prepareGate = new Promise((resolve) => {
     releasePrepare = resolve;
   });
-  const posted = [];
+  const posted: ActivityWatcherPayload[] = [];
   const watcher = new ActivityWatcher({
     root,
     endpoint: "http://127.0.0.1:1/api/activity",
@@ -422,7 +429,7 @@ test("watcher can post pre-resolved map addresses without path resolution at the
   await execFileAsync("git", ["init"], { cwd: root });
   await execFileAsync("git", ["add", "src/app.js"], { cwd: root });
 
-  const posted = [];
+  const posted: ActivityWatcherPayload[] = [];
   const server = createServer(async (request, response) => {
     posted.push(await readBody(request));
     response.writeHead(202, { "content-type": "application/json" });
@@ -459,9 +466,11 @@ test("watcher can post pre-resolved map addresses without path resolution at the
     watcher.close();
     await watcher.poll();
     await waitFor(() => posted.length === 1);
-    assert.equal(posted[0].path, undefined);
-    assert.equal(posted[0].address.targetType, "lineRange");
-    assert.equal(posted[0].address.lineRange.start, 1);
+    const first = required(posted[0]);
+    const address = first.address as { targetType?: string; lineRange?: { start?: number } } | undefined;
+    assert.equal(first.path, undefined);
+    assert.equal(address?.targetType, "lineRange");
+    assert.equal(address?.lineRange?.start, 1);
   } finally {
     watcher.close();
     server.close();
@@ -469,13 +478,13 @@ test("watcher can post pre-resolved map addresses without path resolution at the
   }
 });
 
-async function readBody(request) {
+async function readBody(request: IncomingMessage): Promise<ActivityWatcherPayload> {
   let raw = "";
   for await (const chunk of request) raw += chunk;
-  return JSON.parse(raw);
+  return JSON.parse(raw) as ActivityWatcherPayload;
 }
 
-async function waitFor(predicate) {
+async function waitFor(predicate: () => boolean): Promise<void> {
   for (let attempt = 0; attempt < 30; attempt += 1) {
     if (predicate()) return;
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -483,8 +492,13 @@ async function waitFor(predicate) {
   assert.fail("Timed out waiting for watcher activity");
 }
 
-function serverPort(server) {
+function serverPort(server: Server): number {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Expected TCP test server");
   return address.port;
+}
+
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value);
+  return value;
 }

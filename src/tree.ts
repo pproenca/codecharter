@@ -91,7 +91,7 @@ export class FolderNode {
 
   sortedFolders(): FolderNode[] {
     if (!this.sortedFolderCache) {
-      const folders = [];
+      const folders: FolderNode[] = [];
       for (const folder of this.folders.values()) folders.push(folder);
       this.sortedFolderCache = nodesAreSorted(folders) ? folders : folders.sort(compareNodeNames);
     }
@@ -100,7 +100,7 @@ export class FolderNode {
 
   sortedFiles(): FileNode[] {
     if (!this.sortedFileCache) {
-      const files = [];
+      const files: FileNode[] = [];
       for (const file of this.files.values()) files.push(file);
       this.sortedFileCache = nodesAreSorted(files) ? files : files.sort(compareNodeNames);
     }

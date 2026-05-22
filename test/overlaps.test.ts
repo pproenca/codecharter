@@ -10,9 +10,10 @@ test("finds visible overlap bounds between named drawn selections", () => {
   ]);
 
   assert.equal(overlaps.length, 1);
-  assert.deepEqual(overlaps[0].placeIds, ["a", "b"]);
-  assert.deepEqual(overlaps[0].names, ["Search", "Auth"]);
-  assert.deepEqual(overlaps[0].bounds, { x: 0.3, y: 0.2, width: 0.2, height: 0.2 });
+  const overlap = required(overlaps[0]);
+  assert.deepEqual(overlap.placeIds, ["a", "b"]);
+  assert.deepEqual(overlap.names, ["Search", "Auth"]);
+  assert.deepEqual(overlap.bounds, { x: 0.3, y: 0.2, width: 0.2, height: 0.2 });
 });
 
 test("keeps overlap results ordered by original drawn selection pairs", () => {
@@ -60,11 +61,16 @@ test("keeps long-running selections active while expired selections fall away", 
   ]);
 });
 
-function namedRect(id, name, bounds) {
+function namedRect(id: string, name: string, bounds: { x: number; y: number; width: number; height: number }) {
   return {
     id,
     name,
     kind: "drawnSelection",
     geometry: { type: "rect", bounds },
   };
+}
+
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value);
+  return value;
 }

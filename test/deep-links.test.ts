@@ -43,17 +43,20 @@ test("parses legacy codemap deep links", () => {
 });
 
 test("parses browser hash routes for client-side focusing", () => {
-  const annotation = parseHashRoute("#/annotation/annotation-1");
+  const annotation = required(parseHashRoute("#/annotation/annotation-1"));
   assert.equal(annotation.type, "annotation");
+  if (annotation.type !== "annotation") assert.fail("Expected annotation route");
   assert.equal(annotation.id, "annotation-1");
 
-  const selection = parseHashRoute("#/selection?level=file&bounds=0.2,0.18,0.25,0.16");
+  const selection = required(parseHashRoute("#/selection?level=file&bounds=0.2,0.18,0.25,0.16"));
   assert.equal(selection.type, "selection");
+  if (selection.type !== "selection") assert.fail("Expected selection route");
   assert.equal(selection.params.get("level"), "file");
   assert.deepEqual(boundsFromRouteParams(selection.params), { x: 0.2, y: 0.18, width: 0.25, height: 0.16 });
 
-  const map = parseHashRoute("#/map/file/9tj2byn?path=src%2Fapp.ts");
+  const map = required(parseHashRoute("#/map/file/9tj2byn?path=src%2Fapp.ts"));
   assert.equal(map.type, "map");
+  if (map.type !== "map") assert.fail("Expected map route");
   assert.equal(map.kind, "file");
   assert.equal(map.locator, "9tj2byn");
   assert.equal(map.params.get("path"), "src/app.ts");
@@ -78,8 +81,9 @@ test("selection hash routes preserve coordinate precision and reject degenerate 
     width: 0.3321899757216,
     height: 0.1234567891234,
   };
-  const route = parseHashRoute(createSelectionHashRoute({ level: "file", bounds }));
-  const parsed = boundsFromRouteParams(route.params);
+  const route = required(parseHashRoute(createSelectionHashRoute({ level: "file", bounds })));
+  if (route.type !== "selection") assert.fail("Expected selection route");
+  const parsed = required(boundsFromRouteParams(route.params));
 
   assert.ok(Math.abs(parsed.x - bounds.x) <= 5e-13);
   assert.ok(Math.abs(parsed.y - bounds.y) <= 5e-13);
@@ -111,3 +115,8 @@ test("deep link codec classes keep their exported facade behaviour", () => {
   assert.deepEqual(browserCodec.parse(route), parseHashRoute(route));
   assert.deepEqual(browserCodec.boundsFromParams(new URLSearchParams("bounds=0.2,0.18,0.25,0.16")), { x: 0.2, y: 0.18, width: 0.25, height: 0.16 });
 });
+
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value);
+  return value;
+}

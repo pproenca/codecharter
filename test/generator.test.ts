@@ -7,6 +7,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { generateCodemap } from "../src/generator.ts";
 import { listIncludedFiles } from "../src/scan.ts";
+import type { GeneratedCodemap } from "../src/generator.ts";
+import type { Bounds } from "../src/geometry.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -85,7 +87,9 @@ test("generates a path-keyed map sidecar from gitignore-filtered code files", as
   assert.equal(codemap.files["src/app.ts"].lineCount, 2);
   assert.equal(codemap.files["src/app.ts"].maxLineLength, 12);
   assert.equal(codemap.files["src/app.ts"].weight, 10);
-  assert.equal(codemap.files["src/wide.ts"].weight > codemap.files["src/app.ts"].weight, true);
+  const appFile = required(codemap.files["src/app.ts"]);
+  const wideFile = required(codemap.files["src/wide.ts"]);
+  assert.equal(wideFile.weight > appFile.weight, true);
   assert.equal("tokenCount" in codemap.files["src/app.ts"], false);
   assert.equal("wordCount" in codemap.files["src/app.ts"], false);
   assert.equal(codemap.files["src/image.png"], undefined);
@@ -107,8 +111,9 @@ test("serializes folder children deterministically by name", async () => {
 
   const codemap = await generateCodemap({ root });
 
-  assert.deepEqual(codemap.folders.src.children.folders, ["src/a-folder", "src/z-folder"]);
-  assert.deepEqual(codemap.folders.src.children.files, ["src/a-file.ts", "src/z-file.ts"]);
+  const srcFolder = required(codemap.folders.src);
+  assert.deepEqual(srcFolder.children.folders, ["src/a-folder", "src/z-folder"]);
+  assert.deepEqual(srcFolder.children.files, ["src/a-file.ts", "src/z-file.ts"]);
 });
 
 test("stabilizes existing file addresses when new files are added", async () => {
@@ -118,17 +123,19 @@ test("stabilizes existing file addresses when new files are added", async () => 
   await writeFile(join(root, "src", "app.ts"), "const a = 1;\nconst b = 2;\n");
 
   const first = await generateCodemap({ root });
-  const previousApp = first.files["src/app.ts"];
-  const previousSrcGrowth = first.folders.src.growthArea;
+  const previousApp = required(first.files["src/app.ts"]);
+  const previousSrcGrowth = required(first.folders.src).growthArea;
 
   await writeFile(join(root, "src", "new-feature.ts"), "export const feature = true;\n");
 
   const second = await generateCodemap({ root, previousCodemap: first });
 
-  assert.deepEqual(second.files["src/app.ts"].bounds, previousApp.bounds);
-  assert.deepEqual(second.files["src/app.ts"].geo, previousApp.geo);
+  const nextApp = required(second.files["src/app.ts"]);
+  const newFeature = required(second.files["src/new-feature.ts"]);
+  assert.deepEqual(nextApp.bounds, previousApp.bounds);
+  assert.deepEqual(nextApp.geo, previousApp.geo);
   assert.ok(second.files["src/new-feature.ts"]);
-  assert.equal(isInside(second.files["src/new-feature.ts"].bounds, previousSrcGrowth), true);
+  assert.equal(isInside(newFeature.bounds, previousSrcGrowth), true);
 });
 
 test("stabilizes existing districts while placing new nested folders in growth area", async () => {
@@ -138,23 +145,25 @@ test("stabilizes existing districts while placing new nested folders in growth a
   await writeFile(join(root, "src", "app.ts"), "const a = 1;\nconst b = 2;\n");
 
   const first = await generateCodemap({ root });
-  const previousApp = first.files["src/app.ts"];
-  const previousSrc = first.folders.src;
+  const previousApp = required(first.files["src/app.ts"]);
+  const previousSrc = required(first.folders.src);
 
   await mkdir(join(root, "src", "feature"), { recursive: true });
   await writeFile(join(root, "src", "feature", "new.ts"), "export const feature = true;\n");
 
   const second = await generateCodemap({ root, previousCodemap: first });
-  const featureFolder = second.folders["src/feature"];
-  const featureFile = second.files["src/feature/new.ts"];
+  const nextApp = required(second.files["src/app.ts"]);
+  const nextSrc = required(second.folders.src);
+  const featureFolder = required(second.folders["src/feature"]);
+  const featureFile = required(second.files["src/feature/new.ts"]);
 
-  assert.deepEqual(second.files["src/app.ts"].bounds, previousApp.bounds);
-  assert.deepEqual(second.files["src/app.ts"].geo, previousApp.geo);
+  assert.deepEqual(nextApp.bounds, previousApp.bounds);
+  assert.deepEqual(nextApp.geo, previousApp.geo);
   assert.equal(isInside(featureFolder.bounds, previousSrc.growthArea), true);
   assert.equal(isInside(featureFile.bounds, featureFolder.bounds), true);
   assert.equal(typeof featureFolder.geo.geohash, "string");
   assert.equal(typeof featureFile.geo.geohash, "string");
-  assert.notDeepEqual(second.folders.src.growthArea, previousSrc.growthArea);
+  assert.notDeepEqual(nextSrc.growthArea, previousSrc.growthArea);
 });
 
 test("recompacts stale root layouts when ignored districts leave visible empty geography", async () => {
@@ -175,7 +184,7 @@ test("recompacts stale root layouts when ignored districts leave visible empty g
   const second = await generateCodemap({ root, previousCodemap: first });
 
   assert.equal(second.folders[".agents"], undefined);
-  assert.notDeepEqual(second.folders.src.bounds, first.folders.src.bounds);
+  assert.notDeepEqual(required(second.folders.src).bounds, required(first.folders.src).bounds);
   assert.ok(rootChildOccupancy(second) > 0.75);
 });
 
@@ -200,7 +209,7 @@ test("does not anchor a district map to an obsolete projection", async () => {
   });
 
   assert.equal(codemap.projection.type, "filesystem-district-map");
-  assert.notDeepEqual(codemap.files["src/app.ts"].bounds, obsoleteBounds);
+  assert.notDeepEqual(required(codemap.files["src/app.ts"]).bounds, obsoleteBounds);
 });
 
 test("does not anchor when the district layout algorithm changes", async () => {
@@ -230,25 +239,30 @@ test("does not anchor when the district layout algorithm changes", async () => {
 
   assert.equal(codemap.projection.mapOrder, "bounded-weight-binary-districts-folders-first");
   assert.equal(codemap.projection.layoutVersion, 3);
-  assert.notDeepEqual(codemap.files["src/app.ts"].bounds, obsoleteBounds);
+  assert.notDeepEqual(required(codemap.files["src/app.ts"]).bounds, obsoleteBounds);
 });
 
-function isInside(bounds, container) {
+function isInside(bounds: Bounds, container: Bounds) {
   return bounds.x >= container.x
     && bounds.y >= container.y
     && bounds.x + bounds.width <= container.x + container.width
     && bounds.y + bounds.height <= container.y + container.height;
 }
 
-function rootChildOccupancy(codemap) {
-  const root = codemap.folders[""];
+function rootChildOccupancy(codemap: GeneratedCodemap) {
+  const root = required(codemap.folders[""]);
   const rootArea = area(root.bounds);
   let childArea = 0;
-  for (const path of root.children.folders) childArea += area(codemap.folders[path].bounds);
-  for (const path of root.children.files) childArea += area(codemap.files[path].bounds);
+  for (const path of root.children.folders) childArea += area(required(codemap.folders[path]).bounds);
+  for (const path of root.children.files) childArea += area(required(codemap.files[path]).bounds);
   return childArea / rootArea;
 }
 
-function area(bounds) {
+function area(bounds: Bounds) {
   return bounds.width * bounds.height;
+}
+
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value);
+  return value;
 }

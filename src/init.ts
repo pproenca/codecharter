@@ -125,7 +125,7 @@ export class CodexHooksMerger {
       if (!Object.hasOwn(next.hooks, eventName)) continue;
       const groups = next.hooks[eventName];
       if (!Array.isArray(groups)) continue;
-      const keptGroups = [];
+      const keptGroups: CodexHookGroup[] = [];
       for (const group of groups) {
         const withoutManaged = this.withoutCodecharterHandlers(group);
         if (!this.isEmptyManagedHookGroup(eventName, withoutManaged)) keptGroups.push(withoutManaged);

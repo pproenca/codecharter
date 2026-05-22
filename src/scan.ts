@@ -35,7 +35,7 @@ export async function listIncludedFiles(root: string, { excludePaths = [] }: Sca
     maxBuffer: 10 * 1024 * 1024,
   });
 
-  const paths = [];
+  const paths: string[] = [];
   let lineStart = 0;
   for (let index = 0; index <= stdout.length; index += 1) {
     if (index < stdout.length && stdout[index] !== "\n") continue;

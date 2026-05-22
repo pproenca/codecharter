@@ -168,8 +168,8 @@ async function boot() {
 function applyMap(map, version) {
     const previousSelection = state.selectedTarget;
     state.map = map;
-    state.mapFolders = objectValues(map.folders);
-    state.mapFiles = objectValues(map.files);
+    state.mapFolders = objectValues(map.folders ?? {});
+    state.mapFiles = objectValues(map.files ?? {});
     state.organicRegionFolders = organicRegionFolders(map);
     state.mapVersion = version ?? state.mapVersion;
     state.clearSourceState();
@@ -180,7 +180,9 @@ function applyMap(map, version) {
     reconcileSelectedTarget(previousSelection);
 }
 function reconcileSelectedTarget(target) {
-    state.selectedTarget = reconciledSelectedTarget(state.map, target);
+    state.selectedTarget = state.map
+        ? reconciledSelectedTarget(state.map, target)
+        : target;
 }
 function rebuildActivityFog() {
     state.activityFog = buildActivityFogState(state.map, state.activity);
@@ -188,8 +190,9 @@ function rebuildActivityFog() {
 function objectValues(value) {
     const values = [];
     for (const key in value) {
-        if (Object.hasOwn(value, key))
-            values.push(value[key]);
+        const item = value[key];
+        if (Object.hasOwn(value, key) && item !== undefined)
+            values.push(item);
     }
     return values;
 }
@@ -330,17 +333,21 @@ const MAP_ROUTE_FOCUS_COMMANDS = commandDispatcher([
     ["focusFolder", (target) => {
             clearAnnotationForm();
             setText(controls.inspectorTitle, folderDisplayName(target));
-            setText(controls.inspectorSubtitle, `folder: ${target.path || "."} | ${target.geo.geohash}`);
+            setText(controls.inspectorSubtitle, `folder: ${target.path || "."} | ${target.geo?.geohash ?? "unresolved"}`);
             render();
         }],
 ]);
 const DOUBLE_CLICK_ACTION_COMMANDS = commandDispatcher([
     ["focusAnnotation", (hit) => {
+            if (!hasGeometryBounds(hit))
+                return;
             zoomToBounds(hit.geometry.bounds, 1.28);
             selectAnnotation(hit);
         }],
     ["selectFolder", (hit, world) => {
             void selectMapTarget(world);
+            if (!hasBounds(hit))
+                return;
             zoomToBounds(hit.bounds, 1.35);
         }],
     ["selectFile", (hit, world) => {
@@ -353,6 +360,8 @@ const DOUBLE_CLICK_ACTION_COMMANDS = commandDispatcher([
 const MAP_TARGET_SELECTION_COMMANDS = commandDispatcher([
     ["clearSelection", clearMapSelection],
     ["focusAnnotation", (hit) => {
+            if (!hasGeometryBounds(hit))
+                return;
             zoomToBounds(hit.geometry.bounds, 1.35);
             selectAnnotation(hit);
         }],
@@ -365,23 +374,29 @@ const MAP_SEARCH_ACTION_COMMANDS = commandDispatcher([
             setSearchResult("No matching place found.");
         }],
     ["focusPlace", (match) => {
+            if (!hasGeometryBounds(match.place))
+                return;
             zoomToBounds(match.place.geometry.bounds, 1.35);
             setSearchResult(match.label ?? "");
-            state.selectedTarget = match.target;
+            state.selectedTarget = match.target ?? null;
             if (state.selectedTarget?.targetType === "annotation")
                 selectAnnotation(state.selectedTarget);
             render();
         }],
     ["focusFile", async (match) => {
+            if (!hasBounds(match.file))
+                return;
             zoomToReadableFile(match.file);
             await selectMapTarget(boundsCenter(match.file.bounds));
             setSearchResult(match.label ?? "");
         }],
     ["focusFolder", (match) => {
+            if (!hasBounds(match.folder))
+                return;
             zoomToBounds(match.folder.bounds, 1.6);
             state.selectedTarget = { ...match.folder, targetType: "folder" };
             setText(controls.inspectorTitle, folderDisplayName(match.folder));
-            setText(controls.inspectorSubtitle, `folder: ${match.folder.path || "."} | ${match.folder.geo.geohash}`);
+            setText(controls.inspectorSubtitle, `folder: ${match.folder.path || "."} | ${match.folder.geo?.geohash ?? "unresolved"}`);
             setSearchResult(match.label ?? "");
             render();
         }],
@@ -464,9 +479,11 @@ async function focusSelectionRoute(params, routeToken) {
     await previewSelection({ routeToken });
 }
 async function focusMapRoute(route, routeToken) {
+    if (!state.map)
+        return;
     const target = mapRouteTarget(state.map, route);
     const action = mapRouteFocusAction(target);
-    if (!action)
+    if (!target || !action || !hasBounds(target))
         return;
     resetSelectionOverlay();
     const routeLineRange = target.targetType === "file" ? parseLineRange(route.params.get("lines")) : null;
@@ -481,8 +498,8 @@ async function focusMapRoute(route, routeToken) {
 }
 async function showFileForRoute(file, params, routeToken) {
     clearAnnotationForm();
-    setText(controls.inspectorTitle, file.name);
-    setText(controls.inspectorSubtitle, `file: ${file.path} | ${file.geo.geohash}`);
+    setText(controls.inspectorTitle, file.name ?? file.path);
+    setText(controls.inspectorSubtitle, `file: ${file.path} | ${file.geo?.geohash ?? "unresolved"}`);
     const lineRange = parseLineRange(params.get("lines"));
     if (!lineRange) {
         applySourcePanel(sourcePanelState({ path: file.path }));
@@ -598,17 +615,17 @@ function setNamedPlaces(places) {
     }
 }
 function upsertNamedPlace(place) {
+    if (!place.id)
+        return;
     const index = state.namedPlaceIndexesById.get(place.id);
     if (index === undefined) {
         state.namedPlaces.push(place);
-        if (place?.id)
-            state.namedPlaceIndexesById.set(place.id, state.namedPlaces.length - 1);
+        state.namedPlaceIndexesById.set(place.id, state.namedPlaces.length - 1);
     }
     else {
         state.namedPlaces[index] = place;
     }
-    if (place?.id)
-        state.namedPlacesById.set(place.id, place);
+    state.namedPlacesById.set(place.id, place);
 }
 function updateSelectionPopover() {
     const selectedAnnotation = state.selectedTarget?.targetType === "annotation";
@@ -677,7 +694,7 @@ function render() {
     const rect = canvas.getBoundingClientRect();
     frameLabels = [];
     ctx.clearRect(0, 0, rect.width, rect.height);
-    controls.viewport.textContent = `scale ${state.view.scale.toFixed(2)} | level ${DEFAULT_MAP_LEVEL}`;
+    setText(controls.viewport, `scale ${state.view.scale.toFixed(2)} | level ${DEFAULT_MAP_LEVEL}`);
     drawCompassRose();
     if (layerEnabled("showGrid", false))
         drawGrid();
@@ -824,8 +841,8 @@ function drawDiscoveryFogReveals(targetCtx) {
     if (!fog)
         return;
     for (const path of fog.visitedFiles) {
-        const file = state.map.files[path];
-        if (!file)
+        const file = state.map?.files?.[path];
+        if (!file?.bounds)
             continue;
         const box = screenBounds(file.bounds);
         const visibleFile = fog.visibleFiles.has(path);
@@ -926,7 +943,10 @@ function drawMyceliumPathForContext(targetCtx, points) {
     const segments = organicTrailSegments(points, { minDistance });
     if (segments.length === 0)
         return false;
-    targetCtx.moveTo(segments[0].start.x, segments[0].start.y);
+    const first = segments[0];
+    if (!first)
+        return false;
+    targetCtx.moveTo(first.start.x, first.start.y);
     for (const segment of segments) {
         targetCtx.bezierCurveTo(segment.control1.x, segment.control1.y, segment.control2.x, segment.control2.y, segment.end.x, segment.end.y);
     }
@@ -974,7 +994,7 @@ function drawCompassRose() {
 function drawFolders() {
     const fogEnabled = activityDiscoveryEnabled();
     for (const folder of state.mapFolders) {
-        if (!folder.path)
+        if (!folder.path || !folder.bounds)
             continue;
         const box = screenBounds(folder.bounds);
         if (!visible(box))
@@ -1005,6 +1025,8 @@ function drawFolders() {
 function drawOrganicRegions() {
     const fogEnabled = activityDiscoveryEnabled();
     for (const { folder, depth } of state.organicRegionFolders) {
+        if (!folder.bounds)
+            continue;
         const box = screenBounds(folder.bounds);
         if (!visible(box))
             continue;
@@ -1031,6 +1053,8 @@ function drawFiles() {
     const fogEnabled = activityDiscoveryEnabled();
     let renderedSourceLines = 0;
     for (const file of state.mapFiles) {
+        if (!file.bounds)
+            continue;
         const box = screenBounds(file.bounds);
         if (!visible(box))
             continue;
@@ -1046,7 +1070,7 @@ function drawFiles() {
         drawRect(box);
         if (shouldLabelFoggedFile({ file, box, scale: state.view.scale, selected, fogState })) {
             queueLabelInBox({
-                text: file.name,
+                text: file.name ?? file.path,
                 box,
                 color: style.label,
                 size: 12,
@@ -1159,24 +1183,33 @@ function fileFogStyle({ fogState, selected, visualState, discoveryMode = false }
     };
 }
 function drawOrganicPath(points) {
-    const first = worldToScreen(points[0]);
-    const second = worldToScreen(points[1]);
+    const firstPoint = points[0];
+    const secondPoint = points[1];
+    if (!firstPoint || !secondPoint)
+        return;
+    const first = worldToScreen(firstPoint);
+    const second = worldToScreen(secondPoint);
     ctx.beginPath();
     ctx.moveTo((first.x + second.x) / 2, (first.y + second.y) / 2);
     for (let index = 1; index <= points.length; index += 1) {
-        const control = worldToScreen(points[index % points.length]);
-        const next = worldToScreen(points[(index + 1) % points.length]);
+        const controlPoint = points[index % points.length];
+        const nextPoint = points[(index + 1) % points.length];
+        if (!controlPoint || !nextPoint)
+            continue;
+        const control = worldToScreen(controlPoint);
+        const next = worldToScreen(nextPoint);
         ctx.quadraticCurveTo(control.x, control.y, (control.x + next.x) / 2, (control.y + next.y) / 2);
     }
     ctx.closePath();
 }
 function drawSourceText(file, box, remainingBudget) {
     const visibleRange = visibleLineRange(file, box);
+    const lineCount = file.lineCount ?? 0;
     if (!visibleRange)
         return 0;
     const budgetedEnd = Math.min(visibleRange.end, visibleRange.start + remainingBudget - 1);
     const fetchStart = Math.max(1, visibleRange.start - SOURCE_TEXT_PREFETCH_LINES);
-    const fetchEnd = Math.min(file.lineCount, budgetedEnd + SOURCE_TEXT_PREFETCH_LINES);
+    const fetchEnd = Math.min(lineCount, budgetedEnd + SOURCE_TEXT_PREFETCH_LINES);
     const cacheKey = sourceRangeCacheKey(file.path, fetchStart, fetchEnd);
     const cached = cachedSourceRange(state.sourceCache, file.path, fetchStart, fetchEnd);
     if (!cached) {
@@ -1185,7 +1218,7 @@ function drawSourceText(file, box, remainingBudget) {
         return 0;
     }
     const linesByNumber = new Map();
-    for (const line of cached.lines) {
+    for (const line of cached.lines ?? []) {
         linesByNumber.set(line.number, line.text);
     }
     const lineHeight = lineHeightForFile(file, box);
@@ -1241,7 +1274,7 @@ function truncateLine(text, maxChars) {
     return text.length > maxChars ? `${text.slice(0, Math.max(0, maxChars - 3))}...` : text;
 }
 function drawLineBands(file, box) {
-    const lines = Math.min(file.lineCount, 80);
+    const lines = Math.min(file.lineCount ?? 0, 80);
     ctx.strokeStyle = "rgba(4, 120, 87, 0.18)";
     ctx.lineWidth = 1;
     for (let i = 1; i < lines; i += 1) {
@@ -1261,9 +1294,11 @@ function drawNamedPlaces() {
         }
         if (place.kind !== "drawnSelection")
             continue;
+        if (!hasGeometryBounds(place))
+            continue;
         drawSelection(place.geometry.bounds, "rgba(245, 158, 11, 0.08)", "#f59e0b", []);
         const box = screenBounds(place.geometry.bounds);
-        drawLabel(place.name, box.x + 6, box.y + 16, "#92400e");
+        drawLabel(place.name ?? "", box.x + 6, box.y + 16, "#92400e");
     }
     annotations.forEach((annotation, index) => {
         const selected = state.selectedTarget?.targetType === "annotation" && state.selectedTarget.id === annotation.id;
@@ -1271,10 +1306,12 @@ function drawNamedPlaces() {
     });
 }
 function drawAnnotation(annotation, markerNumber, selected) {
-    drawAnnotationMembrane(annotation.geometry.bounds, selected ? "rgba(37, 99, 235, 0.13)" : "rgba(37, 99, 235, 0.07)", selected ? "#1d4ed8" : "rgba(37, 99, 235, 0.8)", selected, annotation.id ?? annotation.name);
+    if (!hasGeometryBounds(annotation))
+        return;
+    drawAnnotationMembrane(annotation.geometry.bounds, selected ? "rgba(37, 99, 235, 0.13)" : "rgba(37, 99, 235, 0.07)", selected ? "#1d4ed8" : "rgba(37, 99, 235, 0.8)", selected, annotation.id ?? annotation.name ?? "annotation");
     const box = screenBounds(annotation.geometry.bounds);
     if (box.width > 68 && box.height > 22) {
-        drawLabel(annotation.name, box.x + 8, box.y + 18, "#1e3a8a", 12, "700");
+        drawLabel(annotation.name ?? "Annotation", box.x + 8, box.y + 18, "#1e3a8a", 12, "700");
     }
     drawAnnotationMarker(annotation, markerNumber, selected);
 }
@@ -1294,6 +1331,8 @@ function drawAnnotationMembrane(bounds, fill, stroke, selected, key) {
     ctx.restore();
 }
 function drawAnnotationMarker(annotation, markerNumber, selected) {
+    if (!hasGeometryBounds(annotation))
+        return;
     const center = worldToScreen(boundsCenter(annotation.geometry.bounds));
     const radius = selected ? 13 : 11;
     ctx.save();
@@ -1413,6 +1452,8 @@ function drawActivityMembranes(events, latestByAgent, { discoveryMode = false } 
 function drawActivityTrails(events, latestByAgent, { discoveryMode = false } = {}) {
     for (const agentEvents of activityTrailGroups(events)) {
         const trailLatest = agentEvents.at(-1);
+        if (!trailLatest)
+            continue;
         const latest = latestByAgent.get(activityActorKey(trailLatest)) === trailLatest;
         const selected = activityTrailSelected(agentEvents);
         const encoding = activityVisualEncoding(trailLatest, { latest, selected });
@@ -1478,7 +1519,10 @@ function drawMyceliumPath(points) {
     const segments = organicTrailSegments(points, { minDistance });
     if (segments.length === 0)
         return false;
-    ctx.moveTo(segments[0].start.x, segments[0].start.y);
+    const first = segments[0];
+    if (!first)
+        return false;
+    ctx.moveTo(first.start.x, first.start.y);
     for (const segment of segments) {
         ctx.bezierCurveTo(segment.control1.x, segment.control1.y, segment.control2.x, segment.control2.y, segment.end.x, segment.end.y);
     }
@@ -1612,7 +1656,9 @@ function drawQueuedLabels() {
 }
 function labelsAreInPriorityOrder(labels) {
     for (let index = 1; index < labels.length; index += 1) {
-        if (labels[index - 1].priority < labels[index].priority)
+        const previous = labels[index - 1];
+        const current = labels[index];
+        if (!previous || !current || previous.priority < current.priority)
             return false;
     }
     return true;
@@ -1777,7 +1823,7 @@ function onPointerMove(event) {
     const screen = screenPoint(event);
     const world = screenToWorld(screen);
     const hit = hitTest(world);
-    controls.hover.textContent = hit ? mapHoverLabel(hit) : `x ${world.x.toFixed(4)}, y ${world.y.toFixed(4)}`;
+    setText(controls.hover, hit ? mapHoverLabel(hit) : `x ${world.x.toFixed(4)}, y ${world.y.toFixed(4)}`);
     if (!state.dragging)
         return;
     if (state.dragging.type === "select")
@@ -1867,16 +1913,18 @@ function hasUsableDraftSelection() {
 async function selectMapTarget(worldPoint) {
     const hit = hitTest(worldPoint);
     const action = mapTargetSelectionAction(hit);
+    if (!action)
+        return;
     await MAP_TARGET_SELECTION_COMMANDS.execute(action.type, hit, worldPoint);
 }
 function clearMapSelection() {
     clearPendingAnnotationDelete();
     const panel = mapSelectionPanel(null);
     state.selectedTarget = null;
-    setText(controls.inspectorTitle, panel.inspectorTitle);
+    setText(controls.inspectorTitle, panel.inspectorTitle ?? "");
     setText(controls.inspectorSubtitle, panel.inspectorSubtitle);
-    setText(controls.sourceTitle, panel.sourceTitle);
-    setText(controls.sourceOutput, panel.sourceOutput);
+    setText(controls.sourceTitle, panel.sourceTitle ?? "");
+    setText(controls.sourceOutput, panel.sourceOutput ?? "");
     updateSelectionPopover();
     render();
 }
@@ -1885,18 +1933,20 @@ function inspectMapTarget(hit) {
     clearAnnotationForm();
     state.selectedTarget = hit;
     const panel = mapSelectionPanel(hit);
-    setText(controls.inspectorTitle, panel.inspectorTitle);
-    setText(controls.inspectorSubtitle, panel.inspectorSubtitle);
-    syncHashRoute(createMapHashRoute(hit.targetType, hit.geo.geohash, { path: hit.path }));
+    setText(controls.inspectorTitle, panel.inspectorTitle ?? "");
+    setText(controls.inspectorSubtitle, panel.inspectorSubtitle ?? "");
+    syncHashRoute(createMapHashRoute(hit.targetType, hit.geo?.geohash ?? "", { path: hit.path }));
     return panel;
 }
 function inspectFolderTarget(hit) {
     const panel = inspectMapTarget(hit);
-    setText(controls.sourceTitle, panel.sourceTitle);
-    setText(controls.sourceOutput, panel.sourceOutput);
+    setText(controls.sourceTitle, panel.sourceTitle ?? "");
+    setText(controls.sourceOutput, panel.sourceOutput ?? "");
     render();
 }
 async function inspectFileTarget(hit, worldPoint, { zoomReadable = false } = {}) {
+    if (!hasBounds(hit))
+        return;
     inspectMapTarget(hit);
     const line = lineAtPoint(hit, worldPoint);
     const lineRatio = lineRatioForLine(hit, line);
@@ -1919,19 +1969,19 @@ async function selectActivityEvent(event, { zoomReadable = false } = {}) {
     state.selectedTarget = { ...event, targetType: "activity" };
     clearAnnotationForm();
     setText(controls.inspectorTitle, `${activityActorLabel(event)}: ${normalizeActivityState(event.activityState)}`);
-    setText(controls.inspectorSubtitle, `activity: ${activityPathLabel(event)} | ${event.address.geohash}`);
+    setText(controls.inspectorSubtitle, `activity: ${activityPathLabel(event)} | ${event.address?.geohash ?? "unresolved"}`);
     const path = pathFromActivity(event);
     if (!path) {
         applySourcePanel(sourcePanelState({
-            deepLink: event.address.deepLink,
+            deepLink: event.address?.deepLink,
             fallbackOutput: event.note || "Activity selected.",
         }));
         render();
         return;
     }
-    const lineRange = event.address.lineRange ?? { start: 1, end: undefined };
+    const lineRange = event.address?.lineRange ?? { start: 1, end: undefined };
     if (zoomReadable) {
-        const file = state.map.files[path];
+        const file = state.map?.files?.[path];
         if (file)
             zoomToReadableFile(file, lineRatioForLine(file, lineRange.start));
     }
@@ -1950,7 +2000,7 @@ function selectAnnotation(annotation) {
     state.draftSelection = null;
     state.resolvedSelection = null;
     state.editingAnnotation = null;
-    syncHashRoute(createAnnotationHashRoute(annotation.id));
+    syncHashRoute(createAnnotationHashRoute(annotation.id ?? ""));
     if (controls.selectionComment)
         controls.selectionComment.value = "";
     if (controls.saveSelection)
@@ -1983,7 +2033,7 @@ function lineRatioAtPoint(file, worldPoint) {
     return lineRatioForLine(file, lineAtPoint(file, worldPoint));
 }
 function lineRatioForLine(file, line) {
-    return (line - 0.5) / Math.max(1, file.lineCount);
+    return (line - 0.5) / Math.max(1, file.lineCount ?? 0);
 }
 function sourcePanelLineRange(file, focusLine, box) {
     return sourcePanelLineRangeForBox(file, focusLine, box, canvas.clientHeight);
@@ -1991,10 +2041,13 @@ function sourcePanelLineRange(file, focusLine, box) {
 async function searchMap(event) {
     event.preventDefault();
     const query = controls.searchInput?.value;
-    if (!String(query ?? "").trim())
+    const searchQuery = query ?? "";
+    if (!state.map || !searchQuery.trim())
         return;
-    const match = mapSearchMatch(state.map, state.namedPlaces, query);
+    const match = mapSearchMatch(state.map, state.namedPlaces, searchQuery);
     const action = mapSearchAction(match);
+    if (!action)
+        return;
     await MAP_SEARCH_ACTION_COMMANDS.execute(action.type, match);
 }
 function setSearchResult(message) {
@@ -2004,6 +2057,12 @@ function setSearchResult(message) {
 function setText(element, value) {
     if (element)
         element.textContent = value;
+}
+function hasBounds(target) {
+    return Boolean(target?.bounds);
+}
+function hasGeometryBounds(target) {
+    return Boolean(target?.geometry?.bounds);
 }
 function selectionContextLabel(selection) {
     if (!selection)
@@ -2024,7 +2083,7 @@ function annotationTitle(annotation) {
 function applySourcePanel(panel) {
     setText(controls.sourceTitle, panel.sourceTitle);
     setText(controls.sourceOutput, panel.sourceOutput);
-    if (Number.isFinite(panel.scrollTop) && controls.sourceOutput)
+    if (panel.scrollTop !== undefined && Number.isFinite(panel.scrollTop) && controls.sourceOutput)
         controls.sourceOutput.scrollTop = panel.scrollTop;
 }
 function parseLineRange(value) {
@@ -2075,7 +2134,7 @@ async function saveSelection() {
     const selection = state.resolvedSelection;
     if (!selection)
         return;
-    const comment = controls.selectionComment?.value.trim() ?? "";
+    const comment = controls.selectionComment?.value?.trim() ?? "";
     if (controls.saveSelection)
         controls.saveSelection.disabled = true;
     setSaveButtonLabel("Saving...");
@@ -2109,7 +2168,7 @@ async function saveSelection() {
     render();
 }
 async function copyEditedAnnotationPrompt(annotation) {
-    const comment = controls.selectionComment?.value.trim() ?? "";
+    const comment = controls.selectionComment?.value?.trim() ?? "";
     const copied = await copyToClipboard(annotationClipboardText({ ...annotation, comment }, {
         origin: window.location.origin,
         href: window.location.href,
@@ -2140,7 +2199,7 @@ function clearAnnotationForm() {
 }
 async function deleteSelectedAnnotation() {
     const annotation = state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null;
-    if (!annotation)
+    if (!annotation?.id)
         return;
     if (!isPendingAnnotationDelete(annotation)) {
         armAnnotationDelete(annotation);
@@ -2171,6 +2230,8 @@ async function deleteSelectedAnnotation() {
     render();
 }
 function armAnnotationDelete(annotation) {
+    if (!annotation.id)
+        return;
     clearPendingAnnotationDelete();
     setDeleteButtonLabel(CONFIRM_DELETE_ANNOTATION_LABEL);
     setSelectionStatus("Press Delete again to delete this annotation.");
@@ -2443,9 +2504,10 @@ function easeCamera(t) {
 }
 function activityPathLabel(event) {
     const path = pathFromActivity(event);
-    const lines = event.address.lineRange ? `:${event.address.lineRange.start}-${event.address.lineRange.end}` : "";
-    const columns = event.address.tokenRange ? `@${event.address.tokenRange.start}-${event.address.tokenRange.end}` : "";
-    return `${path || event.address.deepLink}${lines}${columns}`;
+    const address = event.address;
+    const lines = address?.lineRange ? `:${address.lineRange.start}-${address.lineRange.end}` : "";
+    const columns = address?.tokenRange ? `@${address.tokenRange.start}-${address.tokenRange.end}` : "";
+    return `${path || (address?.deepLink ?? "")}${lines}${columns}`;
 }
 function pathFromActivity(event) {
     const deepLink = event.address?.deepLink;

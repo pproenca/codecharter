@@ -244,7 +244,7 @@ test("packed package supports the npx init and resolve path", { timeout: 20000 }
   await execFileAsync("git", ["init"], { cwd: root });
 
   const { stdout } = await execFileAsync("npm", ["pack", "--silent", "--pack-destination", packDir], { cwd: process.cwd() });
-  const tarball = join(packDir, stdout.trim().split(/\r?\n/).at(-1));
+  const tarball = join(packDir, required(stdout.trim().split(/\r?\n/).at(-1)));
   const cli = spawn("npm", [
     "exec",
     "--yes",
@@ -363,6 +363,11 @@ async function freePort() {
   server.close();
   await once(server, "close");
   return port;
+}
+
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value);
+  return value;
 }
 
 function serverPort(server) {

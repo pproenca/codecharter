@@ -16,7 +16,7 @@ test("builds geohash-prefix tiles at a map level", () => {
   const tiles = buildTileIndex(codemap, "folder");
 
   assert.deepEqual(tiles.map((tile) => tile.prefix), ["s123", "u987"]);
-  assert.equal(tiles[0].targets.length, 2);
+  assert.equal(required(tiles[0]).targets.length, 2);
   assert.deepEqual(visiblePrefixes(codemap, "folder"), ["s123", "u987"]);
 });
 
@@ -25,7 +25,7 @@ test("returns one tile by prefix", () => {
 
   assert.equal(tile.prefix, "s123");
   assert.equal(tile.targets.length, 2);
-  assert.equal(tile.targets[0].path, "src");
+  assert.equal(required(tile.targets[0]).path, "src");
 });
 
 test("orders tile targets deterministically by map target kind and path", () => {
@@ -59,13 +59,18 @@ test("TileIndexBuilder keeps the exported class facade behaviour", () => {
   assert.equal(builder.prefixForTarget(codemap.files["src/a.ts"], "folder"), "s123");
 });
 
-function target(path, geohash, bounds) {
+function target(path: string, geohash: string, bounds: { x: number; y: number; width: number; height: number }) {
   return {
     path,
-    name: path.split("/").at(-1),
+    name: path.split("/").at(-1) ?? path,
     bounds,
     geo: { geohash, lat: 0, lon: 0 },
     lineCount: 10,
     weight: 10,
   };
+}
+
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value);
+  return value;
 }

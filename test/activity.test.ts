@@ -79,7 +79,7 @@ test("CLI appends Codex activity events to the JSONL activity archive", async ()
   ], { cwd: root });
 
   const lines = (await readFile(join(root, ".codecharter/activity.jsonl"), "utf8")).trim().split("\n");
-  const event = JSON.parse(lines[0]);
+  const event = JSON.parse(required(lines[0]));
 
   assert.equal(lines.length, 1);
   assert.equal(event.agentId, "codex");
@@ -108,7 +108,7 @@ test("CLI activity can report a deterministic token-range map address", async ()
   ], { cwd: root });
 
   const lines = (await readFile(join(root, ".codecharter/activity.jsonl"), "utf8")).trim().split("\n");
-  const event = JSON.parse(lines[0]);
+  const event = JSON.parse(required(lines[0]));
 
   assert.equal(event.address.targetType, "tokenRange");
   assert.deepEqual(event.address.lineRange, { start: 2, end: 2 });
@@ -283,4 +283,9 @@ function sampleCodemap() {
       },
     },
   };
+}
+
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value);
+  return value;
 }

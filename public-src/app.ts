@@ -875,14 +875,15 @@ function setNamedPlaces(places: NamedPlace[]) {
 }
 
 function upsertNamedPlace(place: NamedPlace) {
+  if (!place.id) return;
   const index = state.namedPlaceIndexesById.get(place.id);
   if (index === undefined) {
     state.namedPlaces.push(place);
-    if (place.id) state.namedPlaceIndexesById.set(place.id, state.namedPlaces.length - 1);
+    state.namedPlaceIndexesById.set(place.id, state.namedPlaces.length - 1);
   } else {
     state.namedPlaces[index] = place;
   }
-  if (place.id) state.namedPlacesById.set(place.id, place);
+  state.namedPlacesById.set(place.id, place);
 }
 
 function updateSelectionPopover() {
@@ -1759,6 +1760,7 @@ function drawActivityMembranes(events: ActivityEvent[], latestByAgent: Map<strin
 function drawActivityTrails(events: ActivityEvent[], latestByAgent: Map<string, ActivityEvent>, { discoveryMode = false } = {}) {
   for (const agentEvents of activityTrailGroups(events)) {
     const trailLatest = agentEvents.at(-1);
+    if (!trailLatest) continue;
     const latest = latestByAgent.get(activityActorKey(trailLatest)) === trailLatest;
     const selected = activityTrailSelected(agentEvents);
     const encoding = activityVisualEncoding(trailLatest, { latest, selected });
@@ -1826,7 +1828,9 @@ function drawMyceliumPath(points: Point[]) {
   const segments = organicTrailSegments(points, { minDistance });
   if (segments.length === 0) return false;
 
-  ctx.moveTo(segments[0].start.x, segments[0].start.y);
+  const first = segments[0];
+  if (!first) return false;
+  ctx.moveTo(first.start.x, first.start.y);
   for (const segment of segments) {
     ctx.bezierCurveTo(
       segment.control1.x,
@@ -1983,7 +1987,9 @@ function drawQueuedLabels() {
 
 function labelsAreInPriorityOrder(labels: PlacedFrameLabel[]) {
   for (let index = 1; index < labels.length; index += 1) {
-    if (labels[index - 1].priority < labels[index].priority) return false;
+    const previous = labels[index - 1];
+    const current = labels[index];
+    if (!previous || !current || previous.priority < current.priority) return false;
   }
   return true;
 }
@@ -2153,7 +2159,7 @@ function onPointerMove(event: PointerEvent) {
   const screen = screenPoint(event);
   const world = screenToWorld(screen);
   const hit = hitTest(world);
-  controls.hover.textContent = hit ? mapHoverLabel(hit) : `x ${world.x.toFixed(4)}, y ${world.y.toFixed(4)}`;
+  setText(controls.hover, hit ? mapHoverLabel(hit) : `x ${world.x.toFixed(4)}, y ${world.y.toFixed(4)}`);
 
   if (!state.dragging) return;
   if (state.dragging.type === "select") return;
@@ -2247,6 +2253,7 @@ function hasUsableDraftSelection() {
 async function selectMapTarget(worldPoint: Point) {
   const hit = hitTest(worldPoint);
   const action = mapTargetSelectionAction(hit);
+  if (!action) return;
   await MAP_TARGET_SELECTION_COMMANDS.execute(action.type, hit, worldPoint);
 }
 
@@ -2254,10 +2261,10 @@ function clearMapSelection() {
   clearPendingAnnotationDelete();
   const panel = mapSelectionPanel(null);
   state.selectedTarget = null;
-  setText(controls.inspectorTitle, panel.inspectorTitle);
+  setText(controls.inspectorTitle, panel.inspectorTitle ?? "");
   setText(controls.inspectorSubtitle, panel.inspectorSubtitle);
-  setText(controls.sourceTitle, panel.sourceTitle);
-  setText(controls.sourceOutput, panel.sourceOutput);
+  setText(controls.sourceTitle, panel.sourceTitle ?? "");
+  setText(controls.sourceOutput, panel.sourceOutput ?? "");
   updateSelectionPopover();
   render();
 }
@@ -2268,20 +2275,21 @@ function inspectMapTarget(hit: TargetHit) {
   state.selectedTarget = hit;
 
   const panel = mapSelectionPanel(hit);
-  setText(controls.inspectorTitle, panel.inspectorTitle);
-  setText(controls.inspectorSubtitle, panel.inspectorSubtitle);
-  syncHashRoute(createMapHashRoute(hit.targetType, hit.geo.geohash, { path: hit.path }));
+  setText(controls.inspectorTitle, panel.inspectorTitle ?? "");
+  setText(controls.inspectorSubtitle, panel.inspectorSubtitle ?? "");
+  syncHashRoute(createMapHashRoute(hit.targetType, hit.geo?.geohash ?? "", { path: hit.path }));
   return panel;
 }
 
 function inspectFolderTarget(hit: TargetHit) {
   const panel = inspectMapTarget(hit);
-  setText(controls.sourceTitle, panel.sourceTitle);
-  setText(controls.sourceOutput, panel.sourceOutput);
+  setText(controls.sourceTitle, panel.sourceTitle ?? "");
+  setText(controls.sourceOutput, panel.sourceOutput ?? "");
   render();
 }
 
 async function inspectFileTarget(hit: MapFile & { targetType: "file" }, worldPoint: Point, { zoomReadable = false } = {}) {
+  if (!hasBounds(hit)) return;
   inspectMapTarget(hit);
   const line = lineAtPoint(hit, worldPoint);
   const lineRatio = lineRatioForLine(hit, line);
@@ -2306,21 +2314,21 @@ async function selectActivityEvent(event: ActivityEvent, { zoomReadable = false 
   state.selectedTarget = { ...event, targetType: "activity" };
   clearAnnotationForm();
   setText(controls.inspectorTitle, `${activityActorLabel(event)}: ${normalizeActivityState(event.activityState)}`);
-  setText(controls.inspectorSubtitle, `activity: ${activityPathLabel(event)} | ${event.address.geohash}`);
+  setText(controls.inspectorSubtitle, `activity: ${activityPathLabel(event)} | ${event.address?.geohash ?? "unresolved"}`);
 
   const path = pathFromActivity(event);
   if (!path) {
     applySourcePanel(sourcePanelState({
-      deepLink: event.address.deepLink,
+      deepLink: event.address?.deepLink,
       fallbackOutput: event.note || "Activity selected.",
     }));
     render();
     return;
   }
 
-  const lineRange = event.address.lineRange ?? { start: 1, end: undefined };
+  const lineRange = event.address?.lineRange ?? { start: 1, end: undefined };
   if (zoomReadable) {
-    const file = state.map.files[path];
+    const file = state.map?.files?.[path];
     if (file) zoomToReadableFile(file, lineRatioForLine(file, lineRange.start));
   }
   const sourceContext = sourceContextRequest(path, lineRange);
@@ -2339,7 +2347,7 @@ function selectAnnotation(annotation: MapAnnotationPlace) {
   state.draftSelection = null;
   state.resolvedSelection = null;
   state.editingAnnotation = null;
-  syncHashRoute(createAnnotationHashRoute(annotation.id));
+  syncHashRoute(createAnnotationHashRoute(annotation.id ?? ""));
   if (controls.selectionComment) controls.selectionComment.value = "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
   setSaveButtonLabel();
@@ -2372,7 +2380,7 @@ function lineRatioAtPoint(file: MapFile, worldPoint: Point) {
 }
 
 function lineRatioForLine(file: MapFile, line: number) {
-  return (line - 0.5) / Math.max(1, file.lineCount);
+  return (line - 0.5) / Math.max(1, file.lineCount ?? 0);
 }
 
 function sourcePanelLineRange(file: MapFile, focusLine: number, box: Bounds) {
@@ -2382,9 +2390,11 @@ function sourcePanelLineRange(file: MapFile, focusLine: number, box: Bounds) {
 async function searchMap(event: Event) {
   event.preventDefault();
   const query = controls.searchInput?.value;
-  if (!String(query ?? "").trim()) return;
-  const match = mapSearchMatch(state.map, state.namedPlaces, query);
+  const searchQuery = query ?? "";
+  if (!state.map || !searchQuery.trim()) return;
+  const match = mapSearchMatch(state.map, state.namedPlaces, searchQuery);
   const action = mapSearchAction(match);
+  if (!action) return;
   await MAP_SEARCH_ACTION_COMMANDS.execute(action.type, match);
 }
 
@@ -2394,6 +2404,14 @@ function setSearchResult(message: string) {
 
 function setText(element: HTMLElement | null, value: string) {
   if (element) element.textContent = value;
+}
+
+function hasBounds<T extends { bounds?: Bounds }>(target: T | null | undefined): target is T & { bounds: Bounds } {
+  return Boolean(target?.bounds);
+}
+
+function hasGeometryBounds<T extends { geometry?: { bounds?: Bounds } }>(target: T | null | undefined): target is T & { geometry: { bounds: Bounds } } {
+  return Boolean(target?.geometry?.bounds);
 }
 
 function selectionContextLabel(selection: ResolvedSelection | MapAnnotationPlace | null) {
@@ -2416,7 +2434,7 @@ function annotationTitle(annotation: MapAnnotationPlace | null) {
 function applySourcePanel(panel: SourcePanel) {
   setText(controls.sourceTitle, panel.sourceTitle);
   setText(controls.sourceOutput, panel.sourceOutput);
-  if (Number.isFinite(panel.scrollTop) && controls.sourceOutput) controls.sourceOutput.scrollTop = panel.scrollTop;
+  if (panel.scrollTop !== undefined && Number.isFinite(panel.scrollTop) && controls.sourceOutput) controls.sourceOutput.scrollTop = panel.scrollTop;
 }
 
 function parseLineRange(value: string | null | undefined): ParsedLineRange | null {
@@ -2462,7 +2480,7 @@ async function saveSelection() {
   }
   const selection = state.resolvedSelection;
   if (!selection) return;
-  const comment = controls.selectionComment?.value.trim() ?? "";
+  const comment = controls.selectionComment?.value?.trim() ?? "";
   if (controls.saveSelection) controls.saveSelection.disabled = true;
   setSaveButtonLabel("Saving...");
   setSelectionStatus("Saving annotation...");
@@ -2496,7 +2514,7 @@ async function saveSelection() {
 }
 
 async function copyEditedAnnotationPrompt(annotation: MapAnnotationPlace) {
-  const comment = controls.selectionComment?.value.trim() ?? "";
+  const comment = controls.selectionComment?.value?.trim() ?? "";
   const copied = await copyToClipboard(annotationClipboardText({ ...annotation, comment }, {
     origin: window.location.origin,
     href: window.location.href,
@@ -2524,7 +2542,7 @@ function clearAnnotationForm() {
 
 async function deleteSelectedAnnotation() {
   const annotation = state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null;
-  if (!annotation) return;
+  if (!annotation?.id) return;
   if (!isPendingAnnotationDelete(annotation)) {
     armAnnotationDelete(annotation);
     return;
@@ -2553,6 +2571,7 @@ async function deleteSelectedAnnotation() {
 }
 
 function armAnnotationDelete(annotation: MapAnnotationPlace) {
+  if (!annotation.id) return;
   clearPendingAnnotationDelete();
   setDeleteButtonLabel(CONFIRM_DELETE_ANNOTATION_LABEL);
   setSelectionStatus("Press Delete again to delete this annotation.");
@@ -2827,9 +2846,10 @@ function easeCamera(t: number) {
 
 function activityPathLabel(event: ActivityEvent) {
   const path = pathFromActivity(event);
-  const lines = event.address.lineRange ? `:${event.address.lineRange.start}-${event.address.lineRange.end}` : "";
-  const columns = event.address.tokenRange ? `@${event.address.tokenRange.start}-${event.address.tokenRange.end}` : "";
-  return `${path || event.address.deepLink}${lines}${columns}`;
+  const address = event.address;
+  const lines = address?.lineRange ? `:${address.lineRange.start}-${address.lineRange.end}` : "";
+  const columns = address?.tokenRange ? `@${address.tokenRange.start}-${address.tokenRange.end}` : "";
+  return `${path || (address?.deepLink ?? "")}${lines}${columns}`;
 }
 
 function pathFromActivity(event: ActivityEvent) {

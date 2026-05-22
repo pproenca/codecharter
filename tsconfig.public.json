@@ -13,6 +13,7 @@
     "rootDir": "public-src",
     "sourceMap": false,
     "noImplicitAny": true,
+    "strictNullChecks": true,
     "useUnknownInCatchVariables": true,
     "noUncheckedIndexedAccess": true,
     "strict": false

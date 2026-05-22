@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { decodeGeohashBounds } from "../src/geohash.ts";
 import { generateCodemap } from "../src/generator.ts";
+import type { Bounds } from "../src/geometry.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -21,15 +22,15 @@ test("generated spatial sidecar keeps geohash and containment invariants", async
 
   const codemap = await generateCodemap({ root });
 
-  assertBoundsInsideUnit(codemap.folders[""].bounds);
+  assertBoundsInsideUnit(required(codemap.folders[""]).bounds);
   for (const folder of Object.values(codemap.folders)) {
     assertBoundsInsideUnit(folder.bounds);
     assertGeohashContainsBoundsCenter(folder.geo.geohash, folder.bounds);
     for (const childPath of folder.children?.folders ?? []) {
-      assertContained(codemap.folders[childPath].bounds, folder.bounds);
+      assertContained(required(codemap.folders[childPath]).bounds, folder.bounds);
     }
     for (const childPath of folder.children?.files ?? []) {
-      assertContained(codemap.files[childPath].bounds, folder.bounds);
+      assertContained(required(codemap.files[childPath]).bounds, folder.bounds);
     }
   }
 
@@ -39,21 +40,21 @@ test("generated spatial sidecar keeps geohash and containment invariants", async
   }
 });
 
-function assertBoundsInsideUnit(bounds) {
+function assertBoundsInsideUnit(bounds: Bounds) {
   assert.equal(bounds.x >= 0, true);
   assert.equal(bounds.y >= 0, true);
   assert.equal(bounds.x + bounds.width <= 1, true);
   assert.equal(bounds.y + bounds.height <= 1, true);
 }
 
-function assertContained(child, parent) {
+function assertContained(child: Bounds, parent: Bounds) {
   assert.equal(child.x >= parent.x, true);
   assert.equal(child.y >= parent.y, true);
   assert.equal(child.x + child.width <= parent.x + parent.width, true);
   assert.equal(child.y + child.height <= parent.y + parent.height, true);
 }
 
-function assertGeohashContainsBoundsCenter(geohash, bounds) {
+function assertGeohashContainsBoundsCenter(geohash: string, bounds: Bounds) {
   const decoded = decodeGeohashBounds(geohash);
   const center = {
     lon: (bounds.x + bounds.width / 2) * 360 - 180,
@@ -61,4 +62,9 @@ function assertGeohashContainsBoundsCenter(geohash, bounds) {
   };
   assert.equal(decoded.lat.min <= center.lat && center.lat <= decoded.lat.max, true);
   assert.equal(decoded.lon.min <= center.lon && center.lon <= decoded.lon.max, true);
+}
+
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value);
+  return value;
 }

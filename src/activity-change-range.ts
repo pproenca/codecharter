@@ -98,7 +98,7 @@ function changedHunkRange(startRaw: string, countRaw?: string): HunkRange {
 
 function tokenFragments(diff: string): TokenFragment[] {
   const fragments: TokenFragment[] = [];
-  let nextLine = null;
+  let nextLine: number | null = null;
 
   for (const rawLine of diffLines(diff)) {
     const hunk = rawLine.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);

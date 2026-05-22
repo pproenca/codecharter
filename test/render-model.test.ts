@@ -413,9 +413,9 @@ test("decodes keyboard actions without coupling to browser effects", () => {
 
 test("derives double-click map navigation actions without binding to browser effects", () => {
   assert.equal(doubleClickMapAction(null), null);
-  assert.equal(doubleClickMapAction({ targetType: "file", path: "src/app.ts" }).type, "selectFile");
-  assert.equal(doubleClickMapAction({ targetType: "folder", path: "src" }).type, "selectFolder");
-  assert.equal(doubleClickMapAction({ targetType: "annotation", id: "a1" }).type, "focusAnnotation");
+  assert.equal(required(doubleClickMapAction({ targetType: "file", path: "src/app.ts" })).type, "selectFile");
+  assert.equal(required(doubleClickMapAction({ targetType: "folder", path: "src" })).type, "selectFolder");
+  assert.equal(required(doubleClickMapAction({ targetType: "annotation", id: "a1" })).type, "focusAnnotation");
   assert.deepEqual(doubleClickMapAction({ targetType: "activity", id: "event-1" }), { type: "selectActivity" });
 });
 
@@ -441,7 +441,7 @@ test("fits bounds and readable files into a deterministic camera view", () => {
     bounds: { x: 0.5, y: 0.2, width: 0.08, height: 0.04 },
   });
   const readableView = viewForReadableFile(file, viewport, 0.75);
-  const readableBox = screenBoundsForView(file.bounds, readableView, viewport);
+  const readableBox = screenBoundsForView(required(file.bounds), readableView, viewport);
 
   assert.equal(canRenderSourceText(file, readableBox), true);
 });
@@ -646,12 +646,15 @@ test("resolves browser map route targets through path metadata or geohash prefix
     params: new URLSearchParams(),
   });
 
-  assert.equal(byPath.targetType, "file");
-  assert.equal(byPath.path, "src/app.ts");
-  assert.equal(byPrefix.targetType, "folder");
-  assert.equal(byPrefix.path, "src");
-  assert.equal(byContainingPrefix.targetType, "folder");
-  assert.equal(byContainingPrefix.path, "src");
+  const resolvedByPath = required(byPath);
+  const resolvedByPrefix = required(byPrefix);
+  const resolvedByContainingPrefix = required(byContainingPrefix);
+  assert.equal(resolvedByPath.targetType, "file");
+  assert.equal(resolvedByPath.path, "src/app.ts");
+  assert.equal(resolvedByPrefix.targetType, "folder");
+  assert.equal(resolvedByPrefix.path, "src");
+  assert.equal(resolvedByContainingPrefix.targetType, "folder");
+  assert.equal(resolvedByContainingPrefix.path, "src");
 });
 
 test("derives browser hash route focus intents without binding to controller effects", () => {
@@ -722,7 +725,7 @@ test("resolves map search matches by navigation priority", () => {
   assert.equal(annotation.type, "annotation");
   assert.equal(annotation.label, "Annotation: App note");
   if (!("target" in annotation)) assert.fail("Expected annotation search target");
-  assert.equal(annotation.target.targetType, "annotation");
+  assert.equal(required(annotation.target).targetType, "annotation");
   assert.ok(folder);
   assert.equal(folder.type, "folder");
   assert.equal(folder.label, "Folder: src/features");
@@ -762,7 +765,7 @@ test("keeps map search priority and first matching target order", () => {
   assert.ok(match);
   assert.equal(match.type, "file");
   if (!("file" in match)) assert.fail("Expected file search match");
-  assert.equal(match.file.path, "src/app.ts");
+  assert.equal(required(match.file).path, "src/app.ts");
 });
 
 test("map search reflects target and place updates after earlier searches", () => {
@@ -783,15 +786,15 @@ test("map search reflects target and place updates after earlier searches", () =
     geometry: { bounds: { x: 0.3, y: 0.3, width: 0.1, height: 0.1 } },
   }];
 
-  assert.equal(mapSearchMatch(codemap, namedPlaces, "app").type, "file");
+  assert.equal(required(mapSearchMatch(codemap, namedPlaces, "app")).type, "file");
 
-  codemap.files["src/app.ts"].path = "src/renamed.ts";
+  required(codemap.files["src/app.ts"]).path = "src/renamed.ts";
   codemap.files["src/late-added.ts"] = {
     path: "src/late-added.ts",
     bounds: { x: 0.2, y: 0.1, width: 0.2, height: 0.2 },
     geo: { geohash: "u10001000000", lat: 0, lon: 0 },
   };
-  namedPlaces[0].name = "Updated area";
+  required(namedPlaces[0]).name = "Updated area";
 
   assert.equal(mapSearchMatch(codemap, namedPlaces, "app"), null);
   const fileMatch = mapSearchMatch(codemap, namedPlaces, "late-added");
@@ -800,8 +803,8 @@ test("map search reflects target and place updates after earlier searches", () =
   assert.ok(placeMatch);
   if (!("file" in fileMatch)) assert.fail("Expected file search match");
   if (!("place" in placeMatch)) assert.fail("Expected place search match");
-  assert.equal(fileMatch.file.path, "src/late-added.ts");
-  assert.equal(placeMatch.place.id, "place-1");
+  assert.equal(required(fileMatch.file).path, "src/late-added.ts");
+  assert.equal(required(placeMatch.place).id, "place-1");
 });
 
 test("derives map search actions without binding to browser effects", () => {
@@ -865,8 +868,8 @@ test("reconciles selected map targets against refreshed sidecar state", () => {
   const folder = reconciledSelectedTarget(codemap, { targetType: "folder", path: "src", geo: { geohash: "old" } });
   const activity = { targetType: "activity", id: "event-1" };
 
-  assert.equal(file.geo.geohash, "s99999000000");
-  assert.equal(folder.geo.geohash, "u12345000000");
+  assert.equal(required(required(file).geo).geohash, "s99999000000");
+  assert.equal(required(required(folder).geo).geohash, "u12345000000");
   assert.equal(reconciledSelectedTarget(codemap, { targetType: "file", path: "src/missing.ts" }), null);
   assert.equal(reconciledSelectedTarget(codemap, activity), activity);
   assert.equal(reconciledSelectedTarget(codemap, null), null);
@@ -907,8 +910,9 @@ test("hit-testing prefers the smallest containing file before enclosing folders"
 
   const hit = hitTestTargets(codemap, { x: 0.35, y: 0.35 });
 
-  assert.equal(hit.targetType, "file");
-  assert.equal(hit.path, "src/a-inner.js");
+  const requiredHit = required(hit);
+  assert.equal(requiredHit.targetType, "file");
+  assert.equal(requiredHit.path, "src/a-inner.js");
 });
 
 test("hit-testing breaks equal-area target ties by path", () => {
@@ -922,8 +926,9 @@ test("hit-testing breaks equal-area target ties by path", () => {
 
   const hit = hitTestTargets(codemap, { x: 0.35, y: 0.35 });
 
-  assert.equal(hit.targetType, "file");
-  assert.equal(hit.path, "src/a.js");
+  const requiredHit = required(hit);
+  assert.equal(requiredHit.targetType, "file");
+  assert.equal(requiredHit.path, "src/a.js");
 });
 
 test("hit-testing annotations prefers the newest visible annotation without allocating reversed candidates", () => {
@@ -950,8 +955,9 @@ test("hit-testing annotations prefers the newest visible annotation without allo
 
   const hit = hitTestAnnotations(annotations, { x: 0.3, y: 0.3 });
 
-  assert.equal(hit.targetType, "annotation");
-  assert.equal(hit.id, "newer");
+  const requiredHit = required(hit);
+  assert.equal(requiredHit.targetType, "annotation");
+  assert.equal(requiredHit.id, "newer");
 });
 
 test("hit-testing activity prefers the newest live event near a fragment center", () => {
@@ -977,8 +983,9 @@ test("hit-testing activity prefers the newest live event near a fragment center"
     now,
   });
 
-  assert.equal(hit.targetType, "activity");
-  assert.equal(hit.id, "newer");
+  const requiredHit = required(hit);
+  assert.equal(requiredHit.targetType, "activity");
+  assert.equal(requiredHit.id, "newer");
 });
 
 test("hit-testing activity ignores expired newer events while choosing the newest matching live event", () => {
@@ -1007,7 +1014,7 @@ test("hit-testing activity ignores expired newer events while choosing the newes
     maxAgeMinutes: 180,
   });
 
-  assert.equal(hit.id, "newer-live-hit");
+  assert.equal(required(hit).id, "newer-live-hit");
 });
 
 test("hit-testing activity uses fragment centers instead of aggregate centers", () => {
@@ -1031,7 +1038,7 @@ test("hit-testing activity uses fragment centers instead of aggregate centers", 
     now,
   });
 
-  assert.equal(hit.id, event.id);
+  assert.equal(required(hit).id, event.id);
 });
 
 test("derives organic region contours deterministically from world bounds", () => {
@@ -1100,10 +1107,12 @@ test("turns activity point sequences into smooth bounded trail segments", () => 
 
   assert.deepEqual(simplified, [points[0], points[2], points[3]]);
   assert.equal(segments.length, 2);
-  assert.deepEqual(segments[0].start, points[0]);
-  assert.deepEqual(segments.at(-1).end, points[3]);
-  assert.equal(Number.isFinite(segments[0].control1.x), true);
-  assert.equal(Number.isFinite(segments[0].control2.y), true);
+  const firstSegment = required(segments[0]);
+  const lastSegment = required(segments.at(-1));
+  assert.deepEqual(firstSegment.start, points[0]);
+  assert.deepEqual(lastSegment.end, points[3]);
+  assert.equal(Number.isFinite(firstSegment.control1.x), true);
+  assert.equal(Number.isFinite(firstSegment.control2.y), true);
   assert.deepEqual(organicTrailSegments(points, { minDistance: 8 }), segments);
 });
 
@@ -1113,7 +1122,7 @@ test("keeps trail curve handles close to their local segment", () => {
     { x: 10, y: 0 },
     { x: 1000, y: 1000 },
   ];
-  const [first] = organicTrailSegments(points, { minDistance: 0 });
+  const first = required(organicTrailSegments(points, { minDistance: 0 })[0]);
 
   assert.ok(first.control2.x >= -4 && first.control2.x <= 14);
   assert.ok(first.control2.y >= -4 && first.control2.y <= 4);
@@ -1127,7 +1136,12 @@ test("splits activity trails by Codex session and time gap", () => {
     activity("codex", "reviewing", "2026-05-20T10:40:00.000Z", { id: "a3", sessionId: "session-a" }),
   ];
 
-  const groups = activityTrailGroups([events[2], events[0], events[3], events[1]], {
+  const groups = activityTrailGroups([
+    required(events[2]),
+    required(events[0]),
+    required(events[3]),
+    required(events[1]),
+  ], {
     maxGapMinutes: 20,
     now: Date.parse("2026-05-20T10:45:00.000Z"),
   });
@@ -1158,7 +1172,7 @@ test("sorts activity events and keeps the latest visible state by agent", () => 
   ];
 
   assert.deepEqual(sortedActivityEvents(events, 2, { now }).map((event) => event.activityState), ["testing", "editing"]);
-  assert.equal(latestActivityByAgent(events, { now }).get("codex:manual").activityState, "editing");
+  assert.equal(required(latestActivityByAgent(events, { now }).get("codex:manual")).activityState, "editing");
   assert.equal(activityStateStyle("reviewing").fill, "#f59e0b");
   assert.equal(activityStateStyle("blocked").fill, activityStateStyle("reviewing").fill);
 });
@@ -1196,10 +1210,10 @@ test("keeps latest activity separately for each Codex thread", () => {
   ];
 
   const latest = latestActivityByAgent(events, { now });
-  assert.equal(activityActorKey(events[0]), "codex:thread-a");
+  assert.equal(activityActorKey(required(events[0])), "codex:thread-a");
   assert.equal(latest.size, 2);
-  assert.equal(latest.get("codex:thread-a").activityState, "testing");
-  assert.equal(latest.get("codex:thread-b").activityState, "editing");
+  assert.equal(required(latest.get("codex:thread-a")).activityState, "testing");
+  assert.equal(required(latest.get("codex:thread-b")).activityState, "editing");
 });
 
 test("keeps latest activity map ordered by each agent's first live event", () => {
@@ -1214,7 +1228,7 @@ test("keeps latest activity map ordered by each agent's first live event", () =>
   const latest = latestActivityByAgent(events, { now });
 
   assert.deepEqual([...latest.keys()], ["reviewer:manual", "codex:thread-b", "codex:thread-a"]);
-  assert.equal(latest.get("codex:thread-a").activityState, "editing");
+  assert.equal(required(latest.get("codex:thread-a")).activityState, "editing");
 });
 
 test("selects the activity feed as the five newest latest-agent events with stable ties", () => {
@@ -1300,7 +1314,7 @@ test("anchors activity to text-bearing fragments instead of the aggregate bounds
     { bounds: { x: 0.62, y: 0.58, width: 0.08, height: 0.01 } },
   ];
 
-  assert.deepEqual(activityPrimaryBounds(event), event.address.fragments[0].bounds);
+  assert.deepEqual(activityPrimaryBounds(event), required(required(event.address.fragments)[0]).bounds);
   assert.deepEqual(activityFragmentBounds(event), event.address.fragments.map((fragment) => fragment.bounds));
 });
 
@@ -1351,16 +1365,21 @@ function activity(agentId: string, activityState: string, timestamp: string, ove
   };
 }
 
-function target(path, targetType, bounds) {
+function target<T extends "file" | "folder">(path: string, targetType: T, bounds: TestBounds) {
   return {
     path,
-    name: path.split("/").at(-1),
+    name: path.split("/").at(-1) ?? path,
     targetType,
     bounds,
     geo: { geohash: "s00000000000", lat: 0, lon: 0 },
     lineCount: 10,
     weight: 10,
   };
+}
+
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value);
+  return value;
 }
 
 function roundPoint(point: Record<string, number>) {

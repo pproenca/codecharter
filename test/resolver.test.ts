@@ -56,8 +56,9 @@ test("resolves a file path and lines to a lineRange-level map address", () => {
 
   assert.equal(address.level, "lineRange");
   assert.equal(address.targetType, "lineRange");
-  assert.equal(address.lineRange.start, 10);
-  assert.equal(address.lineRange.end, 20);
+  const lineRange = required(address.lineRange);
+  assert.equal(lineRange.start, 10);
+  assert.equal(lineRange.end, 20);
   assert.equal(address.deepLink.includes("lines=10-20"), true);
   assert.equal(address.bounds.y, 0.295);
   assert.equal(address.bounds.height, 0.055);
@@ -96,20 +97,23 @@ test("resolves token fragments without placing the anchor in whitespace between 
   });
 
   assert.equal(address.targetType, "tokenRange");
-  assert.equal(address.geohash, address.fragments[0].geohash);
-  assert.deepEqual(address.coveringSet, address.fragments.map((fragment) => fragment.geohash).sort());
-  assert.equal(address.fragments.length, 2);
-  assert.equal(address.fragments.every((fragment) => fragment.targetType === "tokenRange"), true);
-  assert.equal(address.fragments.every((fragment) => typeof fragment.geohash === "string"), true);
-  assert.equal(address.fragments.every((fragment) => fragment.geo === undefined), true);
-  assert.deepEqual(address.fragments[0].lineRange, { start: 10, end: 10 });
-  assert.deepEqual(address.fragments[0].tokenRange, { start: 1, end: 8 });
-  assert.equal(address.fragments[0].bounds.x, 0.25);
-  assert.equal(address.fragments[0].bounds.width, 0.05);
-  assert.deepEqual(address.fragments[1].lineRange, { start: 20, end: 20 });
-  assert.deepEqual(address.fragments[1].tokenRange, { start: 32, end: 40 });
-  assert.equal(address.fragments[1].bounds.x, 0.44375);
-  assert.equal(address.fragments[1].bounds.width, 0.05625);
+  const fragments = required(address.fragments);
+  const first = required(fragments[0]);
+  const second = required(fragments[1]);
+  assert.equal(address.geohash, first.geohash);
+  assert.deepEqual(address.coveringSet, fragments.map((fragment) => fragment.geohash).sort());
+  assert.equal(fragments.length, 2);
+  assert.equal(fragments.every((fragment) => fragment.targetType === "tokenRange"), true);
+  assert.equal(fragments.every((fragment) => typeof fragment.geohash === "string"), true);
+  assert.equal(fragments.every((fragment) => fragment.geo === undefined), true);
+  assert.deepEqual(first.lineRange, { start: 10, end: 10 });
+  assert.deepEqual(first.tokenRange, { start: 1, end: 8 });
+  assert.equal(first.bounds.x, 0.25);
+  assert.equal(first.bounds.width, 0.05);
+  assert.deepEqual(second.lineRange, { start: 20, end: 20 });
+  assert.deepEqual(second.tokenRange, { start: 32, end: 40 });
+  assert.equal(second.bounds.x, 0.44375);
+  assert.equal(second.bounds.width, 0.05625);
 });
 
 test("rejects column ranges without a line range", () => {
@@ -151,3 +155,8 @@ test("CodeRangeGeometryMapper keeps the exported class facade behaviour", () => 
   assert.deepEqual(mapper.lineRangeForRequest(file, { lineStart: 20, lineEnd: 10 }), { start: 10, end: 20 });
   assert.deepEqual(mapper.tokenRangeForRequest(file, { columnStart: 24, columnEnd: 9 }), { start: 9, end: 24 });
 });
+
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value);
+  return value;
+}

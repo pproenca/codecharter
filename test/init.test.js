@@ -218,6 +218,31 @@ test("codecharter init merges Codex hooks without clobbering existing repo hooks
   assert.equal(countCodecharterHooks(hooksJson), 3);
 });
 
+test("codecharter init preserves existing unmanaged local git hook content", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-git-hook-preserve-"));
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.ts"), "export const app = true;\n");
+  await writeFile(join(root, "package.json"), JSON.stringify({ name: "sample-app", version: "1.0.0" }));
+  await execFileAsync("git", ["init"], { cwd: root });
+  await writeFile(join(root, ".git", "hooks", "post-merge"), "#!/bin/sh\necho existing-hook\n");
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await execFileAsync("node", [
+      join(process.cwd(), "bin", "codemap.mjs"),
+      "init",
+      "--root",
+      root,
+      "--yes",
+    ], { cwd: root });
+  }
+
+  const postMergeHook = await readFile(join(root, ".git", "hooks", "post-merge"), "utf8");
+
+  assert.equal(postMergeHook.match(/^#!\/bin\/sh/gm)?.length, 1);
+  assert.match(postMergeHook, /echo existing-hook/);
+  assert.equal(postMergeHook.match(/# >>> codecharter >>>/g)?.length, 1);
+});
+
 test("codecharter codex-hook appends mapped Codex activity without a daemon", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-codex-hook-"));
   await mkdir(join(root, "src"), { recursive: true });

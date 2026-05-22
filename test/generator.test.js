@@ -66,6 +66,32 @@ test("stabilizes existing file addresses when new files are added", async () => 
   assert.equal(isInside(second.files["src/new-feature.ts"].bounds, previousSrcGrowth), true);
 });
 
+test("stabilizes existing districts while placing new nested folders in growth area", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-stable-nested-"));
+  await execFileAsync("git", ["init"], { cwd: root });
+  await mkdir(join(root, "src"), { recursive: true });
+  await writeFile(join(root, "src", "app.ts"), "const a = 1;\nconst b = 2;\n");
+
+  const first = await generateCodemap({ root });
+  const previousApp = first.files["src/app.ts"];
+  const previousSrc = first.folders.src;
+
+  await mkdir(join(root, "src", "feature"), { recursive: true });
+  await writeFile(join(root, "src", "feature", "new.ts"), "export const feature = true;\n");
+
+  const second = await generateCodemap({ root, previousCodemap: first });
+  const featureFolder = second.folders["src/feature"];
+  const featureFile = second.files["src/feature/new.ts"];
+
+  assert.deepEqual(second.files["src/app.ts"].bounds, previousApp.bounds);
+  assert.deepEqual(second.files["src/app.ts"].geo, previousApp.geo);
+  assert.equal(isInside(featureFolder.bounds, previousSrc.growthArea), true);
+  assert.equal(isInside(featureFile.bounds, featureFolder.bounds), true);
+  assert.equal(typeof featureFolder.geo.geohash, "string");
+  assert.equal(typeof featureFile.geo.geohash, "string");
+  assert.notDeepEqual(second.folders.src.growthArea, previousSrc.growthArea);
+});
+
 test("does not anchor a district map to an obsolete projection", async () => {
   const root = await mkdtemp(join(tmpdir(), "codemaps-projection-"));
   await execFileAsync("git", ["init"], { cwd: root });

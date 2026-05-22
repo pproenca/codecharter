@@ -57,24 +57,6 @@ export class CodecharterInitializer {
   }
 }
 
-class ManagedHookInstaller {
-  async install(hookPath, block) {
-    let current = "";
-    try {
-      current = await readFile(hookPath, "utf8");
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
-
-    const withoutManaged = current.replace(new RegExp(`\\n?${escapeRegExp(MANAGED_START)}[\\s\\S]*?${escapeRegExp(MANAGED_END)}\\n?`, "g"), "\n").trimEnd();
-    const shebang = withoutManaged.startsWith("#!") ? "" : "#!/bin/sh\n";
-    const separator = withoutManaged.length ? "\n\n" : "";
-    await mkdir(dirname(hookPath), { recursive: true });
-    await writeFile(hookPath, `${shebang}${withoutManaged}${separator}${block}\n`, { mode: 0o755 });
-    await chmod(hookPath, 0o755);
-  }
-}
-
 export class CodexHooksMerger {
   merge(existing, desired) {
     const next = {
@@ -147,7 +129,6 @@ export class CodexHooksMerger {
 }
 
 const CODECHARTER_INITIALIZER = new CodecharterInitializer();
-const MANAGED_HOOK_INSTALLER = new ManagedHookInstaller();
 const CODEX_HOOKS_MERGER = new CodexHooksMerger();
 
 export async function initializeCodecharter({
@@ -257,7 +238,19 @@ export async function ensureGitMapHooks(root, mapPath) {
 }
 
 async function installManagedHookBlock(hookPath, block) {
-  await MANAGED_HOOK_INSTALLER.install(hookPath, block);
+  let current = "";
+  try {
+    current = await readFile(hookPath, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+
+  const withoutManaged = current.replace(new RegExp(`\\n?${escapeRegExp(MANAGED_START)}[\\s\\S]*?${escapeRegExp(MANAGED_END)}\\n?`, "g"), "\n").trimEnd();
+  const shebang = withoutManaged.startsWith("#!") ? "" : "#!/bin/sh\n";
+  const separator = withoutManaged.length ? "\n\n" : "";
+  await mkdir(dirname(hookPath), { recursive: true });
+  await writeFile(hookPath, `${shebang}${withoutManaged}${separator}${block}\n`, { mode: 0o755 });
+  await chmod(hookPath, 0o755);
 }
 
 function gitMapHookBlock(root, mapPath, version = "latest") {

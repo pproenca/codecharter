@@ -88,99 +88,99 @@ const CAMERA_ANIMATION_MS = 280;
 const DOUBLE_CLICK_ZOOM_FACTOR = 2;
 const CLICK_SELECT_DELAY_MS = 220;
 
-class PollingTask {
-  constructor() {
-    this.timer = null;
-  }
-
-  start(callback, intervalMs) {
-    this.stop();
-    this.timer = setInterval(callback, intervalMs);
-  }
-
-  stop() {
-    if (this.timer) clearInterval(this.timer);
-    this.timer = null;
-  }
+function createPollingTask() {
+  let timer = null;
+  return {
+    start(callback, intervalMs) {
+      this.stop();
+      timer = setInterval(callback, intervalMs);
+    },
+    stop() {
+      if (timer) clearInterval(timer);
+      timer = null;
+    },
+  };
 }
 
-class MapApplicationState {
-  constructor() {
-    this.map = null;
-    this.mapVersion = "";
-    this.namedPlaces = [];
-    this.overlaps = [];
-    this.activity = [];
-    this.sourceCache = new Map();
-    this.pendingSourceRequests = new Set();
-    this.activitySignature = "";
-    this.view = { x: 0, y: 0, scale: 1 };
-    this.cameraAnimation = null;
-    this.pendingClickSelection = null;
-    this.dragging = null;
-    this.lastPointerDown = null;
-    this.lastPointerType = "";
-    this.drawing = false;
-    this.panning = false;
-    this.spacePanning = false;
-    this.draftSelection = null;
-    this.resolvedSelection = null;
-    this.selectedTarget = null;
-  }
-
-  clearSourceState() {
-    this.sourceCache.clear();
-    this.pendingSourceRequests.clear();
-  }
+function createMapApplicationState() {
+  const sourceCache = new Map();
+  const pendingSourceRequests = new Set();
+  return {
+    map: null,
+    mapVersion: "",
+    namedPlaces: [],
+    overlaps: [],
+    activity: [],
+    sourceCache,
+    pendingSourceRequests,
+    activitySignature: "",
+    view: { x: 0, y: 0, scale: 1 },
+    cameraAnimation: null,
+    pendingClickSelection: null,
+    dragging: null,
+    lastPointerDown: null,
+    lastPointerType: "",
+    drawing: false,
+    panning: false,
+    spacePanning: false,
+    draftSelection: null,
+    resolvedSelection: null,
+    selectedTarget: null,
+    clearSourceState() {
+      sourceCache.clear();
+      pendingSourceRequests.clear();
+    },
+  };
 }
 
-class MapControls {
-  constructor(root = document) {
-    this.summary = root.querySelector("#mapSummary");
-    this.hover = root.querySelector("#hoverReadout");
-    this.viewport = root.querySelector("#viewportReadout");
-    this.selectionPopover = root.querySelector("#selectionPopover");
-    this.annotationActions = root.querySelector("#annotationActions");
-    this.inspectorTitle = root.querySelector("#inspectorTitle");
-    this.inspectorSubtitle = root.querySelector("#inspectorSubtitle");
-    this.searchForm = root.querySelector("#searchForm");
-    this.searchInput = root.querySelector("#searchInput");
-    this.searchResult = root.querySelector("#searchResult");
-    this.selectTool = root.querySelector("#selectTool");
-    this.panTool = root.querySelector("#panTool");
-    this.zoomInTool = root.querySelector("#zoomInTool");
-    this.zoomOutTool = root.querySelector("#zoomOutTool");
-    this.resetViewTool = root.querySelector("#resetViewTool");
-    this.drawTool = root.querySelector("#drawTool");
-    this.clearActivityTool = root.querySelector("#clearActivityTool");
-    this.saveSelection = root.querySelector("#saveSelection");
-    this.deleteAnnotation = root.querySelector("#deleteAnnotation");
-    this.copyAnnotationPrompt = root.querySelector("#copyAnnotationPrompt");
-    this.deleteAnnotationAction = root.querySelector("#deleteAnnotationAction");
-    this.selectionComment = root.querySelector("#selectionComment");
-    this.selectionStatus = root.querySelector("#selectionStatus");
-    this.sourceTitle = root.querySelector("#sourceTitle");
-    this.sourceOutput = root.querySelector("#sourceOutput");
-    this.showFolders = root.querySelector("#showFolders");
-    this.showOrganicRegions = root.querySelector("#showOrganicRegions");
-    this.showFiles = root.querySelector("#showFiles");
-    this.showNames = root.querySelector("#showNames");
-    this.showActivity = root.querySelector("#showActivity");
-    this.showGrid = root.querySelector("#showGrid");
-    this.activityFeed = root.querySelector("#activityFeed");
-    this.activityForm = root.querySelector("#activityForm");
-  }
+function createMapControls(root = document) {
+  const controls = Object.fromEntries([
+    ["summary", "#mapSummary"],
+    ["hover", "#hoverReadout"],
+    ["viewport", "#viewportReadout"],
+    ["selectionPopover", "#selectionPopover"],
+    ["annotationActions", "#annotationActions"],
+    ["inspectorTitle", "#inspectorTitle"],
+    ["inspectorSubtitle", "#inspectorSubtitle"],
+    ["searchForm", "#searchForm"],
+    ["searchInput", "#searchInput"],
+    ["searchResult", "#searchResult"],
+    ["selectTool", "#selectTool"],
+    ["panTool", "#panTool"],
+    ["zoomInTool", "#zoomInTool"],
+    ["zoomOutTool", "#zoomOutTool"],
+    ["resetViewTool", "#resetViewTool"],
+    ["drawTool", "#drawTool"],
+    ["clearActivityTool", "#clearActivityTool"],
+    ["saveSelection", "#saveSelection"],
+    ["deleteAnnotation", "#deleteAnnotation"],
+    ["copyAnnotationPrompt", "#copyAnnotationPrompt"],
+    ["deleteAnnotationAction", "#deleteAnnotationAction"],
+    ["selectionComment", "#selectionComment"],
+    ["selectionStatus", "#selectionStatus"],
+    ["sourceTitle", "#sourceTitle"],
+    ["sourceOutput", "#sourceOutput"],
+    ["showFolders", "#showFolders"],
+    ["showOrganicRegions", "#showOrganicRegions"],
+    ["showFiles", "#showFiles"],
+    ["showNames", "#showNames"],
+    ["showActivity", "#showActivity"],
+    ["showGrid", "#showGrid"],
+    ["activityFeed", "#activityFeed"],
+    ["activityForm", "#activityForm"],
+  ].map(([name, selector]) => [name, root.querySelector(selector)]));
 
-  layerToggles() {
-    return [
-      this.showFolders,
-      this.showOrganicRegions,
-      this.showFiles,
-      this.showNames,
-      this.showActivity,
-      this.showGrid,
-    ].filter(Boolean);
-  }
+  return {
+    ...controls,
+    layerToggles: () => [
+      controls.showFolders,
+      controls.showOrganicRegions,
+      controls.showFiles,
+      controls.showNames,
+      controls.showActivity,
+      controls.showGrid,
+    ].filter(Boolean),
+  };
 }
 
 let frameLabels = [];
@@ -188,10 +188,10 @@ let applyingRoute = false;
 let routeSequence = 0;
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-const state = new MapApplicationState();
-const controls = new MapControls();
-const activityPolling = new PollingTask();
-const mapPolling = new PollingTask();
+const state = createMapApplicationState();
+const controls = createMapControls();
+const activityPolling = createPollingTask();
+const mapPolling = createPollingTask();
 
 async function boot() {
   const [map, mapVersion, names, activity] = await Promise.all([
@@ -1995,23 +1995,23 @@ function clamp(value, min, max) {
 }
 
 async function fetchJson(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(await response.text());
-  return response.json();
+  return requestJson(url);
 }
 
 async function deleteJson(url) {
-  const response = await fetch(url, { method: "DELETE" });
-  if (!response.ok) throw new Error(await response.text());
-  return response.json();
+  return requestJson(url, { method: "DELETE" });
 }
 
 async function postJson(url, body) {
-  const response = await fetch(url, {
+  return requestJson(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+async function requestJson(url, options) {
+  const response = await fetch(url, options);
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 }

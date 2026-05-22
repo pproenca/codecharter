@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildTileIndex, getTile, visiblePrefixes } from "../src/tiles.js";
+import { TileIndexBuilder, buildTileIndex, getTile, visiblePrefixes } from "../src/tiles.js";
 
 const codemap = {
   folders: {
@@ -48,6 +48,15 @@ test("orders tile targets deterministically by map target kind and path", () => 
     "src/a.ts",
     "src/b.ts",
   ]);
+});
+
+test("TileIndexBuilder keeps the exported class facade behaviour", () => {
+  const builder = new TileIndexBuilder();
+
+  assert.deepEqual(builder.build(codemap, "folder"), buildTileIndex(codemap, "folder"));
+  assert.deepEqual(builder.get(codemap, { level: "folder", prefix: "s123" }), getTile(codemap, { level: "folder", prefix: "s123" }));
+  assert.deepEqual(builder.visiblePrefixes(codemap, "folder"), visiblePrefixes(codemap, "folder"));
+  assert.equal(builder.prefixForTarget(codemap.files["src/a.ts"], "folder"), "s123");
 });
 
 function target(path, geohash, bounds) {

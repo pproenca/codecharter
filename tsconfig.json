@@ -5,7 +5,7 @@
     "moduleResolution": "NodeNext",
     "lib": ["ES2024", "DOM"],
     "types": ["node"],
-    "allowJs": true,
+    "allowJs": false,
     "allowImportingTsExtensions": true,
     "checkJs": false,
     "noEmit": true,
@@ -17,18 +17,12 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": [
-    "bin/**/*.mjs",
     "bin/**/*.mts",
-    "public/**/*.js",
-    "public/**/*.ts",
-    "src/**/*.js",
+    "public-src/**/*.ts",
     "src/**/*.ts",
-    "test/**/*.js",
     "test/**/*.ts",
-    "test-support/**/*.js",
     "test-support/**/*.ts",
-    "test-support/**/*.mts",
-    ".codex/hooks/**/*.mjs"
+    "test-support/**/*.mts"
   ],
   "exclude": [
     "dist",

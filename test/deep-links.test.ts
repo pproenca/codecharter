@@ -13,7 +13,7 @@ import {
   boundsFromRouteParams,
   createMapHashRoute,
   parseHashRoute,
-} from "../public/deep-links.js";
+} from "../public-src/deep-links.ts";
 
 test("builds and parses canonical codecharter deep links", () => {
   const link = createCodemapDeepLink("lineRange", "u4pruydqqvj", {

@@ -25,13 +25,14 @@
     "codemap": "dist/bin/codemap.mjs"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && cp public/index.html public/style.css dist/public/ && cp package.json dist/package.json",
+    "build": "rm -rf dist && pnpm build:public && tsc -p tsconfig.build.json && chmod +x dist/bin/codemap.mjs && mkdir -p dist/public && cp public/index.html public/style.css public/app.js public/deep-links.js public/render-model.js dist/public/ && cp package.json dist/package.json",
+    "build:public": "tsc -p tsconfig.public.json",
     "codecharter": "node ./bin/codemap.mts",
     "codemap": "node ./bin/codemap.mts",
     "setup": "node ./bin/codemap.mts init --yes",
     "dev": "node ./bin/codemap.mts dev",
     "serve": "node ./bin/codemap.mts serve",
-    "prepack": "tsc -p tsconfig.build.json && cp public/index.html public/style.css dist/public/ && cp package.json dist/package.json",
+    "prepack": "pnpm build",
     "typecheck": "tsc --noEmit",
     "test": "tsx test-support/run-tests.mts"
   },

@@ -77,7 +77,7 @@ import {
   visibleLineRangeForBox,
   worldToScreenPoint,
   zoomViewAt,
-} from "../public/render-model.js";
+} from "../public-src/render-model.ts";
 
 const hitTestActivityEventsForTest = hitTestActivityEvents as (
   events: unknown[],
@@ -718,9 +718,12 @@ test("resolves map search matches by navigation priority", () => {
   const annotation = mapSearchMatch(codemap, namedPlaces, "app");
   const folder = mapSearchMatch(codemap, namedPlaces, "u12345");
 
+  assert.ok(annotation);
   assert.equal(annotation.type, "annotation");
   assert.equal(annotation.label, "Annotation: App note");
+  if (!("target" in annotation)) assert.fail("Expected annotation search target");
   assert.equal(annotation.target.targetType, "annotation");
+  assert.ok(folder);
   assert.equal(folder.type, "folder");
   assert.equal(folder.label, "Folder: src/features");
 });
@@ -756,7 +759,9 @@ test("keeps map search priority and first matching target order", () => {
 
   const match = mapSearchMatch(codemap, namedPlaces, "app");
 
+  assert.ok(match);
   assert.equal(match.type, "file");
+  if (!("file" in match)) assert.fail("Expected file search match");
   assert.equal(match.file.path, "src/app.ts");
 });
 
@@ -789,8 +794,14 @@ test("map search reflects target and place updates after earlier searches", () =
   namedPlaces[0].name = "Updated area";
 
   assert.equal(mapSearchMatch(codemap, namedPlaces, "app"), null);
-  assert.equal(mapSearchMatch(codemap, namedPlaces, "late-added").file.path, "src/late-added.ts");
-  assert.equal(mapSearchMatch(codemap, namedPlaces, "updated").place.id, "place-1");
+  const fileMatch = mapSearchMatch(codemap, namedPlaces, "late-added");
+  const placeMatch = mapSearchMatch(codemap, namedPlaces, "updated");
+  assert.ok(fileMatch);
+  assert.ok(placeMatch);
+  if (!("file" in fileMatch)) assert.fail("Expected file search match");
+  if (!("place" in placeMatch)) assert.fail("Expected place search match");
+  assert.equal(fileMatch.file.path, "src/late-added.ts");
+  assert.equal(placeMatch.place.id, "place-1");
 });
 
 test("derives map search actions without binding to browser effects", () => {

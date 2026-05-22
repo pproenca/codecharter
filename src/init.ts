@@ -42,6 +42,36 @@ type CodecharterConfig = {
   };
 };
 
+type PackageJson = {
+  name?: string;
+  version?: string;
+  devDependencies?: Record<string, string>;
+  dependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  [key: string]: unknown;
+};
+type PackageDependencySection = "devDependencies" | "dependencies" | "optionalDependencies" | "peerDependencies";
+
+type CodexHook = {
+  type?: string;
+  command?: string;
+  timeout?: number;
+  statusMessage?: string;
+  [key: string]: unknown;
+};
+
+type CodexHookGroup = {
+  matcher?: string;
+  hooks?: CodexHook[];
+  [key: string]: unknown;
+};
+
+type CodexHooksConfig = {
+  hooks: Record<string, CodexHookGroup[]>;
+  [key: string]: unknown;
+};
+
 export type InitializeCodecharterOptions = {
   root: string;
   mapPath?: string;
@@ -84,10 +114,11 @@ export class CodecharterInitializer {
 }
 
 export class CodexHooksMerger {
-  merge(existing, desired) {
+  merge(existing: unknown, desired: CodexHooksConfig): CodexHooksConfig {
+    const existingConfig = this.configOrEmpty(existing);
     const next = {
-      ...this.objectOrEmpty(existing),
-      hooks: { ...this.objectOrEmpty(existing?.hooks) },
+      ...existingConfig,
+      hooks: { ...this.hooksRecord(existingConfig.hooks) },
     };
 
     for (const eventName in next.hooks) {
@@ -112,13 +143,13 @@ export class CodexHooksMerger {
     return next;
   }
 
-  mergeHookGroups(existingGroups, desiredGroups) {
-    const groups = [];
-    const groupIndexesByMatcher = new Map();
-    const hookKeysByGroup = [];
+  mergeHookGroups(existingGroups: CodexHookGroup[], desiredGroups: CodexHookGroup[]): CodexHookGroup[] {
+    const groups: CodexHookGroup[] = [];
+    const groupIndexesByMatcher = new Map<string, number>();
+    const hookKeysByGroup: Set<string>[] = [];
 
     for (const group of existingGroups) {
-      const hooks = copyArray(group.hooks);
+      const hooks = copyArray<CodexHook>(group.hooks);
       groups.push({ ...group, hooks });
       const matcher = group.matcher ?? "";
       if (!groupIndexesByMatcher.has(matcher)) groupIndexesByMatcher.set(matcher, groups.length - 1);
@@ -129,7 +160,7 @@ export class CodexHooksMerger {
       const matcher = desiredGroup.matcher ?? "";
       const index = groupIndexesByMatcher.get(matcher);
       if (index === undefined) {
-        const hooks = copyArray(desiredGroup.hooks);
+        const hooks = copyArray<CodexHook>(desiredGroup.hooks);
         groups.push({ ...desiredGroup, hooks });
         groupIndexesByMatcher.set(matcher, groups.length - 1);
         hookKeysByGroup.push(this.hookKeySet(hooks));
@@ -149,8 +180,8 @@ export class CodexHooksMerger {
     return groups;
   }
 
-  withoutCodecharterHandlers(group) {
-    const hooks = [];
+  withoutCodecharterHandlers(group: CodexHookGroup): CodexHookGroup {
+    const hooks: CodexHook[] = [];
     if (Array.isArray(group.hooks)) {
       for (const hook of group.hooks) {
         if (!this.isCodecharterHook(hook)) hooks.push(hook);
@@ -159,37 +190,50 @@ export class CodexHooksMerger {
     return { ...group, hooks };
   }
 
-  isEmptyManagedHookGroup(eventName, group) {
+  isEmptyManagedHookGroup(eventName: string, group: CodexHookGroup): boolean {
     return eventName === "PostToolUse"
       && Array.isArray(group.hooks)
       && group.hooks.length === 0
       && MANAGED_POST_TOOL_MATCHERS.has(group.matcher ?? "");
   }
 
-  isCodecharterHook(hook) {
+  isCodecharterHook(hook: CodexHook): boolean {
     return hook?.type === "command" && hook.command === CODECHARTER_HOOK_COMMAND;
   }
 
-  sameHook(left, right) {
+  sameHook(left: CodexHook, right: CodexHook): boolean {
     return left?.type === right?.type && left?.command === right?.command;
   }
 
-  hookKeySet(hooks) {
-    const keys = new Set();
+  hookKeySet(hooks: CodexHook[] = []): Set<string> {
+    const keys = new Set<string>();
     for (const hook of hooks) keys.add(this.hookKey(hook));
     return keys;
   }
 
-  hookKey(hook) {
+  hookKey(hook: CodexHook): string {
     return JSON.stringify([hook?.type, hook?.command]);
   }
 
-  objectOrEmpty(value) {
-    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  configOrEmpty(value: unknown): CodexHooksConfig {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return { hooks: {} };
+    const hooks = this.hooksRecord((value as { hooks?: unknown }).hooks);
+    return { ...value, hooks } as CodexHooksConfig;
+  }
+
+  hooksRecord(value: unknown): Record<string, CodexHookGroup[]> {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const hooks: Record<string, CodexHookGroup[]> = {};
+    for (const eventName in value as Record<string, unknown>) {
+      if (!Object.hasOwn(value, eventName)) continue;
+      const groups = (value as Record<string, unknown>)[eventName];
+      if (Array.isArray(groups)) hooks[eventName] = groups as CodexHookGroup[];
+    }
+    return hooks;
   }
 }
 
-function copyArray(value) {
+function copyArray<T>(value: readonly T[] | undefined): T[] {
   if (!Array.isArray(value)) return [];
   const copy = new Array(value.length);
   for (let index = 0; index < value.length; index += 1) {
@@ -216,15 +260,15 @@ export async function initializeCodecharter({
   });
 }
 
-export async function ensurePackageDevDependency(root) {
+export async function ensurePackageDevDependency(root: string): Promise<{ skipped: boolean; changed?: boolean }> {
   const packagePath = join(root, "package.json");
-  const packageJson = await readJson(packagePath, null);
+  const packageJson = await readJson(packagePath, null) as PackageJson | null;
   if (!packageJson || packageJson.name === "codecharter") return { skipped: true };
 
   const version = await currentPackageVersion();
   const desiredSpec = `^${version}`;
-  const dependencySections = ["devDependencies", "dependencies", "optionalDependencies", "peerDependencies"];
-  let existingSection;
+  const dependencySections: PackageDependencySection[] = ["devDependencies", "dependencies", "optionalDependencies", "peerDependencies"];
+  let existingSection: PackageDependencySection | undefined;
   for (const section of dependencySections) {
     if (!packageJson[section]?.codecharter) continue;
     existingSection = section;
@@ -253,7 +297,7 @@ export async function ensurePackageDevDependency(root) {
   return { skipped: false, changed: true };
 }
 
-export async function ensureCodecharterConfig(root, mapPath) {
+export async function ensureCodecharterConfig(root: string, mapPath: string): Promise<string> {
   const configPath = join(root, CODECHARTER_DIR, "config.json");
   const existing = await readJson(configPath, {}) as CodecharterConfig;
   await writeJson(configPath, {
@@ -272,7 +316,7 @@ export async function ensureCodecharterConfig(root, mapPath) {
   return configPath;
 }
 
-export async function ensureCodexAdapter(root) {
+export async function ensureCodexAdapter(root: string): Promise<{ hookPath: string; hooksJsonPath: string }> {
   const hooksDir = join(root, CODEX_DIR, "hooks");
   await mkdir(hooksDir, { recursive: true });
   const hookPath = join(hooksDir, "codecharter-codex-hook.mjs");
@@ -284,7 +328,7 @@ export async function ensureCodexAdapter(root) {
   return { hookPath, hooksJsonPath };
 }
 
-export async function ensureCodecharterSkill(root) {
+export async function ensureCodecharterSkill(root: string): Promise<{ skillPath: string; openaiYamlPath: string }> {
   const skillDir = join(root, CODECHARTER_SKILL_DIR);
   const skillPath = join(skillDir, "SKILL.md");
   const agentsDir = join(skillDir, "agents");
@@ -297,8 +341,8 @@ export async function ensureCodecharterSkill(root) {
   return { skillPath, openaiYamlPath };
 }
 
-export async function ensureGitMapHooks(root, mapPath) {
-  const installed = [];
+export async function ensureGitMapHooks(root: string, mapPath: string): Promise<{ skipped: boolean; hooks: string[] }> {
+  const installed: string[] = [];
   const version = await currentPackageVersion();
   for (const hookName of MAP_HOOKS) {
     const hookPath = await gitPath(root, `hooks/${hookName}`);
@@ -309,12 +353,12 @@ export async function ensureGitMapHooks(root, mapPath) {
   return { skipped: false, hooks: installed };
 }
 
-async function installManagedHookBlock(hookPath, block) {
+async function installManagedHookBlock(hookPath: string, block: string): Promise<void> {
   let current = "";
   try {
     current = await readFile(hookPath, "utf8");
   } catch (error) {
-    if (error.code !== "ENOENT") throw error;
+    if (!isErrnoException(error) || error.code !== "ENOENT") throw error;
   }
 
   const withoutManaged = current.replace(new RegExp(`\\n?${escapeRegExp(MANAGED_START)}[\\s\\S]*?${escapeRegExp(MANAGED_END)}\\n?`, "g"), "\n").trimEnd();
@@ -325,7 +369,7 @@ async function installManagedHookBlock(hookPath, block) {
   await chmod(hookPath, 0o755);
 }
 
-function gitMapHookBlock(root, mapPath, version = "latest") {
+function gitMapHookBlock(root: string, mapPath: string, version = "latest"): string {
   const mapRelative = normalizeRelative(root, mapPath);
   const mapRelativeShell = shellSingleQuote(mapRelative);
   const npxPackage = version === "latest" ? "codecharter" : `codecharter@${version}`;
@@ -342,7 +386,7 @@ fi
 ${MANAGED_END}`;
 }
 
-function codexHooksJson() {
+function codexHooksJson(): CodexHooksConfig {
   const handler = {
     type: "command",
     command: CODECHARTER_HOOK_COMMAND,
@@ -373,11 +417,11 @@ function codexHooksJson() {
   };
 }
 
-export function mergeCodexHooks(existing, desired) {
+export function mergeCodexHooks(existing: unknown, desired: CodexHooksConfig): CodexHooksConfig {
   return new CodexHooksMerger().merge(existing, desired);
 }
 
-function codexHookShim(version = "latest") {
+function codexHookShim(version = "latest"): string {
   const npxPackage = version === "latest" ? "codecharter" : `codecharter@${version}`;
   return `#!/usr/bin/env node
 import { existsSync, readFileSync } from "node:fs";
@@ -406,7 +450,7 @@ process.exit(0);
 `;
 }
 
-function codecharterSkillMarkdown(version = "latest") {
+function codecharterSkillMarkdown(version = "latest"): string {
   const npxCommand = `npx --yes codecharter@${version}`;
   return `---
 name: codecharter
@@ -459,7 +503,7 @@ npx --yes codecharter@${version} --json resolve "codecharter://annotation/<id>"
 `;
 }
 
-function codecharterSkillOpenaiYaml() {
+function codecharterSkillOpenaiYaml(): string {
   return `interface:
   display_name: "CodeCharter"
   short_description: "Resolve CodeCharter map targets via CLI"
@@ -469,7 +513,7 @@ policy:
 `;
 }
 
-async function gitPath(root, path) {
+async function gitPath(root: string, path: string): Promise<string | null> {
   try {
     const { stdout } = await execFileAsync("git", ["rev-parse", "--git-path", path], { cwd: root });
     const resolvedPath = stdout.trim();
@@ -479,31 +523,35 @@ async function gitPath(root, path) {
   }
 }
 
-function normalizeRelative(root, path) {
+function normalizeRelative(root: string, path: string): string {
   return relative(root, path).replaceAll("\\", "/");
 }
 
-function shellSingleQuote(value) {
+function shellSingleQuote(value: string): string {
   if (/[\0\r\n]/.test(value)) throw new Error("Shell value cannot contain NUL or newline");
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-function escapeRegExp(value) {
+function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-async function currentPackageVersion() {
+async function currentPackageVersion(): Promise<string> {
   const packagePath = fileURLToPath(new URL("../package.json", import.meta.url));
-  const packageJson = await readJson(packagePath, { version: "0.1.0" });
+  const packageJson = await readJson(packagePath, { version: "0.1.0" }) as PackageJson;
   return packageJson.version ?? "0.1.0";
 }
 
-export async function pathExists(path) {
+export async function pathExists(path: string): Promise<boolean> {
   try {
     await stat(path);
     return true;
   } catch (error) {
-    if (error.code === "ENOENT") return false;
+    if (isErrnoException(error) && error.code === "ENOENT") return false;
     throw error;
   }
+}
+
+function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error;
 }

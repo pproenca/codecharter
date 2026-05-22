@@ -11,7 +11,9 @@ import { generateCodemap } from "./generator.ts";
 import { normalizePathForMap, resolveAddress } from "./resolver.ts";
 import { readJson, writeJson } from "./store.ts";
 import type { ActivityStateInput } from "./activity.js";
+import type { StoredActivityEvent } from "./activity-store.js";
 import type { CodeChange } from "./activity-watcher.js";
+import type { AddressRequest } from "./resolver.js";
 import type { CodecharterCodemap } from "./resolver.js";
 
 type ExecFileAsync = (
@@ -76,6 +78,32 @@ type CodexChange = Omit<CodeChange, "signature"> & {
   activityState?: ActivityStateInput;
   note?: string;
 };
+type RunCodexHookOptions = {
+  input?: string;
+  cwd?: string;
+};
+type CodexHookEventsOptions = {
+  root: string;
+  mapPath: string;
+  payload: HookPayload;
+};
+type HookEventBase = {
+  agentId: string;
+  hookEventName?: string;
+  sessionId?: string;
+  threadId?: string;
+  threadUri?: string;
+  turnId?: string;
+  model?: string;
+};
+type HeartbeatInput = HookEventBase & {
+  activityState: ActivityStateInput;
+  note: string;
+};
+type ToolInputPathStrategy = {
+  matches(toolName: string): boolean;
+  paths(input: unknown): string[];
+};
 
 const GENERIC_READ_COMMAND_STRATEGY: ReadCommandStrategy = { pathCandidates: genericReadPathCandidates, lineRange: emptyLineRange };
 const READ_OPTIONS_WITH_VALUE = new Set(["-n", "--lines", "-e", "--expression"]);
@@ -108,10 +136,10 @@ const READ_COMMAND_STRATEGIES: Map<string, ReadCommandStrategy> = new Map([
   ["rg", { pathCandidates: ripgrepPathCandidates, lineRange: emptyLineRange }],
 ]);
 
-const TOOL_INPUT_PATH_STRATEGIES = [
+const TOOL_INPUT_PATH_STRATEGIES: ToolInputPathStrategy[] = [
   {
-    matches: (toolName) => toolName.includes("apply_patch"),
-    paths: (input) => applyPatchPaths(toolInputText(input)),
+    matches: (toolName: string) => toolName.includes("apply_patch"),
+    paths: (input: unknown) => applyPatchPaths(toolInputText(input)),
   },
   {
     matches: isStructuredWriteTool,
@@ -120,7 +148,7 @@ const TOOL_INPUT_PATH_STRATEGIES = [
 ];
 const READ_PATH_STOP_TOKENS = new Set(["|", ">", "2>"]);
 
-export async function runCodexHook({ input = "", cwd = process.cwd() } = {}) {
+export async function runCodexHook({ input = "", cwd = process.cwd() }: RunCodexHookOptions = {}) {
   const payload = parseHookPayload(input);
   const root = await resolveRoot(payload.cwd ?? cwd);
   const config = await readJson(join(root, DEFAULT_CONFIG_PATH), {}) as CodexHookConfig;
@@ -132,7 +160,7 @@ export async function runCodexHook({ input = "", cwd = process.cwd() } = {}) {
   return { accepted: true, eventsWritten: events.length, activityPath };
 }
 
-async function codexHookEvents({ root, mapPath, payload }) {
+async function codexHookEvents({ root, mapPath, payload }: CodexHookEventsOptions): Promise<StoredActivityEvent[]> {
   const threadId = codexThreadId(payload);
   const threadUri = codexThreadUri(payload, threadId);
   const base = {
@@ -169,10 +197,10 @@ async function codexHookEvents({ root, mapPath, payload }) {
   if (writeChanges.length > 0) {
     codemap = await refreshCodemap(root, mapPath, previousCodemap);
   }
-  const changes = [];
+  const changes: CodexChange[] = [];
   for (const change of readChanges) changes.push(change);
   for (const change of writeChanges) changes.push(change);
-  const events = [];
+  const events: StoredActivityEvent[] = [];
   for (const change of changes) {
     try {
       const address = resolveChangeAddress(codemap, previousCodemap, change);
@@ -198,13 +226,17 @@ async function codexHookEvents({ root, mapPath, payload }) {
   return events;
 }
 
-async function refreshCodemap(root, mapPath, previousCodemap) {
+async function refreshCodemap(root: string, mapPath: string, previousCodemap: CodecharterCodemap): Promise<CodecharterCodemap> {
   const codemap = await generateCodemap({ root, previousCodemap });
   await writeJson(mapPath, codemap);
   return codemap;
 }
 
-function resolveChangeAddress(codemap, previousCodemap, change) {
+function resolveChangeAddress(
+  codemap: CodecharterCodemap,
+  previousCodemap: CodecharterCodemap,
+  change: CodexChange,
+) {
   try {
     return resolveAddress(codemap, change);
   } catch (error) {
@@ -215,7 +247,7 @@ function resolveChangeAddress(codemap, previousCodemap, change) {
   }
 }
 
-function heartbeatEvent(input) {
+function heartbeatEvent(input: HeartbeatInput): StoredActivityEvent {
   return {
     id: randomUUID(),
     agentId: input.agentId,
@@ -231,7 +263,7 @@ function heartbeatEvent(input) {
   };
 }
 
-function codexThreadId(payload) {
+function codexThreadId(payload: HookPayload): string | undefined {
   return normalizeCodexThreadId(
     payload.thread_id
       ?? payload.threadId
@@ -245,20 +277,20 @@ function codexThreadId(payload) {
   );
 }
 
-function codexThreadUri(payload, threadId) {
+function codexThreadUri(payload: HookPayload, threadId: string | undefined): string | undefined {
   const explicit = payload.thread_uri ?? payload.threadUri ?? payload.thread?.uri ?? process.env.CODEX_THREAD_URI;
   if (explicit) return String(explicit);
   return threadId ? `codex://threads/${threadId}` : undefined;
 }
 
-function normalizeCodexThreadId(value) {
+function normalizeCodexThreadId(value: unknown): string | undefined {
   if (!value) return undefined;
   const text = String(value);
   const match = text.match(/^codex:\/\/threads\/([^/?#]+)/);
   return match ? match[1] : text;
 }
 
-function inferActivityState(payload) {
+function inferActivityState(payload: HookPayload): ActivityStateInput {
   if (!isShellTool(payload)) return "editing";
   const command = shellCommand(payload);
   if (/\b(pnpm|npm|yarn|bun)\s+(test|vitest|jest)\b/.test(command)) return "testing";
@@ -300,7 +332,7 @@ function readCommandActivity(root: string, codemap: CodecharterCodemap, payload:
   return { changes, matchedReadCommand };
 }
 
-function* commandSegments(command) {
+function* commandSegments(command: string): Generator<string> {
   let start = 0;
   for (let index = 0; index < command.length; index += 1) {
     const char = command[index];
@@ -317,7 +349,7 @@ function* commandSegments(command) {
   yield command.slice(start);
 }
 
-function isShellTool(payload) {
+function isShellTool(payload: HookPayload): boolean {
   const toolName = String(payload.tool_name ?? "");
   return toolName === "Bash"
     || toolName === "bash"
@@ -327,53 +359,54 @@ function isShellTool(payload) {
     || toolName.endsWith(".exec_command");
 }
 
-function shellCommand(payload) {
+function shellCommand(payload: HookPayload): string {
   return findShellCommand(payload.tool_input);
 }
 
-function findShellCommand(value) {
+function findShellCommand(value: unknown): string {
   if (typeof value === "string") return value;
-  if (!value || typeof value !== "object") return "";
+  const record = objectRecord(value);
+  if (!record) return "";
 
   for (const key of ["command", "cmd", "script"]) {
-    if (typeof value[key] === "string") return value[key];
+    if (typeof record[key] === "string") return record[key];
   }
 
   for (const key of ["input", "arguments", "args"]) {
-    const nested = value[key];
+    const nested = record[key];
     if (typeof nested === "string") {
       const parsed = parseHookPayload(nested);
       if (parsed && typeof parsed === "object" && hasOwnEnumerableProperty(parsed)) {
-        const parsedCommand = findShellCommand(parsed);
+        const parsedCommand: string = findShellCommand(parsed);
         if (parsedCommand) return parsedCommand;
       }
       return nested;
     }
 
-    const nestedCommand = findShellCommand(nested);
+    const nestedCommand: string = findShellCommand(nested);
     if (nestedCommand) return nestedCommand;
   }
 
-  for (const key in value) {
-    if (!Object.hasOwn(value, key)) continue;
-    const child = value[key];
-    const nestedCommand = findShellCommand(child);
+  for (const key in record) {
+    if (!Object.hasOwn(record, key)) continue;
+    const child = record[key];
+    const nestedCommand: string = findShellCommand(child);
     if (nestedCommand) return nestedCommand;
   }
 
   return "";
 }
 
-async function toolInputChanges(root, payload): Promise<CodexChange[]> {
+async function toolInputChanges(root: string, payload: HookPayload): Promise<CodexChange[]> {
   const paths = toolInputPaths(root, payload);
   return mapChangedRanges(root, paths, DEFAULT_CHANGE_RANGE_CONCURRENCY);
 }
 
-async function mapChangedRanges(root, paths, concurrency): Promise<CodexChange[]> {
+async function mapChangedRanges(root: string, paths: string[], concurrency: number): Promise<CodexChange[]> {
   const changes = new Array<CodexChange>(paths.length);
   let next = 0;
   const workerCount = Math.max(1, Math.min(paths.length, concurrency));
-  const workers = [];
+  const workers: Promise<void>[] = [];
   for (let worker = 0; worker < workerCount; worker += 1) {
     workers.push((async () => {
       while (next < paths.length) {
@@ -393,10 +426,10 @@ async function mapChangedRanges(root, paths, concurrency): Promise<CodexChange[]
   return changes;
 }
 
-function toolInputPaths(root, payload) {
+function toolInputPaths(root: string, payload: HookPayload): string[] {
   const toolName = String(payload.tool_name ?? "").toLowerCase();
   const input = payload.tool_input ?? {};
-  const paths = new Set();
+  const paths = new Set<string>();
 
   for (const strategy of TOOL_INPUT_PATH_STRATEGIES) {
     if (!strategy.matches(toolName)) continue;
@@ -405,14 +438,14 @@ function toolInputPaths(root, payload) {
     }
   }
 
-  const result = [];
+  const result: string[] = [];
   for (const path of paths) {
     if (path) result.push(path);
   }
   return result;
 }
 
-function isStructuredWriteTool(toolName) {
+function isStructuredWriteTool(toolName: string): boolean {
   return toolName === "edit"
     || toolName.endsWith(".edit")
     || toolName === "edit_file"
@@ -425,18 +458,20 @@ function isStructuredWriteTool(toolName) {
     || toolName.includes("multi_edit");
 }
 
-function toolInputText(input) {
+function toolInputText(input: unknown): string {
   let text = "";
+  const record = objectRecord(input);
+  if (!record) return text;
   for (const key of ["command", "cmd", "patch", "input"]) {
-    const value = input[key];
+    const value = record[key];
     if (typeof value !== "string") continue;
     text = text ? `${text}\n${value}` : value;
   }
   return text;
 }
 
-function applyPatchPaths(text) {
-  const paths = [];
+function applyPatchPaths(text: string): string[] {
+  const paths: string[] = [];
   for (const match of text.matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm)) {
     const path = match[1].trim();
     if (path) paths.push(path);
@@ -444,22 +479,23 @@ function applyPatchPaths(text) {
   return paths;
 }
 
-function structuredToolPaths(value) {
-  const paths = [];
+function structuredToolPaths(value: unknown): string[] {
+  const paths: string[] = [];
   collectStructuredToolPaths(value, paths);
   return paths;
 }
 
-function collectStructuredToolPaths(value, paths) {
-  if (!value || typeof value !== "object") return;
+function collectStructuredToolPaths(value: unknown, paths: string[]): void {
   if (Array.isArray(value)) {
     for (const item of value) collectStructuredToolPaths(item, paths);
     return;
   }
+  const record = objectRecord(value);
+  if (!record) return;
 
-  for (const key in value) {
-    if (!Object.hasOwn(value, key)) continue;
-    const child = value[key];
+  for (const key in record) {
+    if (!Object.hasOwn(record, key)) continue;
+    const child = record[key];
     if (isPathKey(key) && typeof child === "string") {
       paths.push(child);
       continue;
@@ -468,19 +504,19 @@ function collectStructuredToolPaths(value, paths) {
   }
 }
 
-function isPathKey(key) {
+function isPathKey(key: string): boolean {
   return /^(file_?path|path|filename)$/i.test(key);
 }
 
-function shellWords(segment) {
-  const words = [];
+function shellWords(segment: string): string[] {
+  const words: string[] = [];
   for (const match of segment.matchAll(/"([^"]*)"|'([^']*)'|[^\s]+/g)) {
     words.push(match[1] ?? match[2] ?? match[0]);
   }
   return words;
 }
 
-function readCommandStrategy(commandName) {
+function readCommandStrategy(commandName: string): ReadCommandStrategy | null {
   return READ_COMMAND_STRATEGIES.get(commandName) ?? null;
 }
 
@@ -556,11 +592,11 @@ function ripgrepPathCandidates({ tokens, codemap }: ReadCommandContext): string[
   return candidates;
 }
 
-function readOptionConsumesNext(token) {
+function readOptionConsumesNext(token: string): boolean {
   return READ_OPTIONS_WITH_VALUE.has(token);
 }
 
-function rgOptionConsumesNext(token) {
+function rgOptionConsumesNext(token: string): boolean {
   return RG_OPTIONS_WITH_VALUE.has(token);
 }
 
@@ -601,8 +637,8 @@ function tailLineRange({ root, tokens, codemap }: ReadCommandContext): ReadLineR
   return {};
 }
 
-function numericOption(tokens, name) {
-  let compact;
+function numericOption(tokens: string[], name: string): number | undefined {
+  let compact: string | undefined;
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index];
     if (token === name) return Number(tokens[index + 1]);
@@ -611,17 +647,17 @@ function numericOption(tokens, name) {
   return compact ? Number(compact.slice(name.length)) : undefined;
 }
 
-function looksLikeSedScript(token) {
+function looksLikeSedScript(token: string): boolean {
   return /^\d+(?:,\d+)?p$/.test(token) || /^s([^A-Za-z0-9\s]).*\1/.test(token);
 }
 
-function normalizeCommandPath(root, candidate) {
+function normalizeCommandPath(root: string, candidate: string): string {
   const stripped = candidate.replace(/^['"]|['"]$/g, "");
   const normalized = isAbsolute(stripped) ? relative(root, stripped) : stripped;
   return normalizePathForMap(normalized);
 }
 
-function parseHookPayload(input) {
+function parseHookPayload(input: string): HookPayload {
   try {
     return input ? JSON.parse(input) : {};
   } catch {
@@ -629,19 +665,19 @@ function parseHookPayload(input) {
   }
 }
 
-function hasOwnEnumerableProperty(value) {
+function hasOwnEnumerableProperty(value: object): boolean {
   for (const key in value) {
     if (Object.hasOwn(value, key)) return true;
   }
   return false;
 }
 
-async function readCodemap(mapPath) {
+async function readCodemap(mapPath: string): Promise<CodecharterCodemap> {
   return JSON.parse(await readFile(mapPath, "utf8"));
 }
 
-async function resolveMapPath(root, configuredPath) {
-  const candidates = [];
+async function resolveMapPath(root: string, configuredPath?: string): Promise<string> {
+  const candidates: string[] = [];
   for (const path of [configuredPath, DEFAULT_MAP_PATH, ROOT_MAP_PATH, LEGACY_MAP_PATH]) {
     if (path) candidates.push(resolveFromRoot(root, path));
   }
@@ -651,14 +687,14 @@ async function resolveMapPath(root, configuredPath) {
       await readFile(candidate, "utf8");
       return candidate;
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      if (!isErrnoException(error) || error.code !== "ENOENT") throw error;
     }
   }
 
   return resolveFromRoot(root, configuredPath ?? DEFAULT_MAP_PATH);
 }
 
-async function resolveRoot(cwd) {
+async function resolveRoot(cwd: string): Promise<string> {
   try {
     const { stdout } = await execFileAsync("git", ["rev-parse", "--show-toplevel"], { cwd });
     return stdout.trim() || cwd;
@@ -667,6 +703,14 @@ async function resolveRoot(cwd) {
   }
 }
 
-function resolveFromRoot(root, path) {
+function resolveFromRoot(root: string, path: string): string {
   return isAbsolute(path) ? path : resolve(root, path);
+}
+
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error;
 }

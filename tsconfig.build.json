@@ -9,12 +9,7 @@
     "rootDir": "."
   },
   "include": [
-    "bin/**/*.mjs",
     "bin/**/*.mts",
-    "public/**/*.js",
-    "public/**/*.ts",
-    "src/**/*.js",
-    "src/**/*.ts",
-    ".codex/hooks/**/*.mjs"
+    "src/**/*.ts"
   ]
 }

@@ -128,9 +128,6 @@ export class CodexHooksMerger {
   }
 }
 
-const CODECHARTER_INITIALIZER = new CodecharterInitializer();
-const CODEX_HOOKS_MERGER = new CodexHooksMerger();
-
 export async function initializeCodecharter({
   root,
   mapPath,
@@ -139,7 +136,7 @@ export async function initializeCodecharter({
   fresh = false,
   writeCodemap,
 } = {}) {
-  return CODECHARTER_INITIALIZER.initialize({
+  return new CodecharterInitializer().initialize({
     root,
     mapPath,
     installCodex,
@@ -301,7 +298,7 @@ function codexHooksJson() {
 }
 
 export function mergeCodexHooks(existing, desired) {
-  return CODEX_HOOKS_MERGER.merge(existing, desired);
+  return new CodexHooksMerger().merge(existing, desired);
 }
 
 function codexHookShim(version = "latest") {

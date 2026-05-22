@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CodeRangeGeometryMapper, codeRangeGeometry, codeRangeRequestForSelection } from "../src/line-coordinate.js";
-import { resolveAddress } from "../src/resolver.js";
+import { AddressResolver, resolveAddress } from "../src/resolver.js";
 
 const codemap = {
   version: 1,
@@ -116,6 +116,15 @@ test("rejects column ranges without a line range", () => {
     () => resolveAddress(codemap, { path: "src/app.ts", columnStart: 3, columnEnd: 8 }),
     /Line must be an integer/,
   );
+});
+
+test("AddressResolver keeps the exported class facade behaviour", () => {
+  const resolver = new AddressResolver(codemap);
+  const request = { path: "src/app.ts", lineStart: 10, lineEnd: 20, columnStart: 9, columnEnd: 24 };
+
+  assert.deepEqual(resolver.resolve(request), resolveAddress(codemap, request));
+  assert.deepEqual(resolver.resolveFile(codemap.files["src/app.ts"], request), resolveAddress(codemap, request));
+  assert.deepEqual(resolver.resolveFolder(codemap.folders.src), resolveAddress(codemap, { path: "src" }));
 });
 
 test("CodeRangeGeometryMapper keeps the exported class facade behaviour", () => {

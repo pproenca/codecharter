@@ -66,6 +66,7 @@ import {
   sourcePanelLineRangeForBox,
   sourcePanelState,
   sourceRangeCacheKey,
+  sourceTextLayoutForBox,
   sortedActivityEvents,
   viewForBounds,
   viewForReadableFile,
@@ -844,7 +845,7 @@ function drawSourceText(file, box, remainingBudget) {
   }
   const lineHeight = lineHeightForFile(file, box);
   const firstBaseline = box.y + (visibleRange.start - 1) * lineHeight + Math.min(13, lineHeight * 0.78);
-  const maxChars = Math.max(12, Math.floor((box.width - 44) / 7.2));
+  const sourceTextLayout = sourceTextLayoutForBox(box, canvas.clientWidth);
   let drawn = 0;
 
   ctx.save();
@@ -859,9 +860,9 @@ function drawSourceText(file, box, remainingBudget) {
     if (y > box.y + box.height) break;
     const text = linesByNumber.get(lineNumber) ?? "";
     ctx.fillStyle = "rgba(63, 83, 97, 0.58)";
-    ctx.fillText(String(lineNumber).padStart(4, " "), box.x + 6, y);
+    ctx.fillText(String(lineNumber).padStart(4, " "), sourceTextLayout.lineNumberX, y);
     ctx.fillStyle = "rgba(12, 34, 48, 0.86)";
-    ctx.fillText(truncateLine(text, maxChars), box.x + 42, y);
+    ctx.fillText(truncateLine(text, sourceTextLayout.maxChars), sourceTextLayout.textX, y);
     drawn += 1;
   }
 

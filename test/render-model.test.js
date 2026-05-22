@@ -56,6 +56,7 @@ import {
   rememberSourceRange,
   reconciledSelectedTarget,
   sourceContextRequest,
+  sourceTextLayoutForBox,
   sourcePanelState,
   sourceRangeCacheKey,
   formatSourceLines,
@@ -139,6 +140,34 @@ test("max zoom can make dense reference files readable on the canvas", () => {
   };
 
   assert.equal(canRenderSourceText(denseReference, boxAtMaxZoom), true);
+});
+
+test("max zoom can make long implementation files readable on the canvas", () => {
+  const implementationFile = codeFile({
+    path: "public/app.js",
+    name: "app.js",
+    lineCount: 2070,
+  });
+  const bounds = { width: 0.12089104181, height: 0.215609560901 };
+  const viewport = { width: 960, height: 720 };
+  const boxAtMaxZoom = {
+    width: bounds.width * viewport.width * MAP_MAX_SCALE,
+    height: bounds.height * viewport.height * MAP_MAX_SCALE,
+  };
+
+  assert.equal(canRenderSourceText(implementationFile, boxAtMaxZoom), true);
+});
+
+test("anchors source text to the visible viewport slice of wide file tiles", () => {
+  assert.deepEqual(
+    sourceTextLayoutForBox({ x: 24, width: 420 }, 800),
+    { lineNumberX: 30, textX: 66, maxChars: 51 },
+  );
+
+  assert.deepEqual(
+    sourceTextLayoutForBox({ x: -16000, width: 32000 }, 1280),
+    { lineNumberX: 6, textX: 42, maxChars: 171 },
+  );
 });
 
 test("keeps known landmarks visible before ordinary low-signal parcels", () => {

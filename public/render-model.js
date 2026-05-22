@@ -8,7 +8,7 @@ export const SOURCE_PANEL_CONTEXT_BEFORE = 12;
 export const SOURCE_PANEL_CONTEXT_AFTER = 24;
 export const SOURCE_PANEL_MAX_LINES = 140;
 export const MAP_MIN_SCALE = 0.65;
-export const MAP_MAX_SCALE = 160;
+export const MAP_MAX_SCALE = 320;
 export const ORGANIC_REGION_EDGE_POSITIONS = [0.08, 0.24, 0.42, 0.6, 0.78, 0.92];
 export const KEYBOARD_PAN_PIXELS = 72;
 export const KEYBOARD_ZOOM_FACTOR = 1.25;
@@ -357,6 +357,18 @@ export function canRenderSourceText(file, box) {
   return box.width >= SOURCE_TEXT_MIN_WIDTH
     && lineHeightForFile(file, box) >= SOURCE_TEXT_MIN_LINE_HEIGHT
     && file.lineCount > 0;
+}
+
+export function sourceTextLayoutForBox(box, viewportWidth) {
+  const visibleLeft = Math.max(box.x, 0);
+  const visibleRight = Math.min(box.x + box.width, viewportWidth);
+  const textX = visibleLeft + 42;
+  const availableTextWidth = Math.max(0, visibleRight - textX - 6);
+  return {
+    lineNumberX: visibleLeft + 6,
+    textX,
+    maxChars: Math.max(12, Math.floor(availableTextWidth / 7.2)),
+  };
 }
 
 export function lineHeightForFile(file, box) {

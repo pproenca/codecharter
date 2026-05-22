@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "algorithmic-complexity-review": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/.experimental/algorithmic-complexity-review/SKILL.md",
+      "computedHash": "36cc84bcc7497221fc53e303b36db0f1c3ab41f1c1f38427d7005ec248ccc77f"
+    },
     "caveman": {
       "source": "mattpocock/skills",
       "sourceType": "github",

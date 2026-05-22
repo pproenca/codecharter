@@ -79,12 +79,7 @@ import {
   zoomViewAt,
 } from "../public-src/render-model.ts";
 import type { Bounds, Point } from "../public-src/render-model.js";
-
-const hitTestActivityEventsForTest = hitTestActivityEvents as (
-  events: unknown[],
-  point: { x: number; y: number },
-  options?: { radiusX?: number; radiusY?: number; now?: number; maxAgeMinutes?: number },
-) => ReturnType<typeof hitTestActivityEvents>;
+import type { ActivityEvent } from "../public-src/render-model.js";
 
 test("maps zoom scale into deterministic perceptual detail bands", () => {
   assert.equal(detailBand(1), "district");
@@ -985,7 +980,7 @@ test("hit-testing activity prefers the newest live event near a fragment center"
     },
   });
 
-  const hit = hitTestActivityEventsForTest([newer, older], { x: 0.222, y: 0.222 }, {
+  const hit = hitTestActivityEvents([newer, older], { x: 0.222, y: 0.222 }, {
     radiusX: 0.03,
     radiusY: 0.03,
     now,
@@ -1015,7 +1010,7 @@ test("hit-testing activity ignores expired newer events while choosing the newes
     address: { bounds: { x: 0.21, y: 0.21, width: 0.04, height: 0.04 } },
   });
 
-  const hit = hitTestActivityEventsForTest([newestLiveMiss, oldLive, expiredHit, newerLiveHit], { x: 0.222, y: 0.222 }, {
+  const hit = hitTestActivityEvents([newestLiveMiss, oldLive, expiredHit, newerLiveHit], { x: 0.222, y: 0.222 }, {
     radiusX: 0.03,
     radiusY: 0.03,
     now,
@@ -1034,13 +1029,13 @@ test("hit-testing activity uses fragment centers instead of aggregate centers", 
     },
   });
 
-  assert.equal(hitTestActivityEventsForTest([event], { x: 0.3, y: 0.3 }, {
+  assert.equal(hitTestActivityEvents([event], { x: 0.3, y: 0.3 }, {
     radiusX: 0.02,
     radiusY: 0.02,
     now,
   }), null);
 
-  const hit = hitTestActivityEventsForTest([event], { x: 0.72, y: 0.72 }, {
+  const hit = hitTestActivityEvents([event], { x: 0.72, y: 0.72 }, {
     radiusX: 0.02,
     radiusY: 0.02,
     now,
@@ -1334,7 +1329,7 @@ type TestCodeFile = {
   bounds?: TestBounds;
   [key: string]: unknown;
 };
-type TestActivity = {
+type TestActivity = ActivityEvent & {
   id: string;
   agentId: string;
   activityState: string;

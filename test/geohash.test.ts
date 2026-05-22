@@ -35,8 +35,8 @@ test("maps the code plane into the standard geohash domain", () => {
 
 test("exposes a sidecar code-plane descriptor that matches the coordinate transform", () => {
   const descriptor = codePlaneDescriptor();
-  const xToLon = new Function("x", `return ${descriptor.transform.xToLon};`);
-  const yToLat = new Function("y", `return ${descriptor.transform.yToLat};`);
+  assert.equal(descriptor.transform.xToLon, "x >= 1 ? 179.999999999999 : x * 360 - 180");
+  assert.equal(descriptor.transform.yToLat, "90 - y * 180");
 
   for (const point of [
     { x: 0, y: 0 },
@@ -44,13 +44,21 @@ test("exposes a sidecar code-plane descriptor that matches the coordinate transf
     { x: 1, y: 1 },
   ]) {
     const geo = codePointToGeo(point);
-    assert.equal(xToLon(point.x), geo.lon);
-    assert.equal(yToLat(point.y), geo.lat);
+    assert.equal(descriptorLon(point.x), geo.lon);
+    assert.equal(descriptorLat(point.y), geo.lat);
   }
 
   descriptor.bounds.x = 99;
   assert.equal(codePlaneDescriptor().bounds.x, 0);
 });
+
+function descriptorLon(x: number): number {
+  return x >= 1 ? 179.999999999999 : x * 360 - 180;
+}
+
+function descriptorLat(y: number): number {
+  return 90 - y * 180;
+}
 
 test("keeps the code plane east edge out of the antimeridian alias", () => {
   const west = codePointToGeo({ x: 0, y: 0.5 });

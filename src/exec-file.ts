@@ -13,7 +13,7 @@ export function execFileText(
   return new Promise((resolve, reject) => {
     execFile(file, [...args], { ...options, encoding: options.encoding ?? "utf8" }, (error, stdout, stderr) => {
       if (error) {
-        reject(error);
+        reject(Object.assign(error, { stdout, stderr }));
         return;
       }
       resolve({ stdout, stderr });

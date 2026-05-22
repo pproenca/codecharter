@@ -464,10 +464,11 @@ test("watcher can post pre-resolved map addresses without path resolution at the
     await watcher.poll();
     await waitFor(() => posted.length === 1);
     const first = required(posted[0]);
-    const address = first.address as { targetType?: string; lineRange?: { start?: number } } | undefined;
+    const address = objectRecord(first.address);
+    const lineRange = objectRecord(address?.lineRange);
     assert.equal(first.path, undefined);
     assert.equal(address?.targetType, "lineRange");
-    assert.equal(address?.lineRange?.start, 1);
+    assert.equal(lineRange?.start, 1);
   } finally {
     watcher.close();
     server.close();
@@ -478,7 +479,41 @@ test("watcher can post pre-resolved map addresses without path resolution at the
 async function readBody(request: IncomingMessage): Promise<ActivityWatcherPayload> {
   let raw = "";
   for await (const chunk of request) raw += chunk;
-  return JSON.parse(raw) as ActivityWatcherPayload;
+  return activityWatcherPayloadFromValue(JSON.parse(raw));
+}
+
+function activityWatcherPayloadFromValue(value: unknown): ActivityWatcherPayload {
+  const record = objectRecord(value);
+  if (!record) throw new Error("Expected activity watcher payload object");
+  return {
+    agentId: stringFromValue(record.agentId, "unknown"),
+    activityState: stringFromValue(record.activityState, "reading"),
+    note: stringFromValue(record.note, ""),
+    ...(typeof record.path === "string" ? { path: record.path } : {}),
+    ...("address" in record ? { address: record.address } : {}),
+    ...(numberProperty(record, "lineStart")),
+    ...(numberProperty(record, "lineEnd")),
+    ...(numberProperty(record, "columnStart")),
+    ...(numberProperty(record, "columnEnd")),
+  };
+}
+
+function numberProperty<K extends "lineStart" | "lineEnd" | "columnStart" | "columnEnd">(
+  record: Record<string, unknown>,
+  key: K,
+): Partial<Record<K, number>> {
+  const value = record[key];
+  const result: Partial<Record<K, number>> = {};
+  if (typeof value === "number") result[key] = value;
+  return result;
+}
+
+function stringFromValue(value: unknown, fallback: string): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
 }
 
 async function waitFor(predicate: () => boolean): Promise<void> {

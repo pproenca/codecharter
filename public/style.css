@@ -346,9 +346,9 @@ label.icon-tool {
   border-radius: 8px;
   bottom: max(62px, calc(env(safe-area-inset-bottom) + 62px));
   display: grid;
-  gap: 7px;
+  gap: 0;
   left: max(16px, env(safe-area-inset-left));
-  padding: 8px;
+  padding: 6px;
   opacity: 1;
   box-shadow:
     0 16px 38px rgba(5, 13, 17, 0.26),
@@ -403,14 +403,26 @@ label.icon-tool {
 }
 
 .selection-popover textarea {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(218, 241, 229, 0.14);
+  background: transparent;
+  border: 0;
   border-radius: 6px;
   color: rgba(241, 248, 244, 0.92);
   line-height: 1.4;
-  min-height: 78px;
-  padding: 8px 9px;
-  resize: vertical;
+  min-height: 92px;
+  padding: 10px 11px;
+  resize: none;
+}
+
+.selection-popover:focus-within {
+  border-color: rgba(190, 244, 216, 0.26);
+  box-shadow:
+    0 16px 38px rgba(5, 13, 17, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 0 1px rgba(190, 244, 216, 0.08);
+}
+
+.selection-popover textarea:focus-visible {
+  outline: none;
 }
 
 .selection-popover textarea::placeholder {
@@ -418,9 +430,11 @@ label.icon-tool {
 }
 
 .selection-actions {
-  display: grid;
+  border-top: 1px solid rgba(218, 241, 229, 0.12);
+  display: flex;
   gap: 7px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  justify-content: flex-end;
+  padding-top: 6px;
 }
 
 .selection-actions button,
@@ -434,6 +448,8 @@ label.icon-tool {
   background: rgba(190, 244, 216, 0.16);
   border-color: rgba(190, 244, 216, 0.24);
   color: #eafff2;
+  min-height: 32px;
+  padding: 0 12px;
 }
 
 .selection-actions button[hidden] {

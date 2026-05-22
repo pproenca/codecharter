@@ -27,17 +27,22 @@
     "codemap": "bin/codemap.mjs"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "codecharter": "node ./bin/codemap.mjs",
     "codemap": "node ./bin/codemap.mjs",
     "setup": "node ./bin/codemap.mjs init --yes",
     "dev": "node ./bin/codemap.mjs dev",
     "serve": "node ./bin/codemap.mjs serve",
-    "test": "node test-support/run-tests.mjs"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx test-support/run-tests.mts"
   },
   "engines": {
     "node": ">=22"
   },
   "devDependencies": {
-    "playwright": "^1.60.0"
+    "@types/node": "^25.9.1",
+    "playwright": "^1.60.0",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3"
   }
 }

@@ -7,11 +7,11 @@ const requested = process.argv.slice(2);
 const testFiles = requested.length ? requested : await discoverTestFiles();
 
 if (testFiles.length === 0) {
-  console.error("No test files discovered under test/*.test.js");
+  console.error("No test files discovered under test/*.test.{js,ts}");
   process.exit(1);
 }
 
-const child = spawn(process.execPath, ["--test", ...testFiles], {
+const child = spawn(process.execPath, ["--import", "tsx", "--test", ...testFiles], {
   stdio: "inherit",
 });
 
@@ -37,7 +37,7 @@ async function discoverTestFiles() {
     throw error;
   }
   return entries
-    .filter((entry) => entry.endsWith(".test.js"))
+    .filter((entry) => entry.endsWith(".test.js") || entry.endsWith(".test.ts"))
     .sort((left, right) => left.localeCompare(right))
     .map((entry) => join("test", entry));
 }

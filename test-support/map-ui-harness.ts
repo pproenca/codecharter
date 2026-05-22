@@ -1,5 +1,6 @@
 import { once } from "node:events";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "playwright";
@@ -16,9 +17,11 @@ export async function startMapUiHarness(t, { viewport = { width: 960, height: 72
     root,
     mapPath: join(root, "codecharter.json"),
     port: 0,
+    activityArchivePath: undefined,
     activityFlushIntervalMs: 20,
   });
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport });
   await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: baseUrl });

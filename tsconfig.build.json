@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": false,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "."
+  },
+  "include": [
+    "bin/**/*.mjs",
+    "bin/**/*.mts",
+    "public/**/*.js",
+    "public/**/*.ts",
+    "src/**/*.js",
+    "src/**/*.ts",
+    ".codex/hooks/**/*.mjs"
+  ]
+}

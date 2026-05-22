@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2024", "DOM"],
+    "types": ["node"],
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "isolatedModules": true,
+    "noEmitOnError": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "bin/**/*.mjs",
+    "bin/**/*.mts",
+    "public/**/*.js",
+    "public/**/*.ts",
+    "src/**/*.js",
+    "src/**/*.ts",
+    "test/**/*.js",
+    "test/**/*.ts",
+    "test-support/**/*.js",
+    "test-support/**/*.ts",
+    "test-support/**/*.mts",
+    ".codex/hooks/**/*.mjs"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
+}

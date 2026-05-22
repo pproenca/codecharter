@@ -309,7 +309,9 @@ function readCommandActivity(root: string, codemap: CodecharterCodemap, payload:
   for (const segment of commandSegments(command)) {
     const tokens = shellWords(segment);
     if (tokens.length === 0) continue;
-    const commandName = basename(tokens[0]);
+    const commandToken = tokens[0];
+    if (!commandToken) continue;
+    const commandName = basename(commandToken);
     const strategy = readCommandStrategy(commandName);
     if (!strategy) continue;
     matchedReadCommand = true;
@@ -473,7 +475,7 @@ function toolInputText(input: unknown): string {
 function applyPatchPaths(text: string): string[] {
   const paths: string[] = [];
   for (const match of text.matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm)) {
-    const path = match[1].trim();
+    const path = match[1]?.trim();
     if (path) paths.push(path);
   }
   return paths;
@@ -641,6 +643,7 @@ function numericOption(tokens: string[], name: string): number | undefined {
   let compact: string | undefined;
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index];
+    if (!token) continue;
     if (token === name) return Number(tokens[index + 1]);
     if (compact === undefined && token.startsWith(name) && token.length > name.length) compact = token;
   }

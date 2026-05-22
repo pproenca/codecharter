@@ -206,7 +206,7 @@ async function listenOnce(server: Server, port: number): Promise<void> {
 }
 
 async function handleRequest(state: ServerState, request: IncomingMessage, response: ServerResponse): Promise<void> {
-  const url = new URL(request.url, "http://127.0.0.1");
+  const url = new URL(request.url ?? "/", "http://127.0.0.1");
 
   if (url.pathname.startsWith("/api/")) {
     await handleApi(state, request, response, url);
@@ -340,7 +340,7 @@ async function getAnnotationApi(
   match: ApiRouteMatch,
 ): Promise<void> {
   const codemap = await loadCodemap(state);
-  const id = decodeURIComponent(match.params.rest);
+  const id = decodeURIComponent(requiredRestParam(match));
   const store = refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }));
   let annotation;
   for (const place of store.places) {
@@ -359,7 +359,7 @@ async function deleteAnnotationApi(
   _url: URL,
   match: ApiRouteMatch,
 ): Promise<void> {
-  const id = decodeURIComponent(match.params.rest);
+  const id = decodeURIComponent(requiredRestParam(match));
   const result = await mutateNamedPlaces(state, (store) => {
     const index = store.places.findIndex((place) => place.kind === "mapAnnotation" && place.id === id);
     if (index === -1) throw httpError(404, `No annotation found for id: ${id}`);
@@ -377,12 +377,13 @@ async function putAnnotationApi(
   match: ApiRouteMatch,
 ): Promise<void> {
   const codemap = await loadCodemap(state);
-  const id = decodeURIComponent(match.params.rest);
+  const id = decodeURIComponent(requiredRestParam(match));
   const body = await readBody(request);
   const result = await mutateNamedPlaces(state, (store) => {
     const index = store.places.findIndex((place) => place.kind === "mapAnnotation" && place.id === id);
     if (index === -1) throw httpError(404, `No annotation found for id: ${id}`);
     const previous = store.places[index];
+    if (!previous) throw httpError(404, `No annotation found for id: ${id}`);
     const annotation = {
       ...createMapAnnotation(codemap, { ...body, id } as SelectionInput),
       createdAt: previous.createdAt,
@@ -516,7 +517,9 @@ function mergeActivityEvents(...groups: StoredActivityEvent[][]): StoredActivity
 
 function activityEventsAreSorted(events: StoredActivityEvent[]): boolean {
   for (let index = 1; index < events.length; index += 1) {
-    if (compareActivityEvents(events[index - 1], events[index]) > 0) return false;
+    const previous = events[index - 1];
+    const current = events[index];
+    if (previous && current && compareActivityEvents(previous, current) > 0) return false;
   }
   return true;
 }
@@ -578,6 +581,11 @@ function requiredParam(url: URL, name: string): string {
   const value = url.searchParams.get(name);
   if (!value) throw httpError(400, `Missing query parameter: ${name}`);
   return value;
+}
+
+function requiredRestParam(match: ApiRouteMatch): string {
+  if (!match.params.rest) throw httpError(404, "Not found");
+  return match.params.rest;
 }
 
 function optionalNumber(value: string | null): number | undefined {

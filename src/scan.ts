@@ -47,7 +47,7 @@ export async function listIncludedFiles(root: string, { excludePaths = [] }: Sca
 }
 
 function shouldIncludePath(path: string, excluded: string[]): boolean {
-  return path
+  return Boolean(path)
     && !isExcludedPath(path, excluded)
     && !DEFAULT_EXCLUDED_FILES.has(path)
     && isCodeFile(path);

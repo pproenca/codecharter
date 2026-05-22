@@ -186,7 +186,9 @@ function compareNodeNames(a: { name: string }, b: { name: string }): number {
 
 function nodesAreSorted(nodes: { name: string }[]): boolean {
   for (let index = 1; index < nodes.length; index += 1) {
-    if (compareNodeNames(nodes[index - 1], nodes[index]) > 0) return false;
+    const previous = nodes[index - 1];
+    const current = nodes[index];
+    if (previous && current && compareNodeNames(previous, current) > 0) return false;
   }
   return true;
 }

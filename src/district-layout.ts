@@ -196,10 +196,12 @@ export class DistrictLayoutEngine {
     const first: T[] = [];
     const second: T[] = [];
     for (let index = 0; index < entries.length; index += 1) {
+      const entry = entries[index];
+      if (!entry) continue;
       if (index < split) {
-        first.push(entries[index]);
+        first.push(entry);
       } else {
-        second.push(entries[index]);
+        second.push(entry);
       }
     }
     return {
@@ -210,7 +212,7 @@ export class DistrictLayoutEngine {
 
   splitEntryRange(start: number, end: number, prefixWeights: number[]): number {
     const totalWeight = this.rangeWeight(prefixWeights, start, end);
-    const targetWeight = prefixWeights[start] + totalWeight / 2;
+    const targetWeight = (prefixWeights[start] ?? 0) + totalWeight / 2;
     const candidate = this.firstSplitAtOrAfterWeight(prefixWeights, start + 1, end - 1, targetWeight);
     const previous = candidate > start + 1 ? candidate - 1 : candidate;
     const candidateDelta = Math.abs(totalWeight / 2 - this.rangeWeight(prefixWeights, start, candidate));
@@ -290,7 +292,9 @@ const DISTRICT_LAYOUT_ENGINE = new DistrictLayoutEngine();
 
 function layoutEntriesAreSorted(entries: LayoutEntry[]): boolean {
   for (let index = 1; index < entries.length; index += 1) {
-    if (compareLayoutEntries(entries[index - 1], entries[index]) > 0) return false;
+    const previous = entries[index - 1];
+    const current = entries[index];
+    if (previous && current && compareLayoutEntries(previous, current) > 0) return false;
   }
   return true;
 }

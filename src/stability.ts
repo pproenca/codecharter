@@ -68,8 +68,10 @@ function stabilizeFolder(folder: StableFolderNode, previous: PreviousCodemapLayo
   }
 
   if (newChildren.length > 0) {
-    placeChildrenInGrowth(newChildren, folder.growthArea ?? folder.bounds);
-    folder.growthArea = nextGrowthArea(folder.growthArea ?? folder.bounds);
+    const growthBounds = folder.growthArea ?? folder.bounds;
+    if (!growthBounds) throw new Error(`Cannot place new children without bounds: ${folder.path}`);
+    placeChildrenInGrowth(newChildren, growthBounds);
+    folder.growthArea = nextGrowthArea(growthBounds);
     const newFiles: StableFileNode[] = [];
     const newFolders: StableFolderNode[] = [];
     for (const child of newChildren) {

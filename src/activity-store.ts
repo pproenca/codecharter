@@ -82,6 +82,7 @@ export class ActivityStore {
 
   async flush(): Promise<void> {
     if (!this.archivePath || this.pending.length === 0) return;
+    const archivePath = this.archivePath;
     const batch = this.pending;
     const clearGeneration = this.clearGeneration;
     this.pending = [];
@@ -90,7 +91,7 @@ export class ActivityStore {
         console.warn(`warning: activity-archive-queue-recovered error=${error.message}`);
       })
       .then(async () => {
-        await appendActivityEvents(this.archivePath, batch);
+        await appendActivityEvents(archivePath, batch);
       })
       .catch((error) => {
         if (clearGeneration === this.clearGeneration) {

@@ -5,6 +5,7 @@
     "declaration": false,
     "sourceMap": true,
     "noImplicitAny": true,
+    "strictNullChecks": true,
     "rewriteRelativeImportExtensions": true,
     "outDir": "dist",
     "rootDir": "."

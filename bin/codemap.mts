@@ -693,7 +693,9 @@ async function resolveCliAddress(mapPath: string, { path, lineStartRaw, lineEndR
 }
 
 function requestFromDeepLink(parsed: ParsedCodemapDeepLink): CliAddressRequest & { lineStart?: number; lineEnd?: number; columnStart?: number; columnEnd?: number } {
-  const request: { path: string; lineStart?: number; lineEnd?: number; columnStart?: number; columnEnd?: number } = { path: parsed.metadata.path };
+  const path = parsed.metadata.path;
+  if (!path) throw new Error("Deep link does not include path metadata");
+  const request: { path: string; lineStart?: number; lineEnd?: number; columnStart?: number; columnEnd?: number } = { path };
   const lineRange = parseRange(parsed.metadata.lines);
   const columnRange = parseRange(parsed.metadata.columns);
   if (lineRange) {
@@ -798,7 +800,7 @@ function packageDependencyStatus(packageJson: PackageJson | undefined, packagePa
     return { path: packagePath, packageJson: true, found: false, expected: expectedSpec, ok: true };
   }
 
-  const spec = packageJson[section].codecharter;
+  const spec = packageJson[section]?.codecharter ?? "";
   return {
     path: packagePath,
     packageJson: true,
@@ -969,7 +971,7 @@ async function listAnnotations({ root, mapPath, server, limit }: ListAnnotations
   const annotations = origin
     ? await listAnnotationsFromServer(origin)
     : await listAnnotationsFromStorage({ root, mapPath });
-  const bounded = Number.isInteger(limit) && limit >= 0 ? annotations.slice(0, limit) : annotations;
+  const bounded = limit !== undefined && Number.isInteger(limit) && limit >= 0 ? annotations.slice(0, limit) : annotations;
   return {
     source: origin ? "server" : "storage",
     ...(origin ? { origin } : {}),
@@ -1072,15 +1074,17 @@ function parseAnnotationReference(reference: string): ParsedAnnotationReference 
   }
 
   if (reference.startsWith("#/annotation/")) {
-    return { id: decodeURIComponent(reference.slice("#/annotation/".length).split(/[?#]/)[0]) };
+    const id = reference.slice("#/annotation/".length).split(/[?#]/)[0];
+    if (!id) throw new Error("Annotation hash route must include an id");
+    return { id: decodeURIComponent(id) };
   }
 
   if (/^https?:\/\//.test(reference)) {
     const url = new URL(reference);
     const hashMatch = url.hash.match(/^#\/annotation\/([^?]+)/);
-    if (hashMatch) return { id: decodeURIComponent(hashMatch[1]), origin: url.origin };
+    if (hashMatch?.[1]) return { id: decodeURIComponent(hashMatch[1]), origin: url.origin };
     const apiMatch = url.pathname.match(/\/api\/annotations\/([^/]+)/);
-    if (apiMatch) return { id: decodeURIComponent(apiMatch[1]), origin: url.origin };
+    if (apiMatch?.[1]) return { id: decodeURIComponent(apiMatch[1]), origin: url.origin };
     throw new Error("CodeCharter URL must contain #/annotation/<id> or /api/annotations/<id>");
   }
 

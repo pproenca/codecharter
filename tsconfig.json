@@ -12,6 +12,7 @@
     "isolatedModules": true,
     "noEmitOnError": true,
     "useUnknownInCatchVariables": true,
+    "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "strict": false,
     "allowSyntheticDefaultImports": true,

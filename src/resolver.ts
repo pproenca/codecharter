@@ -69,7 +69,8 @@ export function resolveAddress(codemap: CodecharterCodemap, request: AddressRequ
   }
 
   if (file) return resolveFileAddress(file, request);
-  return resolveFolderAddress(folder);
+  if (folder) return resolveFolderAddress(folder);
+  throw new Error(`No map target found for path: ${request.path}`);
 }
 
 export class AddressResolver {

@@ -135,7 +135,7 @@ export class CodexHooksMerger {
 
     for (const eventName in desired.hooks) {
       if (!Object.hasOwn(desired.hooks, eventName)) continue;
-      const desiredGroups = desired.hooks[eventName];
+      const desiredGroups = desired.hooks[eventName] ?? [];
       const existingGroups = Array.isArray(next.hooks[eventName]) ? next.hooks[eventName] : [];
       next.hooks[eventName] = this.mergeHookGroups(existingGroups, desiredGroups);
     }
@@ -169,10 +169,13 @@ export class CodexHooksMerger {
 
       const group = groups[index];
       const hookKeys = hookKeysByGroup[index];
-      for (const hook of desiredGroup.hooks) {
+      if (!group || !hookKeys) continue;
+      for (const hook of desiredGroup.hooks ?? []) {
         const key = this.hookKey(hook);
         if (hookKeys.has(key)) continue;
-        group.hooks.push(hook);
+        const hooks = group.hooks ?? [];
+        hooks.push(hook);
+        group.hooks = hooks;
         hookKeys.add(key);
       }
     }
@@ -276,11 +279,12 @@ export async function ensurePackageDevDependency(root: string): Promise<{ skippe
   }
 
   if (existingSection) {
-    if (packageJson[existingSection].codecharter === desiredSpec) return { skipped: false, changed: false };
+    const dependencies = packageJson[existingSection] ?? {};
+    if (dependencies.codecharter === desiredSpec) return { skipped: false, changed: false };
     await writeJson(packagePath, {
       ...packageJson,
       [existingSection]: {
-        ...packageJson[existingSection],
+        ...dependencies,
         codecharter: desiredSpec,
       },
     });

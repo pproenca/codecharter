@@ -23,8 +23,10 @@ export const ACTIVITY_TRAIL_TENSION = 0.72;
 export const ACTIVITY_TRAIL_MAX_GAP_MINUTES = 20;
 export const DISCOVERY_FOG_TEXTURE_STEP_PX = 28;
 
-export type Point = { x?: number; y?: number };
-export type Bounds = Point & { width?: number; height?: number };
+export type Point = { x: number; y: number };
+export type Bounds = Point & { width: number; height: number };
+type BoxSize = { width: number; height: number };
+type HorizontalBox = { x: number; width: number };
 export type View = Point & { scale: number };
 export type Viewport = { width: number; height: number };
 type Rgb = readonly [number, number, number];
@@ -195,6 +197,7 @@ type ActivityHitOptions = {
   maxAgeMinutes?: number;
 };
 type ActivityTissueEncoding = { selected?: boolean };
+type PositionedBox = BoxSize & { y: number };
 
 export const DISTRICT_PALETTE: readonly PaletteColor[] = [
   { fill: [126, 176, 156], stroke: [41, 98, 73], label: "#24513d" },
@@ -264,6 +267,7 @@ const SEARCH_TARGET_ENTRIES = new WeakMap<MapTargetRecord, SearchTargetEntry[]>(
 const NAMED_PLACE_SEARCH_ENTRIES = new WeakMap<NamedPlace[], NamedPlaceSearchEntry[]>();
 
 function actionFor(actions: Map<string, MapAction>, key: string | undefined) {
+  if (!key) return null;
   const action = actions.get(key);
   return action ? { ...action } : null;
 }
@@ -295,12 +299,12 @@ function namedPlaceSearchMatch({ namedPlaces, query }: SearchContext): SearchMat
 }
 
 function fileSearchMatch({ codemap, query }: SearchContext): SearchMatch | null {
-  const file = firstSearchTarget(codemap.files, query);
+  const file = firstSearchTarget(codemap.files ?? {}, query);
   return file ? { type: "file", label: `File: ${file.path}`, file } : null;
 }
 
 function folderSearchMatch({ codemap, query }: SearchContext): SearchMatch | null {
-  const folder = firstSearchTarget(codemap.folders, query);
+  const folder = firstSearchTarget(codemap.folders ?? {}, query);
   return folder ? { type: "folder", label: `Folder: ${folder.path || "."}`, folder } : null;
 }
 
@@ -319,6 +323,7 @@ function searchTargetEntries<T extends MapTarget>(targets: MapTargetRecord<T>): 
   for (const key in targets) {
     if (!Object.hasOwn(targets, key)) continue;
     const target = targets[key];
+    if (!target) continue;
     const path = String(target.path ?? "");
     const geohash = String(target.geo?.geohash ?? "");
     entries.push({ key, target, path, geohash, normalizedPath: path.toLowerCase() });
@@ -352,6 +357,7 @@ function namedPlaceSearchEntries(namedPlaces: NamedPlace[]): NamedPlaceSearchEnt
   const entries = new Array(namedPlaces.length);
   for (let index = 0; index < namedPlaces.length; index += 1) {
     const place = namedPlaces[index];
+    if (!place) continue;
     const name = String(place?.name ?? "");
     entries[index] = { place, name, normalizedName: name.toLowerCase() };
   }
@@ -364,6 +370,7 @@ function namedPlaceEntriesMatch(namedPlaces: NamedPlace[], entries: NamedPlaceSe
   for (let index = 0; index < namedPlaces.length; index += 1) {
     const place = namedPlaces[index];
     const entry = entries[index];
+    if (!entry) return false;
     if (entry.place !== place || entry.name !== String(place?.name ?? "")) return false;
   }
   return true;
@@ -409,6 +416,7 @@ function organicRegionFoldersAreSorted(folders: Array<{ folder: MapFolder; depth
   for (let index = 1; index < folders.length; index += 1) {
     const previous = folders[index - 1];
     const current = folders[index];
+    if (!previous || !current) return false;
     if (previous.depth > current.depth) return false;
     if (previous.depth === current.depth && previous.folder.path.localeCompare(current.folder.path) > 0) return false;
   }
@@ -416,7 +424,7 @@ function organicRegionFoldersAreSorted(folders: Array<{ folder: MapFolder; depth
 }
 
 export function folderStyle(path: string, depth: number) {
-  const base = DISTRICT_PALETTE[hashString(firstPathSegment(path)) % DISTRICT_PALETTE.length];
+  const base = paletteForPath(path);
   const fillAlpha = depth === 1 ? 0.18 : 0.09;
   const strokeAlpha = depth === 1 ? 0.52 : 0.28;
   return {
@@ -427,7 +435,7 @@ export function folderStyle(path: string, depth: number) {
 }
 
 export function organicRegionStyle(path: string, depth: number) {
-  const base = DISTRICT_PALETTE[hashString(firstPathSegment(path)) % DISTRICT_PALETTE.length];
+  const base = paletteForPath(path);
   const fillAlpha = depth === 1 ? 0.1 : 0.055;
   const strokeAlpha = depth === 1 ? 0.5 : 0.32;
   return {
@@ -436,7 +444,7 @@ export function organicRegionStyle(path: string, depth: number) {
   };
 }
 
-export function shouldDrawOrganicRegion(scale: number, depth: number, box: Bounds): boolean {
+export function shouldDrawOrganicRegion(scale: number, depth: number, box: BoxSize): boolean {
   if (depth > 4) return false;
   if (depth > maxFolderDepthForScale(scale) + 1) return false;
   if (Math.min(box.width, box.height) < 68) return false;
@@ -455,6 +463,7 @@ export function organicRegionPoints(bounds: Bounds | null | undefined, key: stri
     if (reversed) {
       for (let index = edgePositions.length - 1; index >= 0; index -= 1) {
         const t = edgePositions[index];
+        if (t === undefined) continue;
         points.push(point(bounds, t, edgeInset(key, side, index, baseInset, wobble)));
       }
       continue;
@@ -462,6 +471,7 @@ export function organicRegionPoints(bounds: Bounds | null | undefined, key: stri
 
     for (let index = 0; index < edgePositions.length; index += 1) {
       const t = edgePositions[index];
+      if (t === undefined) continue;
       points.push(point(bounds, t, edgeInset(key, side, index, baseInset, wobble)));
     }
   }
@@ -469,14 +479,14 @@ export function organicRegionPoints(bounds: Bounds | null | undefined, key: stri
   return points;
 }
 
-export function shouldDrawFolder(scale: number, depth: number, box: Bounds): boolean {
+export function shouldDrawFolder(scale: number, depth: number, box: BoxSize): boolean {
   const minDimension = Math.min(box.width, box.height);
   if (minDimension < (depth <= 1 ? 6 : 10)) return false;
   if (depth <= maxFolderDepthForScale(scale)) return true;
   return depth <= 3 && box.width > 360 && box.height > 220;
 }
 
-export function shouldLabelFolder(scale: number, depth: number, box: Bounds): boolean {
+export function shouldLabelFolder(scale: number, depth: number, box: BoxSize): boolean {
   if (box.width <= 90 || box.height <= 28) return false;
   return depth <= maxFolderDepthForScale(scale) || (box.width > 260 && box.height > 120);
 }
@@ -491,21 +501,22 @@ function lastPathSegment(path: string): string {
   return slash === -1 ? path : path.slice(slash + 1);
 }
 
-export function folderLabelPriority(depth: number, box: Bounds): number {
+export function folderLabelPriority(depth: number, box: BoxSize): number {
   return 80 - depth * 6 + Math.min(16, Math.log2(Math.max(1, box.width * box.height)));
 }
 
 export function landmarkScore(file: Pick<MapFile, "name" | "path">): number {
   let score = 0;
-  if (LANDMARK_NAMES.has(file.name)) score += 24;
+  const name = file.name ?? lastPathSegment(file.path);
+  if (LANDMARK_NAMES.has(name)) score += 24;
   if (file.path.startsWith("src/")) score += 8;
   if (file.path.startsWith("public/")) score += 6;
   if (file.path.includes("test")) score += 4;
-  if (file.name.endsWith(".test.js")) score += 5;
+  if (name.endsWith(".test.js")) score += 5;
   return score;
 }
 
-export function fileVisualState({ file, box, scale, selected }: { file: MapFile; box: Bounds; scale: number; selected?: boolean }) {
+export function fileVisualState({ file, box, scale, selected }: { file: MapFile; box: BoxSize; scale: number; selected?: boolean }) {
   const landmark = landmarkScore(file) > 0 && box.width > 76 && box.height > 26;
   const readable = canRenderSourceText(file, box);
   const area = box.width * box.height;
@@ -525,7 +536,7 @@ export function fileVisualState({ file, box, scale, selected }: { file: MapFile;
   return "parcel";
 }
 
-export function shouldLabelFile({ file, box, scale, selected }: { file: MapFile; box: Bounds; scale: number; selected?: boolean }) {
+export function shouldLabelFile({ file, box, scale, selected }: { file: MapFile; box: BoxSize; scale: number; selected?: boolean }) {
   if (canRenderSourceText(file, box)) return false;
   if (selected) return true;
   if (landmarkScore(file) > 0 && box.width > 76 && box.height > 26) return true;
@@ -587,7 +598,7 @@ export function shouldShowFogSourceText(fogState: FogState, { selected = false }
   return selected || fogState !== "unexplored";
 }
 
-export function shouldLabelFoggedFile({ file, box, scale, selected, fogState }: { file: MapFile; box: Bounds; scale: number; selected?: boolean; fogState: FogState }) {
+export function shouldLabelFoggedFile({ file, box, scale, selected, fogState }: { file: MapFile; box: BoxSize; scale: number; selected?: boolean; fogState: FogState }) {
   if (!shouldShowFogLabel(fogState, { selected })) return false;
   if (fogState === "explored" && canRenderSourceText(file, box)) {
     if (landmarkScore(file) > 0 && box.width > 76 && box.height > 26) return true;
@@ -639,13 +650,13 @@ export function fileLabelPriority({ file, selected }: { file: MapFile; selected?
   return (selected ? 120 : 40) + landmarkScore(file);
 }
 
-export function canRenderSourceText(file: MapFile, box: Bounds): boolean {
+export function canRenderSourceText(file: MapFile, box: BoxSize): boolean {
   return box.width >= SOURCE_TEXT_MIN_WIDTH
     && lineHeightForFile(file, box) >= SOURCE_TEXT_MIN_LINE_HEIGHT
     && file.lineCount > 0;
 }
 
-export function sourceTextLayoutForBox(box: Bounds, viewportWidth: number) {
+export function sourceTextLayoutForBox(box: HorizontalBox, viewportWidth: number) {
   const visibleLeft = Math.max(box.x, 0);
   const visibleRight = Math.min(box.x + box.width, viewportWidth);
   const textX = visibleLeft + 42;
@@ -657,7 +668,7 @@ export function sourceTextLayoutForBox(box: Bounds, viewportWidth: number) {
   };
 }
 
-export function lineHeightForFile(file: MapFile, box: Bounds): number {
+export function lineHeightForFile(file: MapFile, box: BoxSize): number {
   return box.height / Math.max(1, file.lineCount);
 }
 

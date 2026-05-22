@@ -336,7 +336,9 @@ function cornerGeohashes(points: Record<CornerName, Point>, precision: number): 
 
 function* objectValues<T>(values: Record<string, T>): Generator<T> {
   for (const key in values) {
-    if (Object.hasOwn(values, key)) yield values[key];
+    if (!Object.hasOwn(values, key)) continue;
+    const value = values[key];
+    if (value !== undefined) yield value;
   }
 }
 

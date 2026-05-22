@@ -293,7 +293,7 @@ async function sendActivityDatagram(endpoint: string | undefined, body: Activity
 }
 
 function isActivityWatchablePath(path: string): boolean {
-  return path
+  return Boolean(path)
     && path !== "codemap.json"
     && path !== "codecharter.json"
     && !path.startsWith(".git/")
@@ -304,7 +304,7 @@ function isActivityWatchablePath(path: string): boolean {
 
 async function wholeFileRange(root: string | undefined, path: string): Promise<ChangedRange & { signature?: string }> {
   try {
-    const content = await readFile(join(root, path), "utf8");
+    const content = await readFile(join(root ?? ".", path), "utf8");
     const lineCount = contentLineCount(content);
     return { lineStart: 1, lineEnd: lineCount, signature: `file:${hashString(content)}` };
   } catch {

@@ -78,9 +78,11 @@ function isDrawnRectPlace(place: NamedPlace | undefined): place is DrawnRectPlac
 function removeExpiredActivePlaces(active: DrawnPlaceEntry[], x: number): void {
   let write = 0;
   for (let read = 0; read < active.length; read += 1) {
-    const bounds = active[read].place.geometry.bounds;
+    const entry = active[read];
+    if (!entry) continue;
+    const bounds = entry.place.geometry.bounds;
     if (bounds.x + bounds.width <= x) continue;
-    active[write] = active[read];
+    active[write] = entry;
     write += 1;
   }
   active.length = write;
@@ -88,7 +90,9 @@ function removeExpiredActivePlaces(active: DrawnPlaceEntry[], x: number): void {
 
 function drawnPlacesAreSorted(drawn: DrawnPlaceEntry[]): boolean {
   for (let index = 1; index < drawn.length; index += 1) {
-    if (compareDrawnPlaces(drawn[index - 1], drawn[index]) > 0) return false;
+    const previous = drawn[index - 1];
+    const current = drawn[index];
+    if (previous && current && compareDrawnPlaces(previous, current) > 0) return false;
   }
   return true;
 }
@@ -99,7 +103,9 @@ function compareDrawnPlaces(a: DrawnPlaceEntry, b: DrawnPlaceEntry): number {
 
 function overlapsAreSorted(overlaps: OrderedOverlap[]): boolean {
   for (let index = 1; index < overlaps.length; index += 1) {
-    if (compareOverlaps(overlaps[index - 1], overlaps[index]) > 0) return false;
+    const previous = overlaps[index - 1];
+    const current = overlaps[index];
+    if (previous && current && compareOverlaps(previous, current) > 0) return false;
   }
   return true;
 }

@@ -628,6 +628,39 @@ test("keeps map search priority and first matching target order", () => {
   assert.equal(match.file.path, "src/app.ts");
 });
 
+test("map search reflects target and place updates after earlier searches", () => {
+  const codemap = {
+    files: {
+      "src/app.ts": {
+        path: "src/app.ts",
+        bounds: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+        geo: { geohash: "u10000000000", lat: 0, lon: 0 },
+      },
+    },
+    folders: {},
+  };
+  const namedPlaces = [{
+    id: "place-1",
+    kind: "drawnSelection",
+    name: "Original area",
+    geometry: { bounds: { x: 0.3, y: 0.3, width: 0.1, height: 0.1 } },
+  }];
+
+  assert.equal(mapSearchMatch(codemap, namedPlaces, "app").type, "file");
+
+  codemap.files["src/app.ts"].path = "src/renamed.ts";
+  codemap.files["src/late-added.ts"] = {
+    path: "src/late-added.ts",
+    bounds: { x: 0.2, y: 0.1, width: 0.2, height: 0.2 },
+    geo: { geohash: "u10001000000", lat: 0, lon: 0 },
+  };
+  namedPlaces[0].name = "Updated area";
+
+  assert.equal(mapSearchMatch(codemap, namedPlaces, "app"), null);
+  assert.equal(mapSearchMatch(codemap, namedPlaces, "late-added").file.path, "src/late-added.ts");
+  assert.equal(mapSearchMatch(codemap, namedPlaces, "updated").place.id, "place-1");
+});
+
 test("derives map search actions without binding to browser effects", () => {
   assert.deepEqual(mapSearchAction(null), { type: "noMatch" });
   assert.deepEqual(mapSearchAction({ type: "annotation", label: "Annotation: App note" }), { type: "focusPlace" });

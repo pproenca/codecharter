@@ -12,11 +12,7 @@ export function findNamedPlaceOverlaps(places) {
 
   for (const candidate of drawn) {
     const bounds = candidate.place.geometry.bounds;
-    for (let index = active.length - 1; index >= 0; index -= 1) {
-      if (active[index].place.geometry.bounds.x + active[index].place.geometry.bounds.width <= bounds.x) {
-        active.splice(index, 1);
-      }
-    }
+    removeExpiredActivePlaces(active, bounds.x);
 
     for (const other of active) {
       if (!intersects(other.place.geometry.bounds, bounds)) continue;
@@ -38,6 +34,17 @@ export function findNamedPlaceOverlaps(places) {
     results.push(overlap);
   }
   return results;
+}
+
+function removeExpiredActivePlaces(active, x) {
+  let write = 0;
+  for (let read = 0; read < active.length; read += 1) {
+    const bounds = active[read].place.geometry.bounds;
+    if (bounds.x + bounds.width <= x) continue;
+    active[write] = active[read];
+    write += 1;
+  }
+  active.length = write;
 }
 
 function drawnPlacesAreSorted(drawn) {

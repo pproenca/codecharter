@@ -55,7 +55,8 @@ export class ActivityStore {
 
   async flush() {
     if (!this.archivePath || this.pending.length === 0) return;
-    const batch = this.pending.splice(0);
+    const batch = this.pending;
+    this.pending = [];
     this.writeQueue = this.writeQueue
       .catch((error) => {
         console.warn(`warning: activity-archive-queue-recovered error=${error.message}`);
@@ -64,7 +65,7 @@ export class ActivityStore {
         await appendActivityEvents(this.archivePath, batch);
       })
       .catch((error) => {
-        this.pending.unshift(...batch);
+        this.restorePendingBatch(batch);
         this.trimPending();
         throw error;
       });
@@ -95,6 +96,25 @@ export class ActivityStore {
 
   trimPending() {
     trimOldest(this.pending, this.maxArchiveQueueEvents);
+  }
+
+  restorePendingBatch(batch) {
+    if (this.pending.length === 0) {
+      this.pending = batch;
+      return;
+    }
+
+    const pending = new Array(batch.length + this.pending.length);
+    let index = 0;
+    for (const event of batch) {
+      pending[index] = event;
+      index += 1;
+    }
+    for (const event of this.pending) {
+      pending[index] = event;
+      index += 1;
+    }
+    this.pending = pending;
   }
 }
 

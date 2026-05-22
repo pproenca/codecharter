@@ -137,7 +137,7 @@ export function parseGitStatusPorcelain(raw) {
     start = index + 1;
     const status = entry.slice(0, 2);
     const path = entry.slice(3);
-    if (status.includes("R") || status.includes("C")) {
+    if (isCopiedOrRenamedStatus(status)) {
       const nextStart = raw.indexOf("\0", start);
       start = nextStart === -1 ? raw.length : nextStart + 1;
       index = start - 1;
@@ -146,6 +146,13 @@ export function parseGitStatusPorcelain(raw) {
   }
 
   return paths;
+}
+
+function isCopiedOrRenamedStatus(status) {
+  return status.charCodeAt(0) === 82
+    || status.charCodeAt(1) === 82
+    || status.charCodeAt(0) === 67
+    || status.charCodeAt(1) === 67;
 }
 
 async function changedGitPaths(root) {

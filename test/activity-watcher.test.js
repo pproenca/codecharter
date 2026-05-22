@@ -32,6 +32,27 @@ test("parses git porcelain paths for watchable code files only", () => {
   ]);
 });
 
+test("parses porcelain copy and rename records from either status column", () => {
+  const raw = [
+    "R  src/index-renamed.js",
+    "src/index.js",
+    " R src/view-renamed.ts",
+    "src/view.ts",
+    "C  src/copied.js",
+    "src/source.js",
+    " C src/copied-view.tsx",
+    "src/source-view.tsx",
+    "",
+  ].join("\0");
+
+  assert.deepEqual(parseGitStatusPorcelain(raw), [
+    "src/index-renamed.js",
+    "src/view-renamed.ts",
+    "src/copied.js",
+    "src/copied-view.tsx",
+  ]);
+});
+
 test("resolves changed line range across unified diff hunks", () => {
   const diff = [
     "diff --git a/src/app.js b/src/app.js",

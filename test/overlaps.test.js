@@ -41,6 +41,25 @@ test("ignores non-rect places and selections that only touch edges", () => {
   assert.deepEqual(overlaps, []);
 });
 
+test("keeps long-running selections active while expired selections fall away", () => {
+  const places = [
+    namedRect("wide", "Wide", { x: 0, y: 0.1, width: 0.8, height: 0.2 }),
+  ];
+  for (let index = 0; index < 20; index += 1) {
+    places.push(namedRect(`expired-${index}`, `Expired ${index}`, {
+      x: 0.01 + index * 0.01,
+      y: 0.7,
+      width: 0.005,
+      height: 0.05,
+    }));
+  }
+  places.push(namedRect("late", "Late", { x: 0.7, y: 0.15, width: 0.2, height: 0.1 }));
+
+  assert.deepEqual(findNamedPlaceOverlaps(places).map((overlap) => overlap.placeIds), [
+    ["wide", "late"],
+  ]);
+});
+
 function namedRect(id, name, bounds) {
   return {
     id,

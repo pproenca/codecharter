@@ -85,6 +85,9 @@ const MAP_SEARCH_MATCHERS = [
   folderSearchMatch,
 ];
 
+const SEARCH_TARGET_ENTRIES = new WeakMap();
+const NAMED_PLACE_SEARCH_ENTRIES = new WeakMap();
+
 function actionFor(actions, key) {
   const action = actions.get(key);
   return action ? { ...action } : null;
@@ -92,9 +95,9 @@ function actionFor(actions, key) {
 
 function namedPlaceSearchMatch({ namedPlaces, query }) {
   let namedPlace;
-  for (const place of namedPlaces) {
-    if (!place.name?.toLowerCase().includes(query)) continue;
-    namedPlace = place;
+  for (const entry of namedPlaceSearchEntries(namedPlaces)) {
+    if (!entry.normalizedName.includes(query)) continue;
+    namedPlace = entry.place;
     break;
   }
   if (!namedPlace?.geometry?.bounds) return null;
@@ -119,12 +122,68 @@ function folderSearchMatch({ codemap, query }) {
 }
 
 function firstSearchTarget(targets, query) {
-  for (const path in targets) {
-    if (!Object.hasOwn(targets, path)) continue;
-    const target = targets[path];
-    if (target.path.toLowerCase().includes(query) || target.geo.geohash.startsWith(query)) return target;
+  for (const entry of searchTargetEntries(targets)) {
+    if (entry.normalizedPath.includes(query) || entry.geohash.startsWith(query)) return entry.target;
   }
   return null;
+}
+
+function searchTargetEntries(targets) {
+  const cached = SEARCH_TARGET_ENTRIES.get(targets);
+  if (cached && searchTargetEntriesMatch(targets, cached)) return cached;
+
+  const entries = [];
+  for (const key in targets) {
+    if (!Object.hasOwn(targets, key)) continue;
+    const target = targets[key];
+    const path = String(target.path ?? "");
+    const geohash = String(target.geo?.geohash ?? "");
+    entries.push({ key, target, path, geohash, normalizedPath: path.toLowerCase() });
+  }
+  SEARCH_TARGET_ENTRIES.set(targets, entries);
+  return entries;
+}
+
+function searchTargetEntriesMatch(targets, entries) {
+  let index = 0;
+  for (const key in targets) {
+    if (!Object.hasOwn(targets, key)) continue;
+    const entry = entries[index];
+    const target = targets[key];
+    if (!entry
+      || entry.key !== key
+      || entry.target !== target
+      || entry.path !== String(target.path ?? "")
+      || entry.geohash !== String(target.geo?.geohash ?? "")) {
+      return false;
+    }
+    index += 1;
+  }
+  return index === entries.length;
+}
+
+function namedPlaceSearchEntries(namedPlaces) {
+  const cached = NAMED_PLACE_SEARCH_ENTRIES.get(namedPlaces);
+  if (cached && namedPlaceEntriesMatch(namedPlaces, cached)) return cached;
+
+  const entries = new Array(namedPlaces.length);
+  for (let index = 0; index < namedPlaces.length; index += 1) {
+    const place = namedPlaces[index];
+    const name = String(place?.name ?? "");
+    entries[index] = { place, name, normalizedName: name.toLowerCase() };
+  }
+  NAMED_PLACE_SEARCH_ENTRIES.set(namedPlaces, entries);
+  return entries;
+}
+
+function namedPlaceEntriesMatch(namedPlaces, entries) {
+  if (namedPlaces.length !== entries.length) return false;
+  for (let index = 0; index < namedPlaces.length; index += 1) {
+    const place = namedPlaces[index];
+    const entry = entries[index];
+    if (entry.place !== place || entry.name !== String(place?.name ?? "")) return false;
+  }
+  return true;
 }
 
 export function detailBand(scale) {

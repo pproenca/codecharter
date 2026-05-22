@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createActivityStore } from "../src/activity-store.js";
@@ -64,6 +64,33 @@ test("caps live activity memory to the newest events", async () => {
     store.add(activityEvent("event-3"));
 
     assert.deepEqual(store.snapshot().events.map((event) => event.id), ["event-2", "event-3"]);
+  } finally {
+    await store.close();
+  }
+});
+
+test("recovers failed archive flushes before later queued activity", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codemaps-activity-store-"));
+  const blockedArchivePath = join(root, "blocked-archive");
+  const archivePath = join(root, ".scratch", "activity-stream.jsonl");
+  await mkdir(blockedArchivePath);
+  const store = createActivityStore({
+    archivePath: blockedArchivePath,
+    flushIntervalMs: 60_000,
+    maxArchiveQueueEvents: 3,
+  });
+
+  try {
+    store.add(activityEvent("event-1"));
+    store.add(activityEvent("event-2"));
+    await assert.rejects(store.flush());
+
+    store.archivePath = archivePath;
+    store.add(activityEvent("event-3"));
+    await store.flush();
+
+    const lines = (await readFile(archivePath, "utf8")).trim().split("\n");
+    assert.deepEqual(lines.map((line) => JSON.parse(line).id), ["event-1", "event-2", "event-3"]);
   } finally {
     await store.close();
   }

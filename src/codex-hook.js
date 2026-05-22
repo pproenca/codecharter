@@ -17,112 +17,23 @@ const ROOT_MAP_PATH = "codecharter.json";
 const LEGACY_MAP_PATH = "codemap.json";
 const DEFAULT_ACTIVITY_PATH = ".codecharter/activity.jsonl";
 
-class ReadCommandStrategyRegistry {
-  constructor(strategies) {
-    this.strategiesByCommand = new Map();
-    for (const strategy of strategies) {
-      for (const commandName of strategy.commandNames) {
-        this.strategiesByCommand.set(commandName, strategy);
-      }
-    }
-  }
-
-  strategyFor(commandName) {
-    return this.strategiesByCommand.get(commandName) ?? null;
-  }
-}
-
-class ReadCommandStrategy {
-  constructor(commandNames) {
-    this.commandNames = commandNames;
-  }
-
-  lineRange() {
-    return {};
-  }
-}
-
-class GenericReadCommandStrategy extends ReadCommandStrategy {
-  pathCandidates(context) {
-    return genericReadPathCandidates(context);
-  }
-}
-
-class OptionAwareReadCommandStrategy extends ReadCommandStrategy {
-  pathCandidates(context) {
-    return optionAwareReadPathCandidates(context);
-  }
-}
-
-class HeadReadCommandStrategy extends OptionAwareReadCommandStrategy {
-  lineRange(context) {
-    return headLineRange(context);
-  }
-}
-
-class TailReadCommandStrategy extends OptionAwareReadCommandStrategy {
-  lineRange(context) {
-    return tailLineRange(context);
-  }
-}
-
-class SedReadCommandStrategy extends ReadCommandStrategy {
-  pathCandidates(context) {
-    return sedPathCandidates(context);
-  }
-
-  lineRange(context) {
-    return sedLineRange(context);
-  }
-}
-
-class RipgrepReadCommandStrategy extends ReadCommandStrategy {
-  pathCandidates(context) {
-    return ripgrepPathCandidates(context);
-  }
-}
-
-class ToolInputPathStrategy {
-  matches() {
-    return false;
-  }
-
-  paths() {
-    return [];
-  }
-}
-
-class ApplyPatchToolInputPathStrategy extends ToolInputPathStrategy {
-  matches(toolName) {
-    return toolName.includes("apply_patch");
-  }
-
-  paths(input) {
-    return applyPatchPaths(toolInputText(input));
-  }
-}
-
-class StructuredWriteToolInputPathStrategy extends ToolInputPathStrategy {
-  matches(toolName) {
-    return isStructuredWriteTool(toolName);
-  }
-
-  paths(input) {
-    return structuredToolPaths(input);
-  }
-}
-
-const READ_COMMAND_STRATEGIES = new ReadCommandStrategyRegistry([
-  new GenericReadCommandStrategy(["cat", "nl", "less"]),
-  new HeadReadCommandStrategy(["head"]),
-  new TailReadCommandStrategy(["tail"]),
-  new SedReadCommandStrategy(["sed"]),
-  new RipgrepReadCommandStrategy(["rg"]),
+const READ_COMMAND_STRATEGIES = new Map([
+  ...["cat", "nl", "less"].map((commandName) => [commandName, { pathCandidates: genericReadPathCandidates, lineRange: emptyLineRange }]),
+  ["head", { pathCandidates: optionAwareReadPathCandidates, lineRange: headLineRange }],
+  ["tail", { pathCandidates: optionAwareReadPathCandidates, lineRange: tailLineRange }],
+  ["sed", { pathCandidates: sedPathCandidates, lineRange: sedLineRange }],
+  ["rg", { pathCandidates: ripgrepPathCandidates, lineRange: emptyLineRange }],
 ]);
 
 const TOOL_INPUT_PATH_STRATEGIES = [
-  new ApplyPatchToolInputPathStrategy(),
-  new StructuredWriteToolInputPathStrategy(),
+  {
+    matches: (toolName) => toolName.includes("apply_patch"),
+    paths: (input) => applyPatchPaths(toolInputText(input)),
+  },
+  {
+    matches: isStructuredWriteTool,
+    paths: structuredToolPaths,
+  },
 ];
 
 export async function runCodexHook({ input = "", cwd = process.cwd() } = {}) {
@@ -446,7 +357,7 @@ function shellWords(segment) {
 }
 
 function readCommandStrategy(commandName) {
-  return READ_COMMAND_STRATEGIES.strategyFor(commandName);
+  return READ_COMMAND_STRATEGIES.get(commandName) ?? null;
 }
 
 function readCommandPathCandidates(commandName, tokens, codemap, root = "") {

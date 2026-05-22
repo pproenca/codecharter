@@ -330,370 +330,108 @@ function activitySignature(events) {
   return `${events.length}:${latest?.id ?? ""}:${latest?.timestamp ?? ""}`;
 }
 
-class CommandDispatcher {
-  constructor(commands) {
-    this.commandsByType = new Map(commands.map((command) => [command.type, command]));
-  }
-
-  has(type) {
-    return this.commandsByType.has(type);
-  }
-
-  async execute(type, ...args) {
-    return this.commandsByType.get(type)?.execute(...args);
-  }
+function commandDispatcher(commands) {
+  const commandsByType = new Map(commands);
+  return {
+    has: (type) => commandsByType.has(type),
+    execute: async (type, ...args) => commandsByType.get(type)?.(...args),
+  };
 }
 
-class UiCommand {
-  constructor(type) {
-    this.type = type;
-  }
-}
+const HASH_ROUTE_FOCUS_COMMANDS = commandDispatcher([
+  ["annotation", (intent, routeToken) => focusAnnotationRoute(intent.id, routeToken)],
+  ["selection", (intent, routeToken) => focusSelectionRoute(intent.params, routeToken)],
+  ["map", (intent, routeToken) => focusMapRoute(intent.route, routeToken)],
+]);
 
-class FocusAnnotationRouteCommand extends UiCommand {
-  constructor() {
-    super("annotation");
-  }
-
-  async execute(intent, routeToken) {
-    return focusAnnotationRoute(intent.id, routeToken);
-  }
-}
-
-class FocusSelectionRouteCommand extends UiCommand {
-  constructor() {
-    super("selection");
-  }
-
-  async execute(intent, routeToken) {
-    return focusSelectionRoute(intent.params, routeToken);
-  }
-}
-
-class FocusMapRouteCommand extends UiCommand {
-  constructor() {
-    super("map");
-  }
-
-  async execute(intent, routeToken) {
-    return focusMapRoute(intent.route, routeToken);
-  }
-}
-
-class FocusFileRouteCommand extends UiCommand {
-  constructor() {
-    super("focusFile");
-  }
-
-  async execute(target, route, routeToken) {
-    return showFileForRoute(target, route.params, routeToken);
-  }
-}
-
-class FocusFolderRouteCommand extends UiCommand {
-  constructor() {
-    super("focusFolder");
-  }
-
-  async execute(target) {
+const MAP_ROUTE_FOCUS_COMMANDS = commandDispatcher([
+  ["focusFile", (target, route, routeToken) => showFileForRoute(target, route.params, routeToken)],
+  ["focusFolder", (target) => {
     clearAnnotationForm();
     setText(controls.inspectorTitle, folderDisplayName(target));
     setText(controls.inspectorSubtitle, `folder: ${target.path || "."} | ${target.geo.geohash}`);
     render();
-  }
-}
+  }],
+]);
 
-class FocusAnnotationCommand extends UiCommand {
-  constructor() {
-    super("focusAnnotation");
-  }
-
-  async execute(hit) {
+const DOUBLE_CLICK_ACTION_COMMANDS = commandDispatcher([
+  ["focusAnnotation", (hit) => {
     zoomToBounds(hit.geometry.bounds, 1.28);
     selectAnnotation(hit);
-  }
-}
-
-class SelectFolderCommand extends UiCommand {
-  constructor() {
-    super("selectFolder");
-  }
-
-  async execute(hit, world) {
+  }],
+  ["selectFolder", (hit, world) => {
     void selectMapTarget(world);
     zoomToBounds(hit.bounds, 1.35);
-  }
-}
-
-class SelectFileCommand extends UiCommand {
-  constructor() {
-    super("selectFile");
-  }
-
-  async execute(_hit, world) {
+  }],
+  ["selectFile", (_hit, world) => {
     void selectMapTarget(world);
-  }
-}
-
-class SelectActivityCommand extends UiCommand {
-  constructor() {
-    super("selectActivity");
-  }
-
-  async execute(hit) {
+  }],
+  ["selectActivity", (hit) => {
     void selectActivityEvent(hit);
-  }
-}
+  }],
+]);
 
-class ClearSelectionCommand extends UiCommand {
-  constructor() {
-    super("clearSelection");
-  }
-
-  async execute() {
-    clearMapSelection();
-  }
-}
-
-class InspectAnnotationCommand extends UiCommand {
-  constructor() {
-    super("focusAnnotation");
-  }
-
-  async execute(hit) {
+const MAP_TARGET_SELECTION_COMMANDS = commandDispatcher([
+  ["clearSelection", clearMapSelection],
+  ["focusAnnotation", (hit) => {
     zoomToBounds(hit.geometry.bounds, 1.35);
     selectAnnotation(hit);
-  }
-}
+  }],
+  ["selectActivity", selectActivityEvent],
+  ["inspectFolder", inspectFolderTarget],
+  ["inspectFile", inspectFileTarget],
+]);
 
-class InspectActivityCommand extends UiCommand {
-  constructor() {
-    super("selectActivity");
-  }
-
-  async execute(hit) {
-    return selectActivityEvent(hit);
-  }
-}
-
-class InspectFolderCommand extends UiCommand {
-  constructor() {
-    super("inspectFolder");
-  }
-
-  async execute(hit) {
-    inspectFolderTarget(hit);
-  }
-}
-
-class InspectFileCommand extends UiCommand {
-  constructor() {
-    super("inspectFile");
-  }
-
-  async execute(hit, worldPoint) {
-    return inspectFileTarget(hit, worldPoint);
-  }
-}
-
-class NoSearchMatchCommand extends UiCommand {
-  constructor() {
-    super("noMatch");
-  }
-
-  async execute() {
+const MAP_SEARCH_ACTION_COMMANDS = commandDispatcher([
+  ["noMatch", () => {
     setSearchResult("No matching place found.");
-  }
-}
-
-class FocusSearchPlaceCommand extends UiCommand {
-  constructor() {
-    super("focusPlace");
-  }
-
-  async execute(match) {
+  }],
+  ["focusPlace", (match) => {
     zoomToBounds(match.place.geometry.bounds, 1.35);
     setSearchResult(match.label);
     state.selectedTarget = match.target;
     if (state.selectedTarget?.targetType === "annotation") selectAnnotation(state.selectedTarget);
     render();
-  }
-}
-
-class FocusSearchFileCommand extends UiCommand {
-  constructor() {
-    super("focusFile");
-  }
-
-  async execute(match) {
+  }],
+  ["focusFile", async (match) => {
     zoomToReadableFile(match.file);
     await selectMapTarget(boundsCenter(match.file.bounds));
     setSearchResult(match.label);
-  }
-}
-
-class FocusSearchFolderCommand extends UiCommand {
-  constructor() {
-    super("focusFolder");
-  }
-
-  async execute(match) {
+  }],
+  ["focusFolder", (match) => {
     zoomToBounds(match.folder.bounds, 1.6);
     state.selectedTarget = { ...match.folder, targetType: "folder" };
     setText(controls.inspectorTitle, folderDisplayName(match.folder));
     setText(controls.inspectorSubtitle, `folder: ${match.folder.path || "."} | ${match.folder.geo.geohash}`);
     setSearchResult(match.label);
     render();
-  }
-}
+  }],
+]);
 
-class PanKeyboardCommand extends UiCommand {
-  constructor() {
-    super("pan");
-  }
-
-  async execute(action) {
+const CANVAS_KEYBOARD_COMMANDS = commandDispatcher([
+  ["pan", (action) => {
     animateViewTo(panViewByScreenDelta(state.view, action.delta, viewportSize()));
-  }
-}
-
-class ZoomInKeyboardCommand extends UiCommand {
-  constructor() {
-    super("zoomIn");
-  }
-
-  async execute() {
+  }],
+  ["zoomIn", () => {
     zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true });
-  }
-}
-
-class ZoomOutKeyboardCommand extends UiCommand {
-  constructor() {
-    super("zoomOut");
-  }
-
-  async execute() {
+  }],
+  ["zoomOut", () => {
     zoomAt(viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR, { animate: true });
-  }
-}
-
-class FitCodebaseKeyboardCommand extends UiCommand {
-  constructor() {
-    super("fitCodebase");
-  }
-
-  async execute() {
+  }],
+  ["fitCodebase", () => {
     fitCodebaseView({ animate: true });
-  }
-}
+  }],
+  ["selectCenter", () => selectMapTarget(screenToWorld(viewportCenter()))],
+]);
 
-class SelectCenterKeyboardCommand extends UiCommand {
-  constructor() {
-    super("selectCenter");
-  }
-
-  async execute() {
-    return selectMapTarget(screenToWorld(viewportCenter()));
-  }
-}
-
-class StartSpacePanCommand extends UiCommand {
-  constructor() {
-    super("startSpacePan");
-  }
-
-  async execute() {
+const DOCUMENT_KEYBOARD_COMMANDS = commandDispatcher([
+  ["startSpacePan", () => {
     setSpacePanMode(true);
-  }
-}
-
-class CancelInteractionCommand extends UiCommand {
-  constructor() {
-    super("cancelInteraction");
-  }
-
-  async execute() {
-    cancelCurrentInteraction();
-  }
-}
-
-class SaveSelectionCommand extends UiCommand {
-  constructor() {
-    super("saveSelection");
-  }
-
-  async execute() {
-    return saveSelection();
-  }
-}
-
-class CopyAnnotationPromptCommand extends UiCommand {
-  constructor() {
-    super("copyAnnotationPrompt");
-  }
-
-  async execute() {
-    return copySelectedAnnotationPrompt();
-  }
-}
-
-class DeleteAnnotationCommand extends UiCommand {
-  constructor() {
-    super("deleteAnnotation");
-  }
-
-  async execute() {
-    return deleteSelectedAnnotation();
-  }
-}
-
-const HASH_ROUTE_FOCUS_COMMANDS = new CommandDispatcher([
-  new FocusAnnotationRouteCommand(),
-  new FocusSelectionRouteCommand(),
-  new FocusMapRouteCommand(),
-]);
-
-const MAP_ROUTE_FOCUS_COMMANDS = new CommandDispatcher([
-  new FocusFileRouteCommand(),
-  new FocusFolderRouteCommand(),
-]);
-
-const DOUBLE_CLICK_ACTION_COMMANDS = new CommandDispatcher([
-  new FocusAnnotationCommand(),
-  new SelectFolderCommand(),
-  new SelectFileCommand(),
-  new SelectActivityCommand(),
-]);
-
-const MAP_TARGET_SELECTION_COMMANDS = new CommandDispatcher([
-  new ClearSelectionCommand(),
-  new InspectAnnotationCommand(),
-  new InspectActivityCommand(),
-  new InspectFolderCommand(),
-  new InspectFileCommand(),
-]);
-
-const MAP_SEARCH_ACTION_COMMANDS = new CommandDispatcher([
-  new NoSearchMatchCommand(),
-  new FocusSearchPlaceCommand(),
-  new FocusSearchFileCommand(),
-  new FocusSearchFolderCommand(),
-]);
-
-const CANVAS_KEYBOARD_COMMANDS = new CommandDispatcher([
-  new PanKeyboardCommand(),
-  new ZoomInKeyboardCommand(),
-  new ZoomOutKeyboardCommand(),
-  new FitCodebaseKeyboardCommand(),
-  new SelectCenterKeyboardCommand(),
-]);
-
-const DOCUMENT_KEYBOARD_COMMANDS = new CommandDispatcher([
-  new StartSpacePanCommand(),
-  new CancelInteractionCommand(),
-  new SaveSelectionCommand(),
-  new CopyAnnotationPromptCommand(),
-  new DeleteAnnotationCommand(),
+  }],
+  ["cancelInteraction", cancelCurrentInteraction],
+  ["saveSelection", saveSelection],
+  ["copyAnnotationPrompt", copySelectedAnnotationPrompt],
+  ["deleteAnnotation", deleteSelectedAnnotation],
 ]);
 
 await boot();

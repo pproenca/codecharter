@@ -22,43 +22,23 @@ const BUNDLED_PUBLIC_ROOT = fileURLToPath(new URL("../public", import.meta.url))
 const DEFAULT_PORT_SEARCH_LIMIT = 20;
 const DEFAULT_ACTIVITY_ARCHIVE = ".codecharter/activity.jsonl";
 
-class ApiRoute {
-  constructor(method, pattern, handle, { prefix = false } = {}) {
-    this.method = method;
-    this.pattern = pattern;
-    this.handle = handle;
-    this.prefix = prefix;
-  }
-
-  match(request, url) {
-    if (this.method !== request.method) return null;
-    return this.matchPath(url.pathname);
-  }
-
-  matchPath(pathname) {
-    if (!this.prefix) return pathname === this.pattern ? { params: {} } : null;
-    if (!pathname.startsWith(this.pattern) || pathname.length === this.pattern.length) return null;
-    return { params: { rest: pathname.slice(this.pattern.length) } };
-  }
-}
-
 const API_ROUTES = Object.freeze([
-  new ApiRoute("GET", "/api/map", getMapApi),
-  new ApiRoute("GET", "/api/map-version", getMapVersionApi),
-  new ApiRoute("GET", "/api/tiles", getTilesApi),
-  new ApiRoute("GET", "/api/prefixes", getPrefixesApi),
-  new ApiRoute("GET", "/api/resolve", getResolveApi),
-  new ApiRoute("GET", "/api/source", getSourceApi),
-  new ApiRoute("GET", "/api/named-places", getNamedPlacesApi),
-  new ApiRoute("POST", "/api/named-places", postNamedPlacesApi),
-  new ApiRoute("GET", "/api/annotations", getAnnotationsApi),
-  new ApiRoute("GET", "/api/annotations/", getAnnotationApi, { prefix: true }),
-  new ApiRoute("DELETE", "/api/annotations/", deleteAnnotationApi, { prefix: true }),
-  new ApiRoute("POST", "/api/annotations", postAnnotationsApi),
-  new ApiRoute("POST", "/api/selections/resolve", postSelectionResolveApi),
-  new ApiRoute("GET", "/api/activity", getActivityApi),
-  new ApiRoute("DELETE", "/api/activity", deleteActivityApi),
-  new ApiRoute("POST", "/api/activity", postActivityApi),
+  apiRoute("GET", "/api/map", getMapApi),
+  apiRoute("GET", "/api/map-version", getMapVersionApi),
+  apiRoute("GET", "/api/tiles", getTilesApi),
+  apiRoute("GET", "/api/prefixes", getPrefixesApi),
+  apiRoute("GET", "/api/resolve", getResolveApi),
+  apiRoute("GET", "/api/source", getSourceApi),
+  apiRoute("GET", "/api/named-places", getNamedPlacesApi),
+  apiRoute("POST", "/api/named-places", postNamedPlacesApi),
+  apiRoute("GET", "/api/annotations", getAnnotationsApi),
+  apiRoute("GET", "/api/annotations/", getAnnotationApi, { prefix: true }),
+  apiRoute("DELETE", "/api/annotations/", deleteAnnotationApi, { prefix: true }),
+  apiRoute("POST", "/api/annotations", postAnnotationsApi),
+  apiRoute("POST", "/api/selections/resolve", postSelectionResolveApi),
+  apiRoute("GET", "/api/activity", getActivityApi),
+  apiRoute("DELETE", "/api/activity", deleteActivityApi),
+  apiRoute("POST", "/api/activity", postActivityApi),
 ]);
 
 export async function startServer({
@@ -167,14 +147,29 @@ async function handleApi(state, request, response, url) {
 
 function matchingApiRoute(request, url) {
   for (const route of API_ROUTES) {
-    const match = route.match(request, url);
+    const match = matchApiRoute(route, request, url);
     if (match) return { route, ...match };
   }
   return null;
 }
 
 function knownApiPath(url) {
-  return API_ROUTES.some((route) => route.matchPath(url.pathname));
+  return API_ROUTES.some((route) => matchApiPath(route, url.pathname));
+}
+
+function apiRoute(method, pattern, handle, { prefix = false } = {}) {
+  return { method, pattern, handle, prefix };
+}
+
+function matchApiRoute(route, request, url) {
+  if (route.method !== request.method) return null;
+  return matchApiPath(route, url.pathname);
+}
+
+function matchApiPath(route, pathname) {
+  if (!route.prefix) return pathname === route.pattern ? { params: {} } : null;
+  if (!pathname.startsWith(route.pattern) || pathname.length === route.pattern.length) return null;
+  return { params: { rest: pathname.slice(route.pattern.length) } };
 }
 
 async function getMapApi(state, request, response) {
@@ -234,52 +229,16 @@ async function postNamedPlacesApi(state, request, response) {
   sendJson(response, 201, { place, overlaps: findNamedPlaceOverlaps(store.places) });
 }
 
-class NamedPlaceCreator {
-  constructor(kind) {
-    this.kind = kind;
-  }
-}
-
-class DrawnSelectionCreator extends NamedPlaceCreator {
-  constructor() {
-    super("drawnSelection");
-  }
-
-  create(codemap, body) {
-    return createNamedSelection(codemap, body);
-  }
-}
-
-class MapAddressCreator extends NamedPlaceCreator {
-  constructor() {
-    super("mapAddress");
-  }
-
-  create(_codemap, body) {
-    return createNamedAddress(body);
-  }
-}
-
-class NamedPlaceFactory {
-  constructor(creators) {
-    this.creatorsByKind = new Map(creators.map((creator) => [creator.kind, creator]));
-  }
-
-  create(codemap, body) {
-    const kind = body.kind ?? "drawnSelection";
-    const creator = this.creatorsByKind.get(kind);
-    if (!creator) throw httpError(400, `Unknown named-place kind: ${kind}`);
-    return creator.create(codemap, body);
-  }
-}
-
-const NAMED_PLACE_FACTORY = new NamedPlaceFactory([
-  new DrawnSelectionCreator(),
-  new MapAddressCreator(),
+const NAMED_PLACE_CREATORS = new Map([
+  ["drawnSelection", createNamedSelection],
+  ["mapAddress", (_codemap, body) => createNamedAddress(body)],
 ]);
 
 function createNamedPlace(codemap, body) {
-  return NAMED_PLACE_FACTORY.create(codemap, body);
+  const kind = body.kind ?? "drawnSelection";
+  const create = NAMED_PLACE_CREATORS.get(kind);
+  if (!create) throw httpError(400, `Unknown named-place kind: ${kind}`);
+  return create(codemap, body);
 }
 
 async function getAnnotationsApi(state, request, response) {

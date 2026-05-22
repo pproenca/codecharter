@@ -46,161 +46,69 @@ const ACTIVITY_STATE_STYLES = {
   reviewing: { fill: "#f59e0b", stroke: "#fef3c7", label: "#92400e" },
 };
 
-class ActionStrategy {
-  constructor(key, action) {
-    this.key = key;
-    this.action = action;
-  }
-
-  matches(key) {
-    return this.key === key;
-  }
-
-  resolve() {
-    return { ...this.action };
-  }
-}
-
-class ActionResolver {
-  constructor(strategies, fallbackAction = null) {
-    this.strategies = strategies;
-    this.fallbackAction = fallbackAction;
-  }
-
-  actionFor(key) {
-    const strategy = this.strategies.find((candidate) => candidate.matches(key));
-    if (strategy) return strategy.resolve();
-    return this.fallbackAction ? { ...this.fallbackAction } : null;
-  }
-}
-
-class MapSearchMatcher {
-  constructor(strategies) {
-    this.strategies = strategies;
-  }
-
-  match(codemap, namedPlaces, query) {
-    const normalized = String(query ?? "").trim().toLowerCase();
-    if (!normalized) return null;
-
-    for (const strategy of this.strategies) {
-      const match = strategy.match({ codemap, namedPlaces, query: normalized });
-      if (match) return match;
-    }
-
-    return null;
-  }
-}
-
-class NamedPlaceSearchStrategy {
-  match({ namedPlaces, query }) {
-    const namedPlace = namedPlaces.find((place) => place.name?.toLowerCase().includes(query));
-    if (!namedPlace?.geometry?.bounds) return null;
-
-    const annotation = namedPlace.kind === "mapAnnotation";
-    return {
-      type: annotation ? "annotation" : "namedPlace",
-      label: `${annotation ? "Annotation" : "Named place"}: ${namedPlace.name}`,
-      place: namedPlace,
-      target: annotation ? { ...namedPlace, targetType: "annotation" } : null,
-    };
-  }
-}
-
-class FileSearchStrategy {
-  match({ codemap, query }) {
-    const file = Object.values(codemap.files).find((candidate) =>
-      candidate.path.toLowerCase().includes(query) || candidate.geo.geohash.startsWith(query)
-    );
-    return file ? { type: "file", label: `File: ${file.path}`, file } : null;
-  }
-}
-
-class FolderSearchStrategy {
-  match({ codemap, query }) {
-    const folder = Object.values(codemap.folders).find((candidate) =>
-      candidate.path.toLowerCase().includes(query) || candidate.geo.geohash.startsWith(query)
-    );
-    return folder ? { type: "folder", label: `Folder: ${folder.path || "."}`, folder } : null;
-  }
-}
-
-class ActivityVisualEncoder {
-  encode(event, { latest = false, selected = false, now = Date.now() } = {}) {
-    const activityState = normalizeActivityState(event?.activityState);
-    const ageMinutes = activityAgeMinutes(event, now);
-    const decay = 2 ** (-ageMinutes / ACTIVITY_DECAY_HALF_LIFE_MINUTES);
-    const vitality = selected ? 1 : clamp(1 - ageMinutes / ACTIVITY_LIVE_WINDOW_MINUTES, 0, 1);
-    const dormant = !selected && ageMinutes > ACTIVITY_DORMANT_AFTER_MINUTES;
-    const dormancy = selected
-      ? 0
-      : clamp(
-        (ageMinutes - ACTIVITY_DORMANT_AFTER_MINUTES)
-          / (ACTIVITY_LIVE_WINDOW_MINUTES - ACTIVITY_DORMANT_AFTER_MINUTES),
-        0,
-        1,
-      );
-    const activeAlpha = selected
-      ? 1
-      : clamp(((latest ? 0.42 : ACTIVITY_MIN_ALPHA) + decay * (latest ? 0.58 : 0.38)) * vitality, 0, 1);
-    const alpha = dormant ? activeAlpha * (0.38 - dormancy * 0.18) : activeAlpha;
-    const activeScale = Math.max(0.55, vitality);
-    const dormantScale = 0.42 + (1 - dormancy) * 0.22;
-    const presenceScale = selected ? 1 : dormant ? dormantScale : activeScale;
-
-    return {
-      activityState,
-      active: !dormant,
-      dormant,
-      selected,
-      ageMinutes,
-      alpha,
-      coreRadius: (selected ? 8 : latest ? 6.5 : 3.8) * presenceScale,
-      haloRadius: dormant ? (latest ? 8 : 5) * presenceScale : (selected ? 28 : latest ? 22 : 12) * presenceScale,
-      membraneAlpha: dormant
-        ? (selected ? 0.18 : latest ? 0.045 : 0.025) * vitality
-        : (selected ? 0.22 : latest ? 0.15 : 0.07) * (selected ? 1 : vitality),
-      trailAlpha: dormant
-        ? (selected ? 0.36 : latest ? 0.09 : 0.045) * vitality
-        : (selected ? 0.72 : latest ? 0.42 : 0.18) * (selected ? 1 : vitality),
-      lineWidth: selected ? 3.2 : latest && !dormant ? 2.2 : latest ? 1.15 : 1.1,
-    };
-  }
-}
-
-const DOUBLE_CLICK_TARGET_ACTIONS = new ActionResolver([
-  new ActionStrategy("annotation", { type: "focusAnnotation" }),
-  new ActionStrategy("folder", { type: "selectFolder" }),
-  new ActionStrategy("file", { type: "selectFile" }),
-  new ActionStrategy("activity", { type: "selectActivity" }),
+const DOUBLE_CLICK_TARGET_ACTIONS = new Map([
+  ["annotation", { type: "focusAnnotation" }],
+  ["folder", { type: "selectFolder" }],
+  ["file", { type: "selectFile" }],
+  ["activity", { type: "selectActivity" }],
 ]);
 
-const MAP_TARGET_SELECTION_ACTIONS = new ActionResolver([
-  new ActionStrategy("annotation", { type: "focusAnnotation" }),
-  new ActionStrategy("activity", { type: "selectActivity" }),
-  new ActionStrategy("folder", { type: "inspectFolder" }),
-  new ActionStrategy("file", { type: "inspectFile" }),
-], { type: "clearSelection" });
-
-const MAP_ROUTE_FOCUS_ACTIONS = new ActionResolver([
-  new ActionStrategy("file", { type: "focusFile", zoomPadding: 1.35 }),
-  new ActionStrategy("folder", { type: "focusFolder", zoomPadding: 1.6 }),
+const MAP_TARGET_SELECTION_ACTIONS = new Map([
+  ["annotation", { type: "focusAnnotation" }],
+  ["activity", { type: "selectActivity" }],
+  ["folder", { type: "inspectFolder" }],
+  ["file", { type: "inspectFile" }],
 ]);
 
-const MAP_SEARCH_ACTIONS = new ActionResolver([
-  new ActionStrategy("annotation", { type: "focusPlace" }),
-  new ActionStrategy("namedPlace", { type: "focusPlace" }),
-  new ActionStrategy("file", { type: "focusFile" }),
-  new ActionStrategy("folder", { type: "focusFolder" }),
-], { type: "noMatch" });
-
-const MAP_SEARCH_MATCHER = new MapSearchMatcher([
-  new NamedPlaceSearchStrategy(),
-  new FileSearchStrategy(),
-  new FolderSearchStrategy(),
+const MAP_ROUTE_FOCUS_ACTIONS = new Map([
+  ["file", { type: "focusFile", zoomPadding: 1.35 }],
+  ["folder", { type: "focusFolder", zoomPadding: 1.6 }],
 ]);
 
-const ACTIVITY_VISUAL_ENCODER = new ActivityVisualEncoder();
+const MAP_SEARCH_ACTIONS = new Map([
+  ["annotation", { type: "focusPlace" }],
+  ["namedPlace", { type: "focusPlace" }],
+  ["file", { type: "focusFile" }],
+  ["folder", { type: "focusFolder" }],
+]);
+
+const MAP_SEARCH_MATCHERS = [
+  namedPlaceSearchMatch,
+  fileSearchMatch,
+  folderSearchMatch,
+];
+
+function actionFor(actions, key) {
+  const action = actions.get(key);
+  return action ? { ...action } : null;
+}
+
+function namedPlaceSearchMatch({ namedPlaces, query }) {
+  const namedPlace = namedPlaces.find((place) => place.name?.toLowerCase().includes(query));
+  if (!namedPlace?.geometry?.bounds) return null;
+
+  const annotation = namedPlace.kind === "mapAnnotation";
+  return {
+    type: annotation ? "annotation" : "namedPlace",
+    label: `${annotation ? "Annotation" : "Named place"}: ${namedPlace.name}`,
+    place: namedPlace,
+    target: annotation ? { ...namedPlace, targetType: "annotation" } : null,
+  };
+}
+
+function fileSearchMatch({ codemap, query }) {
+  const file = Object.values(codemap.files).find((candidate) =>
+    candidate.path.toLowerCase().includes(query) || candidate.geo.geohash.startsWith(query)
+  );
+  return file ? { type: "file", label: `File: ${file.path}`, file } : null;
+}
+
+function folderSearchMatch({ codemap, query }) {
+  const folder = Object.values(codemap.folders).find((candidate) =>
+    candidate.path.toLowerCase().includes(query) || candidate.geo.geohash.startsWith(query)
+  );
+  return folder ? { type: "folder", label: `Folder: ${folder.path || "."}`, folder } : null;
+}
 
 export function detailBand(scale) {
   if (scale < 1.35) return "district";
@@ -453,12 +361,12 @@ export function documentKeyboardAction(event, context = {}) {
 
 export function doubleClickMapAction(hit) {
   if (!hit) return null;
-  return DOUBLE_CLICK_TARGET_ACTIONS.actionFor(hit.targetType);
+  return actionFor(DOUBLE_CLICK_TARGET_ACTIONS, hit.targetType);
 }
 
 export function mapTargetSelectionAction(hit) {
   if (!hit) return { type: "clearSelection" };
-  return MAP_TARGET_SELECTION_ACTIONS.actionFor(hit.targetType);
+  return actionFor(MAP_TARGET_SELECTION_ACTIONS, hit.targetType);
 }
 
 export function isSpaceKeyEvent(event) {
@@ -668,16 +576,24 @@ export function hashRouteFocusIntent(route, { hasMap = true } = {}) {
 
 export function mapRouteFocusAction(target) {
   if (!target) return null;
-  return MAP_ROUTE_FOCUS_ACTIONS.actionFor(target.targetType);
+  return actionFor(MAP_ROUTE_FOCUS_ACTIONS, target.targetType);
 }
 
 export function mapSearchMatch(codemap, namedPlaces, query) {
-  return MAP_SEARCH_MATCHER.match(codemap, namedPlaces, query);
+  const normalized = String(query ?? "").trim().toLowerCase();
+  if (!normalized) return null;
+
+  for (const matcher of MAP_SEARCH_MATCHERS) {
+    const match = matcher({ codemap, namedPlaces, query: normalized });
+    if (match) return match;
+  }
+
+  return null;
 }
 
 export function mapSearchAction(match) {
   if (!match) return { type: "noMatch" };
-  return MAP_SEARCH_ACTIONS.actionFor(match.type);
+  return actionFor(MAP_SEARCH_ACTIONS, match.type);
 }
 
 export function mapSelectionPanel(target) {
@@ -806,7 +722,44 @@ export function normalizeActivityState(activityState) {
 }
 
 export function activityVisualEncoding(event, { latest = false, selected = false, now = Date.now() } = {}) {
-  return ACTIVITY_VISUAL_ENCODER.encode(event, { latest, selected, now });
+  const activityState = normalizeActivityState(event?.activityState);
+  const ageMinutes = activityAgeMinutes(event, now);
+  const decay = 2 ** (-ageMinutes / ACTIVITY_DECAY_HALF_LIFE_MINUTES);
+  const vitality = selected ? 1 : clamp(1 - ageMinutes / ACTIVITY_LIVE_WINDOW_MINUTES, 0, 1);
+  const dormant = !selected && ageMinutes > ACTIVITY_DORMANT_AFTER_MINUTES;
+  const dormancy = selected
+    ? 0
+    : clamp(
+      (ageMinutes - ACTIVITY_DORMANT_AFTER_MINUTES)
+        / (ACTIVITY_LIVE_WINDOW_MINUTES - ACTIVITY_DORMANT_AFTER_MINUTES),
+      0,
+      1,
+    );
+  const activeAlpha = selected
+    ? 1
+    : clamp(((latest ? 0.42 : ACTIVITY_MIN_ALPHA) + decay * (latest ? 0.58 : 0.38)) * vitality, 0, 1);
+  const alpha = dormant ? activeAlpha * (0.38 - dormancy * 0.18) : activeAlpha;
+  const activeScale = Math.max(0.55, vitality);
+  const dormantScale = 0.42 + (1 - dormancy) * 0.22;
+  const presenceScale = selected ? 1 : dormant ? dormantScale : activeScale;
+
+  return {
+    activityState,
+    active: !dormant,
+    dormant,
+    selected,
+    ageMinutes,
+    alpha,
+    coreRadius: (selected ? 8 : latest ? 6.5 : 3.8) * presenceScale,
+    haloRadius: dormant ? (latest ? 8 : 5) * presenceScale : (selected ? 28 : latest ? 22 : 12) * presenceScale,
+    membraneAlpha: dormant
+      ? (selected ? 0.18 : latest ? 0.045 : 0.025) * vitality
+      : (selected ? 0.22 : latest ? 0.15 : 0.07) * (selected ? 1 : vitality),
+    trailAlpha: dormant
+      ? (selected ? 0.36 : latest ? 0.09 : 0.045) * vitality
+      : (selected ? 0.72 : latest ? 0.42 : 0.18) * (selected ? 1 : vitality),
+    lineWidth: selected ? 3.2 : latest && !dormant ? 2.2 : latest ? 1.15 : 1.1,
+  };
 }
 
 export function activityTissueBox(screenBox, encoding = {}) {

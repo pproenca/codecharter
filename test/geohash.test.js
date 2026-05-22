@@ -19,6 +19,11 @@ test("decodes geohash bounds by mirroring encoder interval bisection", () => {
   assert.equal(encodeGeohash(center.lat, center.lon, 5), "ezs42");
 });
 
+test("rejects invalid geohash decode characters without uppercase aliases", () => {
+  assert.throws(() => decodeGeohashBounds("a"), /Invalid geohash character: a/);
+  assert.throws(() => decodeGeohashBounds("E"), /Invalid geohash character: E/);
+});
+
 test("maps the code plane into the standard geohash domain", () => {
   assert.deepEqual(codePointToGeo({ x: 0, y: 0 }), { lon: -180, lat: 90 });
   assert.deepEqual(codePointToGeo({ x: 0.5, y: 0.5 }), { lon: 0, lat: 0 });

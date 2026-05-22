@@ -1,4 +1,5 @@
 const BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz";
+const BASE32_DECODE = Object.fromEntries([...BASE32].map((char, index) => [char, index]));
 const GEOHASH_EAST_EDGE_EPSILON = 1e-12;
 
 export function codePlaneDescriptor() {
@@ -76,8 +77,8 @@ export function decodeGeohashBounds(geohash) {
   let evenBit = true;
 
   for (const char of geohash) {
-    const charIndex = BASE32.indexOf(char);
-    if (charIndex === -1) throw new Error(`Invalid geohash character: ${char}`);
+    const charIndex = BASE32_DECODE[char];
+    if (charIndex === undefined) throw new Error(`Invalid geohash character: ${char}`);
 
     for (let mask = 16; mask > 0; mask >>= 1) {
       if (evenBit) {

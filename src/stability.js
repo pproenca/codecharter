@@ -42,11 +42,15 @@ function stabilizeFolder(folder, previous, fallbackBounds) {
   if (newChildren.length > 0) {
     placeChildrenInGrowth(newChildren, folder.growthArea ?? folder.bounds);
     folder.growthArea = nextGrowthArea(folder.growthArea ?? folder.bounds);
-    for (const child of newChildren.filter((child) => child.type === "file")) assignAddress(child);
-  }
-
-  for (const child of newChildren.filter((child) => child.type === "folder")) {
-    layoutNewFolder(child, child.bounds);
+    const newFiles = [];
+    const newFolders = [];
+    for (const child of newChildren) {
+      if (child.type === "file") newFiles.push(child);
+      else if (child.type === "folder") newFolders.push(child);
+    }
+    for (const child of newFiles) assignAddress(child);
+    for (const child of newFolders) layoutNewFolder(child, child.bounds);
+    return;
   }
 }
 

@@ -153,14 +153,7 @@ export function maxFolderDepthForScale(scale) {
     return 99;
 }
 export function folderDepth(path) {
-    if (!path)
-        return 0;
-    let depth = 1;
-    for (let index = 0; index < path.length; index += 1) {
-        if (path.charCodeAt(index) === 47)
-            depth += 1;
-    }
-    return depth;
+    return path ? path.split("/").length : 0;
 }
 export function organicRegionFolders(codemap) {
     const folders = [...objectValues(codemap.folders ?? {})]
@@ -635,20 +628,14 @@ export function sourceContextRequest(path, lineRange = {}) {
     };
 }
 export function formatSourceLines(source) {
-    const lines = source.lines ?? [];
-    const formatted = new Array(lines.length);
-    for (let index = 0; index < lines.length; index += 1) {
-        const item = lines[index];
-        if (!item)
-            continue;
-        formatted[index] = `${String(item.number).padStart(4, " ")}  ${item.text}`;
-    }
-    return formatted.join("\n");
+    return (source.lines ?? [])
+        .map((item) => item ? `${String(item.number).padStart(4, " ")}  ${item.text}` : undefined)
+        .join("\n");
 }
 export function sourcePanelState({ path = "", deepLink = "", source = null, fallbackOutput = "" } = {}) {
     if (source) {
         return {
-            sourceTitle: sourceTitle(path, deepLink),
+            sourceTitle: path && deepLink ? `${path} · ${deepLink}` : path || deepLink,
             sourceOutput: formatSourceLines(source),
             scrollTop: 0,
         };
@@ -657,11 +644,6 @@ export function sourcePanelState({ path = "", deepLink = "", source = null, fall
         sourceTitle: path || deepLink,
         sourceOutput: fallbackOutput,
     };
-}
-function sourceTitle(path, deepLink) {
-    if (path && deepLink)
-        return `${path} · ${deepLink}`;
-    return path || deepLink;
 }
 export function annotationClipboardText(annotation, { origin = "", href = "" } = {}) {
     const reference = annotation.deepLink || `codecharter://annotation/${annotation.id}`;
@@ -1177,7 +1159,7 @@ export function isLiveActivityEvent(event, { now = Date.now(), maxAgeMinutes = A
 }
 export function sortedActivityEvents(events, limit = 80, options = {}) {
     if (limit <= 0)
-        return liveActivityEventsFromOffset(events, -limit, options);
+        return liveActivityEventsInTimeOrder(events, options).slice(Math.max(0, -limit));
     if (!liveActivityEventsAreInTimeOrder(events, options)) {
         return liveActivityEventsTailInTimeOrder(events, limit, options);
     }
@@ -1233,7 +1215,8 @@ function insertActivityFeedEvent(feed, event, timestamp, limit) {
     let index = 0;
     while (index < feed.length) {
         const item = feed[index];
-        if (compareActivityFeedItems(item, { timestamp }) > 0)
+        const order = timestamp - item.timestamp;
+        if ((Number.isNaN(order) ? 0 : order) > 0)
             break;
         index += 1;
     }
@@ -1263,10 +1246,6 @@ function latestActivityByAgentViaSort(events, options) {
     }
     return latest;
 }
-function compareActivityFeedItems(left, right) {
-    const result = right.timestamp - left.timestamp;
-    return Number.isNaN(result) ? 0 : result;
-}
 function liveActivityEventsInTimeOrder(events, options) {
     const liveEvents = [];
     for (const event of events) {
@@ -1275,9 +1254,6 @@ function liveActivityEventsInTimeOrder(events, options) {
         liveEvents.push(event);
     }
     return sortIfNeeded(liveEvents, compareActivityEventsByTime);
-}
-function liveActivityEventsFromOffset(events, offset, options) {
-    return liveActivityEventsInTimeOrder(events, options).slice(Math.max(0, offset));
 }
 function liveActivityEventsTailInTimeOrder(events, limit, options) {
     if (!Number.isFinite(limit))

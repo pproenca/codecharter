@@ -321,12 +321,7 @@ export function maxFolderDepthForScale(scale: number): number {
 }
 
 export function folderDepth(path: string): number {
-  if (!path) return 0;
-  let depth = 1;
-  for (let index = 0; index < path.length; index += 1) {
-    if (path.charCodeAt(index) === 47) depth += 1;
-  }
-  return depth;
+  return path ? path.split("/").length : 0;
 }
 
 export function organicRegionFolders(codemap: CodecharterCodemap) {
@@ -819,20 +814,15 @@ export function sourceContextRequest(path: string, lineRange: LineRange = {}) {
 }
 
 export function formatSourceLines(source: { lines?: SourceLine[] }): string {
-  const lines = source.lines ?? [];
-  const formatted = new Array(lines.length);
-  for (let index = 0; index < lines.length; index += 1) {
-    const item = lines[index];
-    if (!item) continue;
-    formatted[index] = `${String(item.number).padStart(4, " ")}  ${item.text}`;
-  }
-  return formatted.join("\n");
+  return (source.lines ?? [])
+    .map((item) => item ? `${String(item.number).padStart(4, " ")}  ${item.text}` : undefined)
+    .join("\n");
 }
 
 export function sourcePanelState({ path = "", deepLink = "", source = null, fallbackOutput = "" }: { path?: string; deepLink?: string; source?: SourceRange | null; fallbackOutput?: string } = {}) {
   if (source) {
     return {
-      sourceTitle: sourceTitle(path, deepLink),
+      sourceTitle: path && deepLink ? `${path} · ${deepLink}` : path || deepLink,
       sourceOutput: formatSourceLines(source),
       scrollTop: 0,
     };
@@ -842,11 +832,6 @@ export function sourcePanelState({ path = "", deepLink = "", source = null, fall
     sourceTitle: path || deepLink,
     sourceOutput: fallbackOutput,
   };
-}
-
-function sourceTitle(path: string, deepLink: string): string {
-  if (path && deepLink) return `${path} · ${deepLink}`;
-  return path || deepLink;
 }
 
 export function annotationClipboardText(annotation: MapAnnotationPlace, { origin = "", href = "" }: { origin?: string; href?: string } = {}) {
@@ -1390,7 +1375,7 @@ export function isLiveActivityEvent(event: ActivityEvent, { now = Date.now(), ma
 }
 
 export function sortedActivityEvents(events: ActivityEvent[], limit = 80, options: ActivityFogOptions = {}): ActivityEvent[] {
-  if (limit <= 0) return liveActivityEventsFromOffset(events, -limit, options);
+  if (limit <= 0) return liveActivityEventsInTimeOrder(events, options).slice(Math.max(0, -limit));
   if (!liveActivityEventsAreInTimeOrder(events, options)) {
     return liveActivityEventsTailInTimeOrder(events, limit, options);
   }
@@ -1450,7 +1435,8 @@ function insertActivityFeedEvent(feed: ActivityFeedItem[], event: ActivityEvent,
   let index = 0;
   while (index < feed.length) {
     const item = feed[index]!;
-    if (compareActivityFeedItems(item, { timestamp }) > 0) break;
+    const order = timestamp - item.timestamp;
+    if ((Number.isNaN(order) ? 0 : order) > 0) break;
     index += 1;
   }
   if (index >= limit) return;
@@ -1480,11 +1466,6 @@ function latestActivityByAgentViaSort(events: ActivityEvent[], options: Activity
   return latest;
 }
 
-function compareActivityFeedItems(left: ActivityFeedItem, right: Pick<ActivityFeedItem, "timestamp">): number {
-  const result = right.timestamp - left.timestamp;
-  return Number.isNaN(result) ? 0 : result;
-}
-
 function liveActivityEventsInTimeOrder(events: ActivityEvent[], options: ActivityFogOptions): ActivityEvent[] {
   const liveEvents: ActivityEvent[] = [];
   for (const event of events) {
@@ -1492,10 +1473,6 @@ function liveActivityEventsInTimeOrder(events: ActivityEvent[], options: Activit
     liveEvents.push(event);
   }
   return sortIfNeeded(liveEvents, compareActivityEventsByTime);
-}
-
-function liveActivityEventsFromOffset(events: ActivityEvent[], offset: number, options: ActivityFogOptions): ActivityEvent[] {
-  return liveActivityEventsInTimeOrder(events, options).slice(Math.max(0, offset));
 }
 
 function liveActivityEventsTailInTimeOrder(events: ActivityEvent[], limit: number, options: ActivityFogOptions): ActivityEvent[] {

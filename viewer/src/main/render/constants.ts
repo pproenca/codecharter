@@ -5,7 +5,7 @@
  */
 import type { PaletteColor } from "./types.ts";
 
-export const SOURCE_TEXT_MIN_LINE_HEIGHT = 14;
+export const SOURCE_TEXT_MIN_LINE_HEIGHT = 13;
 export const SOURCE_TEXT_MIN_WIDTH = 260;
 export const SOURCE_TEXT_MAX_LINES_PER_FRAME = 200;
 export const SOURCE_TEXT_PREFETCH_LINES = 12;

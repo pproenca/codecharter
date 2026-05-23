@@ -109,6 +109,7 @@ import {
   createSelectionHashRoute,
   parseHashRoute,
 } from "./deep-links.ts";
+import { deleteAnnotationRequest } from "./annotations.ts";
 import { copyTextToClipboard } from "./clipboard.ts";
 
 type BrowserControl = HTMLElement & {
@@ -2767,7 +2768,7 @@ async function deleteSelectedAnnotation() {
   clearPendingAnnotationDelete();
   setDeleteButtonsDisabled(true);
   setSelectionStatus("Deleting annotation…");
-  await deleteJson(`/api/annotations/${encodeURIComponent(annotation.id)}`);
+  await deleteAnnotationRequest(annotation.id);
   removeNamedPlace(annotation.id);
   state.selectedTarget = null;
   state.draftSelection = null;

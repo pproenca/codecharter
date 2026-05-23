@@ -16,5 +16,16 @@ test("generated CodeCharter skill resolves compact prompts through local CLIs be
   assert.match(skill, /codecharter --json resolve/);
   assert.match(skill, /\.\/node_modules\/\.bin\/codecharter/);
   assert.match(skill, /\.\/node_modules\/\.bin\/tsx core\/bin\/codemap\.mts/);
-  assert.match(skill, /npx --yes codecharter@0\.2\.0 --json resolve/);
+  assert.match(skill, new RegExp(`npx --yes codecharter@${escapeRegExp(await rootPackageVersion())} --json resolve`));
 });
+
+async function rootPackageVersion(): Promise<string> {
+  const manifest = JSON.parse(await readFile(new URL("../../../package.json", import.meta.url), "utf8")) as { version?: unknown };
+  const { version } = manifest;
+  if (typeof version !== "string") throw new TypeError("package.json version must be a string");
+  return version;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

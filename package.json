@@ -1,6 +1,6 @@
 {
   "name": "codecharter",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Deterministic geohash-addressed code map with an agent-activity overlay. Modernized monorepo: @codecharter/core (codemap engine + hardened localhost server + CLI) and @codecharter/viewer (canvas SPA).",
   "type": "module",
   "bin": {

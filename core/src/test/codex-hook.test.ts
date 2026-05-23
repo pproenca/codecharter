@@ -68,11 +68,22 @@ test("Codex adapter records through a source checkout hook without a package bin
     assert.equal(hooksJson.hooks.PostToolUse?.[0]?.matcher?.includes("multi_tool_use.parallel"), true);
 
     const installedHook = await readFile(hookPath, "utf8");
-    assert.match(installedHook, /codecharter@0\.2\.0/);
+    assert.match(installedHook, new RegExp(`codecharter@${escapeRegExp(await rootPackageVersion())}`));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+async function rootPackageVersion(): Promise<string> {
+  const manifest = JSON.parse(await readFile(new URL("../../../package.json", import.meta.url), "utf8")) as { version?: unknown };
+  const { version } = manifest;
+  if (typeof version !== "string") throw new TypeError("package.json version must be a string");
+  return version;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 async function fixtureRoot(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "codecharter-codex-hook-"));

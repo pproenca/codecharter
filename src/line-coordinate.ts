@@ -83,7 +83,7 @@ export function codeRangeGeometry(file: CodeFileGeometry, request: CodeRangeRequ
   const tokenRange = tokenRangeForRequest(file, request);
   const fragments = fragmentGeometries(file, request.fragments);
   const bounds = fragments.length
-    ? unionFragmentBounds(fragments)
+    ? unionBounds(fragments.map((fragment) => fragment.bounds))
     : tokenRange ? tokenBounds(file, lineBounds, tokenRange) : lineBounds;
 
   return {
@@ -208,10 +208,6 @@ function unionBounds(boundsList: Bounds[]): Bounds {
     width: round(x2 - x1),
     height: round(y2 - y1),
   };
-}
-
-function unionFragmentBounds(fragments: CodeRangeFragmentGeometry[]): Bounds {
-  return unionBounds(fragments.map((fragment) => fragment.bounds));
 }
 
 function normalizeRange(left: number, right: number): NormalizedRange {

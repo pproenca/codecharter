@@ -113,12 +113,10 @@ export function resolveSelection(codemap: CodecharterCodemap, selection: Selecti
   const geometry = normalizeSelectionGeometry(selection.geometry);
   const targets = selectionResolverForLevel(level)(codemap, geometry, level);
 
-  const coveringSet = sortedUniqueGeohashes(targets);
-
   return {
     geometry,
     spatialFrame: spatialFrameForGeometry(geometry, level),
-    coveringSet,
+    coveringSet: sortedUniqueStrings(targets.map((target) => target.geohash)),
     resolvedTargets: sortIfNeeded(targets, compareSelectionTargetPaths),
   };
 }
@@ -279,10 +277,6 @@ function intersectingTargets<T extends MapFolderTarget | MapFileTarget>(
     if (item) resolved.push(item);
   }
   return resolved;
-}
-
-function sortedUniqueGeohashes(targets: ResolvedSelectionTarget[]): string[] {
-  return sortedUniqueStrings(targets.map((target) => target.geohash));
 }
 
 function compareSelectionTargetPaths(a: ResolvedSelectionTarget, b: ResolvedSelectionTarget): number {

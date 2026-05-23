@@ -21,18 +21,8 @@ export type ActivitySnapshot = {
   events: StoredActivityEvent[];
 };
 
-export function createActivityStore({
-  archivePath,
-  flushIntervalMs = DEFAULT_FLUSH_INTERVAL_MS,
-  maxMemoryEvents = DEFAULT_MAX_MEMORY_EVENTS,
-  maxArchiveQueueEvents = DEFAULT_MAX_ARCHIVE_QUEUE_EVENTS,
-}: ActivityStoreOptions = {}): ActivityStore {
-  return new ActivityStore({
-    flushIntervalMs,
-    maxMemoryEvents,
-    maxArchiveQueueEvents,
-    ...(archivePath === undefined ? {} : { archivePath }),
-  });
+export function createActivityStore(options: ActivityStoreOptions = {}): ActivityStore {
+  return new ActivityStore(options);
 }
 
 export class ActivityStore {
@@ -137,8 +127,7 @@ function trimOldest(events: StoredActivityEvent[], maxEvents: number): void {
 export async function appendActivityEvents(archivePath: string, events: StoredActivityEvent[]): Promise<void> {
   if (!events.length) return;
   await mkdir(dirname(archivePath), { recursive: true });
-  const lines = events.map((event) => JSON.stringify(event));
-  await appendFile(archivePath, `${lines.join("\n")}\n`);
+  await appendFile(archivePath, `${events.map((event) => JSON.stringify(event)).join("\n")}\n`);
 }
 
 export async function ensureActivityArchive(archivePath: string): Promise<void> {

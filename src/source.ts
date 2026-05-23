@@ -68,7 +68,6 @@ async function readLines(path: string, low: number, high: number): Promise<Sourc
 }
 
 function normalizeLine(value: number, lineCount: number): number {
-  const line = Number(value);
-  if (!Number.isInteger(line)) throw new Error(`Line must be an integer: ${value}`);
-  return Math.min(lineCount, Math.max(1, line));
+  if (!Number.isInteger(value)) throw new Error(`Line must be an integer: ${value}`);
+  return Math.min(lineCount, Math.max(1, value));
 }

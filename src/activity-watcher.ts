@@ -72,7 +72,7 @@ export class ActivityWatcher {
     activityState = "editing",
     intervalMs = DEFAULT_INTERVAL_MS,
     throttleMs = DEFAULT_THROTTLE_MS,
-    prepareChanges = async () => {},
+    prepareChanges = () => {},
     createActivityPayload = defaultActivityPayload,
     postActivity = sendActivityDatagram,
   }: ActivityWatcherOptions = {}) {
@@ -180,10 +180,7 @@ export function parseGitStatusPorcelain(raw: string): string[] {
 }
 
 function isCopiedOrRenamedStatus(status: string): boolean {
-  return status.charCodeAt(0) === 82
-    || status.charCodeAt(1) === 82
-    || status.charCodeAt(0) === 67
-    || status.charCodeAt(1) === 67;
+  return status.includes("R") || status.includes("C");
 }
 
 async function changedGitPaths(root: string | undefined): Promise<string[]> {

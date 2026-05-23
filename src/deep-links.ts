@@ -42,7 +42,7 @@ export function parseCodemapDeepLink(value: string): ParsedCodemapDeepLink {
   return {
     kind,
     locator,
-    metadata: metadataFromSearchParams(url.searchParams),
+    metadata: Object.fromEntries(url.searchParams),
   };
 }
 
@@ -69,10 +69,6 @@ function searchParams(metadata: DeepLinkMetadata): URLSearchParams {
   return new URLSearchParams(
     Object.entries(metadata).flatMap(([key, value]) => value !== undefined && value !== "" ? [[key, String(value)]] : []),
   );
-}
-
-function metadataFromSearchParams(params: URLSearchParams): Record<string, string> {
-  return Object.fromEntries(params);
 }
 
 function formatRouteNumber(value: number): string {

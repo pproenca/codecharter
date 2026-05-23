@@ -594,23 +594,18 @@ async function resolveCliAddress(mapPath: string, { path, lineStartRaw, lineEndR
 function requestFromDeepLink(parsed: ParsedCodemapDeepLink): CliAddressRequest & { lineStart?: number; lineEnd?: number; columnStart?: number; columnEnd?: number } {
   const path = parsed.metadata.path;
   if (!path) throw new Error("Deep link does not include path metadata");
-  const request: { path: string; lineStart?: number; lineEnd?: number; columnStart?: number; columnEnd?: number } = { path };
   const lineRange = parseRange(parsed.metadata.lines);
   const columnRange = parseRange(parsed.metadata.columns);
-  if (lineRange) {
-    request.lineStart = lineRange.start;
-    request.lineEnd = lineRange.end;
-  }
-  if (columnRange) {
-    request.columnStart = columnRange.start;
-    request.columnEnd = columnRange.end;
-  }
-  return request;
+  return {
+    path,
+    ...(lineRange ? { lineStart: lineRange.start, lineEnd: lineRange.end } : {}),
+    ...(columnRange ? { columnStart: columnRange.start, columnEnd: columnRange.end } : {}),
+  };
 }
 
 function parseRange(value: string | undefined): Range | undefined {
   if (!value) return undefined;
-  const match = String(value).match(/^(\d+)(?:-(\d+))?$/);
+  const match = value.match(/^(\d+)(?:-(\d+))?$/);
   if (!match) throw new Error(`Invalid range in deep link metadata: ${value}`);
   return { start: Number(match[1]), end: Number(match[2] ?? match[1]) };
 }
@@ -924,9 +919,7 @@ async function listAnnotationsFromStorage({ root, mapPath }: { root: string; map
   const storePath = join(root, ".codecharter", "named-places.json");
   const store = namedPlacesFileFromValue(await readOptionalJson(storePath));
   const codemap = codemapFromValue(await readOptionalJson(mapPath));
-  return store.places
-    .filter((place: { kind?: string }) => place.kind === "mapAnnotation")
-    .map((annotation: MapAnnotation) => codemap ? refreshPlaceResolution(codemap, annotation) : annotation);
+  return store.places.map((annotation) => codemap ? refreshPlaceResolution(codemap, annotation) : annotation);
 }
 
 async function readAnnotation({ root, mapPath, reference, server }: AnnotationReferenceOptions): Promise<AnnotationEnvelope> {
@@ -948,7 +941,7 @@ async function readAnnotation({ root, mapPath, reference, server }: AnnotationRe
 async function readAnnotationFromStorage({ root, mapPath, id }: AnnotationStorageOptions): Promise<MapAnnotation> {
   const storePath = join(root, ".codecharter", "named-places.json");
   const store = namedPlacesFileFromValue(await readOptionalJson(storePath));
-  const annotation = store.places.find((place: { kind?: string; id?: string }) => place.kind === "mapAnnotation" && place.id === id);
+  const annotation = store.places.find((place) => place.id === id);
   if (!annotation) throw new Error(`No annotation found for id: ${id}`);
 
   const codemap = codemapFromValue(await readOptionalJson(mapPath));
@@ -1195,8 +1188,7 @@ function optionalNumber(value: string | undefined): number | undefined {
 
 function namedPlacesFileFromValue(value: unknown): NamedPlacesFile {
   const record = objectRecord(value);
-  const places = Array.isArray(record?.places) ? record.places.filter(isMapAnnotation) : [];
-  return { places };
+  return { places: Array.isArray(record?.places) ? record.places.filter(isMapAnnotation) : [] };
 }
 
 function codemapFromValue(value: unknown): CodecharterCodemap | undefined {

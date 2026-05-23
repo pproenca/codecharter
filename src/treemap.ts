@@ -3,7 +3,7 @@ import { sortedChildren, sortedFiles, sortedFolders } from "./tree.ts";
 import type { FolderNode, LayoutBounds } from "./tree.js";
 
 export function layoutTree(root: FolderNode): FolderNode {
-  assignFolderLayout(root, unitBounds(), { root: true });
+  assignFolderLayout(root, { x: 0, y: 0, width: 1, height: 1 }, { root: true });
   return root;
 }
 
@@ -26,8 +26,4 @@ function assignFolderLayout(folder: FolderNode, bounds: LayoutBounds, options: {
   for (const child of sortedFiles(folder)) {
     assignAddress(child);
   }
-}
-
-function unitBounds(): LayoutBounds {
-  return { x: 0, y: 0, width: 1, height: 1 };
 }

@@ -69,7 +69,7 @@ export class FolderNode {
   childFolder(name: string): FolderNode {
     let folder = this.folders.get(name);
     if (!folder) {
-      folder = new FolderNode(joinPath(this.path, name));
+      folder = new FolderNode(this.path ? `${this.path}/${name}` : name);
       this.folders.set(name, folder);
       this.sortedFolderCache = null;
     }
@@ -168,10 +168,6 @@ export function sortedFiles(folder: FolderNode): FileNode[] {
 
 function compareNodeNames(a: { name: string }, b: { name: string }): number {
   return a.name.localeCompare(b.name);
-}
-
-function joinPath(parent: string, child: string): string {
-  return parent ? `${parent}/${child}` : child;
 }
 
 function lastPathSegment(path: string): string {

@@ -90,7 +90,8 @@ function tokenFragments(diff: string): TokenFragment[] {
   const fragments: TokenFragment[] = [];
   let nextLine: number | null = null;
 
-  for (const rawLine of diffLines(diff)) {
+  for (const line of diff.split("\n")) {
+    const rawLine = line.endsWith("\r") ? line.slice(0, -1) : line;
     const hunk = rawLine.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);
     if (hunk) {
       nextLine = Number(hunk[1]);
@@ -114,10 +115,6 @@ function tokenFragments(diff: string): TokenFragment[] {
   }
 
   return fragments;
-}
-
-function diffLines(diff: string): string[] {
-  return diff.split("\n").map((line) => line.endsWith("\r") ? line.slice(0, -1) : line);
 }
 
 function columnSpanFromFragments(fragments: TokenFragment[]): ColumnSpan | null {

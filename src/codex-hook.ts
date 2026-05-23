@@ -281,7 +281,7 @@ function normalizeCodexThreadId(value: unknown): string | undefined {
 
 function inferActivityState(payload: HookPayload): ActivityStateInput {
   if (!isShellTool(payload)) return "editing";
-  const command = shellCommand(payload);
+  const command = findShellCommand(payload.tool_input);
   if (/\b(pnpm|npm|yarn|bun)\s+(test|vitest|jest)\b/.test(command)) return "testing";
   if (/\b(vitest|jest|pytest|cargo\s+test|go\s+test|swift\s+test|xcodebuild\s+test)\b/.test(command)) return "testing";
   return "editing";
@@ -289,7 +289,7 @@ function inferActivityState(payload: HookPayload): ActivityStateInput {
 
 function readCommandActivity(root: string, codemap: CodecharterCodemap, payload: HookPayload): { changes: CodexChange[]; matchedReadCommand: boolean } {
   if (!isShellTool(payload)) return { changes: [], matchedReadCommand: false };
-  const command = shellCommand(payload);
+  const command = findShellCommand(payload.tool_input);
   if (!command) return { changes: [], matchedReadCommand: false };
 
   const changes: CodexChange[] = [];
@@ -301,7 +301,7 @@ function readCommandActivity(root: string, codemap: CodecharterCodemap, payload:
     const commandToken = tokens[0];
     if (!commandToken) continue;
     const commandName = basename(commandToken);
-    const strategy = readCommandStrategy(commandName);
+    const strategy = READ_COMMAND_STRATEGIES.get(commandName);
     if (!strategy) continue;
     matchedReadCommand = true;
 
@@ -332,10 +332,6 @@ function isShellTool(payload: HookPayload): boolean {
   return SHELL_TOOL_NAMES.has(toolName) || toolName.endsWith(".exec_command");
 }
 
-function shellCommand(payload: HookPayload): string {
-  return findShellCommand(payload.tool_input);
-}
-
 function findShellCommand(value: unknown): string {
   if (typeof value === "string") return value;
   const record = objectRecord(value);
@@ -349,7 +345,7 @@ function findShellCommand(value: unknown): string {
     const nested = record[key];
     if (typeof nested === "string") {
       const parsed = parseHookPayload(nested);
-      if (parsed && typeof parsed === "object" && hasOwnEnumerableProperty(parsed)) {
+      if (parsed && typeof parsed === "object" && Object.keys(parsed).length > 0) {
         const parsedCommand: string = findShellCommand(parsed);
         if (parsedCommand) return parsedCommand;
       }
@@ -434,16 +430,12 @@ function collectStructuredToolPaths(value: unknown, paths: string[]): void {
   if (!record) return;
 
   for (const [key, child] of Object.entries(record)) {
-    if (isPathKey(key) && typeof child === "string") {
+    if (/^(file_?path|path|filename)$/i.test(key) && typeof child === "string") {
       paths.push(child);
       continue;
     }
     if (child && typeof child === "object") collectStructuredToolPaths(child, paths);
   }
-}
-
-function isPathKey(key: string): boolean {
-  return /^(file_?path|path|filename)$/i.test(key);
 }
 
 function shellWords(segment: string): string[] {
@@ -454,12 +446,8 @@ function shellWords(segment: string): string[] {
   return words;
 }
 
-function readCommandStrategy(commandName: string): ReadCommandStrategy | null {
-  return READ_COMMAND_STRATEGIES.get(commandName) ?? null;
-}
-
 function readCommandPathCandidates(commandName: string, tokens: string[], codemap: CodecharterCodemap, root = ""): string[] {
-  const strategy = readCommandStrategy(commandName);
+  const strategy = READ_COMMAND_STRATEGIES.get(commandName);
   return strategy ? strategy.pathCandidates({ root, commandName, tokens, codemap }) : [];
 }
 
@@ -510,7 +498,7 @@ function ripgrepPathCandidates({ tokens, codemap }: ReadCommandContext): string[
       filesMode = true;
       continue;
     }
-    if (rgOptionConsumesNext(token)) {
+    if (RG_OPTIONS_WITH_VALUE.has(token)) {
       index += 1;
       continue;
     }
@@ -532,10 +520,6 @@ function ripgrepPathCandidates({ tokens, codemap }: ReadCommandContext): string[
 
 function readOptionConsumesNext(token: string): boolean {
   return READ_OPTIONS_WITH_VALUE.has(token);
-}
-
-function rgOptionConsumesNext(token: string): boolean {
-  return RG_OPTIONS_WITH_VALUE.has(token);
 }
 
 function emptyLineRange(_context: ReadCommandContext): ReadLineRange {
@@ -602,10 +586,6 @@ function parseHookPayload(input: string): HookPayload {
   } catch {
     return {};
   }
-}
-
-function hasOwnEnumerableProperty(value: object): boolean {
-  return Object.keys(value).length > 0;
 }
 
 async function readCodemap(mapPath: string): Promise<CodecharterCodemap> {

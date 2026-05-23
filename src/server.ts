@@ -320,7 +320,8 @@ async function getSourceApi(state: ServerState, _request: IncomingMessage, respo
 
 async function getNamedPlacesApi(state: ServerState, _request: IncomingMessage, response: ServerResponse): Promise<void> {
   const codemap = await loadCodemap(state);
-  sendJson(response, 200, withOverlaps(refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }))));
+  const store = refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }));
+  sendJson(response, 200, { ...store, overlaps: findNamedPlaceOverlaps(store.places ?? []) });
 }
 
 async function postNamedPlacesApi(state: ServerState, request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -345,7 +346,7 @@ function createNamedPlace(codemap: CodecharterCodemap, body: JsonObject): NamedP
 async function getAnnotationsApi(state: ServerState, _request: IncomingMessage, response: ServerResponse): Promise<void> {
   const codemap = await loadCodemap(state);
   const store = refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }));
-  sendJson(response, 200, { annotations: mapAnnotations(store.places) });
+  sendJson(response, 200, { annotations: store.places.filter((place): place is MapAnnotation => place.kind === "mapAnnotation") });
 }
 
 async function getAnnotationApi(
@@ -550,27 +551,12 @@ function sendJson(response: ServerResponse, statusCode: number, value: unknown):
   response.end(JSON.stringify(value, null, 2));
 }
 
-function withOverlaps(store: NamedPlacesStore): NamedPlacesStore & { overlaps: ReturnType<typeof findNamedPlaceOverlaps> } {
-  return {
-    ...store,
-    overlaps: findNamedPlaceOverlaps(store.places ?? []),
-  };
-}
-
 function refreshNamedPlaces(codemap: CodecharterCodemap, store: unknown): NamedPlacesStore {
   const normalizedStore = normalizeNamedPlacesStore(store);
   return {
     ...normalizedStore,
-    places: refreshPlaces(codemap, normalizedStore.places),
+    places: normalizedStore.places.map((place) => refreshPlaceResolution(codemap, place)),
   };
-}
-
-function mapAnnotations(places: NamedPlace[]): MapAnnotation[] {
-  return places.filter((place): place is MapAnnotation => place.kind === "mapAnnotation");
-}
-
-function refreshPlaces(codemap: CodecharterCodemap, places: NamedPlace[]): NamedPlace[] {
-  return places.map((place) => refreshPlaceResolution(codemap, place));
 }
 
 function requiredParam(url: URL, name: string): string {

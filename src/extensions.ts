@@ -1,3 +1,5 @@
+import { extname } from "node:path";
+
 export const CODE_EXTENSIONS: ReadonlySet<string> = new Set([
   ".c",
   ".cc",
@@ -37,8 +39,6 @@ export const CODE_EXTENSIONS: ReadonlySet<string> = new Set([
 
 export function isCodeFile(path: string): boolean {
   const lower = path.toLowerCase();
-  for (const extension of CODE_EXTENSIONS) {
-    if (lower.endsWith(extension)) return true;
-  }
-  return false;
+  const extension = extname(lower);
+  return lower.endsWith(extension) && CODE_EXTENSIONS.has(extension);
 }

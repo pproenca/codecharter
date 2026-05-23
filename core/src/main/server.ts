@@ -51,6 +51,8 @@ const DEFAULT_PORT_SEARCH_LIMIT = 20;
 const DEFAULT_ACTIVITY_ARCHIVE = ".codecharter/activity.jsonl";
 const MAX_BODY_BYTES = 1024 * 1024; // HARDENING: cap request bodies at 1 MB (DoS)
 const LOCAL_HOSTNAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+const VIEWER_ACTIVITY_LIVE_WINDOW_MS = 360 * 60 * 1000;
+const VIEWER_ACTIVITY_TRAIL_LIMIT = 80;
 
 type ServerConfig = {
   activityPath?: string;
@@ -72,6 +74,12 @@ type CodemapCache = {
   codemap: CodecharterCodemap;
 };
 
+type ViewerActivityArchiveCache = {
+  size: bigint;
+  recent: StoredActivityEvent[];
+  explored: StoredActivityEvent[];
+};
+
 type ServerState = {
   root: string;
   mapPath: string;
@@ -81,6 +89,7 @@ type ServerState = {
   activityArchivePath: string;
   activityStore: ReturnType<typeof createActivityStore>;
   codemapCache?: CodemapCache; // HARDENING/perf: mtime:size-keyed parsed-map cache
+  viewerActivityArchiveCache?: ViewerActivityArchiveCache;
 };
 
 type HttpError = Error & { statusCode: number };
@@ -106,7 +115,10 @@ type ApiRoute = {
 };
 type ActivitySnapshot = {
   events: StoredActivityEvent[];
+  version?: string;
+  unchanged?: true;
 };
+type ViewerActivityDetail = "summary" | "full";
 
 const API_ROUTES = Object.freeze([
   apiRoute("GET", "/api/map", getMapApi),
@@ -470,8 +482,12 @@ async function postSelectionResolveApi(state: ServerState, request: IncomingMess
   sendJson(response, 200, createNamedSelection(codemap, selectionInputFromBody(body, { name: String(body.name ?? "Preview") })));
 }
 
-async function getActivityApi(state: ServerState, _request: IncomingMessage, response: ServerResponse): Promise<void> {
-  sendJson(response, 200, await activitySnapshot(state));
+async function getActivityApi(state: ServerState, _request: IncomingMessage, response: ServerResponse, url: URL): Promise<void> {
+  sendJson(response, 200, await activitySnapshot(state, {
+    viewer: url.searchParams.get("view") === "viewer",
+    detail: url.searchParams.get("detail") === "summary" ? "summary" : "full",
+    ...(url.searchParams.has("version") ? { version: url.searchParams.get("version") ?? "" } : {}),
+  }));
 }
 
 async function deleteActivityApi(state: ServerState, _request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -538,10 +554,237 @@ function acceptActivityRequest(state: ServerState, request: IncomingMessage): vo
     });
 }
 
-async function activitySnapshot(state: ServerState): Promise<ActivitySnapshot> {
+async function activitySnapshot(state: ServerState, { viewer = false, version, detail = "full" }: { viewer?: boolean; version?: string; detail?: ViewerActivityDetail } = {}): Promise<ActivitySnapshot> {
+  if (viewer) return viewerActivitySnapshot(state, version, detail);
   const archived = await readActivityArchive(state.activityArchivePath);
   const live = state.activityStore.snapshot().events;
   return { events: mergeActivityEvents(archived, live) };
+}
+
+async function viewerActivitySnapshot(state: ServerState, requestedVersion: string | undefined, detail: ViewerActivityDetail): Promise<ActivitySnapshot> {
+  const now = Date.now();
+  const archiveStats = await fileStats(state.activityArchivePath);
+  const live = state.activityStore.snapshot().events;
+  const version = viewerActivityVersion(archiveStats?.size ?? 0n, live, now, detail);
+  if (requestedVersion && requestedVersion === version) return { events: [], version, unchanged: true };
+  const archived = await readViewerActivityArchive(state, now);
+  return {
+    events: compactViewerActivityEvents([
+      ...archived.explored,
+      ...archived.recent,
+      ...live,
+    ], now, detail),
+    version,
+  };
+}
+
+function viewerActivityVersion(archiveSize: bigint, live: StoredActivityEvent[], now: number, detail: ViewerActivityDetail): string {
+  const latest = live.at(-1);
+  return [
+    detail,
+    archiveSize.toString(),
+    live.length,
+    latest?.id ?? "",
+    latest?.timestamp ?? "",
+    Math.floor(now / 60000),
+  ].join(":");
+}
+
+async function readViewerActivityArchive(state: ServerState, now: number): Promise<ViewerActivityArchiveCache> {
+  const stats = await fileStats(state.activityArchivePath);
+  if (!stats) {
+    delete state.viewerActivityArchiveCache;
+    return { size: 0n, recent: [], explored: [] };
+  }
+
+  const previous = state.viewerActivityArchiveCache;
+  if (previous && stats.size === previous.size) return previous;
+
+  const appendOnly = previous && stats.size > previous.size;
+  const recent = appendOnly ? previous.recent : [];
+  const exploredByPath = new Map<string, StoredActivityEvent>();
+  if (appendOnly) {
+    for (const event of previous.explored) {
+      const path = activityEventPath(event);
+      if (path && !exploredByPath.has(path)) exploredByPath.set(path, event);
+    }
+  }
+
+  const start = appendOnly ? Number(previous.size) : 0;
+  let stream;
+  try {
+    stream = createReadStream(state.activityArchivePath, { encoding: "utf8", start });
+    const reader = createInterface({ input: stream, crlfDelay: Infinity });
+    for await (const line of reader) {
+      if (!line.trim()) continue;
+      try {
+        const event = objectRecord(JSON.parse(line));
+        if (!event) continue;
+        const stored = storedActivityEventFromRecord(event);
+        const path = activityEventPath(stored);
+        if (path && !exploredByPath.has(path)) exploredByPath.set(path, stored);
+        if (isViewerLiveActivityEvent(stored, now)) recent.push(stored);
+      } catch {
+        // Ignore incomplete trailing writes or malformed external activity lines.
+      }
+    }
+  } catch (error) {
+    if (isErrnoException(error) && error.code === "ENOENT") return { size: 0n, recent: [], explored: [] };
+    throw error;
+  } finally {
+    stream?.destroy();
+  }
+
+  state.viewerActivityArchiveCache = {
+    size: stats.size,
+    recent,
+    explored: [...exploredByPath.values()],
+  };
+  return state.viewerActivityArchiveCache;
+}
+
+async function fileStats(path: string): Promise<{ size: bigint } | null> {
+  try {
+    const stats = await stat(path, { bigint: true });
+    return { size: stats.size };
+  } catch (error) {
+    if (isErrnoException(error) && error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+function compactViewerActivityEvents(events: StoredActivityEvent[], now: number, detail: ViewerActivityDetail): StoredActivityEvent[] {
+  const selectedIds = new Set<string>();
+  const selected: StoredActivityEvent[] = [];
+  const liveTail: StoredActivityEvent[] = [];
+  const latestByActor = new Map<string, StoredActivityEvent>();
+  const liveByPath = new Map<string, StoredActivityEvent>();
+  const exploredByPath = new Map<string, StoredActivityEvent>();
+
+  for (const event of events) {
+    const path = activityEventPath(event);
+    if (path && !exploredByPath.has(path)) exploredByPath.set(path, event);
+    if (!isViewerLiveActivityEvent(event, now)) continue;
+
+    liveTail.push(event);
+    if (liveTail.length > VIEWER_ACTIVITY_TRAIL_LIMIT) liveTail.shift();
+    const actor = activityActorKey(event);
+    if (actor) latestByActor.set(actor, latestActivityEvent(latestByActor.get(actor), event));
+    if (path) liveByPath.set(path, latestActivityEvent(liveByPath.get(path), event));
+  }
+
+  if (detail === "full") {
+    for (const [path, event] of exploredByPath) selectActivityEvent(viewerFogMarker(event, path, "explored"), selected, selectedIds);
+    for (const [path, event] of liveByPath) selectActivityEvent(viewerFogMarker(event, path, "visible"), selected, selectedIds);
+  }
+  for (const event of latestByActor.values()) {
+    selectActivityEvent(detail === "summary" ? viewerSummaryEvent(event) : event, selected, selectedIds);
+  }
+  if (detail === "summary") return sortIfNeeded(selected, compareStoredActivityEventsByTime);
+  for (const event of liveTail) selectActivityEvent(event, selected, selectedIds);
+
+  return sortIfNeeded(selected, compareStoredActivityEventsByTime);
+}
+
+function selectActivityEvent(event: StoredActivityEvent, selected: StoredActivityEvent[], selectedIds: Set<string>): void {
+  const id = typeof event.id === "string" ? event.id : "";
+  if (id) {
+    if (selectedIds.has(id)) return;
+    selectedIds.add(id);
+  }
+  selected.push(event);
+}
+
+function viewerFogMarker(event: StoredActivityEvent, path: string, fogState: "explored" | "visible"): StoredActivityEvent {
+  const timestamp = typeof event.timestamp === "string" ? event.timestamp : "";
+  return {
+    id: `viewer-fog:${fogState}:${path}`,
+    agentId: typeof event.agentId === "string" ? event.agentId : undefined,
+    activityState: typeof event.activityState === "string" ? event.activityState : undefined,
+    timestamp,
+    viewerFogState: fogState,
+    address: { path },
+  };
+}
+
+function viewerSummaryEvent(event: StoredActivityEvent): StoredActivityEvent {
+  const address = objectRecord(event.address);
+  const summary: StoredActivityEvent = {};
+  copyDefined(summary, event, "id");
+  copyDefined(summary, event, "agentId");
+  copyDefined(summary, event, "activityState");
+  copyDefined(summary, event, "state");
+  copyDefined(summary, event, "timestamp");
+  copyDefined(summary, event, "note");
+  copyDefined(summary, event, "threadId");
+  copyDefined(summary, event, "sessionId");
+
+  const summaryAddress: Record<string, unknown> = {};
+  if (typeof address?.path === "string") summaryAddress.path = address.path;
+  if (typeof address?.deepLink === "string") summaryAddress.deepLink = address.deepLink;
+  if (typeof address?.geohash === "string") summaryAddress.geohash = address.geohash;
+  if (address?.lineRange !== undefined) summaryAddress.lineRange = address.lineRange;
+  if (address?.tokenRange !== undefined) summaryAddress.tokenRange = address.tokenRange;
+  if (Object.keys(summaryAddress).length) summary.address = summaryAddress;
+  return summary;
+}
+
+function copyDefined(target: StoredActivityEvent, source: StoredActivityEvent, key: string): void {
+  if (source[key] !== undefined) target[key] = source[key];
+}
+
+function latestActivityEvent(current: StoredActivityEvent | undefined, next: StoredActivityEvent): StoredActivityEvent {
+  if (!current) return next;
+  return compareStoredActivityEventsByTime(current, next) <= 0 ? next : current;
+}
+
+function compareStoredActivityEventsByTime(left: StoredActivityEvent, right: StoredActivityEvent): number {
+  const leftTime = storedActivityTimestamp(left);
+  const rightTime = storedActivityTimestamp(right);
+  if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) return leftTime - rightTime;
+  if (Number.isFinite(leftTime) !== Number.isFinite(rightTime)) return Number.isFinite(leftTime) ? -1 : 1;
+  return String(left.id ?? "").localeCompare(String(right.id ?? ""));
+}
+
+function isViewerLiveActivityEvent(event: StoredActivityEvent, now: number): boolean {
+  const timestamp = storedActivityTimestamp(event);
+  if (!Number.isFinite(timestamp)) return true;
+  return Math.max(0, now - timestamp) <= VIEWER_ACTIVITY_LIVE_WINDOW_MS;
+}
+
+function storedActivityTimestamp(event: StoredActivityEvent): number {
+  return Date.parse(typeof event.timestamp === "string" ? event.timestamp : "");
+}
+
+function activityActorKey(event: StoredActivityEvent): string {
+  const thread = typeof event.threadId === "string"
+    ? event.threadId
+    : typeof event.sessionId === "string"
+      ? event.sessionId
+      : "";
+  const agent = typeof event.agentId === "string" ? event.agentId : "agent";
+  return `${agent}:${thread}`;
+}
+
+function activityEventPath(event: StoredActivityEvent): string {
+  const address = objectRecord(event.address);
+  for (const candidate of [
+    address?.path,
+    event.path,
+    pathFromActivityDeepLink(typeof address?.deepLink === "string" ? address.deepLink : undefined),
+  ]) {
+    if (typeof candidate === "string" && candidate) return normalizePathForMap(candidate);
+  }
+  return "";
+}
+
+function pathFromActivityDeepLink(deepLink: string | undefined): string {
+  if (!deepLink) return "";
+  try {
+    return new URL(deepLink).searchParams.get("path") ?? "";
+  } catch {
+    return "";
+  }
 }
 
 async function readActivityArchive(path: string): Promise<StoredActivityEvent[]> {

@@ -30,6 +30,12 @@ export function buildActivityFogState(codemap: CodecharterCodemap | null | undef
   for (const event of events ?? []) {
     const path = activityEventFilePath(event, files);
     if (!path) continue;
+    const markerFogState = viewerFogState(event);
+    if (markerFogState) {
+      visitedFiles.add(path);
+      if (markerFogState === "visible") visibleFiles.add(path);
+      continue;
+    }
     visitedFiles.add(path);
     if (isLiveActivityEvent(event, options)) visibleFiles.add(path);
   }
@@ -166,4 +172,9 @@ function fogStateRank(fogState: FogState | undefined): number {
   if (fogState === "visible") return 2;
   if (fogState === "explored") return 1;
   return 0;
+}
+
+function viewerFogState(event: ActivityEvent): FogState | null {
+  const marker = (event as { viewerFogState?: unknown }).viewerFogState;
+  return marker === "visible" || marker === "explored" ? marker : null;
 }

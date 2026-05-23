@@ -35,7 +35,7 @@ import {
   hashRouteFocusIntent,
   hitTestActivityEvents,
   hitTestAnnotations,
-  hitTestTargets,
+  hitTestTargetLists,
   interactionModeUiState,
   isSpaceKeyEvent,
   isUsableDraftSelection,
@@ -96,6 +96,7 @@ import type {
   SourceRange,
   TargetHit,
   View,
+  Viewport,
 } from "./render/index.ts";
 import {
   boundsFromRouteParams,
@@ -213,6 +214,17 @@ type ActivityEncoding = ReturnType<typeof activityVisualEncoding>;
 type ActivityStyle = ReturnType<typeof activityStateStyle>;
 type StrokeStyle = { color: string; lineWidth: number };
 type FogTrailStyle = { alpha: number; lineWidth: number };
+type ActivityDetail = "summary" | "full";
+type ActivityRenderItem = {
+  event: ActivityEvent;
+  key: string;
+  latest: boolean;
+  selected: boolean;
+  encoding: ActivityEncoding;
+  style: ActivityStyle;
+  fillColor: string;
+  primaryBounds: Bounds | null;
+};
 type MapApplicationState = {
   map: CodecharterCodemap | null;
   mapFolders: MapFolder[];
@@ -228,6 +240,8 @@ type MapApplicationState = {
   sourceCache: Map<string, SourceRange>;
   pendingSourceRequests: Set<string>;
   activitySignature: string;
+  activityVersion: string;
+  activityDetail: ActivityDetail;
   view: View;
   cameraAnimation: { frame: number } | null;
   pendingClickSelection: TimerHandle;
@@ -250,6 +264,8 @@ const fogMaskCanvas = document.createElement("canvas");
 const fogMaskCtx = requiredContext(fogMaskCanvas.getContext("2d"), "fog mask canvas context");
 const fogLayerCanvas = document.createElement("canvas");
 const fogLayerCtx = requiredContext(fogLayerCanvas.getContext("2d"), "fog layer canvas context");
+const fogVeilCanvas = document.createElement("canvas");
+const fogVeilCtx = requiredContext(fogVeilCanvas.getContext("2d"), "fog veil canvas context");
 const mapArea = requiredElement(document.querySelector<HTMLElement>(".map-area"), "map area");
 const DEFAULT_MAP_LEVEL = "file";
 const SAVE_AND_COPY_LABEL = "Save & Copy Prompt";
@@ -259,6 +275,7 @@ const CONFIRM_DELETE_ANNOTATION_LABEL = "Confirm Delete";
 const CAMERA_ANIMATION_MS = 280;
 const DOUBLE_CLICK_ZOOM_FACTOR = 2;
 const CLICK_SELECT_DELAY_MS = 220;
+const TOUCH_SPACE_PAN_HOLD_MS = 220;
 const CLEAR_ACTIVITY_HOLD_MS = 1600;
 const DELETE_ANNOTATION_CONFIRM_MS = 4000;
 const FOG_MASK_SCALE = 0.5;
@@ -296,6 +313,8 @@ function createMapApplicationState(): MapApplicationState {
     sourceCache,
     pendingSourceRequests,
     activitySignature: "",
+    activityVersion: "",
+    activityDetail: "summary",
     view: { x: 0, y: 0, scale: 1 },
     cameraAnimation: null,
     pendingClickSelection: null,
@@ -303,7 +322,7 @@ function createMapApplicationState(): MapApplicationState {
     lastPointerDown: null,
     lastPointerType: "",
     drawing: false,
-    panning: false,
+    panning: true,
     spacePanning: false,
     draftSelection: null,
     resolvedSelection: null,
@@ -413,12 +432,21 @@ function createMapControls(root: Document = document): BrowserControls {
 }
 
 let frameLabels: PlacedFrameLabel[] = [];
+let frameViewport: Viewport | null = null;
+let activityFeedRenderKey = "";
+let fogVeilCacheKey = "";
+let pendingRenderFrame = 0;
 let applyingRoute = false;
 let routeSequence = 0;
 let clearActivityHold: TimerHandle = null;
+let pendingTouchSpacePan: TimerHandle = null;
 let pendingAnnotationDelete: PendingAnnotationDelete | null = null;
 let copyPromptLabelTimer: TimerHandle = null;
 const pollingErrors = new Map<string, PollingFailure>();
+const sourceLinesByNumberCache = new WeakMap<SourceRange, Map<number | string, string>>();
+const hexRgbCache = new Map<string, readonly [number, number, number]>();
+const hashUnitCache = new Map<string, number>();
+const organicRegionPointsCache = new Map<string, Point[]>();
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 const state: MapApplicationState = createMapApplicationState();
@@ -431,15 +459,18 @@ async function boot() {
     fetchJson("/api/map"),
     fetchJson("/api/map-version"),
     fetchJson("/api/named-places"),
-    fetchJson("/api/activity"),
+    fetchJson(activityRequestUrl("summary")),
   ]);
   applyMap(map, mapVersion.version);
   setNamedPlaces(names.places);
   state.overlaps = names.overlaps ?? [];
   state.activity = activity.events;
   state.activitySignature = activitySignature(state.activity);
+  state.activityVersion = typeof activity.version === "string" ? activity.version : state.activitySignature;
+  state.activityDetail = "summary";
   rebuildActivityFog();
   bindEvents();
+  updateInteractionModeUi();
   startMapPolling();
   startActivityPolling();
   resize();
@@ -453,6 +484,7 @@ function applyMap(map: CodecharterCodemap, version: string | undefined) {
   state.mapFolders = objectValues(map.folders ?? {});
   state.mapFiles = objectValues(map.files ?? {});
   state.organicRegionFolders = organicRegionFolders(map);
+  organicRegionPointsCache.clear();
   state.mapVersion = version ?? state.mapVersion;
   state.clearSourceState();
   rebuildActivityFog();
@@ -504,7 +536,13 @@ function bindEvents() {
   window.addEventListener("blur", () => setSpacePanMode(false));
 
   for (const control of controls.layerToggles()) {
-    control.addEventListener("change", render);
+    if (control === controls.showActivity) {
+      control.addEventListener("change", () => {
+        void handleActivityToggle();
+      });
+    } else {
+      control.addEventListener("change", render);
+    }
   }
 
   controls.selectTool?.addEventListener("click", () => {
@@ -574,23 +612,45 @@ async function refreshMap() {
 
 async function refreshActivity() {
   try {
-    const activity = await fetchJson("/api/activity");
-    clearPollingError("activity");
-    const nextSignature = activitySignature(activity.events ?? []);
-    if (nextSignature === state.activitySignature) {
-      if ((activity.events ?? []).length) {
-        rebuildActivityFog();
-        render();
-      }
-      return;
-    }
-    state.activity = activity.events ?? [];
-    state.activitySignature = nextSignature;
-    rebuildActivityFog();
-    render();
+    const changed = await loadActivity(activityDiscoveryEnabled() ? "full" : "summary");
+    if (changed) render();
   } catch (error) {
     reportPollingError("activity", error);
   }
+}
+
+async function handleActivityToggle() {
+  if (activityDiscoveryEnabled()) {
+    await loadActivity("full", { force: state.activityDetail !== "full" });
+  } else if (state.activityDetail !== "summary") {
+    await loadActivity("summary", { force: true });
+  }
+  render();
+}
+
+async function loadActivity(detail: ActivityDetail, { force = false } = {}) {
+  const activity = await fetchJson(activityRequestUrl(detail, { force }));
+  clearPollingError("activity");
+  if (activity.unchanged === true) return false;
+  const nextSignature = activitySignature(activity.events ?? []);
+  const nextVersion = typeof activity.version === "string" ? activity.version : nextSignature;
+  const replacingDetail = force || state.activityDetail !== detail;
+  state.activityVersion = nextVersion;
+  state.activityDetail = detail;
+  if (!replacingDetail && nextSignature === state.activitySignature) {
+    if ((activity.events ?? []).length) rebuildActivityFog();
+    return Boolean((activity.events ?? []).length);
+  }
+  state.activity = activity.events ?? [];
+  state.activitySignature = nextSignature;
+  rebuildActivityFog();
+  return true;
+}
+
+function activityRequestUrl(detail: ActivityDetail, { force = false } = {}) {
+  const params = new URLSearchParams({ view: "viewer", detail });
+  if (!force && state.activityVersion && state.activityDetail === detail) params.set("version", state.activityVersion);
+  return `/api/activity?${params.toString()}`;
 }
 
 function reportPollingError(key: string, error: unknown) {
@@ -892,7 +952,7 @@ function resetSelectionOverlay() {
   clearPendingAnnotationDelete();
   state.dragging = null;
   state.drawing = false;
-  state.panning = false;
+  state.panning = true;
   state.draftSelection = null;
   state.resolvedSelection = null;
   state.editingAnnotation = null;
@@ -993,28 +1053,49 @@ function resize() {
   fogLayerCanvas.width = canvas.width;
   fogLayerCanvas.height = canvas.height;
   fogLayerCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  fogVeilCanvas.width = canvas.width;
+  fogVeilCanvas.height = canvas.height;
+  fogVeilCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  fogVeilCacheKey = "";
 }
 
 function render() {
+  if (pendingRenderFrame) {
+    cancelAnimationFrame(pendingRenderFrame);
+    pendingRenderFrame = 0;
+  }
   const rect = canvas.getBoundingClientRect();
+  frameViewport = { width: canvas.clientWidth, height: canvas.clientHeight };
   frameLabels = [];
-  ctx.clearRect(0, 0, rect.width, rect.height);
-  setText(controls.viewport, `scale ${state.view.scale.toFixed(2)} | level ${DEFAULT_MAP_LEVEL}`);
+  try {
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    setText(controls.viewport, `scale ${state.view.scale.toFixed(2)} | level ${DEFAULT_MAP_LEVEL}`);
 
-  drawCompassRose();
-  if (layerEnabled("showGrid", false)) drawGrid();
-  if (layerEnabled("showFolders")) drawFolders();
-  if (layerEnabled("showOrganicRegions")) drawOrganicRegions();
-  if (layerEnabled("showFiles")) drawFiles();
-  drawQueuedLabels();
-  if (layerEnabled("showNames")) drawNamedPlaces();
-  if (layerEnabled("showNames")) drawOverlaps();
-  if (state.draftSelection) drawSelection(state.draftSelection.bounds, "rgba(245, 158, 11, 0.18)", "#f59e0b", [6, 4]);
-  if (activityDiscoveryEnabled()) drawDiscoveryFogOverlay(rect);
-  if (activityDiscoveryEnabled()) drawActivity();
-  renderActivityFeed();
-  positionAnnotationActions(state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null, {
-    visible: Boolean(state.selectedTarget?.targetType === "annotation" && !state.draftSelection && !state.resolvedSelection && !state.editingAnnotation),
+    drawCompassRose();
+    if (layerEnabled("showGrid", false)) drawGrid();
+    if (layerEnabled("showFolders")) drawFolders();
+    if (layerEnabled("showOrganicRegions")) drawOrganicRegions();
+    if (layerEnabled("showFiles")) drawFiles();
+    drawQueuedLabels();
+    if (layerEnabled("showNames")) drawNamedPlaces();
+    if (layerEnabled("showNames")) drawOverlaps();
+    if (state.draftSelection) drawSelection(state.draftSelection.bounds, "rgba(245, 158, 11, 0.18)", "#f59e0b", [6, 4]);
+    if (activityDiscoveryEnabled()) drawDiscoveryFogOverlay(rect);
+    if (activityDiscoveryEnabled()) drawActivity();
+    renderActivityFeed();
+    positionAnnotationActions(state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null, {
+      visible: Boolean(state.selectedTarget?.targetType === "annotation" && !state.draftSelection && !state.resolvedSelection && !state.editingAnnotation),
+    });
+  } finally {
+    frameViewport = null;
+  }
+}
+
+function requestRender() {
+  if (pendingRenderFrame) return;
+  pendingRenderFrame = requestAnimationFrame(() => {
+    pendingRenderFrame = 0;
+    render();
   });
 }
 
@@ -1085,7 +1166,7 @@ function drawDiscoveryFogOverlay(rect: DOMRect) {
 
   fogLayerCtx.save();
   fogLayerCtx.clearRect(0, 0, rect.width, rect.height);
-  drawDiscoveryVeil(rect, fogLayerCtx);
+  drawCachedDiscoveryVeil(rect, fogLayerCtx);
 
   fogLayerCtx.globalCompositeOperation = "destination-out";
   fogLayerCtx.drawImage(fogMaskCanvas, 0, 0, rect.width, rect.height);
@@ -1094,6 +1175,20 @@ function drawDiscoveryFogOverlay(rect: DOMRect) {
   ctx.save();
   ctx.drawImage(fogLayerCanvas, 0, 0, rect.width, rect.height);
   ctx.restore();
+}
+
+function drawCachedDiscoveryVeil(rect: DOMRect, targetCtx: CanvasRenderingContext2D) {
+  const dpr = window.devicePixelRatio || 1;
+  const cacheKey = `${rect.width}:${rect.height}:${dpr}`;
+  if (fogVeilCacheKey !== cacheKey) {
+    fogVeilCtx.save();
+    fogVeilCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    fogVeilCtx.clearRect(0, 0, rect.width, rect.height);
+    drawDiscoveryVeil(rect, fogVeilCtx);
+    fogVeilCtx.restore();
+    fogVeilCacheKey = cacheKey;
+  }
+  targetCtx.drawImage(fogVeilCanvas, 0, 0, rect.width, rect.height);
 }
 
 function drawDiscoveryVeil(rect: DOMRect, targetCtx: CanvasRenderingContext2D) {
@@ -1180,20 +1275,18 @@ function drawDiscoveryFogReveals(targetCtx: CanvasRenderingContext2D) {
 function drawDiscoveryTrailMask(targetCtx: CanvasRenderingContext2D) {
   const events = sortedActivityEvents(state.activity);
   if (events.length < 2) return;
+  const trailPointGroups = activityTrailGroups(events, { presorted: true })
+    .flatMap((agentEvents) => activityTrailPointGroups(activityTrailPoints(agentEvents)));
   targetCtx.save();
   targetCtx.lineCap = "round";
   targetCtx.lineJoin = "round";
   targetCtx.filter = "blur(14px)";
-  for (const agentEvents of activityTrailGroups(events)) {
-    for (const points of activityTrailPointGroups(activityTrailPoints(agentEvents))) {
-      strokeFogTrail(targetCtx, points, { alpha: 0.12, lineWidth: 88 });
-    }
+  for (const points of trailPointGroups) {
+    strokeFogTrail(targetCtx, points, { alpha: 0.12, lineWidth: 88 });
   }
   targetCtx.filter = "none";
-  for (const agentEvents of activityTrailGroups(events)) {
-    for (const points of activityTrailPointGroups(activityTrailPoints(agentEvents))) {
-      strokeFogTrail(targetCtx, points, { alpha: 0.1, lineWidth: 42 });
-    }
+  for (const points of trailPointGroups) {
+    strokeFogTrail(targetCtx, points, { alpha: 0.1, lineWidth: 42 });
   }
   targetCtx.restore();
 }
@@ -1361,7 +1454,7 @@ function drawOrganicRegions() {
     const box = screenBounds(folder.bounds);
     if (!visible(box)) continue;
     if (!shouldDrawOrganicRegion(state.view.scale, depth, box)) continue;
-    const points = organicRegionPoints(folder.bounds, folder.path, depth);
+    const points = cachedOrganicRegionPoints(folder.bounds, folder.path, depth);
     if (points.length < 3) continue;
     const style = organicRegionStyle(folder.path, depth);
     const selected = state.selectedTarget?.targetType === "folder" && state.selectedTarget.path === folder.path;
@@ -1540,6 +1633,8 @@ function drawSourceText(file: MapFile, box: Bounds, remainingBudget: number): nu
   const visibleRange = visibleLineRange(file, box);
   const lineCount = file.lineCount ?? 0;
   if (!visibleRange) return 0;
+  const clipBox = screenIntersection(box);
+  if (!clipBox) return 0;
 
   const budgetedEnd = Math.min(visibleRange.end, visibleRange.start + remainingBudget - 1);
   const fetchStart = Math.max(1, visibleRange.start - SOURCE_TEXT_PREFETCH_LINES);
@@ -1553,10 +1648,7 @@ function drawSourceText(file: MapFile, box: Bounds, remainingBudget: number): nu
     return 0;
   }
 
-  const linesByNumber = new Map<number | string, string>();
-  for (const line of cached.lines ?? []) {
-    linesByNumber.set(line.number, line.text);
-  }
+  const linesByNumber = sourceLinesByNumber(cached);
   const lineHeight = lineHeightForFile(file, box);
   const firstBaseline = box.y + (visibleRange.start - 1) * lineHeight + Math.min(13, lineHeight * 0.78);
   const sourceTextLayout = sourceTextLayoutForBox(box, canvas.clientWidth);
@@ -1564,7 +1656,7 @@ function drawSourceText(file: MapFile, box: Bounds, remainingBudget: number): nu
 
   ctx.save();
   ctx.beginPath();
-  ctx.rect(box.x, box.y, box.width, box.height);
+  ctx.rect(clipBox.x, clipBox.y, clipBox.width, clipBox.height);
   ctx.clip();
   ctx.font = "12px SFMono-Regular, Consolas, Liberation Mono, monospace";
   ctx.textBaseline = "alphabetic";
@@ -1582,6 +1674,17 @@ function drawSourceText(file: MapFile, box: Bounds, remainingBudget: number): nu
 
   ctx.restore();
   return drawn;
+}
+
+function sourceLinesByNumber(source: SourceRange): Map<number | string, string> {
+  const cached = sourceLinesByNumberCache.get(source);
+  if (cached) return cached;
+  const linesByNumber = new Map<number | string, string>();
+  for (const line of source.lines ?? []) {
+    linesByNumber.set(line.number, line.text);
+  }
+  sourceLinesByNumberCache.set(source, linesByNumber);
+  return linesByNumber;
 }
 
 function drawSourcePlaceholder(box: Bounds) {
@@ -1617,13 +1720,16 @@ function truncateLine(text: string, maxChars: number) {
 
 function drawLineBands(file: MapFile, box: Bounds) {
   const lines = Math.min(file.lineCount ?? 0, 80);
+  const clipBox = screenIntersection(box);
+  if (!clipBox) return;
   ctx.strokeStyle = "rgba(4, 120, 87, 0.18)";
   ctx.lineWidth = 1;
   for (let i = 1; i < lines; i += 1) {
     const y = box.y + (box.height * i) / lines;
+    if (y < clipBox.y || y > clipBox.y + clipBox.height) continue;
     ctx.beginPath();
-    ctx.moveTo(box.x, y);
-    ctx.lineTo(box.x + box.width, y);
+    ctx.moveTo(clipBox.x, y);
+    ctx.lineTo(clipBox.x + clipBox.width, y);
     ctx.stroke();
   }
 }
@@ -1666,7 +1772,7 @@ function drawAnnotation(annotation: MapAnnotationPlace, markerNumber: number, se
 }
 
 function drawAnnotationMembrane(bounds: Bounds, fill: string, stroke: string, selected: boolean, key: string) {
-  const points = organicRegionPoints(bounds, `annotation:${key}`, 0);
+  const points = cachedOrganicRegionPoints(bounds, `annotation:${key}`, 0);
   if (points.length < 3) return;
 
   ctx.save();
@@ -1678,6 +1784,15 @@ function drawAnnotationMembrane(bounds: Bounds, fill: string, stroke: string, se
   ctx.fill();
   ctx.stroke();
   ctx.restore();
+}
+
+function cachedOrganicRegionPoints(bounds: Bounds, key: string, depth: number): Point[] {
+  const cacheKey = `${key}:${depth}:${bounds.x}:${bounds.y}:${bounds.width}:${bounds.height}`;
+  const cached = organicRegionPointsCache.get(cacheKey);
+  if (cached) return cached;
+  const points = organicRegionPoints(bounds, key, depth);
+  organicRegionPointsCache.set(cacheKey, points);
+  return points;
 }
 
 function drawAnnotationMarker(annotation: MapAnnotationPlace, markerNumber: number, selected: boolean) {
@@ -1719,19 +1834,15 @@ function drawActivity() {
   const events = sortedActivityEvents(state.activity);
   const latestByAgent = latestActivityByAgent(events);
   const discoveryMode = activityDiscoveryEnabled();
-  drawActivityMembranes(events, latestByAgent, { discoveryMode });
+  const items = activityRenderItems(events, latestByAgent);
+  drawActivityMembranes(items, { discoveryMode });
   drawActivityTrails(events, latestByAgent, { discoveryMode });
 
-  for (const event of events) {
-    const latest = latestByAgent.get(activityActorKey(event)) === event;
-    const primaryBounds = activityPrimaryBounds(event);
+  for (const item of items) {
+    const { event, latest, selected, encoding, style, fillColor, primaryBounds } = item;
     if (!primaryBounds) continue;
     const center = boundsCenter(primaryBounds);
     const p = worldToScreen(center);
-    const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.id === event.id;
-    const encoding = activityVisualEncoding(event, { latest, selected });
-    const style = activityStateStyle(encoding.activityState);
-    const fillColor = activityFillColor(style, encoding);
     const haloColor = activityHaloColor(style, encoding);
     ctx.save();
     ctx.globalAlpha = encoding.alpha;
@@ -1765,17 +1876,34 @@ function drawActivity() {
   }
 }
 
-function drawActivityMembranes(events: ActivityEvent[], latestByAgent: Map<string, ActivityEvent>, { discoveryMode = false } = {}) {
+function activityRenderItems(events: ActivityEvent[], latestByAgent: Map<string, ActivityEvent>): ActivityRenderItem[] {
+  const now = Date.now();
+  const items: ActivityRenderItem[] = [];
   for (const event of events) {
-    const latest = latestByAgent.get(activityActorKey(event)) === event;
+    const key = activityActorKey(event);
+    const latest = latestByAgent.get(key) === event;
     const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.id === event.id;
-    const encoding = activityVisualEncoding(event, { latest, selected });
+    const encoding = activityVisualEncoding(event, { latest, selected, now });
+    const style = activityStateStyle(encoding.activityState);
+    items.push({
+      event,
+      key,
+      latest,
+      selected,
+      encoding,
+      style,
+      fillColor: activityFillColor(style, encoding),
+      primaryBounds: activityPrimaryBounds(event),
+    });
+  }
+  return items;
+}
+
+function drawActivityMembranes(items: ActivityRenderItem[], { discoveryMode = false } = {}) {
+  for (const { event, latest, selected, encoding, fillColor } of items) {
     if (discoveryMode && state.view.scale > 6 && !selected) continue;
     if (discoveryMode && !latest && !selected) continue;
     if (encoding.membraneAlpha <= 0.08 && !selected) continue;
-
-    const style = activityStateStyle(encoding.activityState);
-    const fillColor = activityFillColor(style, encoding);
 
     for (const bounds of activityFragmentBounds(event)) {
       const tissueBox = activityTissueBox(screenBounds(bounds), encoding);
@@ -1801,7 +1929,7 @@ function drawActivityMembranes(events: ActivityEvent[], latestByAgent: Map<strin
 }
 
 function drawActivityTrails(events: ActivityEvent[], latestByAgent: Map<string, ActivityEvent>, { discoveryMode = false } = {}) {
-  for (const agentEvents of activityTrailGroups(events)) {
+  for (const agentEvents of activityTrailGroups(events, { presorted: true })) {
     const trailLatest = agentEvents.at(-1);
     if (!trailLatest) continue;
     const latest = latestByAgent.get(activityActorKey(trailLatest)) === trailLatest;
@@ -1910,17 +2038,29 @@ function formatActivityAge(ageMinutes: number) {
 }
 
 function hexToRgba(hex: string, alpha: number) {
+  const rgb = hexRgb(hex);
+  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+}
+
+function hexRgb(hex: string): readonly [number, number, number] {
+  const cached = hexRgbCache.get(hex);
+  if (cached) return cached;
   const value = hex.replace("#", "");
   const rgb = [
     Number.parseInt(value.slice(0, 2), 16),
     Number.parseInt(value.slice(2, 4), 16),
     Number.parseInt(value.slice(4, 6), 16),
-  ];
-  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+  ] as const;
+  hexRgbCache.set(hex, rgb);
+  return rgb;
 }
 
 function hashUnit(value: string) {
-  return hashString(value) / 0xffffffff;
+  const cached = hashUnitCache.get(value);
+  if (cached !== undefined) return cached;
+  const unit = hashString(value) / 0xffffffff;
+  hashUnitCache.set(value, unit);
+  return unit;
 }
 
 function integerNoise(x: number, y: number) {
@@ -1931,6 +2071,9 @@ function integerNoise(x: number, y: number) {
 
 function renderActivityFeed() {
   if (!controls.activityFeed) return;
+  const feedKey = `${state.activitySignature}:${Math.floor(Date.now() / 60000)}`;
+  if (feedKey === activityFeedRenderKey) return;
+  activityFeedRenderKey = feedKey;
   const latest = activityFeedEvents(state.activity);
 
   controls.activityFeed.replaceChildren();
@@ -1969,9 +2112,48 @@ function drawSelection(bounds: Bounds, fill: string, stroke: string, dash: numbe
 }
 
 function drawRect(box: Bounds) {
+  const viewport = viewportSize();
+  const overdraw = box.x < 0
+    || box.y < 0
+    || box.x + box.width > viewport.width
+    || box.y + box.height > viewport.height;
+  if (overdraw && box.width * box.height > viewport.width * viewport.height * 4) {
+    drawClippedRect(box, viewport);
+    return;
+  }
   ctx.beginPath();
   ctx.rect(box.x, box.y, box.width, box.height);
   ctx.fill();
+  ctx.stroke();
+}
+
+function drawClippedRect(box: Bounds, viewport: Viewport) {
+  const x1 = Math.max(0, box.x);
+  const y1 = Math.max(0, box.y);
+  const x2 = Math.min(viewport.width, box.x + box.width);
+  const y2 = Math.min(viewport.height, box.y + box.height);
+  if (x2 <= x1 || y2 <= y1) return;
+
+  ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+  ctx.beginPath();
+  if (box.x >= 0 && box.x <= viewport.width) {
+    ctx.moveTo(box.x, y1);
+    ctx.lineTo(box.x, y2);
+  }
+  const right = box.x + box.width;
+  if (right >= 0 && right <= viewport.width) {
+    ctx.moveTo(right, y1);
+    ctx.lineTo(right, y2);
+  }
+  if (box.y >= 0 && box.y <= viewport.height) {
+    ctx.moveTo(x1, box.y);
+    ctx.lineTo(x2, box.y);
+  }
+  const bottom = box.y + box.height;
+  if (bottom >= 0 && bottom <= viewport.height) {
+    ctx.moveTo(x1, bottom);
+    ctx.lineTo(x2, bottom);
+  }
   ctx.stroke();
 }
 
@@ -2049,7 +2231,7 @@ function onWheel(event: WheelEvent) {
   } else {
     panByWheel(event);
   }
-  render();
+  requestRender();
 }
 
 function zoomAt(screenAnchor: Point, factor: number, { animate = false } = {}) {
@@ -2110,6 +2292,7 @@ function isButtonTarget(target: EventTarget | null) {
 }
 
 function cancelCurrentInteraction() {
+  cancelPendingTouchSpacePan();
   cancelPendingClickSelection();
   if (state.editingAnnotation) {
     state.editingAnnotation = null;
@@ -2149,9 +2332,14 @@ function clearSelectionHashRoute() {
 
 function onPointerDown(event: PointerEvent) {
   cancelCameraAnimation();
+  cancelPendingTouchSpacePan();
   if (state.dragging?.type !== "select") cancelPendingClickSelection();
   canvas.classList.add("pointer-focused");
-  canvas.setPointerCapture(event.pointerId);
+  try {
+    canvas.setPointerCapture(event.pointerId);
+  } catch {
+    // Synthetic pointer events and some interrupted touch streams have no active pointer to capture.
+  }
   canvas.focus({ preventScroll: true });
   const screen = screenPoint(event);
   const point = screenToWorld(screen);
@@ -2167,6 +2355,7 @@ function onPointerDown(event: PointerEvent) {
     state.dragging = { type: "pan", start: screenPoint(event), view: { ...state.view }, transient: spacePan };
   } else {
     state.dragging = { type: "select", start: screen, world: point };
+    scheduleTouchSpacePan(event);
   }
   updateInteractionModeUi();
 }
@@ -2175,9 +2364,35 @@ function isSpacePanPointerEvent(event: PointerEvent) {
   return state.spacePanning || Boolean(event.getModifierState?.("Space"));
 }
 
+function scheduleTouchSpacePan(event: PointerEvent) {
+  if (event.pointerType !== "touch") return;
+  pendingTouchSpacePan = window.setTimeout(() => {
+    pendingTouchSpacePan = null;
+    if (state.dragging?.type !== "select" || !state.lastPointerDown) return;
+    setSpacePanMode(true);
+    state.dragging = {
+      type: "pan",
+      start: state.lastPointerDown.screen,
+      view: { ...state.view },
+      transient: true,
+    };
+    updateInteractionModeUi();
+  }, TOUCH_SPACE_PAN_HOLD_MS);
+}
+
+function cancelPendingTouchSpacePan() {
+  if (!pendingTouchSpacePan) return;
+  window.clearTimeout(pendingTouchSpacePan);
+  pendingTouchSpacePan = null;
+}
+
 function onPointerMove(event: PointerEvent) {
   const screen = screenPoint(event);
   const world = screenToWorld(screen);
+  if (state.dragging?.type === "select" && state.lastPointerDown) {
+    const moved = Math.hypot(screen.x - state.lastPointerDown.screen.x, screen.y - state.lastPointerDown.screen.y);
+    if (moved > 4) cancelPendingTouchSpacePan();
+  }
   const hit = hitTest(world);
   setText(controls.hover, hit ? mapHoverLabel(hit) : `x ${world.x.toFixed(4)}, y ${world.y.toFixed(4)}`);
 
@@ -2188,10 +2403,12 @@ function onPointerMove(event: PointerEvent) {
   } else {
     updateDraftSelection(world);
   }
-  render();
+  requestRender();
 }
 
 async function onPointerUp(event: PointerEvent) {
+  cancelPendingTouchSpacePan();
+  const endTouchSpacePan = state.dragging?.type === "pan" && state.dragging.transient && event.pointerType === "touch";
   if (state.dragging?.type === "draw" && state.draftSelection) {
     if (event && event.type !== "lostpointercapture") updateDraftSelection(screenToWorld(screenPoint(event)));
     if (!hasUsableDraftSelection()) {
@@ -2211,11 +2428,15 @@ async function onPointerUp(event: PointerEvent) {
     if (moved < 4) scheduleClickSelection(state.lastPointerDown.world);
   }
   state.dragging = null;
+  if (endTouchSpacePan) setSpacePanMode(false);
   updateInteractionModeUi();
 }
 
-function onPointerCancel() {
+function onPointerCancel(event?: PointerEvent) {
+  cancelPendingTouchSpacePan();
+  const endTouchSpacePan = state.dragging?.type === "pan" && state.dragging.transient && event?.pointerType === "touch";
   state.dragging = null;
+  if (endTouchSpacePan) setSpacePanMode(false);
   updateInteractionModeUi();
 }
 
@@ -2251,7 +2472,7 @@ function cancelPendingClickSelection() {
 }
 
 function hitTestDrillTarget(world: Point) {
-  return hitTestActivity(world) ?? hitTestTargets(state.map, world);
+  return hitTestActivity(world) ?? hitTestMapTargets(world);
 }
 
 function updateDraftSelection(world: Point) {
@@ -2513,7 +2734,7 @@ async function saveSelection() {
   state.selectedTarget = { ...saved.annotation, targetType: "annotation" };
   syncHashRoute(createAnnotationHashRoute(saved.annotation.id));
   state.drawing = false;
-  state.panning = false;
+  state.panning = true;
   state.draftSelection = null;
   state.resolvedSelection = null;
   state.editingAnnotation = null;
@@ -2754,6 +2975,8 @@ async function clearActivityHistory() {
     await deleteJson("/api/activity");
     state.activity = [];
     state.activitySignature = activitySignature(state.activity);
+    state.activityVersion = "";
+    state.activityDetail = "summary";
     rebuildActivityFog();
     if (state.selectedTarget?.targetType === "activity") state.selectedTarget = null;
     setText(controls.hover, "Activity cleared");
@@ -2771,7 +2994,11 @@ function hitTest(point: Point): HitTarget | null {
   if (annotation) return annotation;
   const activity = hitTestActivity(point);
   if (activity) return activity;
-  return hitTestTargets(state.map, point);
+  return hitTestMapTargets(point);
+}
+
+function hitTestMapTargets(point: Point) {
+  return hitTestTargetLists(state.mapFiles, state.mapFolders, point);
 }
 
 function hitTestAnnotation(point: Point) {
@@ -2913,7 +3140,7 @@ function boundsCenter(bounds: Bounds) {
 }
 
 function viewportSize() {
-  return { width: canvas.clientWidth, height: canvas.clientHeight };
+  return frameViewport ?? { width: canvas.clientWidth, height: canvas.clientHeight };
 }
 
 function viewportCenter() {

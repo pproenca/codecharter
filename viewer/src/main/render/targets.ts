@@ -156,10 +156,14 @@ export function folderDisplayName(folder: Pick<MapFolder, "path">): string {
 }
 
 export function hitTestTargets(codemap: CodecharterCodemap | null | undefined, point: Point): TargetHit | null {
-  const file = bestContainingTarget(codemap?.files ?? {}, point);
+  return hitTestTargetLists(objectValues(codemap?.files ?? {}), objectValues(codemap?.folders ?? {}), point);
+}
+
+export function hitTestTargetLists(files: Iterable<MapFile>, folders: Iterable<MapFolder>, point: Point): TargetHit | null {
+  const file = bestContainingTarget(files, point);
   if (file) return { ...file, targetType: "file" };
 
-  const folder = bestContainingTarget(codemap?.folders ?? {}, point, (target) => Boolean(target.path));
+  const folder = bestContainingTarget(folders, point, (target) => Boolean(target.path));
   if (folder) return { ...folder, targetType: "folder" };
 
   return null;
@@ -249,9 +253,9 @@ function mapTargetForGeohash(codemap: CodecharterCodemap, geohash: string | unde
   return fallback ? { ...fallback, targetType } as TargetHit : null;
 }
 
-function bestContainingTarget<T extends MapTarget>(targets: MapTargetRecord<T>, point: Point, accept: (target: T) => boolean = (_target) => true): T | null {
+function bestContainingTarget<T extends MapTarget>(targets: Iterable<T>, point: Point, accept: (target: T) => boolean = (_target) => true): T | null {
   let best: T | null = null;
-  for (const target of objectValues(targets)) {
+  for (const target of targets) {
     if (!target.bounds || !accept(target) || !containsBoundsPoint(target.bounds, point)) continue;
     if (!best || compareTargetAreaThenPath(target, best) < 0) best = target;
   }

@@ -173,9 +173,11 @@ export function activityTrailGroups(events: ActivityEvent[], {
   maxGapMinutes = ACTIVITY_TRAIL_MAX_GAP_MINUTES,
   now = Date.now(),
   maxAgeMinutes = ACTIVITY_LIVE_WINDOW_MINUTES,
+  presorted = false,
 } = {}) {
   const byTrail = new Map<string, ActivityEvent[]>();
-  for (const event of sortedActivityEvents(events, Number.POSITIVE_INFINITY, { now, maxAgeMinutes })) {
+  const sortedEvents = presorted ? events : sortedActivityEvents(events, Number.POSITIVE_INFINITY, { now, maxAgeMinutes });
+  for (const event of sortedEvents) {
     if (!activityPrimaryBounds(event)) continue;
     const key = activityActorKey(event);
     if (!byTrail.has(key)) byTrail.set(key, []);

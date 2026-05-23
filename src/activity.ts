@@ -36,25 +36,19 @@ export type ActivityEvent = {
   model?: string;
 };
 
-type ActivityStateNormalizerLike = {
-  normalize(activityState: ActivityStateInput): ActivityState;
-};
-
 export class ActivityStateNormalizer {
-  normalize(activityState: ActivityStateInput): ActivityState {
-    return normalizeActivityState(activityState);
-  }
+  normalize(activityState: ActivityStateInput): ActivityState { return normalizeActivityState(activityState); }
 }
 
 export class ActivityEventBuilder {
-  private readonly normalizeActivityState: (activityState: ActivityStateInput) => ActivityState;
+  private readonly stateNormalizer: { normalize(activityState: ActivityStateInput): ActivityState };
 
-  constructor(stateNormalizer: ActivityStateNormalizerLike = { normalize: normalizeActivityState }) {
-    this.normalizeActivityState = (activityState) => stateNormalizer.normalize(activityState);
+  constructor(stateNormalizer: { normalize(activityState: ActivityStateInput): ActivityState } = { normalize: normalizeActivityState }) {
+    this.stateNormalizer = stateNormalizer;
   }
 
   create(address: ActivityAddress, input: ActivityEventInput): ActivityEvent {
-    return activityEvent(address, input, this.normalizeActivityState);
+    return activityEvent(address, input, (activityState) => this.stateNormalizer.normalize(activityState));
   }
 }
 

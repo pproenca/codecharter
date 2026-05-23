@@ -1,4 +1,5 @@
 import { intersects, roundBounds } from "./geometry.ts";
+import { sortIfNeeded } from "./util.ts";
 import type { Bounds } from "./geometry.js";
 
 type NamedPlace = {
@@ -39,7 +40,7 @@ export function findNamedPlaceOverlaps(places: NamedPlace[]): NamedPlaceOverlap[
     const place = places[index];
     if (isDrawnRectPlace(place)) drawn.push({ place, index });
   }
-  if (!drawnPlacesAreSorted(drawn)) drawn.sort(compareDrawnPlaces);
+  sortIfNeeded(drawn, compareDrawnPlaces);
   const overlaps: OrderedOverlap[] = [];
   const active: DrawnPlaceEntry[] = [];
 
@@ -61,7 +62,7 @@ export function findNamedPlaceOverlaps(places: NamedPlace[]): NamedPlaceOverlap[
     active.push(candidate);
   }
 
-  if (!overlapsAreSorted(overlaps)) overlaps.sort(compareOverlaps);
+  sortIfNeeded(overlaps, compareOverlaps);
   return overlaps.map(({ order, ...overlap }) => overlap);
 }
 
@@ -84,26 +85,8 @@ function removeExpiredActivePlaces(active: DrawnPlaceEntry[], x: number): void {
   active.length = write;
 }
 
-function drawnPlacesAreSorted(drawn: DrawnPlaceEntry[]): boolean {
-  for (let index = 1; index < drawn.length; index += 1) {
-    const previous = drawn[index - 1];
-    const current = drawn[index];
-    if (previous && current && compareDrawnPlaces(previous, current) > 0) return false;
-  }
-  return true;
-}
-
 function compareDrawnPlaces(a: DrawnPlaceEntry, b: DrawnPlaceEntry): number {
   return a.place.geometry.bounds.x - b.place.geometry.bounds.x || a.index - b.index;
-}
-
-function overlapsAreSorted(overlaps: OrderedOverlap[]): boolean {
-  for (let index = 1; index < overlaps.length; index += 1) {
-    const previous = overlaps[index - 1];
-    const current = overlaps[index];
-    if (previous && current && compareOverlaps(previous, current) > 0) return false;
-  }
-  return true;
 }
 
 function compareOverlaps(a: OrderedOverlap, b: OrderedOverlap): number {

@@ -196,13 +196,7 @@ function childPaths(children: MapNode[]): string[] {
 }
 
 function serializeFolders(folders: FlattenedTree["folders"]): Record<string, SerializedFolder> {
-  const serialized: Record<string, SerializedFolder> = {};
-  for (const path in folders) {
-    if (!Object.hasOwn(folders, path)) continue;
-    const folder = folders[path];
-    if (folder) serialized[path] = serializeFolder(folder);
-  }
-  return serialized;
+  return serializeRecord(folders, serializeFolder);
 }
 
 function serializeFile(file: FileNode): SerializedFile {
@@ -220,12 +214,12 @@ function serializeFile(file: FileNode): SerializedFile {
 }
 
 function serializeFiles(files: FlattenedTree["files"]): Record<string, SerializedFile> {
-  const serialized: Record<string, SerializedFile> = {};
-  for (const path in files) {
-    if (!Object.hasOwn(files, path)) continue;
-    const file = files[path];
-    if (file) serialized[path] = serializeFile(file);
-  }
+  return serializeRecord(files, serializeFile);
+}
+
+function serializeRecord<T, U>(record: Record<string, T>, serialize: (value: T) => U): Record<string, U> {
+  const serialized: Record<string, U> = {};
+  for (const [path, value] of Object.entries(record)) serialized[path] = serialize(value);
   return serialized;
 }
 

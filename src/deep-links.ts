@@ -14,29 +14,17 @@ export type SelectionHashRouteInput = {
 };
 
 export class CodemapDeepLinkCodec {
-  create(kind: string, locator: string, metadata: DeepLinkMetadata = {}): string {
-    return createCodemapDeepLink(kind, locator, metadata);
-  }
+  create(kind: string, locator: string, metadata: DeepLinkMetadata = {}): string { return createCodemapDeepLink(kind, locator, metadata); }
 
-  parse(value: string): ParsedCodemapDeepLink {
-    return parseCodemapDeepLink(value);
-  }
+  parse(value: string): ParsedCodemapDeepLink { return parseCodemapDeepLink(value); }
 
-  createBrowserHashRoute(kind: string, locator: string, metadata: DeepLinkMetadata = {}): string {
-    return createBrowserHashRoute(kind, locator, metadata);
-  }
+  createBrowserHashRoute(kind: string, locator: string, metadata: DeepLinkMetadata = {}): string { return createBrowserHashRoute(kind, locator, metadata); }
 
-  createAnnotationHashRoute(id: string): string {
-    return createAnnotationHashRoute(id);
-  }
+  createAnnotationHashRoute(id: string): string { return createAnnotationHashRoute(id); }
 
-  createSelectionHashRoute({ level = "file", bounds }: SelectionHashRouteInput): string {
-    return createSelectionHashRoute({ level, bounds });
-  }
+  createSelectionHashRoute({ level = "file", bounds }: SelectionHashRouteInput): string { return createSelectionHashRoute({ level, bounds }); }
 
-  searchParams(metadata: DeepLinkMetadata): URLSearchParams {
-    return searchParams(metadata);
-  }
+  searchParams(metadata: DeepLinkMetadata): URLSearchParams { return searchParams(metadata); }
 }
 
 export function createCodemapDeepLink(kind: string, locator: string, metadata: DeepLinkMetadata = {}): string {
@@ -79,18 +67,14 @@ export function createSelectionHashRoute({ level = "file", bounds }: SelectionHa
 
 function searchParams(metadata: DeepLinkMetadata): URLSearchParams {
   const params = new URLSearchParams();
-  for (const key in metadata) {
-    if (!Object.hasOwn(metadata, key)) continue;
-    const value = metadata[key];
+  for (const [key, value] of Object.entries(metadata)) {
     if (value !== undefined && value !== "") params.set(key, String(value));
   }
   return params;
 }
 
 function metadataFromSearchParams(params: URLSearchParams): Record<string, string> {
-  const metadata: Record<string, string> = {};
-  for (const [key, value] of params) metadata[key] = value;
-  return metadata;
+  return Object.fromEntries(params);
 }
 
 function formatRouteNumber(value: number): string {

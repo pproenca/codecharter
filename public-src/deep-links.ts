@@ -9,29 +9,17 @@ type Bounds = {
 type BoundsTuple = [number, number, number, number];
 
 export class BrowserHashRouteCodec {
-  createMapRoute(kind: string, locator: string, metadata: RouteMetadata = {}): string {
-    return createMapHashRoute(kind, locator, metadata);
-  }
+  createMapRoute(kind: string, locator: string, metadata: RouteMetadata = {}): string { return createMapHashRoute(kind, locator, metadata); }
 
-  createAnnotationRoute(id: string): string {
-    return createAnnotationHashRoute(id);
-  }
+  createAnnotationRoute(id: string): string { return createAnnotationHashRoute(id); }
 
-  createSelectionRoute({ level = "file", bounds }: { level?: string; bounds: Bounds }): string {
-    return createSelectionHashRoute({ level, bounds });
-  }
+  createSelectionRoute({ level = "file", bounds }: { level?: string; bounds: Bounds }): string { return createSelectionHashRoute({ level, bounds }); }
 
-  parse(hash: string): ReturnType<typeof parseHashRoute> {
-    return parseHashRoute(hash);
-  }
+  parse(hash: string): ReturnType<typeof parseHashRoute> { return parseHashRoute(hash); }
 
-  boundsFromParams(params: URLSearchParams): Bounds | null {
-    return boundsFromRouteParams(params);
-  }
+  boundsFromParams(params: URLSearchParams): Bounds | null { return boundsFromRouteParams(params); }
 
-  searchParams(metadata: RouteMetadata): URLSearchParams {
-    return searchParams(metadata);
-  }
+  searchParams(metadata: RouteMetadata): URLSearchParams { return searchParams(metadata); }
 }
 
 export function createMapHashRoute(kind: string, locator: string, metadata: RouteMetadata = {}): string {
@@ -93,9 +81,7 @@ export function boundsFromRouteParams(params: URLSearchParams): Bounds | null {
 
 function searchParams(metadata: RouteMetadata): URLSearchParams {
   const params = new URLSearchParams();
-  for (const key in metadata) {
-    if (!Object.hasOwn(metadata, key)) continue;
-    const value = metadata[key];
+  for (const [key, value] of Object.entries(metadata)) {
     if (value !== undefined && value !== "") params.set(key, String(value));
   }
   return params;
@@ -110,25 +96,11 @@ function formatRouteBounds(bounds: Bounds): string {
 }
 
 function routeParts(path: string): string[] {
-  const parts: string[] = [];
-  let start = 0;
-  for (let index = 0; index <= path.length; index += 1) {
-    if (index < path.length && path[index] !== "/") continue;
-    if (index > start) parts.push(decodeURIComponent(path.slice(start, index)));
-    start = index + 1;
-  }
-  return parts;
+  return path.split("/").filter(Boolean).map((part) => decodeURIComponent(part));
 }
 
 function parseBoundsParam(value: string): number[] {
-  const bounds: number[] = [];
-  let start = 0;
-  for (let index = 0; index <= value.length; index += 1) {
-    if (index < value.length && value[index] !== ",") continue;
-    bounds.push(Number(value.slice(start, index)));
-    start = index + 1;
-  }
-  return bounds;
+  return value.split(",").map(Number);
 }
 
 function isBoundsTuple(values: number[]): values is BoundsTuple {

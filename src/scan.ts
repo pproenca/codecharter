@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, join, relative } from "node:path";
 import { execFileText } from "./exec-file.ts";
 import { isCodeFile } from "./extensions.ts";
-import { stringsAreSorted } from "./util.ts";
+import { compareStrings, mapConcurrent, sortIfNeeded } from "./util.ts";
 import type { ScannedFile } from "./tree.js";
 const DEFAULT_EXCLUDED_FILES = new Set([
   "bun.lock",
@@ -26,14 +26,11 @@ export async function listIncludedFiles(root: string, { excludePaths = [] }: Sca
   });
 
   const paths: string[] = [];
-  let lineStart = 0;
-  for (let index = 0; index <= stdout.length; index += 1) {
-    if (index < stdout.length && stdout[index] !== "\n") continue;
-    const path = stdout.slice(lineStart, index).trim();
-    lineStart = index + 1;
+  for (const line of stdout.split("\n")) {
+    const path = line.trim();
     if (shouldIncludePath(path, excluded)) paths.push(path);
   }
-  return stringsAreSorted(paths) ? paths : paths.sort((a, b) => a.localeCompare(b));
+  return sortIfNeeded(paths, compareStrings);
 }
 
 function shouldIncludePath(path: string, excluded: string[]): boolean {
@@ -72,22 +69,7 @@ function contentMetrics(content: string): Pick<ScannedFile, "lineCount" | "maxLi
 }
 
 async function scanPaths(root: string, paths: string[], concurrency: number): Promise<ScannedFile[]> {
-  const results = new Array<ScannedFile>(paths.length);
-  let next = 0;
-  const workerCount = Math.max(1, Math.min(paths.length, concurrency || DEFAULT_SCAN_CONCURRENCY));
-  const workers: Promise<void>[] = [];
-  for (let worker = 0; worker < workerCount; worker += 1) {
-    workers.push((async () => {
-      while (next < paths.length) {
-        const index = next;
-        next += 1;
-        const path = paths[index];
-        if (path !== undefined) results[index] = await scanPath(root, path);
-      }
-    })());
-  }
-  await Promise.all(workers);
-  return results;
+  return mapConcurrent(paths, concurrency || DEFAULT_SCAN_CONCURRENCY, (path) => scanPath(root, path));
 }
 
 async function scanPath(root: string, path: string): Promise<ScannedFile> {

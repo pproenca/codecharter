@@ -1,5 +1,5 @@
 import { precisionForLevel } from "./levels.ts";
-import { objectValues, stringsAreSorted } from "./util.ts";
+import { objectValues, sortIfNeeded, sortedUniqueStrings } from "./util.ts";
 import type { Bounds } from "./geometry.js";
 import type { GeohashedCoordinate } from "./geohash.js";
 import type { MapLevel } from "./levels.js";
@@ -31,37 +31,21 @@ export type Tile = {
 };
 
 export class TileIndexBuilder {
-  prefixForTarget(target: TileMapTarget, level: MapLevel): string {
-    return tilePrefixForTarget(target, level);
-  }
+  prefixForTarget(target: TileMapTarget, level: MapLevel): string { return tilePrefixForTarget(target, level); }
 
-  build(codemap: TileCodemap, level: MapLevel = "file"): Tile[] {
-    return buildTileIndex(codemap, level);
-  }
+  build(codemap: TileCodemap, level: MapLevel = "file"): Tile[] { return buildTileIndex(codemap, level); }
 
-  get(codemap: TileCodemap, { level = "file", prefix }: { level?: MapLevel; prefix: string }): Tile {
-    return getTile(codemap, { level, prefix });
-  }
+  get(codemap: TileCodemap, { level = "file", prefix }: { level?: MapLevel; prefix: string }): Tile { return getTile(codemap, { level, prefix }); }
 
-  visiblePrefixes(codemap: TileCodemap, level: MapLevel = "file"): string[] {
-    return visiblePrefixes(codemap, level);
-  }
+  visiblePrefixes(codemap: TileCodemap, level: MapLevel = "file"): string[] { return visiblePrefixes(codemap, level); }
 
-  addTarget(tiles: Map<string, TileSerializedTarget[]>, prefix: string, target: TileSerializedTarget): void {
-    addTarget(tiles, prefix, target);
-  }
+  addTarget(tiles: Map<string, TileSerializedTarget[]>, prefix: string, target: TileSerializedTarget): void { addTarget(tiles, prefix, target); }
 
-  mapTargets(codemap: TileCodemap): Generator<TileSerializedTarget> {
-    return mapTargets(codemap);
-  }
+  mapTargets(codemap: TileCodemap): Generator<TileSerializedTarget> { return mapTargets(codemap); }
 
-  sortedTargets(targets: Record<string, TileMapTarget>): TileMapTarget[] {
-    return sortedTargets(targets);
-  }
+  sortedTargets(targets: Record<string, TileMapTarget>): TileMapTarget[] { return sortedTargets(targets); }
 
-  serializeTarget(target: TileMapTarget, targetType: TileTargetType): TileSerializedTarget {
-    return serializeTarget(target, targetType);
-  }
+  serializeTarget(target: TileMapTarget, targetType: TileTargetType): TileSerializedTarget { return serializeTarget(target, targetType); }
 }
 
 export function tilePrefixForTarget(target: TileMapTarget, level: MapLevel): string {
@@ -76,12 +60,8 @@ export function buildTileIndex(codemap: TileCodemap, level: MapLevel = "file"): 
   }
 
   const tileEntries = [...tiles.entries()];
-  if (!tileEntriesAreSorted(tileEntries)) tileEntries.sort(([a], [b]) => a.localeCompare(b));
-  const index: Tile[] = [];
-  for (const [prefix, targets] of tileEntries) {
-    index.push({ prefix, level, targets });
-  }
-  return index;
+  sortIfNeeded(tileEntries, compareTileEntries);
+  return tileEntries.map(([prefix, targets]) => ({ prefix, level, targets }));
 }
 
 export function getTile(codemap: TileCodemap, { level = "file", prefix }: { level?: MapLevel; prefix: string }): Tile {
@@ -96,12 +76,7 @@ export function getTile(codemap: TileCodemap, { level = "file", prefix }: { leve
 }
 
 export function visiblePrefixes(codemap: TileCodemap, level: MapLevel = "file"): string[] {
-  const prefixes = new Set<string>();
-  for (const target of rawMapTargets(codemap)) {
-    prefixes.add(tilePrefixForTarget(target, level));
-  }
-  const sorted = [...prefixes];
-  return stringsAreSorted(sorted) ? sorted : sorted.sort((a, b) => a.localeCompare(b));
+  return sortedUniqueStrings([...rawMapTargets(codemap)].map((target) => tilePrefixForTarget(target, level)));
 }
 
 function addTarget(tiles: Map<string, TileSerializedTarget[]>, prefix: string, target: TileSerializedTarget): void {
@@ -125,11 +100,7 @@ function* rawMapTargets(codemap: TileCodemap): Generator<TileMapTarget> {
 }
 
 function sortedTargets(targets: Record<string, TileMapTarget>): TileMapTarget[] {
-  const sorted: TileMapTarget[] = [];
-  for (const target of objectValues(targets)) {
-    sorted.push(target);
-  }
-  return targetsAreSorted(sorted) ? sorted : sorted.sort((left, right) => left.path.localeCompare(right.path));
+  return sortIfNeeded([...objectValues(targets)], compareTargetPaths);
 }
 
 function appendMatchingTargets(
@@ -139,32 +110,19 @@ function appendMatchingTargets(
   level: MapLevel,
   prefix: string,
 ): void {
-  const matches: TileMapTarget[] = [];
-  for (const target of objectValues(targets)) {
-    if (tilePrefixForTarget(target, level) === prefix) matches.push(target);
-  }
-  if (!targetsAreSorted(matches)) matches.sort((left, right) => left.path.localeCompare(right.path));
+  const matches = [...objectValues(targets)].filter((target) => tilePrefixForTarget(target, level) === prefix);
+  sortIfNeeded(matches, compareTargetPaths);
   for (const target of matches) {
     serialized.push(serializeTarget(target, targetType));
   }
 }
 
-function tileEntriesAreSorted(entries: [string, TileSerializedTarget[]][]): boolean {
-  for (let index = 1; index < entries.length; index += 1) {
-    const previous = entries[index - 1];
-    const current = entries[index];
-    if (previous && current && previous[0].localeCompare(current[0]) > 0) return false;
-  }
-  return true;
+function compareTileEntries([left]: [string, TileSerializedTarget[]], [right]: [string, TileSerializedTarget[]]): number {
+  return left.localeCompare(right);
 }
 
-function targetsAreSorted(targets: TileMapTarget[]): boolean {
-  for (let index = 1; index < targets.length; index += 1) {
-    const previous = targets[index - 1];
-    const current = targets[index];
-    if (previous && current && previous.path.localeCompare(current.path) > 0) return false;
-  }
-  return true;
+function compareTargetPaths(left: TileMapTarget, right: TileMapTarget): number {
+  return left.path.localeCompare(right.path);
 }
 
 function serializeTarget(target: TileMapTarget, targetType: TileTargetType): TileSerializedTarget {

@@ -26,7 +26,6 @@ test("serves map, tiles, selections, named places, and activity APIs", async () 
     activityFlushIntervalMs: 20,
     publicRoot: join(root, "public"),
   });
-  const address = server.address();
   const baseUrl = `http://127.0.0.1:${serverPort(server)}`;
 
   try {
@@ -184,7 +183,6 @@ test("serves bundled UI assets when mapping a repo without its own public direct
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
-  const address = server.address();
   const baseUrl = `http://127.0.0.1:${serverPort(server)}`;
 
   try {
@@ -300,7 +298,6 @@ test("accepts pre-resolved activity without reading the map sidecar", async () =
   await writeFile(join(root, "codecharter.json"), "{");
 
   const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
-  const address = server.address();
   const baseUrl = `http://127.0.0.1:${serverPort(server)}`;
 
   try {
@@ -325,7 +322,6 @@ test("serves activity written directly to the JSONL archive by Codex hooks", asy
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
-  const address = server.address();
   const baseUrl = `http://127.0.0.1:${serverPort(server)}`;
 
   try {
@@ -398,7 +394,6 @@ test("deletes saved map annotations", async () => {
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
-  const address = server.address();
   const baseUrl = `http://127.0.0.1:${serverPort(server)}`;
 
   try {
@@ -485,7 +480,6 @@ test("CLI resolves annotation deep links from local storage without browser auto
   await writeFile(join(root, "codecharter.json"), JSON.stringify(sampleCodemap()));
 
   const server = await startServer({ root, mapPath: join(root, "codecharter.json"), port: 0 });
-  const address = server.address();
   const baseUrl = `http://127.0.0.1:${serverPort(server)}`;
 
   let created;

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { CodeRangeGeometryMapper, codeRangeGeometry, codeRangeRequestForSelection } from "../src/line-coordinate.ts";
 import { AddressResolver, resolveAddress } from "../src/resolver.ts";
+import { required } from "../test-support/assertions.ts";
 
 const codemap = {
   version: 1,
@@ -155,8 +156,3 @@ test("CodeRangeGeometryMapper keeps the exported class facade behaviour", () => 
   assert.deepEqual(mapper.lineRangeForRequest(file, { lineStart: 20, lineEnd: 10 }), { start: 10, end: 20 });
   assert.deepEqual(mapper.tokenRangeForRequest(file, { columnStart: 24, columnEnd: 9 }), { start: 9, end: 24 });
 });
-
-function required<T>(value: T | null | undefined): T {
-  assert.ok(value);
-  return value;
-}

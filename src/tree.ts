@@ -1,4 +1,5 @@
 import type { GeohashedCoordinate } from "./geohash.js";
+import { sortIfNeeded } from "./util.ts";
 
 const MIN_VISIBLE_WEIGHT = 3;
 
@@ -85,26 +86,19 @@ export class FolderNode {
   }
 
   sortedChildren(): MapNode[] {
-    const children: MapNode[] = [];
-    for (const folder of this.sortedFolders()) children.push(folder);
-    for (const file of this.sortedFiles()) children.push(file);
-    return children;
+    return [...this.sortedFolders(), ...this.sortedFiles()];
   }
 
   sortedFolders(): FolderNode[] {
     if (!this.sortedFolderCache) {
-      const folders: FolderNode[] = [];
-      for (const folder of this.folders.values()) folders.push(folder);
-      this.sortedFolderCache = nodesAreSorted(folders) ? folders : folders.sort(compareNodeNames);
+      this.sortedFolderCache = sortIfNeeded([...this.folders.values()], compareNodeNames);
     }
     return this.sortedFolderCache;
   }
 
   sortedFiles(): FileNode[] {
     if (!this.sortedFileCache) {
-      const files: FileNode[] = [];
-      for (const file of this.files.values()) files.push(file);
-      this.sortedFileCache = nodesAreSorted(files) ? files : files.sort(compareNodeNames);
+      this.sortedFileCache = sortIfNeeded([...this.files.values()], compareNodeNames);
     }
     return this.sortedFileCache;
   }
@@ -139,17 +133,9 @@ export function buildFileTree(files: ScannedFile[]): FolderNode {
 
   for (const file of files) {
     let current = root;
-    let segmentStart = 0;
-
-    for (let index = 0; index <= file.path.length; index += 1) {
-      if (index < file.path.length && file.path[index] !== "/") continue;
-      if (index === file.path.length) {
-        current.addFile(file);
-        break;
-      }
-      current = current.childFolder(file.path.slice(segmentStart, index));
-      segmentStart = index + 1;
-    }
+    const segments = file.path.split("/");
+    for (const segment of segments.slice(0, -1)) current = current.childFolder(segment);
+    current.addFile(file);
   }
 
   root.recalculateMetrics();
@@ -184,15 +170,6 @@ export function sortedFiles(folder: FolderNode): FileNode[] {
 
 function compareNodeNames(a: { name: string }, b: { name: string }): number {
   return a.name.localeCompare(b.name);
-}
-
-function nodesAreSorted(nodes: { name: string }[]): boolean {
-  for (let index = 1; index < nodes.length; index += 1) {
-    const previous = nodes[index - 1];
-    const current = nodes[index];
-    if (previous && current && compareNodeNames(previous, current) > 0) return false;
-  }
-  return true;
 }
 
 function joinPath(parent: string, child: string): string {

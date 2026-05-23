@@ -1,22 +1,10 @@
 export class BrowserHashRouteCodec {
-    createMapRoute(kind, locator, metadata = {}) {
-        return createMapHashRoute(kind, locator, metadata);
-    }
-    createAnnotationRoute(id) {
-        return createAnnotationHashRoute(id);
-    }
-    createSelectionRoute({ level = "file", bounds }) {
-        return createSelectionHashRoute({ level, bounds });
-    }
-    parse(hash) {
-        return parseHashRoute(hash);
-    }
-    boundsFromParams(params) {
-        return boundsFromRouteParams(params);
-    }
-    searchParams(metadata) {
-        return searchParams(metadata);
-    }
+    createMapRoute(kind, locator, metadata = {}) { return createMapHashRoute(kind, locator, metadata); }
+    createAnnotationRoute(id) { return createAnnotationHashRoute(id); }
+    createSelectionRoute({ level = "file", bounds }) { return createSelectionHashRoute({ level, bounds }); }
+    parse(hash) { return parseHashRoute(hash); }
+    boundsFromParams(params) { return boundsFromRouteParams(params); }
+    searchParams(metadata) { return searchParams(metadata); }
 }
 export function createMapHashRoute(kind, locator, metadata = {}) {
     const query = searchParams(metadata).toString();
@@ -67,10 +55,7 @@ export function boundsFromRouteParams(params) {
 }
 function searchParams(metadata) {
     const params = new URLSearchParams();
-    for (const key in metadata) {
-        if (!Object.hasOwn(metadata, key))
-            continue;
-        const value = metadata[key];
+    for (const [key, value] of Object.entries(metadata)) {
         if (value !== undefined && value !== "")
             params.set(key, String(value));
     }
@@ -83,27 +68,10 @@ function formatRouteBounds(bounds) {
     return `${formatRouteNumber(bounds.x)},${formatRouteNumber(bounds.y)},${formatRouteNumber(bounds.width)},${formatRouteNumber(bounds.height)}`;
 }
 function routeParts(path) {
-    const parts = [];
-    let start = 0;
-    for (let index = 0; index <= path.length; index += 1) {
-        if (index < path.length && path[index] !== "/")
-            continue;
-        if (index > start)
-            parts.push(decodeURIComponent(path.slice(start, index)));
-        start = index + 1;
-    }
-    return parts;
+    return path.split("/").filter(Boolean).map((part) => decodeURIComponent(part));
 }
 function parseBoundsParam(value) {
-    const bounds = [];
-    let start = 0;
-    for (let index = 0; index <= value.length; index += 1) {
-        if (index < value.length && value[index] !== ",")
-            continue;
-        bounds.push(Number(value.slice(start, index)));
-        start = index + 1;
-    }
-    return bounds;
+    return value.split(",").map(Number);
 }
 function isBoundsTuple(values) {
     return values.length === 4 && values.every((value) => Number.isFinite(value));

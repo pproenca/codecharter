@@ -78,6 +78,7 @@ import {
   worldToScreenPoint,
   zoomViewAt,
 } from "../public-src/render-model.ts";
+import { required } from "../test-support/assertions.ts";
 import type { Bounds, Point } from "../public-src/render-model.js";
 import type { ActivityEvent } from "../public-src/render-model.js";
 
@@ -1378,11 +1379,6 @@ function target<T extends "file" | "folder">(path: string, targetType: T, bounds
     lineCount: 10,
     weight: 10,
   };
-}
-
-function required<T>(value: T | null | undefined): T {
-  assert.ok(value);
-  return value;
 }
 
 function roundPoint(point: Record<string, number>) {

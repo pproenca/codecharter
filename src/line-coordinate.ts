@@ -48,61 +48,33 @@ export type CodeRangeGeometry = {
 };
 
 export class CodeRangeGeometryMapper {
-  geometry(file: CodeFileGeometry, request: CodeRangeRequest): CodeRangeGeometry {
-    return codeRangeGeometry(file, request);
-  }
+  geometry(file: CodeFileGeometry, request: CodeRangeRequest): CodeRangeGeometry { return codeRangeGeometry(file, request); }
 
-  requestForSelection(file: CodeFileGeometry, selectionBounds: Bounds, targetMode?: string): CodeRangeSelectionRequest {
-    return codeRangeRequestForSelection(file, selectionBounds, targetMode);
-  }
+  requestForSelection(file: CodeFileGeometry, selectionBounds: Bounds, targetMode?: string): CodeRangeSelectionRequest { return codeRangeRequestForSelection(file, selectionBounds, targetMode); }
 
-  lineRangeForRequest(file: CodeFileGeometry, request: CodeRangeFragmentRequest): NormalizedRange {
-    return lineRangeForRequest(file, request);
-  }
+  lineRangeForRequest(file: CodeFileGeometry, request: CodeRangeFragmentRequest): NormalizedRange { return lineRangeForRequest(file, request); }
 
-  tokenRangeForRequest(file: CodeFileGeometry, request: CodeRangeFragmentRequest): NormalizedRange | null {
-    return tokenRangeForRequest(file, request);
-  }
+  tokenRangeForRequest(file: CodeFileGeometry, request: CodeRangeFragmentRequest): NormalizedRange | null { return tokenRangeForRequest(file, request); }
 
-  fragmentGeometries(file: CodeFileGeometry, fragments: CodeRangeFragmentRequest[] | undefined): CodeRangeFragmentGeometry[] {
-    return fragmentGeometries(file, fragments);
-  }
+  fragmentGeometries(file: CodeFileGeometry, fragments: CodeRangeFragmentRequest[] | undefined): CodeRangeFragmentGeometry[] { return fragmentGeometries(file, fragments); }
 
-  fragmentGeometry(file: CodeFileGeometry, fragment: CodeRangeFragmentRequest | undefined): CodeRangeFragmentGeometry | null {
-    return fragmentGeometry(file, fragment);
-  }
+  fragmentGeometry(file: CodeFileGeometry, fragment: CodeRangeFragmentRequest | undefined): CodeRangeFragmentGeometry | null { return fragmentGeometry(file, fragment); }
 
-  lineRangeBounds(file: CodeFileGeometry, lineRange: NormalizedRange): Bounds {
-    return lineRangeBounds(file, lineRange);
-  }
+  lineRangeBounds(file: CodeFileGeometry, lineRange: NormalizedRange): Bounds { return lineRangeBounds(file, lineRange); }
 
-  tokenBounds(file: CodeFileGeometry, lineBounds: Bounds, tokenRange: NormalizedRange): Bounds {
-    return tokenBounds(file, lineBounds, tokenRange);
-  }
+  tokenBounds(file: CodeFileGeometry, lineBounds: Bounds, tokenRange: NormalizedRange): Bounds { return tokenBounds(file, lineBounds, tokenRange); }
 
-  lineRangeForSelection(file: CodeFileGeometry, selectionBounds: Bounds): NormalizedRange {
-    return lineRangeForSelection(file, selectionBounds);
-  }
+  lineRangeForSelection(file: CodeFileGeometry, selectionBounds: Bounds): NormalizedRange { return lineRangeForSelection(file, selectionBounds); }
 
-  tokenRangeForSelection(file: CodeFileGeometry, selectionBounds: Bounds): { columnStart: number; columnEnd: number } {
-    return tokenRangeForSelection(file, selectionBounds);
-  }
+  tokenRangeForSelection(file: CodeFileGeometry, selectionBounds: Bounds): { columnStart: number; columnEnd: number } { return tokenRangeForSelection(file, selectionBounds); }
 
-  unionBounds(boundsList: Bounds[]): Bounds {
-    return unionBounds(boundsList);
-  }
+  unionBounds(boundsList: Bounds[]): Bounds { return unionBounds(boundsList); }
 
-  normalizeRange(left: number, right: number): NormalizedRange {
-    return normalizeRange(left, right);
-  }
+  normalizeRange(left: number, right: number): NormalizedRange { return normalizeRange(left, right); }
 
-  normalizeLine(value: number | string | undefined, lineCount: number): number {
-    return normalizeLine(value, lineCount);
-  }
+  normalizeLine(value: number | string | undefined, lineCount: number): number { return normalizeLine(value, lineCount); }
 
-  normalizeColumn(value: number | string | undefined, maxLineLength: number): number {
-    return normalizeColumn(value, maxLineLength);
-  }
+  normalizeColumn(value: number | string | undefined, maxLineLength: number): number { return normalizeColumn(value, maxLineLength); }
 }
 
 export function codeRangeGeometry(file: CodeFileGeometry, request: CodeRangeRequest): CodeRangeGeometry {

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { changedRangeFromUnifiedDiff } from "./activity-change-range.ts";
 import { execFileText } from "./exec-file.ts";
 import { isCodeFile } from "./extensions.ts";
+import { errorMessage, mapConcurrent } from "./util.ts";
 import type { ActivityStateInput } from "./activity.js";
 import type { ChangedRange } from "./activity-change-range.js";
 const DEFAULT_INTERVAL_MS = 1800;
@@ -161,51 +162,21 @@ export async function changedCodeChanges(root?: string): Promise<CodeChange[]> {
 }
 
 function changedRangesForPaths(root: string | undefined, paths: string[]): Promise<CodeChange[]> {
-  return mapChangedRanges(root, paths, DEFAULT_CHANGE_RANGE_CONCURRENCY);
-}
-
-async function mapChangedRanges(root: string | undefined, paths: string[], concurrency: number): Promise<CodeChange[]> {
-  const changes = new Array<CodeChange>(paths.length);
-  let next = 0;
-  const workerCount = Math.max(1, Math.min(paths.length, concurrency));
-  const workers: Promise<void>[] = [];
-  for (let worker = 0; worker < workerCount; worker += 1) {
-    workers.push((async () => {
-      while (next < paths.length) {
-        const index = next;
-        next += 1;
-        const path = paths[index];
-        if (path === undefined) continue;
-        changes[index] = {
-          path,
-          ...await changedLineRange(root, path),
-        };
-      }
-    })());
-  }
-  await Promise.all(workers);
-  return changes;
+  return mapConcurrent(paths, DEFAULT_CHANGE_RANGE_CONCURRENCY, async (path) => ({
+    path,
+    ...await changedLineRange(root, path),
+  }));
 }
 
 export function parseGitStatusPorcelain(raw: string): string[] {
   const paths: string[] = [];
-
-  let start = 0;
-  for (let index = 0; index <= raw.length; index += 1) {
-    if (index < raw.length && raw[index] !== "\0") continue;
-    if (index === start) {
-      start = index + 1;
-      continue;
-    }
-    const entry = raw.slice(start, index);
-    start = index + 1;
+  const entries = raw.split("\0");
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+    if (!entry) continue;
     const status = entry.slice(0, 2);
     const path = entry.slice(3);
-    if (isCopiedOrRenamedStatus(status)) {
-      const nextStart = raw.indexOf("\0", start);
-      start = nextStart === -1 ? raw.length : nextStart + 1;
-      index = start - 1;
-    }
+    if (isCopiedOrRenamedStatus(status)) index += 1;
     if (isActivityWatchablePath(path)) paths.push(path);
   }
 
@@ -317,8 +288,4 @@ function hashString(value: string): string {
     hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
   }
   return hash.toString(36);
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

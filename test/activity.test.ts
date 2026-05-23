@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ActivityEventBuilder, ActivityStateNormalizer, createActivityEvent } from "../src/activity.js";
 import { execFileText } from "../src/exec-file.ts";
+import { required } from "../test-support/assertions.ts";
 import type { CodecharterCodemap } from "../src/resolver.js";
 
 test("creates timestamped agent activity events at map addresses", () => {
@@ -281,9 +282,4 @@ function sampleCodemap(): CodecharterCodemap & { version: number; mapLevels: Rec
       },
     },
   };
-}
-
-function required<T>(value: T | null | undefined): T {
-  assert.ok(value);
-  return value;
 }

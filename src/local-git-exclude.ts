@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 import { execFileText } from "./exec-file.ts";
+import { isErrnoException } from "./util.ts";
 
 export const CODECHARTER_GITIGNORE_PATTERNS: readonly string[] = [
   ".codecharter/",
@@ -57,15 +58,7 @@ async function ensureIgnoreFile(path: string, patterns: readonly string[]): Prom
 }
 
 function ignorePatterns(content: string): Set<string> {
-  const patterns = new Set<string>();
-  let start = 0;
-  for (let index = 0; index <= content.length; index += 1) {
-    if (index < content.length && content[index] !== "\n") continue;
-    const line = content.slice(start, content[index - 1] === "\r" ? index - 1 : index).trim();
-    if (line) patterns.add(line);
-    start = index + 1;
-  }
-  return patterns;
+  return new Set(content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean));
 }
 
 async function localGitExcludePath(root: string): Promise<string | null> {
@@ -77,8 +70,4 @@ async function localGitExcludePath(root: string): Promise<string | null> {
   } catch {
     return null;
   }
-}
-
-function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && "code" in error;
 }

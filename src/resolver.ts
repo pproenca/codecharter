@@ -2,7 +2,7 @@ import { geohashForBoundsCenter } from "./geohash.ts";
 import { precisionForLevel } from "./levels.ts";
 import { createCodemapDeepLink } from "./deep-links.ts";
 import { codeRangeGeometry } from "./line-coordinate.ts";
-import { stringsAreSorted } from "./util.ts";
+import { sortedUniqueStrings } from "./util.ts";
 import type { Bounds } from "./geometry.js";
 import type { GeohashedCoordinate } from "./geohash.js";
 import type { MapLevel } from "./levels.js";
@@ -81,21 +81,13 @@ export class AddressResolver {
     this.codemap = codemap;
   }
 
-  resolve(request: AddressRequest): ResolvedAddress {
-    return resolveAddress(this.codemap, request);
-  }
+  resolve(request: AddressRequest): ResolvedAddress { return resolveAddress(this.codemap, request); }
 
-  resolveFolder(folder: MapFolderTarget): ResolvedAddress {
-    return resolveFolderAddress(folder);
-  }
+  resolveFolder(folder: MapFolderTarget): ResolvedAddress { return resolveFolderAddress(folder); }
 
-  resolveFile(file: MapFileTarget, request: CodeRangeRequest): ResolvedAddress {
-    return resolveFileAddress(file, request);
-  }
+  resolveFile(file: MapFileTarget, request: CodeRangeRequest): ResolvedAddress { return resolveFileAddress(file, request); }
 
-  resolveCodeRange(file: MapFileTarget, request: CodeRangeRequest): ResolvedAddress {
-    return resolveCodeRangeAddress(file, request);
-  }
+  resolveCodeRange(file: MapFileTarget, request: CodeRangeRequest): ResolvedAddress { return resolveCodeRangeAddress(file, request); }
 }
 
 function resolveFolderAddress(folder: MapFolderTarget): ResolvedAddress {
@@ -187,24 +179,12 @@ function geohashedFragmentsWithCoverage(fragments: CodeRangeFragmentGeometry[]):
   }
   return {
     fragments: mapped,
-    coveringSet: sortedUnique(coverage),
+    coveringSet: sortedUniqueStrings(coverage),
   };
 }
 
-function sortedUnique(values: Iterable<string>): string[] {
-  const source = values instanceof Set ? values : new Set(values);
-  const unique: string[] = [...source];
-  return stringsAreSorted(unique) ? unique : unique.sort((a, b) => a.localeCompare(b));
-}
-
 function breadcrumbForPath(path: string): string {
-  const segments: string[] = [];
-  let segmentStart = 0;
-  for (let index = 0; index <= path.length; index += 1) {
-    if (index < path.length && path[index] !== "/") continue;
-    if (index > segmentStart) segments.push(path.slice(segmentStart, index));
-    segmentStart = index + 1;
-  }
+  const segments = path.split("/").filter(Boolean);
   return segments.length ? segments.join(" > ") : ".";
 }
 

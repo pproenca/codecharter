@@ -157,7 +157,7 @@ type ActivitySummary = {
   latestIndex: number;
   latestTimestamp: number;
 };
-type ActivityFeedItem = { event?: ActivityEvent; timestamp: number };
+type ActivityFeedItem = { event: ActivityEvent; timestamp: number };
 type TrailSegment = {
   start: Point;
   control1: Point;
@@ -363,25 +363,14 @@ export function folderDepth(path: string): number {
 }
 
 export function organicRegionFolders(codemap: CodecharterCodemap) {
-  const folders: Array<{ folder: MapFolder; depth: number }> = [];
-  for (const folder of objectValues(codemap.folders ?? {})) {
-    if (!folder.path) continue;
-    folders.push({ folder, depth: folderDepth(folder.path) });
-  }
-  return organicRegionFoldersAreSorted(folders)
-    ? folders
-    : folders.sort((a, b) => a.depth - b.depth || a.folder.path.localeCompare(b.folder.path));
+  const folders = [...objectValues(codemap.folders ?? {})]
+    .filter((folder) => folder.path)
+    .map((folder) => ({ folder, depth: folderDepth(folder.path ?? "") }));
+  return sortIfNeeded(folders, compareOrganicRegionFolders);
 }
 
-function organicRegionFoldersAreSorted(folders: Array<{ folder: MapFolder; depth: number }>): boolean {
-  for (let index = 1; index < folders.length; index += 1) {
-    const previous = folders[index - 1];
-    const current = folders[index];
-    if (!previous || !current) return false;
-    if (previous.depth > current.depth) return false;
-    if (previous.depth === current.depth && previous.folder.path.localeCompare(current.folder.path) > 0) return false;
-  }
-  return true;
+function compareOrganicRegionFolders(a: { folder: MapFolder; depth: number }, b: { folder: MapFolder; depth: number }): number {
+  return a.depth - b.depth || a.folder.path.localeCompare(b.folder.path);
 }
 
 export function folderStyle(path: string, depth: number) {
@@ -748,7 +737,7 @@ export function isSpaceKeyEvent(event: KeyboardEventLike): boolean {
   return event.code === "Space" || event.key === " " || event.key === "Spacebar";
 }
 
-export function viewForBounds(bounds: Bounds, viewport: Viewport, paddingFactor = 1.2, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE): View {
+export function viewForBounds(bounds: Bounds, _viewport: Viewport, paddingFactor = 1.2, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE): View {
   const scaleX = 1 / Math.max(bounds.width * paddingFactor, 0.001);
   const scaleY = 1 / Math.max(bounds.height * paddingFactor, 0.001);
   const scale = clamp(Math.min(scaleX, scaleY), minScale, maxScale);
@@ -1323,9 +1312,7 @@ export function activityPrimaryBounds(event: ActivityEvent): Bounds | null {
 
 export function simplifyTrailPoints(points: Point[], minDistance = ACTIVITY_TRAIL_MIN_SEGMENT_PX): Point[] {
   if (points.length <= 2) {
-    const copy: Point[] = [];
-    for (const point of points) copy.push(point);
-    return copy;
+    return points.slice();
   }
   const first = points[0];
   if (!first) return [];
@@ -1376,7 +1363,7 @@ export function activityTrailGroups(events: ActivityEvent[], {
     if (current.length > 1) groups.push(current);
   }
 
-  return activityGroupsAreSorted(groups) ? groups : groups.sort(compareActivityGroupsByTime);
+  return sortIfNeeded(groups, compareActivityGroupsByTime);
 }
 
 export function activityTrailPointGroups(points: Point[], {
@@ -1479,11 +1466,8 @@ export function latestActivityByAgent(events: ActivityEvent[], options: Activity
     liveIndex += 1;
   }
 
-  const summaries: ActivitySummary[] = [];
-  for (const summary of byAgent.values()) summaries.push(summary);
-  if (!activitySummariesAreInFirstSeenOrder(summaries)) {
-    summaries.sort((a, b) => a.firstTimestamp - b.firstTimestamp || a.firstIndex - b.firstIndex);
-  }
+  const summaries = [...byAgent.values()];
+  sortIfNeeded(summaries, compareActivitySummariesByFirstSeen);
   const latest = new Map<string, ActivityEvent>();
   for (const summary of summaries) {
     latest.set(summary.key, summary.event);
@@ -1492,44 +1476,23 @@ export function latestActivityByAgent(events: ActivityEvent[], options: Activity
 }
 
 export function activityFeedEvents(events: ActivityEvent[], options: ActivityFogOptions = {}) {
-  const feed: ActivityFeedItem[] = [];
-  for (const event of latestActivityByAgent(events, options).values()) {
-    const timestamp = activitySortTimestamp(event);
-    if (!Number.isFinite(timestamp)) return activityFeedEventsViaSort(events, options);
-    insertActivityFeedEvent(feed, event, timestamp, 5);
-  }
-  const eventsForFeed: ActivityEvent[] = [];
-  for (const item of feed) {
-    if (item.event) eventsForFeed.push(item.event);
-  }
-  return eventsForFeed;
+  return activityFeedFromLatest(latestActivityByAgent(events, options).values(), true)
+    ?? activityFeedEventsViaSort(events, options);
 }
 
 export function activityActorKey(event: ActivityEvent): string {
   return `${event?.agentId ?? "agent"}:${event?.threadId ?? event?.sessionId ?? "manual"}`;
 }
 
-function activitySummariesAreInFirstSeenOrder(summaries: ActivitySummary[]): boolean {
-  let previousTimestamp = Number.NEGATIVE_INFINITY;
-  let previousIndex = -1;
-  for (const summary of summaries) {
-    if (
-      summary.firstTimestamp < previousTimestamp
-      || (summary.firstTimestamp === previousTimestamp && summary.firstIndex < previousIndex)
-    ) {
-      return false;
-    }
-    previousTimestamp = summary.firstTimestamp;
-    previousIndex = summary.firstIndex;
-  }
-  return true;
+function compareActivitySummariesByFirstSeen(left: ActivitySummary, right: ActivitySummary): number {
+  return left.firstTimestamp - right.firstTimestamp || left.firstIndex - right.firstIndex;
 }
 
 function insertActivityFeedEvent(feed: ActivityFeedItem[], event: ActivityEvent, timestamp: number, limit: number): void {
   let index = 0;
   while (index < feed.length) {
-    const item = feed[index];
-    if (!item || compareActivityFeedItems(item, { timestamp }) > 0) break;
+    const item = feed[index]!;
+    if (compareActivityFeedItems(item, { timestamp }) > 0) break;
     index += 1;
   }
   if (index >= limit) return;
@@ -1538,15 +1501,17 @@ function insertActivityFeedEvent(feed: ActivityFeedItem[], event: ActivityEvent,
 }
 
 function activityFeedEventsViaSort(events: ActivityEvent[], options: ActivityFogOptions): ActivityEvent[] {
+  return activityFeedFromLatest(latestActivityByAgent(events, options).values(), false) ?? [];
+}
+
+function activityFeedFromLatest(events: Iterable<ActivityEvent>, requireFiniteTimestamp: boolean): ActivityEvent[] | null {
   const feed: ActivityFeedItem[] = [];
-  for (const event of latestActivityByAgent(events, options).values()) {
-    insertActivityFeedEvent(feed, event, activitySortTimestamp(event), 5);
+  for (const event of events) {
+    const timestamp = activitySortTimestamp(event);
+    if (requireFiniteTimestamp && !Number.isFinite(timestamp)) return null;
+    insertActivityFeedEvent(feed, event, timestamp, 5);
   }
-  const eventsForFeed: ActivityEvent[] = [];
-  for (const item of feed) {
-    if (item.event) eventsForFeed.push(item.event);
-  }
-  return eventsForFeed;
+  return feed.map((item) => item.event);
 }
 
 function latestActivityByAgentViaSort(events: ActivityEvent[], options: ActivityFogOptions): Map<string, ActivityEvent> {
@@ -1568,18 +1533,11 @@ function liveActivityEventsInTimeOrder(events: ActivityEvent[], options: Activit
     if (!isLiveActivityEvent(event, options)) continue;
     liveEvents.push(event);
   }
-  return activityEventsAreSorted(liveEvents) ? liveEvents : liveEvents.sort(compareActivityEventsByTime);
+  return sortIfNeeded(liveEvents, compareActivityEventsByTime);
 }
 
 function liveActivityEventsFromOffset(events: ActivityEvent[], offset: number, options: ActivityFogOptions): ActivityEvent[] {
-  const ordered = liveActivityEventsInTimeOrder(events, options);
-  const liveEvents: ActivityEvent[] = [];
-  const start = Math.max(0, offset);
-  for (let index = start; index < ordered.length; index += 1) {
-    const event = ordered[index];
-    if (event) liveEvents.push(event);
-  }
-  return liveEvents;
+  return liveActivityEventsInTimeOrder(events, options).slice(Math.max(0, offset));
 }
 
 function liveActivityEventsTailInTimeOrder(events: ActivityEvent[], limit: number, options: ActivityFogOptions): ActivityEvent[] {
@@ -1633,15 +1591,6 @@ function compareActivityEventsByTime(left: ActivityEvent, right: ActivityEvent):
   return Number.isNaN(result) ? 0 : result;
 }
 
-function activityEventsAreSorted(events: ActivityEvent[]): boolean {
-  for (let index = 1; index < events.length; index += 1) {
-    const previous = events[index - 1];
-    const current = events[index];
-    if (!previous || !current || compareActivityEventsByTime(previous, current) > 0) return false;
-  }
-  return true;
-}
-
 function activityAgeMinutes(event: ActivityEvent, now: number): number {
   const timestamp = Date.parse(event?.timestamp ?? "");
   if (!Number.isFinite(timestamp)) return 0;
@@ -1660,15 +1609,6 @@ function compareActivityGroupsByTime(left: ActivityEvent[], right: ActivityEvent
   const leftTime = Date.parse(left[0]?.timestamp ?? "");
   const rightTime = Date.parse(right[0]?.timestamp ?? "");
   return (Number.isFinite(leftTime) ? leftTime : 0) - (Number.isFinite(rightTime) ? rightTime : 0);
-}
-
-function activityGroupsAreSorted(groups: ActivityEvent[][]): boolean {
-  for (let index = 1; index < groups.length; index += 1) {
-    const previous = groups[index - 1];
-    const current = groups[index];
-    if (!previous || !current || compareActivityGroupsByTime(previous, current) > 0) return false;
-  }
-  return true;
 }
 
 function boundedTrailControlPoint({ point, start, end, segmentDistance }: { point: Point; start: Point; end: Point; segmentDistance: number }): Point {
@@ -1731,4 +1671,15 @@ function isPositionedBox(box: BoxSize | Bounds): box is Bounds {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function sortIfNeeded<T>(values: T[], compare: (left: T, right: T) => number): T[] {
+  return valuesAreSorted(values, compare) ? values : values.sort(compare);
+}
+
+function valuesAreSorted<T>(values: T[], compare: (left: T, right: T) => number): boolean {
+  for (let index = 1; index < values.length; index += 1) {
+    if (compare(values[index - 1]!, values[index]!) > 0) return false;
+  }
+  return true;
 }

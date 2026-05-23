@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { execFileText } from "../src/exec-file.ts";
 import { generateCodemap } from "../src/generator.ts";
 import { listIncludedFiles } from "../src/scan.ts";
+import { required } from "../test-support/assertions.ts";
 import type { GeneratedCodemap } from "../src/generator.ts";
 import type { Bounds } from "../src/geometry.ts";
 
@@ -257,9 +258,4 @@ function rootChildOccupancy(codemap: GeneratedCodemap) {
 
 function area(bounds: Bounds) {
   return bounds.width * bounds.height;
-}
-
-function required<T>(value: T | null | undefined): T {
-  assert.ok(value);
-  return value;
 }

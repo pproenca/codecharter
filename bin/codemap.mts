@@ -13,14 +13,15 @@ import { runCodexHook } from "../src/codex-hook.ts";
 import { parseCodemapDeepLink } from "../src/deep-links.ts";
 import { generateCodemap } from "../src/generator.ts";
 import { initializeCodecharter } from "../src/init.ts";
+import { MAP_LEVELS } from "../src/levels.ts";
 import { ensureCodecharterGitignore, ensureLocalGitExcludes } from "../src/local-git-exclude.ts";
 import { resolveAddress } from "../src/resolver.ts";
 import type { AddressRequest, CodecharterCodemap } from "../src/resolver.js";
 import { refreshPlaceResolution } from "../src/selections.ts";
 import { startServer } from "../src/server.ts";
 import { writeJson } from "../src/store.ts";
-import type { ActivityStateInput } from "../src/activity.js";
-import type { ActivityWatcherPayload, CodeChange } from "../src/activity-watcher.js";
+import { PACKAGE_DEPENDENCY_SECTIONS, errorMessage, isErrnoException, objectRecord, packageJsonFromValue, sortedUniqueStrings } from "../src/util.ts";
+import type { PackageJsonWithDependencies } from "../src/util.js";
 import type { ParsedCodemapDeepLink } from "../src/deep-links.js";
 import type { GeneratedCodemap } from "../src/generator.js";
 import type { ResolvedAddress } from "../src/resolver.js";
@@ -41,15 +42,6 @@ type PackageMetadata = {
   version: string;
   [key: string]: unknown;
 };
-type PackageJson = {
-  name?: string;
-  devDependencies?: Record<string, string>;
-  dependencies?: Record<string, string>;
-  optionalDependencies?: Record<string, string>;
-  peerDependencies?: Record<string, string>;
-  [key: string]: unknown;
-};
-type PackageDependencySection = "devDependencies" | "dependencies" | "optionalDependencies" | "peerDependencies";
 type NamedPlacesFile = {
   places: MapAnnotation[];
 };
@@ -204,6 +196,7 @@ const METADATA_EXCLUDE_PATHS = [
   ".agents/skills/codecharter/SKILL.md",
   ".agents/skills/codecharter/agents/openai.yaml",
 ];
+const MAP_ANNOTATION_STRING_FIELDS = ["id", "name", "comment", "createdAt", "updatedAt", "deepLink", "browserHash", "codexPrompt"];
 
 function usage(): string {
   return `Usage:
@@ -259,7 +252,7 @@ async function main() {
   jsonOutput = takeFlag(args, "--json") || jsonOutput;
   takeFlag(args, "--plain");
 
-  const commandHandler = COMMAND_REGISTRY.commandFor(command);
+  const commandHandler = commandFor(command);
   if (commandHandler) {
     await commandHandler.execute({ args, command, jsonOutput });
     return;
@@ -270,56 +263,20 @@ async function main() {
   process.exitCode = 1;
 }
 
-class CommandRegistry {
-  private readonly commandsByName: Map<string, CommandHandler>;
-  private readonly defaultCommand: CommandHandler;
-
-  constructor(commands: CommandHandler[], defaultCommand: CommandHandler) {
-    this.commandsByName = new Map(commands.flatMap((command) =>
-      command.aliases.map((alias) => [alias, command])
-    ));
-    this.defaultCommand = defaultCommand;
-  }
-
-  commandFor(name: string | undefined): CommandHandler | undefined {
-    return name ? this.commandsByName.get(name) : this.defaultCommand;
-  }
+function command(aliases: string[], execute: CommandHandler["execute"]): CommandHandler {
+  return { aliases, execute };
 }
 
-class CliCommand {
-  readonly aliases: string[];
-
-  constructor(aliases: string[]) {
-    this.aliases = aliases;
-  }
-}
-
-class HelpCommand extends CliCommand {
-  constructor() {
-    super(["--help", "-h", "help"]);
-  }
-
-  async execute() {
+const HELP_COMMAND = command(["--help", "-h", "help"], () => {
     console.log(usage());
-  }
-}
+});
 
-class VersionCommand extends CliCommand {
-  constructor() {
-    super(["--version", "-V", "version"]);
-  }
-
-  async execute() {
+const CLI_COMMANDS: CommandHandler[] = [
+  HELP_COMMAND,
+  command(["--version", "-V", "version"], async () => {
     console.log((await packageMetadata()).version);
-  }
-}
-
-class DoctorCommand extends CliCommand {
-  constructor() {
-    super(["doctor"]);
-  }
-
-  async execute({ args, jsonOutput }: CommandContext) {
+  }),
+  command(["doctor"], async ({ args, jsonOutput }) => {
     const root = resolvePath(takeOption(args, "--root", "."));
     const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
     const server = takeOption(args, "--server", undefined);
@@ -328,15 +285,8 @@ class DoctorCommand extends CliCommand {
     const result = await doctor({ root, mapPath, ...optionalProperty("server", server) });
     if (jsonOutput) printJson(result);
     else printDoctor(result);
-  }
-}
-
-class GenerateCommand extends CliCommand {
-  constructor() {
-    super(["generate"]);
-  }
-
-  async execute({ args }: CommandContext) {
+  }),
+  command(["generate"], async ({ args }) => {
     const root = resolvePath(takeOption(args, "--root", "."));
     const out = resolveMapPath(root, takeOption(args, "--out", DEFAULT_MAP_FILE));
     const fresh = takeFlag(args, "--fresh");
@@ -345,15 +295,8 @@ class GenerateCommand extends CliCommand {
     if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
 
     await writeCodemap({ root, out, fresh, quiet });
-  }
-}
-
-class InitCommand extends CliCommand {
-  constructor() {
-    super(["init", "setup"]);
-  }
-
-  async execute({ args, command }: CommandContext) {
+  }),
+  command(["init", "setup"], async ({ args, command }) => {
     const root = resolvePath(takeOption(args, "--root", "."));
     const out = resolveMapPath(root, takeOption(args, "--out", DEFAULT_MAP_FILE));
     const fresh = takeFlag(args, "--fresh");
@@ -396,15 +339,8 @@ class InitCommand extends CliCommand {
       installGitHooks,
     });
     console.log("next: codecharter dev");
-  }
-}
-
-class DevCommand extends CliCommand {
-  constructor() {
-    super(["dev"]);
-  }
-
-  async execute({ args }: CommandContext) {
+  }),
+  command(["dev"], async ({ args }) => {
     const root = resolvePath(takeOption(args, "--root", "."));
     const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
     const port = Number(takeOption(args, "--port", "4173"));
@@ -434,25 +370,11 @@ class DevCommand extends CliCommand {
     }
 
     await runDevServer({ root, mapPath, port, agentId, watch, fresh, open });
-  }
-}
-
-class ClearCommand extends CliCommand {
-  constructor() {
-    super(["clear"]);
-  }
-
-  async execute({ args, jsonOutput }: CommandContext) {
+  }),
+  command(["clear"], async ({ args, jsonOutput }) => {
     await runClearActivityCommand(args, jsonOutput);
-  }
-}
-
-class ResolveCommand extends CliCommand {
-  constructor() {
-    super(["resolve"]);
-  }
-
-  async execute({ args, jsonOutput }: CommandContext) {
+  }),
+  command(["resolve"], async ({ args, jsonOutput }) => {
     const root = resolvePath(takeOption(args, "--root", "."));
     const mapPath = await resolveCliMapPath(takeOption(args, "--map", undefined), root);
     const server = takeOption(args, "--server", undefined);
@@ -476,15 +398,8 @@ class ResolveCommand extends CliCommand {
       columnEndRaw,
     }));
     printResult(address, jsonOutput, printResolvedAddress);
-  }
-}
-
-class AnnotationCommand extends CliCommand {
-  constructor() {
-    super(["annotation"]);
-  }
-
-  async execute({ args, jsonOutput }: CommandContext) {
+  }),
+  command(["annotation"], async ({ args, jsonOutput }) => {
     const root = resolvePath(takeOption(args, "--root", "."));
     const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
     const server = takeOption(args, "--server", undefined);
@@ -494,15 +409,8 @@ class AnnotationCommand extends CliCommand {
     if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
 
     printResult(await readAnnotation({ root, mapPath, reference, ...optionalProperty("server", server) }), jsonOutput, printAnnotation);
-  }
-}
-
-class AnnotationsCommand extends CliCommand {
-  constructor() {
-    super(["annotations"]);
-  }
-
-  async execute({ args, jsonOutput }: CommandContext) {
+  }),
+  command(["annotations"], async ({ args, jsonOutput }) => {
     const root = resolvePath(takeOption(args, "--root", "."));
     const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
     const server = takeOption(args, "--server", undefined);
@@ -516,15 +424,8 @@ class AnnotationsCommand extends CliCommand {
       ...optionalProperty("server", server),
       ...optionalProperty("limit", limit),
     }), jsonOutput, printAnnotations);
-  }
-}
-
-class ApiCommand extends CliCommand {
-  constructor() {
-    super(["api"]);
-  }
-
-  async execute({ args, jsonOutput }: CommandContext) {
+  }),
+  command(["api"], async ({ args, jsonOutput }) => {
     const server = takeOption(args, "--server", undefined);
     stripArgumentSeparator(args);
     const [reference] = args;
@@ -532,15 +433,8 @@ class ApiCommand extends CliCommand {
     if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
 
     printResult(await readApi({ reference, ...optionalProperty("server", server) }), jsonOutput, printApi);
-  }
-}
-
-class ActivityCommand extends CliCommand {
-  constructor() {
-    super(["activity"]);
-  }
-
-  async execute({ args, jsonOutput }: CommandContext) {
+  }),
+  command(["activity"], async ({ args, jsonOutput }) => {
     let hardFailure = false;
     try {
       if (args[0] === "clear") {
@@ -576,26 +470,12 @@ class ActivityCommand extends CliCommand {
       printResult({ accepted: false, error: errorMessage(error) }, jsonOutput, printActivityResult);
       if (hardFailure) process.exitCode = 1;
     }
-  }
-}
-
-class CodexHookCommand extends CliCommand {
-  constructor() {
-    super(["codex-hook"]);
-  }
-
-  async execute() {
+  }),
+  command(["codex-hook"], async () => {
     const hookInput = await readStdin();
     await runCodexHook({ input: hookInput, cwd: process.cwd() });
-  }
-}
-
-class ServeCommand extends CliCommand {
-  constructor() {
-    super(["serve"]);
-  }
-
-  async execute({ args }: CommandContext) {
+  }),
+  command(["serve"], async ({ args }) => {
     const root = resolvePath(takeOption(args, "--root", "."));
     const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
     const port = Number(takeOption(args, "--port", "4173"));
@@ -606,27 +486,16 @@ class ServeCommand extends CliCommand {
 
     const server = await startServer({ root, mapPath, port });
     await printViewerReady(server, { open });
-  }
-}
-
-const CLI_COMMANDS = [
-  new HelpCommand(),
-  new VersionCommand(),
-  new DoctorCommand(),
-  new GenerateCommand(),
-  new InitCommand(),
-  new DevCommand(),
-  new ClearCommand(),
-  new ResolveCommand(),
-  new AnnotationCommand(),
-  new AnnotationsCommand(),
-  new ApiCommand(),
-  new ActivityCommand(),
-  new CodexHookCommand(),
-  new ServeCommand(),
+  }),
 ];
 
-const COMMAND_REGISTRY = new CommandRegistry(CLI_COMMANDS, new HelpCommand());
+const COMMANDS_BY_NAME = new Map(CLI_COMMANDS.flatMap((handler) =>
+  handler.aliases.map((alias) => [alias, handler] as const)
+));
+
+function commandFor(name: string | undefined): CommandHandler | undefined {
+  return name ? COMMANDS_BY_NAME.get(name) : HELP_COMMAND;
+}
 
 function assertPositiveIntegerPort(port: number): void {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -815,7 +684,7 @@ async function cliStatus(root: string, currentVersion: string) {
   };
 }
 
-function packageDependencyStatus(packageJson: PackageJson | undefined, packagePath: string, expectedSpec: string) {
+function packageDependencyStatus(packageJson: PackageJsonWithDependencies | undefined, packagePath: string, expectedSpec: string) {
   if (!packageJson) {
     return { path: packagePath, packageJson: false, expected: expectedSpec, ok: true };
   }
@@ -824,8 +693,7 @@ function packageDependencyStatus(packageJson: PackageJson | undefined, packagePa
     return { path: packagePath, packageJson: true, skipped: "self-package", expected: expectedSpec, ok: true };
   }
 
-  const sections: PackageDependencySection[] = ["devDependencies", "dependencies", "optionalDependencies", "peerDependencies"];
-  const section = sections.find((name) => packageJson[name]?.codecharter);
+  const section = PACKAGE_DEPENDENCY_SECTIONS.find((name) => packageJson[name]?.codecharter);
   if (!section) {
     return { path: packagePath, packageJson: true, found: false, expected: expectedSpec, ok: true };
   }
@@ -947,13 +815,7 @@ function optionalProperty<K extends string, T>(
   key: K,
   value: T,
 ): Partial<Record<K, Exclude<T, undefined>>> {
-  const result: Partial<Record<K, Exclude<T, undefined>>> = {};
-  if (isDefined(value)) result[key] = value;
-  return result;
-}
-
-function isDefined<T>(value: T): value is Exclude<T, undefined> {
-  return value !== undefined;
+  return value === undefined ? {} : { [key]: value } as Partial<Record<K, Exclude<T, undefined>>>;
 }
 
 function cliAddressRequest(
@@ -1000,7 +862,7 @@ async function writeCodemap({ root, out, fresh = false, quiet = false }: WriteCo
   const previousCodemap = fresh ? undefined : await readPreviousCodemap(root, out);
   const codemap = await generateCodemap({
     root,
-    excludePaths: sortedUnique([relative(root, out), ...METADATA_EXCLUDE_PATHS]),
+    excludePaths: sortedUniqueStrings([relative(root, out), ...METADATA_EXCLUDE_PATHS]),
     ...optionalProperty("previousCodemap", previousCodemap),
   });
   await writeJson(out, codemap);
@@ -1025,10 +887,6 @@ function printMapResult(root: string, mapPath: string, codemap: CodecharterCodem
   console.log(`map: ${displayPath(root, mapPath)}`);
   console.log(`files: ${Object.keys(codemap.files).length}`);
   console.log(`folders: ${Object.keys(codemap.folders).length}`);
-}
-
-function sortedUnique(values: string[]): string[] {
-  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
 }
 
 function serverPort(address: string | AddressInfo | null): number {
@@ -1335,22 +1193,6 @@ function optionalNumber(value: string | undefined): number | undefined {
   return value === undefined ? undefined : Number(value);
 }
 
-function packageJsonFromValue(value: unknown): PackageJson | null {
-  const record = objectRecord(value);
-  if (!record) return null;
-  const packageJson: PackageJson = { ...record };
-  if (typeof record.name !== "string") delete packageJson.name;
-  for (const section of ["devDependencies", "dependencies", "optionalDependencies", "peerDependencies"] satisfies PackageDependencySection[]) {
-    const dependencies = stringRecordFromValue(record[section]);
-    if (dependencies) {
-      packageJson[section] = dependencies;
-    } else {
-      delete packageJson[section];
-    }
-  }
-  return packageJson;
-}
-
 function namedPlacesFileFromValue(value: unknown): NamedPlacesFile {
   const record = objectRecord(value);
   const places = Array.isArray(record?.places) ? record.places.filter(isMapAnnotation) : [];
@@ -1373,40 +1215,13 @@ function isCodecharterCodemap(value: unknown): value is CodecharterCodemap {
 function isMapAnnotation(value: unknown): value is MapAnnotation {
   const record = objectRecord(value);
   return record?.kind === "mapAnnotation"
-    && typeof record.id === "string"
-    && typeof record.name === "string"
-    && typeof record.comment === "string"
+    && MAP_ANNOTATION_STRING_FIELDS.every((key) => typeof record[key] === "string")
     && isMapLevel(record.level)
-    && objectRecord(record.geometry) !== null
-    && typeof record.createdAt === "string"
-    && typeof record.updatedAt === "string"
-    && typeof record.deepLink === "string"
-    && typeof record.browserHash === "string"
-    && typeof record.codexPrompt === "string";
+    && objectRecord(record.geometry) !== null;
 }
 
 function isMapLevel(value: unknown): value is MapAnnotation["level"] {
-  return value === "world"
-    || value === "region"
-    || value === "folder"
-    || value === "file"
-    || value === "code"
-    || value === "lineRange"
-    || value === "tokenRange";
-}
-
-function stringRecordFromValue(value: unknown): Record<string, string> | null {
-  const record = objectRecord(value);
-  if (!record) return null;
-  const strings: Record<string, string> = {};
-  for (const [key, entry] of Object.entries(record)) {
-    if (typeof entry === "string") strings[key] = entry;
-  }
-  return strings;
-}
-
-function objectRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
+  return typeof value === "string" && Object.hasOwn(MAP_LEVELS, value);
 }
 
 async function readPreviousCodemap(root: string, out: string): Promise<CodecharterCodemap | undefined> {
@@ -1443,17 +1258,9 @@ async function confirm(question: string, fallback: boolean): Promise<boolean> {
 }
 
 async function readStdin(): Promise<string> {
-  let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
-  return raw;
-}
-
-function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error;
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks).toString("utf8");
 }
 
 main().catch((error) => {

@@ -7,6 +7,7 @@ import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileText } from "../src/exec-file.ts";
+import { required } from "../test-support/assertions.ts";
 
 const TEST_COMMIT_CONFIG = [
   "-c", "user.name=CodeCharter",
@@ -801,9 +802,4 @@ function countCodecharterHooks(hooksJson: HooksJson) {
     .flat()
     .flatMap((group) => group.hooks ?? [])
     .filter((hook) => hook.command === command).length;
-}
-
-function required<T>(value: T | null | undefined): T {
-  assert.ok(value);
-  return value;
 }

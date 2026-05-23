@@ -1,6 +1,6 @@
 import { geohashForBoundsCenter } from "./geohash.ts";
 import { FULL_GEOHASH_PRECISION } from "./levels.ts";
-import { round } from "./util.ts";
+import { round, sortIfNeeded } from "./util.ts";
 import type { Bounds } from "./geometry.js";
 import type { GeohashedCoordinate } from "./geohash.js";
 
@@ -118,16 +118,12 @@ export class DistrictLayoutEngine {
   }
 
   orderedForLayout(children: LayoutTarget[]): LayoutTarget[] {
-    const ordered: LayoutEntry[] = [];
-    for (const child of children) {
-      ordered.push({
-        child,
-        typeRank: this.typeRank(child),
-        layoutWeight: this.layoutWeight(child),
-      });
-    }
-    if (!layoutEntriesAreSorted(ordered)) ordered.sort(compareLayoutEntries);
-    return ordered.map((entry) => entry.child);
+    const ordered = children.map((child) => ({
+      child,
+      typeRank: this.typeRank(child),
+      layoutWeight: this.layoutWeight(child),
+    }));
+    return sortIfNeeded(ordered, compareLayoutEntries).map((entry) => entry.child);
   }
 
   layoutWeight(child: LayoutTarget): number {
@@ -144,13 +140,10 @@ export class DistrictLayoutEngine {
   layoutRectangles(children: LayoutTarget[], preferredBounds: Bounds, fallbackBounds: Bounds): LayoutRectangle[] {
     const bounds = hasUsableArea(preferredBounds) ? preferredBounds : fallbackBounds;
     if (!hasUsableArea(bounds)) {
-      const rectangles: LayoutRectangle[] = [];
-      for (const item of children) rectangles.push({ item, bounds });
-      return rectangles;
+      return children.map((item) => ({ item, bounds }));
     }
 
-    const entries: WeightedEntry[] = [];
-    for (const item of children) entries.push({ item, weight: this.layoutWeight(item) });
+    const entries = children.map((item) => ({ item, weight: this.layoutWeight(item) }));
     const rectangles = this.binaryPartition(entries, bounds);
     return rectangles.length === children.length ? rectangles : this.stripLayout(children, bounds);
   }
@@ -194,20 +187,9 @@ export class DistrictLayoutEngine {
 
   splitEntries<T extends WeightedEntry>(entries: T[]): { first: T[]; second: T[] } {
     const split = this.splitEntryRange(0, entries.length, this.prefixWeights(entries));
-    const first: T[] = [];
-    const second: T[] = [];
-    for (let index = 0; index < entries.length; index += 1) {
-      const entry = entries[index];
-      if (!entry) continue;
-      if (index < split) {
-        first.push(entry);
-      } else {
-        second.push(entry);
-      }
-    }
     return {
-      first,
-      second,
+      first: entries.slice(0, split),
+      second: entries.slice(split),
     };
   }
 
@@ -244,13 +226,8 @@ export class DistrictLayoutEngine {
   }
 
   stripLayout(children: LayoutTarget[], bounds: Bounds): LayoutRectangle[] {
-    let totalWeight = 0;
-    const weighted: Array<{ child: LayoutTarget; weight: number }> = [];
-    for (const child of children) {
-      const weight = this.layoutWeight(child);
-      totalWeight += weight;
-      weighted.push({ child, weight });
-    }
+    const weighted = children.map((child) => ({ child, weight: this.layoutWeight(child) }));
+    const totalWeight = weighted.reduce((sum, { weight }) => sum + weight, 0);
     const horizontal = bounds.width >= bounds.height;
     let cursor = horizontal ? bounds.x : bounds.y;
     const rectangles: LayoutRectangle[] = [];
@@ -290,15 +267,6 @@ export class DistrictLayoutEngine {
 }
 
 const DISTRICT_LAYOUT_ENGINE = new DistrictLayoutEngine();
-
-function layoutEntriesAreSorted(entries: LayoutEntry[]): boolean {
-  for (let index = 1; index < entries.length; index += 1) {
-    const previous = entries[index - 1];
-    const current = entries[index];
-    if (previous && current && compareLayoutEntries(previous, current) > 0) return false;
-  }
-  return true;
-}
 
 function compareLayoutEntries(a: LayoutEntry, b: LayoutEntry): number {
   const typeDelta = a.typeRank - b.typeRank;

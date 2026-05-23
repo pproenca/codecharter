@@ -39,11 +39,11 @@ export class ActivityStore {
   archivePath: string | undefined;
   private readonly maxMemoryEvents: number;
   private readonly maxArchiveQueueEvents: number;
-  private events: StoredActivityEvent[];
-  private pending: StoredActivityEvent[];
-  private writeQueue: Promise<void>;
-  private clearGeneration: number;
-  private closed: boolean;
+  private events: StoredActivityEvent[] = [];
+  private pending: StoredActivityEvent[] = [];
+  private writeQueue: Promise<void> = Promise.resolve();
+  private clearGeneration = 0;
+  private closed = false;
   private readonly timer: NodeJS.Timeout;
 
   constructor({
@@ -55,11 +55,6 @@ export class ActivityStore {
     this.archivePath = archivePath;
     this.maxMemoryEvents = maxMemoryEvents;
     this.maxArchiveQueueEvents = maxArchiveQueueEvents;
-    this.events = [];
-    this.pending = [];
-    this.writeQueue = Promise.resolve();
-    this.clearGeneration = 0;
-    this.closed = false;
     this.timer = setInterval(() => {
       this.flush().catch((error) => {
         console.warn(`warning: activity-archive-flush-skipped error=${error.message}`);
@@ -77,7 +72,7 @@ export class ActivityStore {
   }
 
   snapshot(): ActivitySnapshot {
-    return { events: copyArray(this.events) };
+    return { events: this.events.slice() };
   }
 
   async flush(): Promise<void> {
@@ -137,10 +132,6 @@ export class ActivityStore {
 
 function trimOldest(events: StoredActivityEvent[], maxEvents: number): void {
   if (events.length > maxEvents) events.splice(0, events.length - maxEvents);
-}
-
-function copyArray(values: StoredActivityEvent[]): StoredActivityEvent[] {
-  return values.slice();
 }
 
 export async function appendActivityEvents(archivePath: string, events: StoredActivityEvent[]): Promise<void> {

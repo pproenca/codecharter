@@ -40,7 +40,6 @@ import {
   isSpaceKeyEvent,
   isUsableDraftSelection,
   isScreenBoxVisible,
-  KEYBOARD_PAN_PIXELS,
   KEYBOARD_ZOOM_FACTOR,
   labelBoxesOverlap,
   lineHeightForFile,
@@ -97,7 +96,6 @@ import type {
   SourceRange,
   TargetHit,
   View,
-  Viewport,
 } from "./render-model.js";
 import {
   boundsFromRouteParams,
@@ -402,18 +400,14 @@ function createMapControls(root: Document = document): BrowserControls {
   return {
     ...controls,
     layerToggles: () => {
-      const toggles: BrowserControl[] = [];
-      for (const control of [
+      return [
         controls.showFolders,
         controls.showOrganicRegions,
         controls.showFiles,
         controls.showNames,
         controls.showActivity,
         controls.showGrid,
-      ]) {
-        if (control) toggles.push(control);
-      }
-      return toggles;
+      ].filter((control): control is BrowserControl => Boolean(control));
     },
   };
 }
@@ -494,12 +488,7 @@ function objectRecord(value: unknown): Record<string, unknown> | null {
 }
 
 function objectValues<T>(value: Record<string, T>): T[] {
-  const values: T[] = [];
-  for (const key in value) {
-    const item = value[key];
-    if (Object.hasOwn(value, key) && item !== undefined) values.push(item);
-  }
-  return values;
+  return Object.values(value).filter((item): item is T => item !== undefined);
 }
 
 function bindEvents() {

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { isErrnoException } from "./util.ts";
 
 export async function readJson(path: string): Promise<unknown>;
 export async function readJson<T>(path: string, fallback: T): Promise<T>;
@@ -23,8 +24,4 @@ export async function writeJson(path: string, value: unknown): Promise<void> {
     await rm(temporaryPath, { force: true });
     throw error;
   }
-}
-
-function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && "code" in error;
 }

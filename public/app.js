@@ -154,19 +154,14 @@ function createMapControls(root = document) {
     return {
         ...controls,
         layerToggles: () => {
-            const toggles = [];
-            for (const control of [
+            return [
                 controls.showFolders,
                 controls.showOrganicRegions,
                 controls.showFiles,
                 controls.showNames,
                 controls.showActivity,
                 controls.showGrid,
-            ]) {
-                if (control)
-                    toggles.push(control);
-            }
-            return toggles;
+            ].filter((control) => Boolean(control));
         },
     };
 }
@@ -238,13 +233,7 @@ function objectRecord(value) {
     return value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
 }
 function objectValues(value) {
-    const values = [];
-    for (const key in value) {
-        const item = value[key];
-        if (Object.hasOwn(value, key) && item !== undefined)
-            values.push(item);
-    }
-    return values;
+    return Object.values(value).filter((item) => item !== undefined);
 }
 function bindEvents() {
     window.addEventListener("resize", () => {

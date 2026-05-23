@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { decodeGeohashBounds } from "../src/geohash.ts";
 import { execFileText } from "../src/exec-file.ts";
 import { generateCodemap } from "../src/generator.ts";
+import { required } from "../test-support/assertions.ts";
 import type { Bounds } from "../src/geometry.ts";
 
 test("generated spatial sidecar keeps geohash and containment invariants", async () => {
@@ -59,9 +60,4 @@ function assertGeohashContainsBoundsCenter(geohash: string, bounds: Bounds) {
   };
   assert.equal(decoded.lat.min <= center.lat && center.lat <= decoded.lat.max, true);
   assert.equal(decoded.lon.min <= center.lon && center.lon <= decoded.lon.max, true);
-}
-
-function required<T>(value: T | null | undefined): T {
-  assert.ok(value);
-  return value;
 }

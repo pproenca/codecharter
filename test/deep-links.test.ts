@@ -14,6 +14,7 @@ import {
   createMapHashRoute,
   parseHashRoute,
 } from "../public-src/deep-links.ts";
+import { required } from "../test-support/assertions.ts";
 
 test("builds and parses canonical codecharter deep links", () => {
   const link = createCodemapDeepLink("lineRange", "u4pruydqqvj", {
@@ -115,8 +116,3 @@ test("deep link codec classes keep their exported facade behaviour", () => {
   assert.deepEqual(browserCodec.parse(route), parseHashRoute(route));
   assert.deepEqual(browserCodec.boundsFromParams(new URLSearchParams("bounds=0.2,0.18,0.25,0.16")), { x: 0.2, y: 0.18, width: 0.25, height: 0.16 });
 });
-
-function required<T>(value: T | null | undefined): T {
-  assert.ok(value);
-  return value;
-}

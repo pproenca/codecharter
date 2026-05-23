@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { findNamedPlaceOverlaps } from "../src/overlaps.js";
+import { required } from "../test-support/assertions.ts";
 
 test("finds visible overlap bounds between named drawn selections", () => {
   const overlaps = findNamedPlaceOverlaps([
@@ -68,9 +69,4 @@ function namedRect(id: string, name: string, bounds: { x: number; y: number; wid
     kind: "drawnSelection",
     geometry: { type: "rect", bounds },
   };
-}
-
-function required<T>(value: T | null | undefined): T {
-  assert.ok(value);
-  return value;
 }

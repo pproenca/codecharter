@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { UnifiedDiffChangeRangeParser, changedRangeFromUnifiedDiff, lineRangeFromUnifiedDiff } from "../src/activity-change-range.ts";
 import { ActivityWatcher, parseGitStatusPorcelain, startActivityWatcher } from "../src/activity-watcher.ts";
 import { execFileText } from "../src/exec-file.ts";
+import { required } from "../test-support/assertions.ts";
 import type { ActivityWatcherPayload } from "../src/activity-watcher.ts";
 
 test("parses git porcelain paths for watchable code files only", () => {
@@ -528,9 +529,4 @@ function serverPort(server: Server): number {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Expected TCP test server");
   return address.port;
-}
-
-function required<T>(value: T | null | undefined): T {
-  assert.ok(value);
-  return value;
 }

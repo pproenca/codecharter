@@ -2,10 +2,7 @@ import { clamp } from "./util.ts";
 import type { Bounds, Point } from "./geometry.js";
 
 const BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz";
-const BASE32_DECODE: Record<string, number> = {};
-for (let index = 0; index < BASE32.length; index += 1) {
-  BASE32_DECODE[BASE32.charAt(index)] = index;
-}
+const BASE32_DECODE = Object.fromEntries([...BASE32].map((char, index) => [char, index]));
 const GEOHASH_EAST_EDGE_EPSILON = 1e-12;
 
 type Range = [number, number];

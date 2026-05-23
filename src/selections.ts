@@ -5,7 +5,7 @@ import { clampBounds, intersects, normalizeRect } from "./geometry.ts";
 import { precisionForLevel } from "./levels.ts";
 import { codeRangeRequestForSelection } from "./line-coordinate.ts";
 import { resolveAddress } from "./resolver.ts";
-import { objectRecord, objectValues, stringsAreSorted } from "./util.ts";
+import { objectRecord, objectValues, sortIfNeeded, sortedUniqueStrings } from "./util.ts";
 import type { Bounds, Point } from "./geometry.js";
 import type { MapLevel } from "./levels.js";
 import type {
@@ -95,7 +95,6 @@ export type NamedAddress = {
 };
 
 type ResolvablePlace = NamedSelection | MapAnnotation;
-type NamedPlace = ResolvablePlace | NamedAddress;
 type CornerName = "northWest" | "northEast" | "southWest" | "southEast";
 const CORNER_NAMES: readonly CornerName[] = ["northWest", "northEast", "southWest", "southEast"];
 
@@ -120,7 +119,7 @@ export function resolveSelection(codemap: CodecharterCodemap, selection: Selecti
     geometry,
     spatialFrame: spatialFrameForGeometry(geometry, level),
     coveringSet,
-    resolvedTargets: targetsAreSorted(targets) ? targets : targets.sort((a, b) => a.path.localeCompare(b.path)),
+    resolvedTargets: sortIfNeeded(targets, compareSelectionTargetPaths),
   };
 }
 
@@ -283,19 +282,11 @@ function intersectingTargets<T extends MapFolderTarget | MapFileTarget>(
 }
 
 function sortedUniqueGeohashes(targets: ResolvedSelectionTarget[]): string[] {
-  const geohashes = new Set<string>();
-  for (const target of targets) geohashes.add(target.geohash);
-  const sorted = [...geohashes];
-  return stringsAreSorted(sorted) ? sorted : sorted.sort((a, b) => a.localeCompare(b));
+  return sortedUniqueStrings(targets.map((target) => target.geohash));
 }
 
-function targetsAreSorted(targets: ResolvedSelectionTarget[]): boolean {
-  for (let index = 1; index < targets.length; index += 1) {
-    const previous = targets[index - 1];
-    const current = targets[index];
-    if (previous && current && previous.path.localeCompare(current.path) > 0) return false;
-  }
-  return true;
+function compareSelectionTargetPaths(a: ResolvedSelectionTarget, b: ResolvedSelectionTarget): number {
+  return a.path.localeCompare(b.path);
 }
 
 function spatialFrameForGeometry(geometry: SelectionGeometry, level: MapLevel): SpatialFrame {
@@ -367,12 +358,5 @@ function annotationName(input: SelectionInput): string {
 }
 
 function firstNonblankLine(value: string): string {
-  let start = 0;
-  for (let index = 0; index <= value.length; index += 1) {
-    if (index < value.length && value[index] !== "\n") continue;
-    const line = value.slice(start, value[index - 1] === "\r" ? index - 1 : index).trim();
-    if (line) return line;
-    start = index + 1;
-  }
-  return "";
+  return value.split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? "";
 }

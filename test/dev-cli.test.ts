@@ -8,6 +8,22 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileText } from "../src/exec-file.ts";
 import { LOCAL_CODECHARTER_EXCLUDES } from "../src/local-git-exclude.ts";
+import { required } from "../test-support/assertions.ts";
+
+test("CLI command dispatch handles default help and aliases", async () => {
+  const cli = join(process.cwd(), "bin", "codemap.mts");
+  const { stdout: defaultHelp } = await execFileText(process.execPath, [cli]);
+  const { stdout: namedHelp } = await execFileText(process.execPath, [cli, "help"]);
+  const { stdout: flagHelp } = await execFileText(process.execPath, [cli, "--help"]);
+  const { stdout: namedVersion } = await execFileText(process.execPath, [cli, "version"]);
+  const { stdout: flagVersion } = await execFileText(process.execPath, [cli, "--version"]);
+
+  assert.match(defaultHelp, /^Usage:/m);
+  assert.equal(namedHelp, defaultHelp);
+  assert.equal(flagHelp, defaultHelp);
+  assert.match(namedVersion, /^\d+\.\d+\.\d+\n$/);
+  assert.equal(flagVersion, namedVersion);
+});
 
 test("codemap activity exits non-zero when it rejects input", async () => {
   const cli = spawn(process.execPath, [
@@ -361,11 +377,6 @@ async function freePort() {
   server.close();
   await once(server, "close");
   return port;
-}
-
-function required<T>(value: T | null | undefined): T {
-  assert.ok(value);
-  return value;
 }
 
 function serverPort(server: ReturnType<typeof createServer>) {

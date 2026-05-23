@@ -1,27 +1,15 @@
 export class UnifiedDiffChangeRangeParser {
-  lineRange(diff: string): LineRange {
-    return lineRangeFromUnifiedDiff(diff);
-  }
+  lineRange(diff: string): LineRange { return lineRangeFromUnifiedDiff(diff); }
 
-  changedRange(diff: string): ChangedRange {
-    return changedRangeFromUnifiedDiff(diff);
-  }
+  changedRange(diff: string): ChangedRange { return changedRangeFromUnifiedDiff(diff); }
 
-  changedHunkRange(startRaw: string, countRaw?: string): HunkRange {
-    return changedHunkRange(startRaw, countRaw);
-  }
+  changedHunkRange(startRaw: string, countRaw?: string): HunkRange { return changedHunkRange(startRaw, countRaw); }
 
-  tokenFragments(diff: string): TokenFragment[] {
-    return tokenFragments(diff);
-  }
+  tokenFragments(diff: string): TokenFragment[] { return tokenFragments(diff); }
 
-  columnSpanFromFragments(fragments: TokenFragment[]): ColumnSpan | null {
-    return columnSpanFromFragments(fragments);
-  }
+  columnSpanFromFragments(fragments: TokenFragment[]): ColumnSpan | null { return columnSpanFromFragments(fragments); }
 
-  tokenColumnSpan(line: string): ColumnSpan | null {
-    return tokenColumnSpan(line);
-  }
+  tokenColumnSpan(line: string): ColumnSpan | null { return tokenColumnSpan(line); }
 }
 
 export type LineRange = {
@@ -128,13 +116,8 @@ function tokenFragments(diff: string): TokenFragment[] {
   return fragments;
 }
 
-function* diffLines(diff: string): Generator<string> {
-  let start = 0;
-  for (let index = 0; index <= diff.length; index += 1) {
-    if (index < diff.length && diff[index] !== "\n") continue;
-    yield diff.slice(start, diff[index - 1] === "\r" ? index - 1 : index);
-    start = index + 1;
-  }
+function diffLines(diff: string): string[] {
+  return diff.split("\n").map((line) => line.endsWith("\r") ? line.slice(0, -1) : line);
 }
 
 function columnSpanFromFragments(fragments: TokenFragment[]): ColumnSpan | null {

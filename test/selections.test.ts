@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createMapAnnotation, createNamedSelection, refreshPlaceResolution, resolveSelection } from "../src/selections.ts";
+import { required } from "../test-support/assertions.ts";
 
 const codemap = {
   folders: {
@@ -224,9 +225,4 @@ function target(path: string, geohash: string, bounds: { x: number; y: number; w
     maxLineLength: 20,
     weight: 10,
   };
-}
-
-function required<T>(value: T | null | undefined): T {
-  assert.ok(value);
-  return value;
 }

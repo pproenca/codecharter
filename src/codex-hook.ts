@@ -8,11 +8,10 @@ import { execFileText } from "./exec-file.ts";
 import { generateCodemap } from "./generator.ts";
 import { normalizePathForMap, resolveAddress } from "./resolver.ts";
 import { readJson, writeJson } from "./store.ts";
-import { objectRecord } from "./util.ts";
+import { isErrnoException, mapConcurrent, objectRecord } from "./util.ts";
 import type { ActivityStateInput } from "./activity.js";
 import type { StoredActivityEvent } from "./activity-store.js";
 import type { CodeChange } from "./activity-watcher.js";
-import type { AddressRequest } from "./resolver.js";
 import type { CodecharterCodemap } from "./resolver.js";
 
 const DEFAULT_CONFIG_PATH = ".codecharter/config.json";
@@ -21,6 +20,8 @@ const ROOT_MAP_PATH = "codecharter.json";
 const LEGACY_MAP_PATH = "codemap.json";
 const DEFAULT_ACTIVITY_PATH = ".codecharter/activity.jsonl";
 const DEFAULT_CHANGE_RANGE_CONCURRENCY = 32;
+const SHELL_TOOL_NAMES = new Set(["Bash", "bash", "shell", "exec_command", "functions.exec_command"]);
+const STRUCTURED_WRITE_TOOL_NAMES = ["edit", "edit_file", "write", "write_file"];
 type HookPayload = Record<string, unknown> & {
   cwd?: string;
   hook_event_name?: string;
@@ -322,31 +323,13 @@ function readCommandActivity(root: string, codemap: CodecharterCodemap, payload:
   return { changes, matchedReadCommand };
 }
 
-function* commandSegments(command: string): Generator<string> {
-  let start = 0;
-  for (let index = 0; index < command.length; index += 1) {
-    const char = command[index];
-    if (char !== "\n" && char !== ";") {
-      if (char !== "&" || command[index + 1] !== "&") continue;
-      yield command.slice(start, index);
-      index += 1;
-      start = index + 1;
-      continue;
-    }
-    yield command.slice(start, index);
-    start = index + 1;
-  }
-  yield command.slice(start);
+function commandSegments(command: string): string[] {
+  return command.split(/\n|;|&&/);
 }
 
 function isShellTool(payload: HookPayload): boolean {
   const toolName = String(payload.tool_name ?? "");
-  return toolName === "Bash"
-    || toolName === "bash"
-    || toolName === "shell"
-    || toolName === "exec_command"
-    || toolName === "functions.exec_command"
-    || toolName.endsWith(".exec_command");
+  return SHELL_TOOL_NAMES.has(toolName) || toolName.endsWith(".exec_command");
 }
 
 function shellCommand(payload: HookPayload): string {
@@ -377,9 +360,7 @@ function findShellCommand(value: unknown): string {
     if (nestedCommand) return nestedCommand;
   }
 
-  for (const key in record) {
-    if (!Object.hasOwn(record, key)) continue;
-    const child = record[key];
+  for (const child of Object.values(record)) {
     const nestedCommand: string = findShellCommand(child);
     if (nestedCommand) return nestedCommand;
   }
@@ -389,31 +370,10 @@ function findShellCommand(value: unknown): string {
 
 async function toolInputChanges(root: string, payload: HookPayload): Promise<CodexChange[]> {
   const paths = toolInputPaths(root, payload);
-  return mapChangedRanges(root, paths, DEFAULT_CHANGE_RANGE_CONCURRENCY);
-}
-
-async function mapChangedRanges(root: string, paths: string[], concurrency: number): Promise<CodexChange[]> {
-  const changes = new Array<CodexChange>(paths.length);
-  let next = 0;
-  const workerCount = Math.max(1, Math.min(paths.length, concurrency));
-  const workers: Promise<void>[] = [];
-  for (let worker = 0; worker < workerCount; worker += 1) {
-    workers.push((async () => {
-      while (next < paths.length) {
-        const index = next;
-        next += 1;
-        const path = paths[index];
-        if (path !== undefined) {
-          changes[index] = {
-            path,
-            ...await changedLineRange(root, path),
-          };
-        }
-      }
-    })());
-  }
-  await Promise.all(workers);
-  return changes;
+  return mapConcurrent(paths, DEFAULT_CHANGE_RANGE_CONCURRENCY, async (path) => ({
+    path,
+    ...await changedLineRange(root, path),
+  }));
 }
 
 function toolInputPaths(root: string, payload: HookPayload): string[] {
@@ -428,22 +388,12 @@ function toolInputPaths(root: string, payload: HookPayload): string[] {
     }
   }
 
-  const result: string[] = [];
-  for (const path of paths) {
-    if (path) result.push(path);
-  }
-  return result;
+  return [...paths].filter(Boolean);
 }
 
 function isStructuredWriteTool(toolName: string): boolean {
-  return toolName === "edit"
-    || toolName.endsWith(".edit")
-    || toolName === "edit_file"
-    || toolName.endsWith(".edit_file")
-    || toolName === "write"
-    || toolName.endsWith(".write")
-    || toolName === "write_file"
-    || toolName.endsWith(".write_file")
+  return STRUCTURED_WRITE_TOOL_NAMES.includes(toolName)
+    || STRUCTURED_WRITE_TOOL_NAMES.some((name) => toolName.endsWith(`.${name}`))
     || toolName.includes("multiedit")
     || toolName.includes("multi_edit");
 }
@@ -483,9 +433,7 @@ function collectStructuredToolPaths(value: unknown, paths: string[]): void {
   const record = objectRecord(value);
   if (!record) return;
 
-  for (const key in record) {
-    if (!Object.hasOwn(record, key)) continue;
-    const child = record[key];
+  for (const [key, child] of Object.entries(record)) {
     if (isPathKey(key) && typeof child === "string") {
       paths.push(child);
       continue;
@@ -657,10 +605,7 @@ function parseHookPayload(input: string): HookPayload {
 }
 
 function hasOwnEnumerableProperty(value: object): boolean {
-  for (const key in value) {
-    if (Object.hasOwn(value, key)) return true;
-  }
-  return false;
+  return Object.keys(value).length > 0;
 }
 
 async function readCodemap(mapPath: string): Promise<CodecharterCodemap> {
@@ -696,10 +641,6 @@ async function resolveRoot(cwd: string): Promise<string> {
 
 function resolveFromRoot(root: string, path: string): string {
   return isAbsolute(path) ? path : resolve(root, path);
-}
-
-function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error;
 }
 
 function codexHookConfigFromValue(value: unknown): CodexHookConfig {

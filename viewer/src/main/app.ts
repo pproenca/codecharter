@@ -82,6 +82,7 @@ import {
   worldToScreenPoint,
   zoomViewAt,
 } from "./render/index.ts";
+import { annotationPromptCopyOutcome } from "./annotation-copy.ts";
 import type {
   ActivityEvent,
   ActivityFogState,
@@ -2730,7 +2731,8 @@ async function saveSelection() {
   const saved = await savedPromise;
   upsertNamedPlace(saved.annotation);
   const copied = await copiedPromise;
-  state.selectedTarget = { ...saved.annotation, targetType: "annotation" };
+  const copyOutcome = annotationPromptCopyOutcome(copied);
+  state.selectedTarget = copyOutcome.closeActions ? null : { ...saved.annotation, targetType: "annotation" };
   syncHashRoute(createAnnotationHashRoute(saved.annotation.id));
   state.drawing = false;
   state.panning = true;
@@ -2741,7 +2743,7 @@ async function saveSelection() {
   updateSelectionPopover();
   setCopyButtonLabel();
   setSaveButtonLabel(copied ? "Copied" : "Saved. Copy failed");
-  setAnnotationFeedback(copied ? "Prompt copied to clipboard." : "Saved, but clipboard copy failed.", copied ? "success" : "error");
+  if (!copyOutcome.copied) setAnnotationFeedback("Saved, but clipboard copy failed.", "error");
   setSelectionStatus(copied ? "Copied." : "Saved. Copy failed.");
   render();
 }
@@ -2752,12 +2754,14 @@ async function copyEditedAnnotationPrompt(annotation: MapAnnotationPlace) {
     origin: window.location.origin,
     href: window.location.href,
   }));
+  const copyOutcome = annotationPromptCopyOutcome(copied);
   state.editingAnnotation = null;
+  if (copyOutcome.closeActions) state.selectedTarget = null;
   if (controls.selectionComment) controls.selectionComment.value = "";
   updateSelectionPopover();
-  setCopyButtonLabel(copied ? "Copied" : "Copy failed", { reset: true });
-  setAnnotationFeedback(copied ? "Prompt copied to clipboard." : "Copy failed. Try Copy Prompt again.", copied ? "success" : "error");
-  setSelectionStatus(copied ? "Copied." : "Copy failed.");
+  setCopyButtonLabel(copyOutcome.buttonLabel, { reset: true });
+  if ("feedback" in copyOutcome) setAnnotationFeedback(copyOutcome.feedback.message, copyOutcome.feedback.tone);
+  setSelectionStatus(copyOutcome.selectionStatus);
   render();
   return copied;
 }
@@ -2858,9 +2862,13 @@ async function copySelectedAnnotationPrompt() {
     origin: window.location.origin,
     href: window.location.href,
   }));
-  setCopyButtonLabel(copied ? "Copied" : "Copy failed", { reset: true });
-  setAnnotationFeedback(copied ? "Prompt copied to clipboard." : "Copy failed. Try Copy Prompt again.", copied ? "success" : "error");
-  setSelectionStatus(copied ? "Copied." : "Copy failed.");
+  const copyOutcome = annotationPromptCopyOutcome(copied);
+  if (copyOutcome.closeActions) state.selectedTarget = null;
+  setCopyButtonLabel(copyOutcome.buttonLabel, { reset: true });
+  if ("feedback" in copyOutcome) setAnnotationFeedback(copyOutcome.feedback.message, copyOutcome.feedback.tone);
+  setSelectionStatus(copyOutcome.selectionStatus);
+  updateSelectionPopover();
+  render();
   return copied;
 }
 

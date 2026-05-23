@@ -343,7 +343,7 @@ function codexPromptForAnnotation(annotation: Omit<MapAnnotation, "codexPrompt">
   const reference = doubleQuote(annotation.deepLink);
   return `CodeCharter annotation: ${annotation.deepLink}\n`
     + `Note: ${comment}\n`
-    + `Resolve: npx --yes codecharter@latest --json resolve ${reference}`;
+    + `Resolve: codecharter --json resolve ${reference}`;
 }
 
 function doubleQuote(value: unknown): string {

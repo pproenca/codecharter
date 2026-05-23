@@ -1,35 +1,42 @@
 # CodeCharter
 
-CodeCharter turns a codebase into a navigable 2D map.
+CodeCharter turns a codebase into a deterministic, geohash-addressed 2D map.
 
-The goal is to project source code into one large spatial plane, assign geohashes to areas of that plane, and use those geohash prefixes to represent business domains, features, modules, and smaller implementation regions. The experience should feel closer to navigating Google Maps than browsing a file tree.
+The current codebase is a Node >=22 npm-workspaces monorepo:
+
+- `@codecharter/core` in `core/`: codemap generation, geohash addressing, address resolution, selections, activity telemetry, CLI setup, and the hardened localhost server.
+- `@codecharter/viewer` in `viewer/`: canvas SPA, render model, hash routes, activity trails, discovery fog, and source inspection.
 
 ## Working Direction
 
 - Treat code structure as geography.
-- Use deterministic projection so the same codebase produces stable coordinates.
-- Use geohash prefixes as hierarchical regions.
-- Make domain and feature boundaries visible, searchable, and linkable.
+- Use deterministic projection and persisted Map Sidecars so existing places keep stable coordinates.
+- Use geohash prefixes as the common spine for map levels, tiles, addresses, selections, named places, and activity.
+- Make package, domain, feature, and activity boundaries visible, searchable, and linkable.
 - Preserve enough source context that navigation can move from map region to concrete code.
+- Keep activity telemetry best-effort and separate from stable map geography.
 
 ## Agent Rules
 
 - When design decisions are unclear, use the `grill-me` skill: ask one question at a time and include a recommended answer.
 - For spatial indexing, geohashing, map navigation, or codebase-as-map work, use the `geohash-spatial-code-maps` skill.
 - Prefer exploring the codebase before asking questions that local context can answer.
-- Keep early implementation simple and prototype-driven until the core projection model is proven.
+- Read `CONTEXT-MAP.md` before larger changes, then read the relevant package context.
+- Keep implementation aligned with the modernized `core` and `viewer` package boundaries.
 
-## First Design Question
+## Current Design Baseline
 
-What is the first stable unit on the map: file, symbol, directory, commit, or domain object?
-
-Recommended answer: start with files. Files are easy to extract, stable enough for a first projection, and can later expand into symbols or domain objects without blocking the prototype.
+- The first stable map unit is still **File**.
+- The canonical new Deep Link scheme is `codecharter://`; legacy `codemap://` remains parseable input.
+- The generated Map Sidecar lives at `.codecharter/codecharter.json` by default.
+- Named Places live at `.codecharter/named-places.json`.
+- Local issue markdown and scratch artifacts live under gitignored `.scratch/`.
 
 ## Agent skills
 
 ### Issue tracker
 
-Issues and PRDs are tracked as local markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
+Issues and PRDs are tracked as gitignored local markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
@@ -37,4 +44,4 @@ Use the default mattpocock/skills triage label vocabulary. See `docs/agents/tria
 
 ### Domain docs
 
-This repo uses a single-context domain docs layout. See `docs/agents/domain.md`.
+This repo uses a multi-context domain docs layout rooted at `CONTEXT-MAP.md`. See `docs/agents/domain.md`.

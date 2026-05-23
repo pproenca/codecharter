@@ -1,10 +1,10 @@
 # JSON map sidecar
 
-CodeCharter will persist the first stable base geography in a committed JSON sidecar, `codemap.json`. JSON is easy for humans, Codex, tests, web apps, and CLIs to inspect and consume, which matters more for the first version than storage density or query performance.
+CodeCharter persists stable base geography in a JSON sidecar. The current default path is `.codecharter/codecharter.json`; the CLI also recognizes root `codecharter.json` and legacy `codemap.json` where compatibility code needs it. JSON is easy for humans, Codex, tests, web apps, and CLIs to inspect and consume, which matters more for the first version than storage density or query performance.
 
 ## Considered Options
 
-- JSON sidecar.
+- JSON sidecar at `.codecharter/codecharter.json`.
 - SQLite or another indexed local store.
 - Generated tile files only.
 

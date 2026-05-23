@@ -41,13 +41,11 @@ sources for comparison. See `core/TRANSFORMATION_NOTES.md` and
 ## How it was built
 
 This codebase was produced by a legacy-modernization workflow. The discovery,
-business rules, target architecture, and security hardening artifacts are in
-[`analysis/`](analysis/):
+business-rules, target-architecture, and security-hardening artifacts
+(`ASSESSMENT.md`, `TOPOLOGY.html`, `BUSINESS_RULES.md`, `DATA_OBJECTS.md`,
+`MODERNIZATION_BRIEF.md`, `SECURITY_FINDINGS.md` + `security_remediation.patch`)
+live in the modernization workspace `../codercharter-modern/analysis/`, together
+with the full equivalence/pixel-diff test harness. They are not tracked in this
+repository.
 
-- `ASSESSMENT.md`, `TOPOLOGY.html` — discovery + dependency map
-- `BUSINESS_RULES.md`, `DATA_OBJECTS.md` — extracted, testable specification
-- `MODERNIZATION_BRIEF.md` — the approved target architecture & plan
-- `SECURITY_FINDINGS.md` + `security_remediation.patch` — hardening pass
-
-The pre-modernization code is preserved on the `legacy-archive` branch and the
-`pre-modernization` tag.
+The pre-modernization code is preserved on the `pre-modernization` git tag.

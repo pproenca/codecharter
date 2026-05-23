@@ -11,6 +11,9 @@ playwright-report/
 !.scratch/**/*.md
 .codenuke/
 .clawpatch/
+codenuke.benchmark/
+codenuke.loop.json
+analysis/
 codecharter.json
 codemap.json
 .env

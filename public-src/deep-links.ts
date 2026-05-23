@@ -69,8 +69,7 @@ export function parseHashRoute(hash: string):
 
 export function boundsFromRouteParams(params: URLSearchParams): Bounds | null {
   const values = parseBoundsParam(params.get("bounds") ?? "");
-  if (!isBoundsTuple(values)) return null;
-  if (!isValidSelectionBounds(values)) return null;
+  if (!isBoundsTuple(values) || !isValidSelectionBounds(values)) return null;
   return {
     x: values[0],
     y: values[1],
@@ -80,11 +79,9 @@ export function boundsFromRouteParams(params: URLSearchParams): Bounds | null {
 }
 
 function searchParams(metadata: RouteMetadata): URLSearchParams {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(metadata)) {
-    if (value !== undefined && value !== "") params.set(key, String(value));
-  }
-  return params;
+  return new URLSearchParams(
+    Object.entries(metadata).flatMap(([key, value]) => value !== undefined && value !== "" ? [[key, String(value)]] : []),
+  );
 }
 
 function formatRouteNumber(value: number): string {

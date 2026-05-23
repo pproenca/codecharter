@@ -9,11 +9,7 @@ export const CODECHARTER_GITIGNORE_PATTERNS: readonly string[] = [
   "codemap.json",
 ];
 
-export const LOCAL_CODECHARTER_EXCLUDES: readonly string[] = [
-  ".codecharter/",
-  "codecharter.json",
-  "codemap.json",
-];
+export const LOCAL_CODECHARTER_EXCLUDES: readonly string[] = CODECHARTER_GITIGNORE_PATTERNS;
 
 export type IgnoreFileResult = {
   skipped: boolean;

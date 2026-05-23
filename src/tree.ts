@@ -32,7 +32,6 @@ export class FileNode {
   geo?: GeohashedCoordinate;
 
   constructor(file: ScannedFile) {
-    this.type = "file";
     this.name = lastPathSegment(file.path);
     this.path = file.path;
     this.extension = file.extension;
@@ -57,7 +56,6 @@ export class FolderNode {
   growthArea?: LayoutBounds;
 
   constructor(path: string) {
-    this.type = "folder";
     this.name = path === "" ? "" : lastPathSegment(path);
     this.path = path;
     this.folders = new Map();

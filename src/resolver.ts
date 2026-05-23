@@ -65,10 +65,6 @@ export function resolveAddress(codemap: CodecharterCodemap, request: AddressRequ
   const file = codemap.files[path];
   const folder = codemap.folders[path];
 
-  if (!file && !folder) {
-    throw new Error(`No map target found for path: ${request.path}`);
-  }
-
   if (file) return resolveFileAddress(file, request);
   if (folder) return resolveFolderAddress(folder);
   throw new Error(`No map target found for path: ${request.path}`);
@@ -184,8 +180,7 @@ function geohashedFragmentsWithCoverage(fragments: CodeRangeFragmentGeometry[]):
 }
 
 function breadcrumbForPath(path: string): string {
-  const segments = path.split("/").filter(Boolean);
-  return segments.length ? segments.join(" > ") : ".";
+  return path.split("/").filter(Boolean).join(" > ") || ".";
 }
 
 function deepLink(level: MapLevel, geohash: string, metadata: Record<string, string | undefined>): string {

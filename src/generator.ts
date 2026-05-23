@@ -9,7 +9,7 @@ import type { Bounds } from "./geometry.js";
 import type { CodePlaneDescriptor, GeohashedCoordinate } from "./geohash.js";
 import type { MapLevel } from "./levels.js";
 import type { PreviousCodemapLayout } from "./stability.js";
-import type { FileNode, FolderNode, FlattenedTree, LayoutBounds, MapNode } from "./tree.js";
+import type { FileNode, FolderNode, FlattenedTree, LayoutBounds } from "./tree.js";
 
 const DEFAULT_EXCLUDE_PATHS = [
   ".codecharter/codecharter.json",
@@ -184,15 +184,11 @@ function serializeFolder(folder: FolderNode): SerializedFolder {
     lineCount: folder.lineCount,
     weight: folder.weight,
     children: {
-      folders: childPaths(sortedFolders(folder)),
-      files: childPaths(sortedFiles(folder)),
+      folders: sortedFolders(folder).map((child) => child.path),
+      files: sortedFiles(folder).map((child) => child.path),
     },
     ...(folder.growthArea === undefined ? {} : { growthArea: folder.growthArea }),
   };
-}
-
-function childPaths(children: MapNode[]): string[] {
-  return children.map((child) => child.path);
 }
 
 function serializeFolders(folders: FlattenedTree["folders"]): Record<string, SerializedFolder> {

@@ -65,34 +65,8 @@ export type InitializeCodecharterOptions = {
 };
 
 export class CodecharterInitializer {
-  async initialize({
-    root,
-    mapPath,
-    installCodex = true,
-    installGitHooks = true,
-    fresh = false,
-    writeCodemap,
-  }: InitializeCodecharterOptions) {
-    const resolvedMapPath = mapPath ?? join(root, DEFAULT_MAP_PATH);
-    await mkdir(join(root, CODECHARTER_DIR), { recursive: true });
-    await ensureCodecharterConfig(root, resolvedMapPath);
-
-    const codemap = writeCodemap ? await writeCodemap({ root, out: resolvedMapPath, fresh }) : undefined;
-    await ensurePackageDevDependency(root);
-    if (installCodex) {
-      await ensureCodecharterSkill(root);
-      await ensureCodexAdapter(root);
-    }
-    if (installGitHooks) await ensureGitMapHooks(root, resolvedMapPath);
-
-    return {
-      mapPath: resolvedMapPath,
-      configPath: join(root, CODECHARTER_DIR, "config.json"),
-      codexAdapterInstalled: installCodex,
-      codexSkillPath: installCodex ? join(root, CODECHARTER_SKILL_DIR, "SKILL.md") : undefined,
-      gitHooksInstalled: installGitHooks,
-      codemap,
-    };
+  initialize(options: InitializeCodecharterOptions) {
+    return initializeCodecharter(options);
   }
 }
 
@@ -204,14 +178,26 @@ export async function initializeCodecharter({
   fresh = false,
   writeCodemap,
 }: InitializeCodecharterOptions) {
-  return new CodecharterInitializer().initialize({
-    root,
-    installCodex,
-    installGitHooks,
-    fresh,
-    ...(mapPath === undefined ? {} : { mapPath }),
-    ...(writeCodemap === undefined ? {} : { writeCodemap }),
-  });
+  const resolvedMapPath = mapPath ?? join(root, DEFAULT_MAP_PATH);
+  await mkdir(join(root, CODECHARTER_DIR), { recursive: true });
+  await ensureCodecharterConfig(root, resolvedMapPath);
+
+  const codemap = writeCodemap ? await writeCodemap({ root, out: resolvedMapPath, fresh }) : undefined;
+  await ensurePackageDevDependency(root);
+  if (installCodex) {
+    await ensureCodecharterSkill(root);
+    await ensureCodexAdapter(root);
+  }
+  if (installGitHooks) await ensureGitMapHooks(root, resolvedMapPath);
+
+  return {
+    mapPath: resolvedMapPath,
+    configPath: join(root, CODECHARTER_DIR, "config.json"),
+    codexAdapterInstalled: installCodex,
+    codexSkillPath: installCodex ? join(root, CODECHARTER_SKILL_DIR, "SKILL.md") : undefined,
+    gitHooksInstalled: installGitHooks,
+    codemap,
+  };
 }
 
 export async function ensurePackageDevDependency(root: string): Promise<{ skipped: boolean; changed?: boolean }> {

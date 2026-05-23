@@ -42,9 +42,7 @@ export function parseHashRoute(hash) {
 }
 export function boundsFromRouteParams(params) {
     const values = parseBoundsParam(params.get("bounds") ?? "");
-    if (!isBoundsTuple(values))
-        return null;
-    if (!isValidSelectionBounds(values))
+    if (!isBoundsTuple(values) || !isValidSelectionBounds(values))
         return null;
     return {
         x: values[0],
@@ -54,12 +52,7 @@ export function boundsFromRouteParams(params) {
     };
 }
 function searchParams(metadata) {
-    const params = new URLSearchParams();
-    for (const [key, value] of Object.entries(metadata)) {
-        if (value !== undefined && value !== "")
-            params.set(key, String(value));
-    }
-    return params;
+    return new URLSearchParams(Object.entries(metadata).flatMap(([key, value]) => value !== undefined && value !== "" ? [[key, String(value)]] : []));
 }
 function formatRouteNumber(value) {
     return value.toFixed(12).replace(/\.?0+$/, "");

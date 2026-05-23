@@ -66,11 +66,9 @@ export function createSelectionHashRoute({ level = "file", bounds }: SelectionHa
 }
 
 function searchParams(metadata: DeepLinkMetadata): URLSearchParams {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(metadata)) {
-    if (value !== undefined && value !== "") params.set(key, String(value));
-  }
-  return params;
+  return new URLSearchParams(
+    Object.entries(metadata).flatMap(([key, value]) => value !== undefined && value !== "" ? [[key, String(value)]] : []),
+  );
 }
 
 function metadataFromSearchParams(params: URLSearchParams): Record<string, string> {

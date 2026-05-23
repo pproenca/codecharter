@@ -60,10 +60,10 @@ export class ActivityWatcher {
   private readonly prepareChanges: (changes: CodeChange[]) => void | Promise<void>;
   private readonly createActivityPayload: (change: CodeChange, context: ActivityPayloadContext) => ActivityWatcherPayload | null | undefined;
   private readonly postActivity: (endpoint: string | undefined, payload: ActivityWatcherPayload) => Promise<void>;
-  private readonly recent: Map<string, RecentChange>;
-  private initialPoll: NodeJS.Timeout | null;
-  private timer: NodeJS.Timeout | null;
-  private pollInFlight: boolean;
+  private readonly recent = new Map<string, RecentChange>();
+  private initialPoll: NodeJS.Timeout | null = null;
+  private timer: NodeJS.Timeout | null = null;
+  private pollInFlight = false;
 
   constructor({
     root,
@@ -85,10 +85,6 @@ export class ActivityWatcher {
     this.prepareChanges = prepareChanges;
     this.createActivityPayload = createActivityPayload;
     this.postActivity = postActivity;
-    this.recent = new Map();
-    this.initialPoll = null;
-    this.timer = null;
-    this.pollInFlight = false;
     this.poll = this.poll.bind(this);
     this.close = this.close.bind(this);
   }

@@ -622,10 +622,7 @@ function serverConfigFromValue(value: unknown): ServerConfig {
 }
 
 function selectionInputFromBody(body: JsonObject, overrides: Partial<Pick<SelectionInput, "id" | "name" | "comment" | "level">> = {}): SelectionInput {
-  const input: SelectionInput = { geometry: selectionGeometryFromValue(body.geometry) };
-  for (const key of SELECTION_STRING_FIELDS) {
-    if (typeof body[key] === "string") input[key] = body[key];
-  }
+  const input: SelectionInput = { geometry: selectionGeometryFromValue(body.geometry), ...stringFields(body, SELECTION_STRING_FIELDS) };
   if (typeof body.level === "string" && isMapLevel(body.level)) input.level = body.level;
   return { ...input, ...overrides };
 }
@@ -655,19 +652,11 @@ function boundsFromValue(value: unknown): SelectionGeometry["bounds"] {
 function namedAddressInputFromBody(body: JsonObject): Parameters<typeof createNamedAddress>[0] {
   const address = objectRecord(body.address);
   if (!address) throw httpError(400, "Map address named places require an address object");
-  const input: Parameters<typeof createNamedAddress>[0] = { address };
-  for (const key of ["id", "name"] as const) {
-    if (typeof body[key] === "string") input[key] = body[key];
-  }
-  return input;
+  return { address, ...stringFields(body, ["id", "name"] as const) };
 }
 
 function activityEventInputFromBody(body: JsonObject): ActivityEventInput {
-  const input: ActivityEventInput = {};
-  for (const key of ACTIVITY_EVENT_STRING_FIELDS) {
-    if (typeof body[key] === "string") input[key] = body[key];
-  }
-  return input;
+  return stringFields(body, ACTIVITY_EVENT_STRING_FIELDS);
 }
 
 function activityAddressFromBody(body: JsonObject): ActivityAddress | undefined {
@@ -685,6 +674,14 @@ function addressRequestFromBody(body: JsonObject): AddressRequest {
 
 function storedActivityEventFromRecord(record: JsonObject): StoredActivityEvent {
   return { ...record };
+}
+
+function stringFields<T extends string>(body: JsonObject, fields: readonly T[]): Partial<Record<T, string>> {
+  const result: Partial<Record<T, string>> = {};
+  for (const key of fields) {
+    if (typeof body[key] === "string") result[key] = body[key];
+  }
+  return result;
 }
 
 function isNamedPlace(value: unknown): value is NamedPlace {

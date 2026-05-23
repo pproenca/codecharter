@@ -1,152 +1,53 @@
-# CodeCharter
+# codecharter
 
-Codebase maps that agents and humans can navigate.
+Turn a code repository into a deterministic, geohash-addressed 2D **city map**
+with a live **agent-activity overlay** — explore the codebase spatially, drop
+durable annotations, and watch where AI agents are reading/editing in real time.
 
-`codecharter` turns a repo into a deterministic 2D map. Files and folders become stable geography, geohash prefixes become map addresses, and local agent activity can be shown as a live overlay.
+This repository is the **modernized** codebase: an npm-workspaces monorepo of two
+zero-runtime-dependency TypeScript (Node ≥22, ESM) packages.
 
-Current status: early CLI and local web viewer. Init, map generation, stable address resolution, Codex hooks, activity clearing, and activity telemetry are implemented. The map starts from files and folders today; deeper symbol and domain-object projection are future layers.
+## Packages
 
-## Install
+| Package | Path | What it is |
+| --- | --- | --- |
+| **`@codecharter/core`** | [`core/`](core/) | The engine: codemap generation, deterministic geohash addressing, resolver, tiles, selections/annotations, activity ingestion + Codex hook, and the **hardened** localhost HTTP server + the `codemap` CLI. |
+| **`@codecharter/viewer`** | [`viewer/`](viewer/) | The browser SPA: a decomposed, pure render model (`viewer/src/main/render/`), the deep-link hash-route codec, and the canvas app shell, bundled with esbuild. |
 
-```sh
-pnpm add -g codecharter
-```
-
-One-shot usage without installing globally:
-
-```sh
-npx --yes codecharter@latest init
-```
-
-From source:
+## Quick start
 
 ```sh
-pnpm install
-pnpm link --global
+npm install              # installs both workspaces
+npm run typecheck        # tsc across core + viewer
+npm test                 # core golden test (see "Tests" below)
+npm run build            # bundle the viewer to viewer/dist
+npm run generate         # generate .codecharter/codecharter.json for this repo
+npm run serve            # start the localhost server (serves the viewer + API)
 ```
 
-CodeCharter requires Node.js 22 or newer.
+The CLI is `core/bin/codemap.mts` (commands: `generate`, `resolve`, `serve`,
+`dev`, `doctor`, `init`); run it via `npm run codecharter -- <command>`.
 
-## Workflow
+## Tests
 
-```sh
-codecharter init
-codecharter --json resolve "codecharter://annotation/<id>"
-codecharter dev
-codecharter clear
-```
+This repo ships `core`'s self-contained golden test (`core/src/test/geohash.test.ts`).
+The **full equivalence proof** — ~253 differential tests that pin every module
+byte-for-byte against the original legacy implementation, plus the Playwright
+DOM + canvas **pixel-diff** parity suite for the viewer — lives in the
+**modernization workspace** (`../codercharter-modern`), which retains the legacy
+sources for comparison. See `core/TRANSFORMATION_NOTES.md` and
+`viewer/TRANSFORMATION_NOTES.md`.
 
-`init` is the opinionated first-run command. It prepares `.codecharter/`, installs or merges local Git hooks, installs or merges the repo-local Codex hook adapter under `.codex/`, and installs the CodeCharter Codex skill.
+## How it was built
 
-`dev` regenerates the map, serves the bundled viewer, and starts a best-effort activity producer that watches local Git changes and streams map positions to the in-memory activity feed.
+This codebase was produced by a legacy-modernization workflow. The discovery,
+business rules, target architecture, and security hardening artifacts are in
+[`analysis/`](analysis/):
 
-`clear` clears activity history from the local archive, or from a running viewer when passed `--server <url>`.
+- `ASSESSMENT.md`, `TOPOLOGY.html` — discovery + dependency map
+- `BUSINESS_RULES.md`, `DATA_OBJECTS.md` — extracted, testable specification
+- `MODERNIZATION_BRIEF.md` — the approved target architecture & plan
+- `SECURITY_FINDINGS.md` + `security_remediation.patch` — hardening pass
 
-## What It Maps Today
-
-- gitignore-filtered files in the target repository
-- folder regions derived from the filesystem tree
-- deterministic file and folder coordinates
-- stable geohash-backed Map Addresses
-- map levels from world to line-range precision
-- named annotations and drawn selections from the local viewer
-- local activity events from Codex hooks and file changes
-- target repos outside this checkout through `--root <dir>`
-
-The first stable unit is the file. Files are easy to extract, stable enough for the first projection, and can later expand into symbols or domain objects without changing the address model.
-
-## Codex Integration
-
-The default agent integration is local Codex. For agents, the CodeCharter CLI contract is one command: `resolve`.
-
-```sh
-codecharter --json resolve "codecharter://annotation/<id>"
-```
-
-The installed Codex adapter is zero-token and daemon-free: Codex invokes the lifecycle hook, the hook delegates to `codecharter codex-hook`, and one JSONL event is appended to `.codecharter/activity.jsonl`.
-
-Copied CodeCharter prompts include a direct `resolve` command for the annotation deep link:
-
-```sh
-codecharter --json resolve "codecharter://annotation/<id>"
-npx --yes codecharter@latest --json resolve "codecharter://annotation/<id>"
-```
-
-Codex should use `resolvedTargets` from the JSON response to read only the selected files and line ranges with normal file-reading tools. It does not need browser automation or bulk source reads for normal CodeCharter prompt work.
-
-Open `/hooks` in Codex to review and trust the repo-local hook after init.
-
-## Commands
-
-- `codecharter init`: prepare map files and hooks without starting the viewer
-- `codecharter dev`: regenerate the map, serve the viewer, and stream local activity
-- `codecharter resolve <codecharter://...>`: resolve a CodeCharter deep link into agent-readable targets
-- `codecharter resolve <path> [lineStart] [lineEnd]`: resolve a file or line range into a Map Address
-- `codecharter clear`: clear the local Activity Archive, and optionally the live server feed
-
-Useful flags:
-
-- `--root <dir>`
-- `--port <port>`
-- `--open`
-- `--json`
-- `--server <url>`
-- `--map <file>`
-- `--out <file>`
-- `--agent <id>`
-- `--fresh`
-- `--column-start <n>`
-- `--column-end <n>`
-
-## JSON Output
-
-Read commands print stable JSON objects only under `--json`. Without `--json`, they print terse line-oriented output for humans.
-
-Errors under `--json` use:
-
-```json
-{
-  "ok": false,
-  "error": {
-    "message": "..."
-  }
-}
-```
-
-For agents, use JSON with `resolve`. Human commands keep the same terse key-value response style as plain `resolve` output.
-
-## State
-
-State is project-local by default:
-
-```text
-.codecharter/
-  codecharter.json
-  config.json
-  named-places.json
-  activity.jsonl
-```
-
-`codecharter.json` is the canonical Map Sidecar. It stores the code plane, files, folders, map levels, projection metadata, and stable geohash-backed addresses.
-
-`activity.jsonl` is the local Activity Archive. Accepted real-time events live in memory first and are periodically appended to the archive. Slow disk can drop old archive candidates without blocking live code work.
-
-Init also writes local integration files when needed:
-
-```text
-.agents/skills/codecharter/
-.codex/hooks.json
-.codex/hooks/codecharter-codex-hook.mjs
-```
-
-## Safety
-
-- CodeCharter does not require auth.
-- `init` preserves existing `.codex/hooks.json` entries when adding its own hook.
-- `init` and `dev` add CodeCharter artifacts to `.gitignore` and local `.git/info/exclude`.
-- Activity telemetry is best-effort and non-blocking.
-- The normal activity stream resolves paths before posting events, so server requests do not read or write the sidecar on the hot path.
-- Agent resolution is CLI-first, so agents can inspect only the files and ranges selected by the map.
-- If port `4173` is busy, the server binds the next available local port and prints the exact viewer URL.
-
-See `CONTEXT.md` and `docs/adr/` for the product context and architecture decisions.
+The pre-modernization code is preserved on the `legacy-archive` branch and the
+`pre-modernization` tag.

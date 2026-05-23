@@ -34,7 +34,7 @@ import { buildTileIndex, getTile, visiblePrefixes } from "./tiles.ts";
 import { objectRecord, sortIfNeeded } from "./collections.ts";
 import { errorMessage, isErrnoException } from "./errors.ts";
 import type { ActivityAddress, ActivityEventInput } from "./activity.ts";
-import type { StoredActivityEvent } from "./activity-store.ts";
+import type { StoredActivityEvent, ViewerFogState } from "./activity-store.ts";
 import type { AddressRequest, CodecharterCodemap } from "./resolver.ts";
 import type { MapLevel } from "./levels.ts";
 import type { MapAnnotation, NamedAddress, NamedSelection, SelectionGeometry, SelectionInput } from "./selections.ts";
@@ -145,6 +145,17 @@ const ACTIVITY_EVENT_STRING_FIELDS = [
   "hookEventName", "sessionId", "threadId", "threadUri", "turnId", "model",
 ] as const satisfies readonly (keyof ActivityEventInput & string)[];
 const ADDRESS_RANGE_FIELDS = ["lineStart", "lineEnd", "columnStart", "columnEnd"] as const;
+const VIEWER_SUMMARY_EVENT_FIELDS = [
+  "id",
+  "agentId",
+  "activityState",
+  "state",
+  "timestamp",
+  "note",
+  "threadId",
+  "sessionId",
+] as const satisfies readonly (keyof StoredActivityEvent)[];
+const VIEWER_SUMMARY_ADDRESS_FIELDS = ["path", "deepLink", "geohash", "lineRange", "tokenRange"] as const;
 
 export async function startServer({
   root,
@@ -485,7 +496,7 @@ async function postSelectionResolveApi(state: ServerState, request: IncomingMess
 async function getActivityApi(state: ServerState, _request: IncomingMessage, response: ServerResponse, url: URL): Promise<void> {
   sendJson(response, 200, await activitySnapshot(state, {
     viewer: url.searchParams.get("view") === "viewer",
-    detail: url.searchParams.get("detail") === "summary" ? "summary" : "full",
+    detail: viewerActivityDetailFromParam(url.searchParams.get("detail")),
     ...(url.searchParams.has("version") ? { version: url.searchParams.get("version") ?? "" } : {}),
   }));
 }
@@ -695,7 +706,7 @@ function selectActivityEvent(event: StoredActivityEvent, selected: StoredActivit
   selected.push(event);
 }
 
-function viewerFogMarker(event: StoredActivityEvent, path: string, fogState: "explored" | "visible"): StoredActivityEvent {
+function viewerFogMarker(event: StoredActivityEvent, path: string, fogState: ViewerFogState): StoredActivityEvent {
   const timestamp = typeof event.timestamp === "string" ? event.timestamp : "";
   return {
     id: `viewer-fog:${fogState}:${path}`,
@@ -709,28 +720,23 @@ function viewerFogMarker(event: StoredActivityEvent, path: string, fogState: "ex
 
 function viewerSummaryEvent(event: StoredActivityEvent): StoredActivityEvent {
   const address = objectRecord(event.address);
-  const summary: StoredActivityEvent = {};
-  copyDefined(summary, event, "id");
-  copyDefined(summary, event, "agentId");
-  copyDefined(summary, event, "activityState");
-  copyDefined(summary, event, "state");
-  copyDefined(summary, event, "timestamp");
-  copyDefined(summary, event, "note");
-  copyDefined(summary, event, "threadId");
-  copyDefined(summary, event, "sessionId");
-
-  const summaryAddress: Record<string, unknown> = {};
-  if (typeof address?.path === "string") summaryAddress.path = address.path;
-  if (typeof address?.deepLink === "string") summaryAddress.deepLink = address.deepLink;
-  if (typeof address?.geohash === "string") summaryAddress.geohash = address.geohash;
-  if (address?.lineRange !== undefined) summaryAddress.lineRange = address.lineRange;
-  if (address?.tokenRange !== undefined) summaryAddress.tokenRange = address.tokenRange;
+  const summary: StoredActivityEvent = pickDefined(event, VIEWER_SUMMARY_EVENT_FIELDS);
+  const summaryAddress = address ? pickDefined(address, VIEWER_SUMMARY_ADDRESS_FIELDS) : {};
   if (Object.keys(summaryAddress).length) summary.address = summaryAddress;
   return summary;
 }
 
-function copyDefined(target: StoredActivityEvent, source: StoredActivityEvent, key: string): void {
-  if (source[key] !== undefined) target[key] = source[key];
+function pickDefined<T extends Record<PropertyKey, unknown>, const K extends readonly (keyof T)[]>(
+  source: T,
+  keys: K,
+): Partial<Pick<T, K[number]>> {
+  return Object.fromEntries(
+    keys.flatMap((key) => source[key] === undefined ? [] : [[key, source[key]]] as const),
+  ) as Partial<Pick<T, K[number]>>;
+}
+
+function viewerActivityDetailFromParam(value: string | null): ViewerActivityDetail {
+  return value === "summary" ? "summary" : "full";
 }
 
 function latestActivityEvent(current: StoredActivityEvent | undefined, next: StoredActivityEvent): StoredActivityEvent {

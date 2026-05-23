@@ -113,43 +113,53 @@ type BrowserControl = HTMLElement & {
   elements?: Record<string, { value?: string }>;
   reset?: () => void;
 };
-type BrowserControlName =
-  | "summary"
-  | "hover"
-  | "viewport"
-  | "selectionPopover"
-  | "annotationActions"
-  | "selectionContext"
-  | "annotationTitle"
-  | "annotationMeta"
-  | "annotationFeedback"
-  | "inspectorTitle"
-  | "inspectorSubtitle"
-  | "searchForm"
-  | "searchInput"
-  | "searchResult"
-  | "selectTool"
-  | "panTool"
-  | "resetViewTool"
-  | "drawTool"
-  | "clearActivityTool"
-  | "saveSelection"
-  | "deleteAnnotation"
-  | "copyAnnotationPrompt"
-  | "editAnnotation"
-  | "deleteAnnotationAction"
-  | "selectionComment"
-  | "selectionStatus"
-  | "sourceTitle"
-  | "sourceOutput"
-  | "showFolders"
-  | "showOrganicRegions"
-  | "showFiles"
-  | "showNames"
-  | "showActivity"
-  | "showGrid"
-  | "activityFeed"
-  | "activityForm";
+const CONTROL_SELECTORS = [
+  ["summary", "#mapSummary"],
+  ["hover", "#hoverReadout"],
+  ["viewport", "#viewportReadout"],
+  ["selectionPopover", "#selectionPopover"],
+  ["annotationActions", "#annotationActions"],
+  ["selectionContext", "#selectionContext"],
+  ["annotationTitle", "#annotationTitle"],
+  ["annotationMeta", "#annotationMeta"],
+  ["annotationFeedback", "#annotationFeedback"],
+  ["inspectorTitle", "#inspectorTitle"],
+  ["inspectorSubtitle", "#inspectorSubtitle"],
+  ["searchForm", "#searchForm"],
+  ["searchInput", "#searchInput"],
+  ["searchResult", "#searchResult"],
+  ["selectTool", "#selectTool"],
+  ["panTool", "#panTool"],
+  ["resetViewTool", "#resetViewTool"],
+  ["drawTool", "#drawTool"],
+  ["clearActivityTool", "#clearActivityTool"],
+  ["saveSelection", "#saveSelection"],
+  ["deleteAnnotation", "#deleteAnnotation"],
+  ["copyAnnotationPrompt", "#copyAnnotationPrompt"],
+  ["editAnnotation", "#editAnnotation"],
+  ["deleteAnnotationAction", "#deleteAnnotationAction"],
+  ["selectionComment", "#selectionComment"],
+  ["selectionStatus", "#selectionStatus"],
+  ["sourceTitle", "#sourceTitle"],
+  ["sourceOutput", "#sourceOutput"],
+  ["showFolders", "#showFolders"],
+  ["showOrganicRegions", "#showOrganicRegions"],
+  ["showFiles", "#showFiles"],
+  ["showNames", "#showNames"],
+  ["showActivity", "#showActivity"],
+  ["showGrid", "#showGrid"],
+  ["activityFeed", "#activityFeed"],
+  ["activityForm", "#activityForm"],
+] as const satisfies readonly (readonly [string, string])[];
+type BrowserControlName = typeof CONTROL_SELECTORS[number][0];
+const LAYER_TOGGLE_CONTROLS = [
+  "showFolders",
+  "showOrganicRegions",
+  "showFiles",
+  "showNames",
+  "showActivity",
+  "showGrid",
+] as const satisfies readonly BrowserControlName[];
 type BrowserControls = Record<BrowserControlName, BrowserControl | null> & {
   layerToggles: () => BrowserControl[];
 };
@@ -215,6 +225,12 @@ type ActivityStyle = ReturnType<typeof activityStateStyle>;
 type StrokeStyle = { color: string; lineWidth: number };
 type FogTrailStyle = { alpha: number; lineWidth: number };
 type ActivityDetail = "summary" | "full";
+type MapVersionResponse = { version?: string };
+type NamedPlacesResponse = { places: NamedPlace[]; overlaps?: Array<{ bounds: Bounds }> };
+type ActivityResponse = { events?: ActivityEvent[]; version?: string; unchanged?: true };
+type AnnotationResponse = { annotation: MapAnnotationPlace };
+type ResolvedAddressResponse = { targetType: string; geohash: string; deepLink: string };
+type AnnotationSaveResponse = { annotation: MapAnnotationPlace & { id: string } };
 type ActivityRenderItem = {
   event: ActivityEvent;
   key: string;
@@ -336,99 +352,19 @@ function createMapApplicationState(): MapApplicationState {
 }
 
 function createMapControls(root: Document = document): BrowserControls {
-  const controlSelectors: Array<[BrowserControlName, string]> = [
-    ["summary", "#mapSummary"],
-    ["hover", "#hoverReadout"],
-    ["viewport", "#viewportReadout"],
-    ["selectionPopover", "#selectionPopover"],
-    ["annotationActions", "#annotationActions"],
-    ["selectionContext", "#selectionContext"],
-    ["annotationTitle", "#annotationTitle"],
-    ["annotationMeta", "#annotationMeta"],
-    ["annotationFeedback", "#annotationFeedback"],
-    ["inspectorTitle", "#inspectorTitle"],
-    ["inspectorSubtitle", "#inspectorSubtitle"],
-    ["searchForm", "#searchForm"],
-    ["searchInput", "#searchInput"],
-    ["searchResult", "#searchResult"],
-    ["selectTool", "#selectTool"],
-    ["panTool", "#panTool"],
-    ["resetViewTool", "#resetViewTool"],
-    ["drawTool", "#drawTool"],
-    ["clearActivityTool", "#clearActivityTool"],
-    ["saveSelection", "#saveSelection"],
-    ["deleteAnnotation", "#deleteAnnotation"],
-    ["copyAnnotationPrompt", "#copyAnnotationPrompt"],
-    ["editAnnotation", "#editAnnotation"],
-    ["deleteAnnotationAction", "#deleteAnnotationAction"],
-    ["selectionComment", "#selectionComment"],
-    ["selectionStatus", "#selectionStatus"],
-    ["sourceTitle", "#sourceTitle"],
-    ["sourceOutput", "#sourceOutput"],
-    ["showFolders", "#showFolders"],
-    ["showOrganicRegions", "#showOrganicRegions"],
-    ["showFiles", "#showFiles"],
-    ["showNames", "#showNames"],
-    ["showActivity", "#showActivity"],
-    ["showGrid", "#showGrid"],
-    ["activityFeed", "#activityFeed"],
-    ["activityForm", "#activityForm"],
-  ];
-  const controls: Record<BrowserControlName, BrowserControl | null> = {
-    summary: null,
-    hover: null,
-    viewport: null,
-    selectionPopover: null,
-    annotationActions: null,
-    selectionContext: null,
-    annotationTitle: null,
-    annotationMeta: null,
-    annotationFeedback: null,
-    inspectorTitle: null,
-    inspectorSubtitle: null,
-    searchForm: null,
-    searchInput: null,
-    searchResult: null,
-    selectTool: null,
-    panTool: null,
-    resetViewTool: null,
-    drawTool: null,
-    clearActivityTool: null,
-    saveSelection: null,
-    deleteAnnotation: null,
-    copyAnnotationPrompt: null,
-    editAnnotation: null,
-    deleteAnnotationAction: null,
-    selectionComment: null,
-    selectionStatus: null,
-    sourceTitle: null,
-    sourceOutput: null,
-    showFolders: null,
-    showOrganicRegions: null,
-    showFiles: null,
-    showNames: null,
-    showActivity: null,
-    showGrid: null,
-    activityFeed: null,
-    activityForm: null,
-  };
-  for (const [name, selector] of controlSelectors) {
-    controls[name] = root.querySelector<BrowserControl>(selector);
-  }
+  const controls = Object.fromEntries(
+    CONTROL_SELECTORS.map(([name, selector]) => [name, root.querySelector<BrowserControl>(selector)]),
+  ) as Record<BrowserControlName, BrowserControl | null>;
 
-  return {
-    ...controls,
-    layerToggles: () => {
-      return [
-        controls.showFolders,
-        controls.showOrganicRegions,
-        controls.showFiles,
-        controls.showNames,
-        controls.showActivity,
-        controls.showGrid,
-      ].filter((control): control is BrowserControl => Boolean(control));
-    },
-  };
+  return Object.assign(controls, {
+    layerToggles: () => LAYER_TOGGLE_CONTROLS
+      .map((name) => controls[name])
+      .filter(isBrowserControl),
+  });
+}
+
+function isBrowserControl(control: BrowserControl | null): control is BrowserControl {
+  return control !== null;
 }
 
 let frameLabels: PlacedFrameLabel[] = [];
@@ -456,15 +392,15 @@ const mapPolling = createPollingTask();
 
 async function boot() {
   const [map, mapVersion, names, activity] = await Promise.all([
-    fetchJson("/api/map"),
-    fetchJson("/api/map-version"),
-    fetchJson("/api/named-places"),
-    fetchJson(activityRequestUrl("summary")),
+    fetchJson<CodecharterCodemap>("/api/map"),
+    fetchJson<MapVersionResponse>("/api/map-version"),
+    fetchJson<NamedPlacesResponse>("/api/named-places"),
+    fetchJson<ActivityResponse>(activityRequestUrl("summary")),
   ]);
   applyMap(map, mapVersion.version);
   setNamedPlaces(names.places);
   state.overlaps = names.overlaps ?? [];
-  state.activity = activity.events;
+  state.activity = activity.events ?? [];
   state.activitySignature = activitySignature(state.activity);
   state.activityVersion = typeof activity.version === "string" ? activity.version : state.activitySignature;
   state.activityDetail = "summary";
@@ -594,12 +530,12 @@ function startMapPolling() {
 
 async function refreshMap() {
   try {
-    const mapVersion = await fetchJson("/api/map-version");
+    const mapVersion = await fetchJson<MapVersionResponse>("/api/map-version");
     clearPollingError("map");
     if (!mapVersion.version || mapVersion.version === state.mapVersion) return;
     const [map, names] = await Promise.all([
-      fetchJson("/api/map"),
-      fetchJson("/api/named-places"),
+      fetchJson<CodecharterCodemap>("/api/map"),
+      fetchJson<NamedPlacesResponse>("/api/named-places"),
     ]);
     applyMap(map, mapVersion.version);
     setNamedPlaces(names.places);
@@ -629,19 +565,20 @@ async function handleActivityToggle() {
 }
 
 async function loadActivity(detail: ActivityDetail, { force = false } = {}) {
-  const activity = await fetchJson(activityRequestUrl(detail, { force }));
+  const activity = await fetchJson<ActivityResponse>(activityRequestUrl(detail, { force }));
   clearPollingError("activity");
   if (activity.unchanged === true) return false;
-  const nextSignature = activitySignature(activity.events ?? []);
+  const events = activity.events ?? [];
+  const nextSignature = activitySignature(events);
   const nextVersion = typeof activity.version === "string" ? activity.version : nextSignature;
   const replacingDetail = force || state.activityDetail !== detail;
   state.activityVersion = nextVersion;
   state.activityDetail = detail;
   if (!replacingDetail && nextSignature === state.activitySignature) {
-    if ((activity.events ?? []).length) rebuildActivityFog();
-    return Boolean((activity.events ?? []).length);
+    if (events.length) rebuildActivityFog();
+    return Boolean(events.length);
   }
-  state.activity = activity.events ?? [];
+  state.activity = events;
   state.activitySignature = nextSignature;
   rebuildActivityFog();
   return true;
@@ -809,7 +746,7 @@ async function focusAnnotationRoute(id: string, routeToken: RouteToken) {
   if (annotation?.kind !== "mapAnnotation") annotation = null;
   if (!annotation) {
     try {
-      annotation = (await fetchJson(`/api/annotations/${encodeURIComponent(id)}`)).annotation;
+      annotation = (await fetchJson<AnnotationResponse>(`/api/annotations/${encodeURIComponent(id)}`)).annotation;
     } catch {
       return;
     }
@@ -869,8 +806,8 @@ async function showFileForRoute(file: MapFile, params: URLSearchParams, routeTok
 
   const sourceContext = sourceContextRequest(file.path, lineRange);
   const [address, source] = await Promise.all([
-    fetchJson(sourceContext.resolveUrl),
-    fetchJson(sourceContext.sourceUrl),
+    fetchJson<ResolvedAddressResponse>(sourceContext.resolveUrl),
+    fetchJson<SourceRange>(sourceContext.sourceUrl),
   ]);
   if (!isCurrentRoute(routeToken)) return;
   applySourcePanel(sourcePanelState({ path: file.path, deepLink: address.deepLink, source }));
@@ -1701,7 +1638,7 @@ function visibleLineRange(file: MapFile, box: Bounds) {
 function requestSourceRange(path: string, lineStart: number, lineEnd: number, cacheKey: string) {
   if (state.pendingSourceRequests.has(cacheKey)) return;
   state.pendingSourceRequests.add(cacheKey);
-  fetchJson(sourceContextRequest(path, { start: lineStart, end: lineEnd }).sourceUrl)
+  fetchJson<SourceRange>(sourceContextRequest(path, { start: lineStart, end: lineEnd }).sourceUrl)
     .then((source) => {
       rememberSourceRange(state.sourceCache, cacheKey, source);
       render();
@@ -2539,8 +2476,8 @@ async function inspectFileTarget(hit: MapFile & { targetType: "file" }, worldPoi
   const lineRange = sourcePanelLineRange(hit, line, box);
   const sourceContext = sourceContextRequest(hit.path, lineRange);
   const [address, source] = await Promise.all([
-    fetchJson(sourceContext.resolveUrl),
-    fetchJson(sourceContext.sourceUrl),
+    fetchJson<ResolvedAddressResponse>(sourceContext.resolveUrl),
+    fetchJson<SourceRange>(sourceContext.sourceUrl),
   ]);
   syncHashRoute(createMapHashRoute(address.targetType, address.geohash, { path: hit.path, lines: sourceContext.lines }));
 
@@ -2571,8 +2508,8 @@ async function selectActivityEvent(event: ActivityEvent, { zoomReadable = false 
   }
   const sourceContext = sourceContextRequest(path, lineRange);
   const [address, source] = await Promise.all([
-    fetchJson(sourceContext.resolveUrl),
-    fetchJson(sourceContext.sourceUrl),
+    fetchJson<ResolvedAddressResponse>(sourceContext.resolveUrl),
+    fetchJson<SourceRange>(sourceContext.sourceUrl),
   ]);
   syncHashRoute(createMapHashRoute(address.targetType, address.geohash, { path, lines: sourceContext.lines }));
   applySourcePanel(sourcePanelState({ path, deepLink: address.deepLink, source }));
@@ -2688,7 +2625,7 @@ async function previewSelection({ routeToken = null }: { routeToken?: RouteToken
     level: DEFAULT_MAP_LEVEL,
     geometry: draftSelection,
   };
-  const resolvedSelection = await postJson("/api/selections/resolve", body);
+  const resolvedSelection = await postJson<ResolvedSelection>("/api/selections/resolve", body);
   if (routeToken && !isCurrentRoute(routeToken)) return;
   if (state.draftSelection !== draftSelection) return;
   state.resolvedSelection = resolvedSelection;
@@ -2723,7 +2660,7 @@ async function saveSelection() {
     level: selection.level ?? DEFAULT_MAP_LEVEL,
     geometry: selection.geometry,
   };
-  const savedPromise = postJson("/api/annotations", payload);
+  const savedPromise = postJson<AnnotationSaveResponse>("/api/annotations", payload);
   const copiedPromise = copyDeferredToClipboard(savedPromise.then((saved) => annotationClipboardText(saved.annotation, {
     origin: window.location.origin,
     href: window.location.href,
@@ -3151,15 +3088,15 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-async function fetchJson(url: string) {
+async function fetchJson<T = unknown>(url: string): Promise<T> {
   return requestJson(url);
 }
 
-async function deleteJson(url: string) {
+async function deleteJson<T = unknown>(url: string): Promise<T> {
   return requestJson(url, { method: "DELETE" });
 }
 
-async function postJson(url: string, body: unknown) {
+async function postJson<T = unknown>(url: string, body: unknown): Promise<T> {
   return requestJson(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -3167,10 +3104,10 @@ async function postJson(url: string, body: unknown) {
   });
 }
 
-async function requestJson(url: string, options?: RequestInit) {
+async function requestJson<T = unknown>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, options);
   if (!response.ok) throw new Error(await response.text());
-  return response.json();
+  return await response.json() as T;
 }
 
 function requiredElement<T extends Element>(element: T | null, name: string): T {

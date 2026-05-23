@@ -113,6 +113,7 @@ export type ActivityEvent = {
   address?: ActivityAddress;
   note?: string;
   targetType?: "activity";
+  viewerFogState?: FogState;
 };
 
 export type ActivityFogOptions = { now?: number; maxAgeMinutes?: number };

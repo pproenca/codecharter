@@ -175,6 +175,7 @@ function fogStateRank(fogState: FogState | undefined): number {
 }
 
 function viewerFogState(event: ActivityEvent): FogState | null {
-  const marker = (event as { viewerFogState?: unknown }).viewerFogState;
-  return marker === "visible" || marker === "explored" ? marker : null;
+  return event.viewerFogState === "visible" || event.viewerFogState === "explored"
+    ? event.viewerFogState
+    : null;
 }

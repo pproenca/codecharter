@@ -10,13 +10,30 @@
 
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import type { ActivityAddress, ActivityStateInput } from "./activity.ts";
 
 const DEFAULT_FLUSH_INTERVAL_MS = 5000;
 const DEFAULT_MAX_MEMORY_EVENTS = 2000;
 const DEFAULT_MAX_ARCHIVE_QUEUE_EVENTS = 2000;
 
+export type ViewerFogState = "explored" | "visible";
+
 export type StoredActivityEvent = {
-  id?: string;
+  id?: string | undefined;
+  agentId?: string | undefined;
+  activityState?: ActivityStateInput;
+  state?: ActivityStateInput;
+  address?: ActivityAddress | undefined;
+  timestamp?: string | undefined;
+  note?: string | undefined;
+  hookEventName?: string | undefined;
+  sessionId?: string | undefined;
+  threadId?: string | undefined;
+  threadUri?: string | undefined;
+  turnId?: string | undefined;
+  model?: string | undefined;
+  path?: string | undefined;
+  viewerFogState?: ViewerFogState | undefined;
   [key: string]: unknown;
 };
 

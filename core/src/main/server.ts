@@ -145,6 +145,8 @@ const ACTIVITY_EVENT_STRING_FIELDS = [
   "hookEventName", "sessionId", "threadId", "threadUri", "turnId", "model",
 ] as const satisfies readonly (keyof ActivityEventInput & string)[];
 const ADDRESS_RANGE_FIELDS = ["lineStart", "lineEnd", "columnStart", "columnEnd"] as const;
+const VIEWER_SUMMARY_ADDRESS_STRING_FIELDS = ["path", "deepLink", "geohash"] as const satisfies readonly (keyof ActivityAddress & string)[];
+const VIEWER_SUMMARY_ADDRESS_RANGE_FIELDS = ["lineRange", "tokenRange"] as const satisfies readonly (keyof ActivityAddress & string)[];
 const VIEWER_SUMMARY_EVENT_FIELDS = [
   "id",
   "agentId",
@@ -154,8 +156,7 @@ const VIEWER_SUMMARY_EVENT_FIELDS = [
   "note",
   "threadId",
   "sessionId",
-] as const satisfies readonly (keyof StoredActivityEvent)[];
-const VIEWER_SUMMARY_ADDRESS_FIELDS = ["path", "deepLink", "geohash", "lineRange", "tokenRange"] as const;
+] as const satisfies readonly (keyof ActivityEventInput & string)[];
 
 export async function startServer({
   root,
@@ -496,7 +497,7 @@ async function postSelectionResolveApi(state: ServerState, request: IncomingMess
 async function getActivityApi(state: ServerState, _request: IncomingMessage, response: ServerResponse, url: URL): Promise<void> {
   sendJson(response, 200, await activitySnapshot(state, {
     viewer: url.searchParams.get("view") === "viewer",
-    detail: viewerActivityDetailFromParam(url.searchParams.get("detail")),
+    detail: url.searchParams.get("detail") === "summary" ? "summary" : "full",
     ...(url.searchParams.has("version") ? { version: url.searchParams.get("version") ?? "" } : {}),
   }));
 }
@@ -631,10 +632,9 @@ async function readViewerActivityArchive(state: ServerState, now: number): Promi
       try {
         const event = objectRecord(JSON.parse(line));
         if (!event) continue;
-        const stored = storedActivityEventFromRecord(event);
-        const path = activityEventPath(stored);
-        if (path && !exploredByPath.has(path)) exploredByPath.set(path, stored);
-        if (isViewerLiveActivityEvent(stored, now)) recent.push(stored);
+        const path = activityEventPath(event);
+        if (path && !exploredByPath.has(path)) exploredByPath.set(path, event);
+        if (isViewerLiveActivityEvent(event, now)) recent.push(event);
       } catch {
         // Ignore incomplete trailing writes or malformed external activity lines.
       }
@@ -698,7 +698,7 @@ function compactViewerActivityEvents(events: StoredActivityEvent[], now: number,
 }
 
 function selectActivityEvent(event: StoredActivityEvent, selected: StoredActivityEvent[], selectedIds: Set<string>): void {
-  const id = typeof event.id === "string" ? event.id : "";
+  const id = event.id ?? "";
   if (id) {
     if (selectedIds.has(id)) return;
     selectedIds.add(id);
@@ -707,36 +707,40 @@ function selectActivityEvent(event: StoredActivityEvent, selected: StoredActivit
 }
 
 function viewerFogMarker(event: StoredActivityEvent, path: string, fogState: ViewerFogState): StoredActivityEvent {
-  const timestamp = typeof event.timestamp === "string" ? event.timestamp : "";
   return {
     id: `viewer-fog:${fogState}:${path}`,
-    agentId: typeof event.agentId === "string" ? event.agentId : undefined,
-    activityState: typeof event.activityState === "string" ? event.activityState : undefined,
-    timestamp,
+    timestamp: event.timestamp ?? "",
     viewerFogState: fogState,
     address: { path },
+    ...pickDefined(event, ["agentId", "activityState"] as const),
   };
 }
 
 function viewerSummaryEvent(event: StoredActivityEvent): StoredActivityEvent {
-  const address = objectRecord(event.address);
   const summary: StoredActivityEvent = pickDefined(event, VIEWER_SUMMARY_EVENT_FIELDS);
-  const summaryAddress = address ? pickDefined(address, VIEWER_SUMMARY_ADDRESS_FIELDS) : {};
-  if (Object.keys(summaryAddress).length) summary.address = summaryAddress;
+  const summaryAddress = viewerSummaryAddress(event.address);
+  if (summaryAddress) summary.address = summaryAddress;
   return summary;
+}
+
+function viewerSummaryAddress(address: ActivityAddress | undefined): ActivityAddress | undefined {
+  if (!address) return undefined;
+  const summary: ActivityAddress = {
+    ...pickDefined(address, VIEWER_SUMMARY_ADDRESS_STRING_FIELDS),
+    ...pickDefined(address, VIEWER_SUMMARY_ADDRESS_RANGE_FIELDS),
+  };
+  return Object.keys(summary).length ? summary : undefined;
 }
 
 function pickDefined<T extends Record<PropertyKey, unknown>, const K extends readonly (keyof T)[]>(
   source: T,
   keys: K,
 ): Partial<Pick<T, K[number]>> {
-  return Object.fromEntries(
-    keys.flatMap((key) => source[key] === undefined ? [] : [[key, source[key]]] as const),
-  ) as Partial<Pick<T, K[number]>>;
-}
-
-function viewerActivityDetailFromParam(value: string | null): ViewerActivityDetail {
-  return value === "summary" ? "summary" : "full";
+  const picked: Partial<Pick<T, K[number]>> = {};
+  for (const key of keys) {
+    if (source[key] !== undefined) picked[key] = source[key];
+  }
+  return picked;
 }
 
 function latestActivityEvent(current: StoredActivityEvent | undefined, next: StoredActivityEvent): StoredActivityEvent {
@@ -759,27 +763,23 @@ function isViewerLiveActivityEvent(event: StoredActivityEvent, now: number): boo
 }
 
 function storedActivityTimestamp(event: StoredActivityEvent): number {
-  return Date.parse(typeof event.timestamp === "string" ? event.timestamp : "");
+  return Date.parse(event.timestamp ?? "");
 }
 
 function activityActorKey(event: StoredActivityEvent): string {
-  const thread = typeof event.threadId === "string"
-    ? event.threadId
-    : typeof event.sessionId === "string"
-      ? event.sessionId
-      : "";
-  const agent = typeof event.agentId === "string" ? event.agentId : "agent";
+  const thread = event.threadId ?? event.sessionId ?? "";
+  const agent = event.agentId ?? "agent";
   return `${agent}:${thread}`;
 }
 
 function activityEventPath(event: StoredActivityEvent): string {
-  const address = objectRecord(event.address);
+  const { address } = event;
   for (const candidate of [
     address?.path,
     event.path,
-    pathFromActivityDeepLink(typeof address?.deepLink === "string" ? address.deepLink : undefined),
+    pathFromActivityDeepLink(address?.deepLink),
   ]) {
-    if (typeof candidate === "string" && candidate) return normalizePathForMap(candidate);
+    if (candidate) return normalizePathForMap(candidate);
   }
   return "";
 }
@@ -803,7 +803,7 @@ async function readActivityArchive(path: string): Promise<StoredActivityEvent[]>
       if (!line.trim()) continue;
       try {
         const event = objectRecord(JSON.parse(line));
-        if (event) events.push(storedActivityEventFromRecord(event));
+        if (event) events.push(event);
       } catch {
         // Ignore incomplete trailing writes or malformed external activity lines.
       }
@@ -965,10 +965,6 @@ function addressRequestFromBody(body: JsonObject): AddressRequest {
     if (typeof body[key] === "string" || typeof body[key] === "number") request[key] = body[key];
   }
   return request;
-}
-
-function storedActivityEventFromRecord(record: JsonObject): StoredActivityEvent {
-  return { ...record };
 }
 
 function stringFields<T extends string>(body: JsonObject, fields: readonly T[]): Partial<Record<T, string>> {

@@ -10,9 +10,10 @@ import type {
   ActivityStateInput,
   CodecharterCodemap,
   GeoAddress,
-  MapAction,
+  MapActionOf,
   MapFile,
   MapFolder,
+  MapHashRoute,
   MapRoute,
   MapTarget,
   MapTargetRecord,
@@ -23,7 +24,6 @@ import type {
   TargetHit,
 } from "./types.ts";
 import {
-  actionFor,
   boundsCenter,
   compareTargetAreaThenPath,
   containsBoundsPoint,
@@ -33,17 +33,22 @@ import {
 } from "./primitives.ts";
 import { normalizeActivityState, shortActivityId } from "./activity.ts";
 
-const MAP_ROUTE_FOCUS_ACTIONS: Map<string, MapAction> = new Map([
-  ["file", { type: "focusFile", zoomPadding: 1.35 }],
-  ["folder", { type: "focusFolder", zoomPadding: 1.6 }],
-]);
+type MapRouteTargetType = TargetHit["targetType"];
+type MapRouteFocusAction = MapActionOf<"focusFile" | "focusFolder">;
+type MapSearchAction = MapActionOf<"focusPlace" | "focusFile" | "focusFolder">;
+type MapSearchResultAction = MapActionOf<"noMatch"> | MapSearchAction;
 
-const MAP_SEARCH_ACTIONS: Map<SearchMatch["type"], MapAction> = new Map([
-  ["annotation", { type: "focusPlace" }],
-  ["namedPlace", { type: "focusPlace" }],
-  ["file", { type: "focusFile" }],
-  ["folder", { type: "focusFolder" }],
-]);
+const MAP_ROUTE_FOCUS_ACTIONS = {
+  file: { type: "focusFile", zoomPadding: 1.35 },
+  folder: { type: "focusFolder", zoomPadding: 1.6 },
+} satisfies Record<MapRouteTargetType, MapRouteFocusAction>;
+
+const MAP_SEARCH_ACTIONS = {
+  annotation: { type: "focusPlace" },
+  namedPlace: { type: "focusPlace" },
+  file: { type: "focusFile" },
+  folder: { type: "focusFolder" },
+} satisfies Record<SearchMatch["type"], MapSearchAction>;
 
 const MAP_SEARCH_MATCHERS: Array<(context: SearchContext) => SearchMatch | null> = [
   namedPlaceSearchMatch,
@@ -51,13 +56,18 @@ const MAP_SEARCH_MATCHERS: Array<(context: SearchContext) => SearchMatch | null>
   folderSearchMatch,
 ];
 
-export function mapRouteTarget(codemap: CodecharterCodemap, route: MapRoute): TargetHit | null {
-  const path = route.params?.get("path");
+type HashRouteFocusIntent =
+  | { type: "annotation"; id: string }
+  | { type: "selection"; params: URLSearchParams }
+  | { type: "map"; route: MapHashRoute };
+
+export function mapRouteTarget(codemap: CodecharterCodemap, route: MapHashRoute): TargetHit | null {
+  const path = route.params.get("path");
   if (path) return mapTargetForPath(codemap, path);
   return mapTargetForGeohash(codemap, route.locator, route.kind);
 }
 
-export function hashRouteFocusIntent(route: MapRoute | null | undefined, { hasMap = true } = {}) {
+export function hashRouteFocusIntent(route: MapRoute | null | undefined, { hasMap = true } = {}): HashRouteFocusIntent | null {
   if (!route || !hasMap) return null;
   if (route.type === "annotation") return { type: "annotation", id: route.id };
   if (route.type === "selection") return { type: "selection", params: route.params };
@@ -65,9 +75,9 @@ export function hashRouteFocusIntent(route: MapRoute | null | undefined, { hasMa
   return null;
 }
 
-export function mapRouteFocusAction(target: ActionHit | null | undefined) {
+export function mapRouteFocusAction(target: TargetHit | null | undefined): MapRouteFocusAction | null {
   if (!target) return null;
-  return actionFor(MAP_ROUTE_FOCUS_ACTIONS, target.targetType);
+  return { ...MAP_ROUTE_FOCUS_ACTIONS[target.targetType] };
 }
 
 export function mapSearchMatch(codemap: CodecharterCodemap, namedPlaces: NamedPlace[], query: string): SearchMatch | null {
@@ -82,9 +92,9 @@ export function mapSearchMatch(codemap: CodecharterCodemap, namedPlaces: NamedPl
   return null;
 }
 
-export function mapSearchAction(match: SearchMatch | null | undefined) {
+export function mapSearchAction(match: SearchMatch | null | undefined): MapSearchResultAction {
   if (!match) return { type: "noMatch" };
-  return actionFor(MAP_SEARCH_ACTIONS, match.type);
+  return { ...MAP_SEARCH_ACTIONS[match.type] };
 }
 
 export function mapSelectionPanel(target: TargetHit | null | undefined) {
@@ -163,7 +173,7 @@ export function hitTestTargetLists(files: Iterable<MapFile>, folders: Iterable<M
   const file = bestContainingTarget(files, point);
   if (file) return { ...file, targetType: "file" };
 
-  const folder = bestContainingTarget(folders, point, (target) => Boolean(target.path));
+  const folder = bestContainingTarget(folders, point, (target) => target.path !== "");
   if (folder) return { ...folder, targetType: "folder" };
 
   return null;
@@ -233,24 +243,33 @@ function firstSearchTarget<T extends MapTarget>(targets: MapTargetRecord<T>, que
 
 function mapTargetForPath(codemap: CodecharterCodemap, path: string): TargetHit | null {
   const normalized = normalizeMapPath(path);
-  if (codemap.files?.[normalized]) return { ...codemap.files[normalized], targetType: "file" };
-  if (codemap.folders?.[normalized]) return { ...codemap.folders[normalized], targetType: "folder" };
+  const file = codemap.files?.[normalized];
+  if (file) return { ...file, targetType: "file" };
+  const folder = codemap.folders?.[normalized];
+  if (folder) return { ...folder, targetType: "folder" };
   return null;
 }
 
-function mapTargetForGeohash(codemap: CodecharterCodemap, geohash: string | undefined, kind: string | undefined): TargetHit | null {
-  const targetType = kind === "folder" ? "folder" : "file";
+function mapTargetForGeohash(codemap: CodecharterCodemap, geohash: string | undefined, kind: MapHashRoute["kind"] | undefined): TargetHit | null {
   if (!geohash) return null;
-  const targets = targetType === "folder" ? objectValues(codemap.folders ?? {}) : objectValues(codemap.files ?? {});
-  let fallback: MapTarget | null = null;
+  if (kind === "folder") {
+    const folder = firstGeohashTarget(objectValues(codemap.folders ?? {}), geohash, (target) => target.path !== "");
+    return folder ? { ...folder, targetType: "folder" } : null;
+  }
+  const file = firstGeohashTarget(objectValues(codemap.files ?? {}), geohash);
+  return file ? { ...file, targetType: "file" } : null;
+}
+
+function firstGeohashTarget<T extends MapTarget>(targets: Iterable<T>, geohash: string, accept: (target: T) => boolean = () => true): T | null {
+  let fallback: T | null = null;
   for (const target of targets) {
-    if (targetType === "folder" && !target.path) continue;
+    if (!accept(target)) continue;
     const targetGeohash = target.geo?.geohash;
     if (!targetGeohash) continue;
-    if (targetGeohash.startsWith(geohash)) return { ...target, targetType } as TargetHit;
+    if (targetGeohash.startsWith(geohash)) return target;
     if (!fallback && geohash.startsWith(targetGeohash)) fallback = target;
   }
-  return fallback ? { ...fallback, targetType } as TargetHit : null;
+  return fallback;
 }
 
 function bestContainingTarget<T extends MapTarget>(targets: Iterable<T>, point: Point, accept: (target: T) => boolean = (_target) => true): T | null {

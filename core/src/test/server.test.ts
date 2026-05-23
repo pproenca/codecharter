@@ -4,136 +4,109 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Server } from "node:http";
+import type { TestContext } from "node:test";
 
 import { startServer } from "../main/server.ts";
+import type { StoredActivityEvent } from "../main/activity-store.ts";
 
-type JsonResponse = {
-  events: Array<Record<string, unknown>>;
+type ActivityJsonResponse = {
+  events: StoredActivityEvent[];
   version?: string;
   unchanged?: true;
 };
 
-test("startServer serves viewer/dist when running from source", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codecharter-server-"));
-  const publicRoot = join(root, "viewer", "dist");
-  await mkdir(publicRoot, { recursive: true });
-  await mkdir(join(root, ".codecharter"), { recursive: true });
-  await writeFile(join(publicRoot, "index.html"), "<!doctype html><title>viewer</title>");
-  await writeFile(join(root, ".codecharter", "codecharter.json"), "{}");
+test("startServer serves viewer/dist when running from source", async (t) => {
+  const server = await startFixtureServer(t);
 
-  const server = await startServer({
-    root,
-    mapPath: join(root, ".codecharter", "codecharter.json"),
-    port: 0,
-    activityFlushIntervalMs: 0,
-  });
-
-  try {
-    const address = server.address();
-    assert.ok(address && typeof address !== "string");
-    const response = await fetch(`http://127.0.0.1:${address.port}/`);
-    assert.equal(response.status, 200);
-    assert.match(response.headers.get("content-type") ?? "", /^text\/html/);
-    assert.equal(await response.text(), "<!doctype html><title>viewer</title>");
-  } finally {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => error ? reject(error) : resolve());
-    });
-    await rm(root, { recursive: true, force: true });
-  }
+  const response = await fetch(`${serverUrl(server)}/`);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type") ?? "", /^text\/html/);
+  assert.equal(await response.text(), "<!doctype html><title>viewer</title>");
 });
 
-test("viewer activity summary omits full geometry and supports unchanged version responses", async () => {
+test("viewer activity summary omits full geometry and supports unchanged version responses", async (t) => {
+  const server = await startActivityServer(t, activityScenario(160, 120));
+
+  const url = serverUrl(server);
+  const summary = await fetchActivityJson(`${url}/api/activity?view=viewer&detail=summary`);
+  const summaryText = JSON.stringify(summary);
+
+  assert.equal(summary.events.length, 1);
+  assert.equal(summary.events[0]?.id, "live-viewer");
+  assert.deepEqual(summary.events[0]?.address, {
+    path: "viewer/src/main/app.ts",
+    geohash: "s00000000000",
+    deepLink: "codecharter://file/s00000000000?path=viewer%2Fsrc%2Fmain%2Fapp.ts",
+    lineRange: { start: 1, end: 10 },
+  });
+  assert.ok(summary.version?.startsWith("summary:"), "summary version should include the detail mode");
+  assert.doesNotMatch(summaryText, /fragments/);
+  assert.ok(summaryText.length < 1200, `summary response should stay compact; got ${summaryText.length} bytes`);
+
+  const unchanged = await fetchActivityJson(`${url}/api/activity?view=viewer&detail=summary&version=${encodeURIComponent(summary.version ?? "")}`);
+  assert.equal(unchanged.unchanged, true);
+  assert.deepEqual(unchanged.events, []);
+});
+
+test("viewer activity full detail preserves trail geometry and emits compact fog markers", async (t) => {
+  const server = await startActivityServer(t, activityScenario(20, 12));
+
+  const full = await fetchActivityJson(`${serverUrl(server)}/api/activity?view=viewer&detail=full`);
+  const liveEvent = full.events.find((event) => event.id === "live-viewer");
+  const oldFog = full.events.find((event) => event.viewerFogState && event.address?.path === "core/src/main/server.ts");
+
+  assert.ok(full.version?.startsWith("full:"), "full version should include the detail mode");
+  assert.ok(liveEvent, "full detail should keep live event geometry for activity trails");
+  assert.ok(Array.isArray(liveEvent.address?.fragments));
+  assert.ok(oldFog, "full detail should include historical fog markers");
+  assert.equal(oldFog?.viewerFogState, "explored");
+  assert.equal(oldFog?.address?.fragments, undefined);
+});
+
+async function startActivityServer(t: TestContext, events: readonly StoredActivityEvent[]): Promise<Server> {
   const root = await fixtureRoot();
   const activityArchivePath = join(root, ".scratch", "codecharter", "activity.jsonl");
   await mkdir(join(root, ".scratch", "codecharter"), { recursive: true });
-  await writeFile(activityArchivePath, activityLines([
+  await writeFile(activityArchivePath, `${events.map((event) => JSON.stringify(event)).join("\n")}\n`);
+  return startFixtureServer(t, { root, activityArchivePath });
+}
+
+async function startFixtureServer(
+  t: TestContext,
+  { root: providedRoot, activityArchivePath }: { root?: string; activityArchivePath?: string } = {},
+): Promise<Server> {
+  const root = providedRoot ?? await fixtureRoot();
+  let server: Server | null = null;
+  t.after(async () => {
+    if (server) await closeServer(server);
+    await rm(root, { recursive: true, force: true });
+  });
+  server = await startServer({
+    root,
+    mapPath: join(root, ".codecharter", "codecharter.json"),
+    port: 0,
+    ...(activityArchivePath === undefined ? {} : { activityArchivePath }),
+    activityFlushIntervalMs: 0,
+  });
+  return server;
+}
+
+function activityScenario(oldCoreFragments: number, liveViewerFragments: number): StoredActivityEvent[] {
+  return [
     activityEvent({
       id: "old-core",
       timestamp: "2026-05-22T10:00:00.000Z",
       path: "core/src/main/server.ts",
-      fragments: 160,
+      fragments: oldCoreFragments,
     }),
     activityEvent({
       id: "live-viewer",
       timestamp: new Date().toISOString(),
       path: "viewer/src/main/app.ts",
-      fragments: 120,
+      fragments: liveViewerFragments,
     }),
-  ]));
-
-  const server = await startServer({
-    root,
-    mapPath: join(root, ".codecharter", "codecharter.json"),
-    port: 0,
-    activityArchivePath,
-    activityFlushIntervalMs: 0,
-  });
-
-  try {
-    const url = serverUrl(server);
-    const summary = await fetchJson<JsonResponse>(`${url}/api/activity?view=viewer&detail=summary`);
-    const summaryText = JSON.stringify(summary);
-
-    assert.equal(summary.events.length, 1);
-    assert.equal(summary.events[0]?.id, "live-viewer");
-    assert.ok(summary.version?.startsWith("summary:"), "summary version should include the detail mode");
-    assert.doesNotMatch(summaryText, /fragments/);
-    assert.ok(summaryText.length < 1200, `summary response should stay compact; got ${summaryText.length} bytes`);
-
-    const unchanged = await fetchJson<JsonResponse>(`${url}/api/activity?view=viewer&detail=summary&version=${encodeURIComponent(summary.version ?? "")}`);
-    assert.equal(unchanged.unchanged, true);
-    assert.deepEqual(unchanged.events, []);
-  } finally {
-    await closeServer(server);
-    await rm(root, { recursive: true, force: true });
-  }
-});
-
-test("viewer activity full detail preserves trail geometry and emits compact fog markers", async () => {
-  const root = await fixtureRoot();
-  const activityArchivePath = join(root, ".scratch", "codecharter", "activity.jsonl");
-  await mkdir(join(root, ".scratch", "codecharter"), { recursive: true });
-  await writeFile(activityArchivePath, activityLines([
-    activityEvent({
-      id: "old-core",
-      timestamp: "2026-05-22T10:00:00.000Z",
-      path: "core/src/main/server.ts",
-      fragments: 20,
-    }),
-    activityEvent({
-      id: "live-viewer",
-      timestamp: new Date().toISOString(),
-      path: "viewer/src/main/app.ts",
-      fragments: 12,
-    }),
-  ]));
-
-  const server = await startServer({
-    root,
-    mapPath: join(root, ".codecharter", "codecharter.json"),
-    port: 0,
-    activityArchivePath,
-    activityFlushIntervalMs: 0,
-  });
-
-  try {
-    const full = await fetchJson<JsonResponse>(`${serverUrl(server)}/api/activity?view=viewer&detail=full`);
-    const fogMarkers = full.events.filter((event) => event.viewerFogState);
-    const liveEvent = full.events.find((event) => event.id === "live-viewer");
-    const oldFog = fogMarkers.find((event) => (event.address as { path?: string } | undefined)?.path === "core/src/main/server.ts");
-
-    assert.ok(full.version?.startsWith("full:"), "full version should include the detail mode");
-    assert.ok(liveEvent, "full detail should keep live event geometry for activity trails");
-    assert.ok(Array.isArray((liveEvent.address as { fragments?: unknown[] } | undefined)?.fragments));
-    assert.ok(oldFog, "full detail should include historical fog markers");
-    assert.equal(oldFog?.viewerFogState, "explored");
-    assert.equal((oldFog?.address as { fragments?: unknown[] } | undefined)?.fragments, undefined);
-  } finally {
-    await closeServer(server);
-    await rm(root, { recursive: true, force: true });
-  }
-});
+  ];
+}
 
 async function fixtureRoot(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "codecharter-server-"));
@@ -157,14 +130,10 @@ async function closeServer(server: Server): Promise<void> {
   });
 }
 
-async function fetchJson<T>(url: string): Promise<T> {
+async function fetchActivityJson(url: string): Promise<ActivityJsonResponse> {
   const response = await fetch(url);
   assert.equal(response.status, 200);
-  return await response.json() as T;
-}
-
-function activityLines(events: Array<Record<string, unknown>>): string {
-  return `${events.map((event) => JSON.stringify(event)).join("\n")}\n`;
+  return await response.json() as ActivityJsonResponse;
 }
 
 function activityEvent({
@@ -177,7 +146,7 @@ function activityEvent({
   timestamp: string;
   path: string;
   fragments: number;
-}): Record<string, unknown> {
+}): StoredActivityEvent {
   return {
     id,
     agentId: "codex",

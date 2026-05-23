@@ -21,7 +21,7 @@ import { normalizePathForMap, resolveAddress } from "./resolver.ts";
 import { readJson, writeJson } from "./store.ts";
 import { isErrnoException } from "./errors.ts";
 import { mapConcurrent, objectRecord } from "./collections.ts";
-import type { ActivityStateInput } from "./activity.ts";
+import type { ActivityEventInput, ActivityStateInput } from "./activity.ts";
 import type { StoredActivityEvent } from "./activity-store.ts";
 import type { CodeChange } from "./activity-watcher.ts";
 import type { CodecharterCodemap } from "./resolver.ts";
@@ -89,18 +89,8 @@ type CodexHookEventsOptions = {
   mapPath: string;
   payload: HookPayload;
 };
-type HookEventBase = {
+type HookEventBase = Pick<ActivityEventInput, "hookEventName" | "sessionId" | "threadId" | "threadUri" | "turnId" | "model"> & {
   agentId: string;
-  hookEventName?: string;
-  sessionId?: string;
-  threadId?: string;
-  threadUri?: string;
-  turnId?: string;
-  model?: string;
-};
-type HeartbeatInput = HookEventBase & {
-  activityState: ActivityStateInput;
-  note: string;
 };
 type ToolInputPathStrategy = {
   matches(toolName: string): boolean;
@@ -231,19 +221,11 @@ function resolveChangeAddress(
   }
 }
 
-function heartbeatEvent(input: HeartbeatInput): StoredActivityEvent {
+function heartbeatEvent(input: HookEventBase & { activityState: ActivityStateInput; note: string }): StoredActivityEvent {
   return {
     id: randomUUID(),
-    agentId: input.agentId,
-    activityState: input.activityState,
     timestamp: new Date().toISOString(),
-    note: input.note,
-    hookEventName: input.hookEventName,
-    sessionId: input.sessionId,
-    threadId: input.threadId,
-    threadUri: input.threadUri,
-    turnId: input.turnId,
-    model: input.model,
+    ...input,
   };
 }
 
@@ -390,15 +372,13 @@ function isStructuredWriteTool(toolName: string): boolean {
 }
 
 function toolInputText(input: unknown): string {
-  let text = "";
   const record = objectRecord(input);
-  if (!record) return text;
-  for (const key of ["command", "cmd", "patch", "input"]) {
-    const value = record[key];
-    if (typeof value !== "string") continue;
-    text = text ? `${text}\n${value}` : value;
-  }
-  return text;
+  return record
+    ? ["command", "cmd", "patch", "input"]
+      .map((key) => record[key])
+      .filter((value): value is string => typeof value === "string")
+      .join("\n")
+    : "";
 }
 
 function applyPatchPaths(text: string): string[] {

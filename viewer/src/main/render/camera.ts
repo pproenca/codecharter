@@ -10,7 +10,7 @@ import type {
   DragState,
   InteractionState,
   KeyboardEventLike,
-  MapAction,
+  MapActionOf,
   MapFile,
   MapTargetType,
   Point,
@@ -26,21 +26,24 @@ import {
   SOURCE_TEXT_MIN_WIDTH,
   SOURCE_TEXT_ZOOM_HEADROOM,
 } from "./constants.ts";
-import { actionFor, clamp } from "./primitives.ts";
+import { clamp } from "./primitives.ts";
 
-const DOUBLE_CLICK_TARGET_ACTIONS: Map<MapTargetType, MapAction> = new Map([
-  ["annotation", { type: "focusAnnotation" }],
-  ["folder", { type: "selectFolder" }],
-  ["file", { type: "selectFile" }],
-  ["activity", { type: "selectActivity" }],
-]);
+type DoubleClickAction = MapActionOf<"focusAnnotation" | "selectFolder" | "selectFile" | "selectActivity">;
+type TargetSelectionAction = MapActionOf<"clearSelection" | "focusAnnotation" | "selectActivity" | "inspectFolder" | "inspectFile">;
 
-const MAP_TARGET_SELECTION_ACTIONS: Map<MapTargetType, MapAction> = new Map([
-  ["annotation", { type: "focusAnnotation" }],
-  ["activity", { type: "selectActivity" }],
-  ["folder", { type: "inspectFolder" }],
-  ["file", { type: "inspectFile" }],
-]);
+const DOUBLE_CLICK_TARGET_ACTIONS = {
+  annotation: { type: "focusAnnotation" },
+  folder: { type: "selectFolder" },
+  file: { type: "selectFile" },
+  activity: { type: "selectActivity" },
+} satisfies Record<MapTargetType, DoubleClickAction>;
+
+const MAP_TARGET_SELECTION_ACTIONS = {
+  annotation: { type: "focusAnnotation" },
+  activity: { type: "selectActivity" },
+  folder: { type: "inspectFolder" },
+  file: { type: "inspectFile" },
+} satisfies Record<MapTargetType, Exclude<TargetSelectionAction, MapActionOf<"clearSelection">>>;
 
 export function labelBoxesOverlap(a: Bounds, b: Bounds): boolean {
   return a.x < b.x + b.width
@@ -106,7 +109,14 @@ export function panViewForDrag(drag: DragState, screen: Point, viewport: Viewpor
   }, viewport);
 }
 
-export function canvasKeyboardAction(event: KeyboardEventLike) {
+export type CanvasKeyboardAction =
+  | { type: "pan"; delta: Point }
+  | { type: "zoomIn" }
+  | { type: "zoomOut" }
+  | { type: "fitCodebase" }
+  | { type: "selectCenter" };
+
+export function canvasKeyboardAction(event: KeyboardEventLike): CanvasKeyboardAction | null {
   const keyDeltas: Record<string, Point> = {
     ArrowRight: { x: KEYBOARD_PAN_PIXELS, y: 0 },
     ArrowLeft: { x: -KEYBOARD_PAN_PIXELS, y: 0 },
@@ -124,13 +134,23 @@ export function canvasKeyboardAction(event: KeyboardEventLike) {
   return null;
 }
 
-export function documentKeyboardAction(event: KeyboardEventLike, context: DocumentKeyboardContext = {}) {
-  const commandModifier = event.metaKey || event.ctrlKey;
-  const textEntry = Boolean(context.textEntry);
-  const hasSelectedAnnotation = Boolean(context.hasSelectedAnnotation);
-  const hasResolvedSelection = Boolean(context.hasResolvedSelection);
+export type DocumentKeyboardAction =
+  | { type: "startSpacePan" }
+  | { type: "cancelInteraction" }
+  | { type: "saveSelection" }
+  | { type: "copyAnnotationPrompt" }
+  | { type: "deleteAnnotation" };
 
-  if (!textEntry && !context.buttonTarget && isSpaceKeyEvent(event) && !event.repeat) return { type: "startSpacePan" };
+export function documentKeyboardAction(event: KeyboardEventLike, context: DocumentKeyboardContext = {}): DocumentKeyboardAction | null {
+  const commandModifier = event.metaKey || event.ctrlKey;
+  const {
+    textEntry = false,
+    buttonTarget = false,
+    hasSelectedAnnotation = false,
+    hasResolvedSelection = false,
+  } = context;
+
+  if (!textEntry && !buttonTarget && isSpaceKeyEvent(event) && !event.repeat) return { type: "startSpacePan" };
   if (event.key === "Escape") return { type: "cancelInteraction" };
   if (commandModifier && event.key === "Enter" && (hasResolvedSelection || hasSelectedAnnotation)) return { type: "saveSelection" };
   if (!textEntry && commandModifier && event.key?.toLowerCase() === "c" && hasSelectedAnnotation) return { type: "copyAnnotationPrompt" };
@@ -138,14 +158,14 @@ export function documentKeyboardAction(event: KeyboardEventLike, context: Docume
   return null;
 }
 
-export function doubleClickMapAction(hit: ActionHit | null | undefined) {
+export function doubleClickMapAction(hit: ActionHit | null | undefined): DoubleClickAction | null {
   if (!hit) return null;
-  return actionFor(DOUBLE_CLICK_TARGET_ACTIONS, hit.targetType);
+  return { ...DOUBLE_CLICK_TARGET_ACTIONS[hit.targetType] };
 }
 
-export function mapTargetSelectionAction(hit: ActionHit | null | undefined) {
+export function mapTargetSelectionAction(hit: ActionHit | null | undefined): TargetSelectionAction {
   if (!hit) return { type: "clearSelection" };
-  return actionFor(MAP_TARGET_SELECTION_ACTIONS, hit.targetType);
+  return { ...MAP_TARGET_SELECTION_ACTIONS[hit.targetType] };
 }
 
 export function isSpaceKeyEvent(event: KeyboardEventLike): boolean {

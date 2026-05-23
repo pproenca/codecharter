@@ -57,6 +57,7 @@ import {
   organicRegionFolders,
   organicRegionPoints,
   organicRegionStyle,
+  pathFromDeepLink,
   panViewForDrag,
   panViewByScreenDelta,
   reconciledSelectedTarget,
@@ -90,6 +91,9 @@ import type {
   MapAnnotationPlace,
   MapFile,
   MapFolder,
+  MapHashRoute,
+  MapActionOf,
+  MapRouteKind,
   NamedPlace,
   Point,
   SearchMatch,
@@ -163,15 +167,12 @@ const LAYER_TOGGLE_CONTROLS = [
 type BrowserControls = Record<BrowserControlName, BrowserControl | null> & {
   layerToggles: () => BrowserControl[];
 };
-type BrowserCommand = {
-  command(...args: unknown[]): unknown;
-}["command"];
 type HashRouteIntent =
   | { type: "annotation"; id: string }
   | { type: "selection"; params: URLSearchParams }
-  | { type: "map"; route: NonNullable<ReturnType<typeof parseHashRoute>> };
-type CanvasAction = { type: string; delta?: Point };
-type SearchActionMatch = SearchMatch & { label?: string };
+  | { type: "map"; route: MapHashRoute };
+type CanvasAction = NonNullable<ReturnType<typeof canvasKeyboardAction>>;
+type DocumentAction = NonNullable<ReturnType<typeof documentKeyboardAction>>;
 type TimerHandle = number | ReturnType<typeof setTimeout> | null;
 type PollingTask = {
   start(callback: () => void | Promise<void>, intervalMs: number): void;
@@ -180,6 +181,13 @@ type PollingTask = {
 type AnnotationHit = NamedPlace & { targetType: "annotation" };
 type ActivityHit = ActivityEvent & { targetType: "activity" };
 type HitTarget = TargetHit | AnnotationHit | ActivityHit;
+type PlaceSearchMatch = Extract<SearchMatch, { type: "annotation" | "namedPlace" }>;
+type FileSearchMatch = Extract<SearchMatch, { type: "file" }>;
+type FolderSearchMatch = Extract<SearchMatch, { type: "folder" }>;
+type MapRouteFocusAction = MapActionOf<"focusFile" | "focusFolder">;
+type DoubleClickAction = MapActionOf<"focusAnnotation" | "selectFolder" | "selectFile" | "selectActivity">;
+type TargetSelectionAction = MapActionOf<"clearSelection" | "focusAnnotation" | "selectActivity" | "inspectFolder" | "inspectFile">;
+type SearchAction = MapActionOf<"noMatch" | "focusPlace" | "focusFile" | "focusFolder">;
 type RouteToken = number;
 type ParsedLineRange = { start: number; end: number };
 type ResolvedSelection = {
@@ -229,7 +237,7 @@ type MapVersionResponse = { version?: string };
 type NamedPlacesResponse = { places: NamedPlace[]; overlaps?: Array<{ bounds: Bounds }> };
 type ActivityResponse = { events?: ActivityEvent[]; version?: string; unchanged?: true };
 type AnnotationResponse = { annotation: MapAnnotationPlace };
-type ResolvedAddressResponse = { targetType: string; geohash: string; deepLink: string };
+type ResolvedAddressResponse = { targetType: MapRouteKind; geohash: string; deepLink: string };
 type AnnotationSaveResponse = { annotation: MapAnnotationPlace & { id: string } };
 type ActivityRenderItem = {
   event: ActivityEvent;
@@ -299,15 +307,16 @@ const POLLING_ERROR_NOTICE_THRESHOLD = 2;
 
 function createPollingTask(): PollingTask {
   let timer: TimerHandle = null;
+  const stop = () => {
+    if (timer) clearInterval(timer);
+    timer = null;
+  };
   return {
     start(callback: () => void | Promise<void>, intervalMs: number) {
-      this.stop();
+      stop();
       timer = setInterval(callback, intervalMs);
     },
-    stop() {
-      if (timer) clearInterval(timer);
-      timer = null;
-    },
+    stop,
   };
 }
 
@@ -359,12 +368,8 @@ function createMapControls(root: Document = document): BrowserControls {
   return Object.assign(controls, {
     layerToggles: () => LAYER_TOGGLE_CONTROLS
       .map((name) => controls[name])
-      .filter(isBrowserControl),
+      .filter((control): control is BrowserControl => control !== null),
   });
-}
-
-function isBrowserControl(control: BrowserControl | null): control is BrowserControl {
-  return control !== null;
 }
 
 let frameLabels: PlacedFrameLabel[] = [];
@@ -417,8 +422,8 @@ async function boot() {
 function applyMap(map: CodecharterCodemap, version: string | undefined) {
   const previousSelection = state.selectedTarget;
   state.map = map;
-  state.mapFolders = objectValues(map.folders ?? {});
-  state.mapFiles = objectValues(map.files ?? {});
+  state.mapFolders = Object.values(map.folders ?? {});
+  state.mapFiles = Object.values(map.files ?? {});
   state.organicRegionFolders = organicRegionFolders(map);
   organicRegionPointsCache.clear();
   state.mapVersion = version ?? state.mapVersion;
@@ -440,23 +445,20 @@ function reconcileSelectedTarget(target: HitTarget | null) {
 }
 
 function isHitTarget(value: unknown): value is HitTarget {
-  const record = objectRecord(value);
-  return record?.targetType === "file"
-    || record?.targetType === "folder"
-    || record?.targetType === "annotation"
-    || record?.targetType === "activity";
+  return value !== null
+    && typeof value === "object"
+    && !Array.isArray(value)
+    && "targetType" in value
+    && (
+      value.targetType === "file"
+      || value.targetType === "folder"
+      || value.targetType === "annotation"
+      || value.targetType === "activity"
+    );
 }
 
 function rebuildActivityFog() {
   state.activityFog = buildActivityFogState(state.map, state.activity);
-}
-
-function objectRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
-}
-
-function objectValues<T>(value: Record<string, T>): T[] {
-  return Object.values(value).filter((item): item is T => item !== undefined);
 }
 
 function bindEvents() {
@@ -576,7 +578,7 @@ async function loadActivity(detail: ActivityDetail, { force = false } = {}) {
   state.activityDetail = detail;
   if (!replacingDetail && nextSignature === state.activitySignature) {
     if (events.length) rebuildActivityFog();
-    return Boolean(events.length);
+    return events.length > 0;
   }
   state.activity = events;
   state.activitySignature = nextSignature;
@@ -615,129 +617,32 @@ function activitySignature(events: ActivityEvent[]): string {
   return `${events.length}:${latest?.id ?? ""}:${latest?.timestamp ?? ""}`;
 }
 
-function commandDispatcher(commands: Array<[string, BrowserCommand]>) {
-  const commandsByType = new Map(commands);
-  return {
-    has: (type: string) => commandsByType.has(type),
-    execute: async (type: string, ...args: unknown[]) => commandsByType.get(type)?.(...args),
-  };
-}
-
-const HASH_ROUTE_FOCUS_COMMANDS = commandDispatcher([
-  ["annotation", (intent: HashRouteIntent & { type: "annotation" }, routeToken: RouteToken) => focusAnnotationRoute(intent.id, routeToken)],
-  ["selection", (intent: HashRouteIntent & { type: "selection" }, routeToken: RouteToken) => focusSelectionRoute(intent.params, routeToken)],
-  ["map", (intent: HashRouteIntent & { type: "map" }, routeToken: RouteToken) => focusMapRoute(intent.route, routeToken)],
-]);
-
-const MAP_ROUTE_FOCUS_COMMANDS = commandDispatcher([
-  ["focusFile", (target: MapFile, route: NonNullable<ReturnType<typeof parseHashRoute>>, routeToken: RouteToken) => showFileForRoute(target, route.params, routeToken)],
-  ["focusFolder", (target: MapFolder) => {
-    clearAnnotationForm();
-    setText(controls.inspectorTitle, folderDisplayName(target));
-    setText(controls.inspectorSubtitle, `folder: ${target.path || "."} | ${target.geo?.geohash ?? "unresolved"}`);
-    render();
-  }],
-]);
-
-const DOUBLE_CLICK_ACTION_COMMANDS = commandDispatcher([
-  ["focusAnnotation", (hit: AnnotationHit) => {
-    if (!hasGeometryBounds(hit)) return;
-    zoomToBounds(hit.geometry.bounds, 1.28);
-    selectAnnotation(hit);
-  }],
-  ["selectFolder", (hit: TargetHit, world: Point) => {
-    void selectMapTarget(world);
-    if (!hasBounds(hit)) return;
-    zoomToBounds(hit.bounds, 1.35);
-  }],
-  ["selectFile", (hit: MapFile & { targetType: "file" }, world: Point) => {
-    void inspectFileTarget(hit, world, { zoomReadable: true });
-  }],
-  ["selectActivity", (hit: ActivityEvent) => {
-    void selectActivityEvent(hit, { zoomReadable: true });
-  }],
-]);
-
-const MAP_TARGET_SELECTION_COMMANDS = commandDispatcher([
-  ["clearSelection", clearMapSelection],
-  ["focusAnnotation", (hit: AnnotationHit) => {
-    if (!hasGeometryBounds(hit)) return;
-    zoomToBounds(hit.geometry.bounds, 1.35);
-    selectAnnotation(hit);
-  }],
-  ["selectActivity", selectActivityEvent],
-  ["inspectFolder", inspectFolderTarget],
-  ["inspectFile", inspectFileTarget],
-]);
-
-const MAP_SEARCH_ACTION_COMMANDS = commandDispatcher([
-  ["noMatch", () => {
-    setSearchResult("No matching place found.");
-  }],
-  ["focusPlace", (match: SearchActionMatch & { place: NamedPlace; target?: AnnotationHit | null }) => {
-    if (!hasGeometryBounds(match.place)) return;
-    zoomToBounds(match.place.geometry.bounds, 1.35);
-    setSearchResult(match.label ?? "");
-    state.selectedTarget = match.target ?? null;
-    if (state.selectedTarget?.targetType === "annotation") selectAnnotation(state.selectedTarget);
-    render();
-  }],
-  ["focusFile", async (match: SearchActionMatch & { file: MapFile }) => {
-    if (!hasBounds(match.file)) return;
-    zoomToReadableFile(match.file);
-    await selectMapTarget(boundsCenter(match.file.bounds));
-    setSearchResult(match.label ?? "");
-  }],
-  ["focusFolder", (match: SearchActionMatch & { folder: MapFolder }) => {
-    if (!hasBounds(match.folder)) return;
-    zoomToBounds(match.folder.bounds, 1.6);
-    state.selectedTarget = { ...match.folder, targetType: "folder" };
-    setText(controls.inspectorTitle, folderDisplayName(match.folder));
-    setText(controls.inspectorSubtitle, `folder: ${match.folder.path || "."} | ${match.folder.geo?.geohash ?? "unresolved"}`);
-    setSearchResult(match.label ?? "");
-    render();
-  }],
-]);
-
-const CANVAS_KEYBOARD_COMMANDS = commandDispatcher([
-  ["pan", (action: CanvasAction & { delta: Point }) => {
-    animateViewTo(panViewByScreenDelta(state.view, action.delta, viewportSize()));
-  }],
-  ["zoomIn", () => {
-    zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true });
-  }],
-  ["zoomOut", () => {
-    zoomAt(viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR, { animate: true });
-  }],
-  ["fitCodebase", () => {
-    fitCodebaseView({ animate: true });
-  }],
-  ["selectCenter", () => selectMapTarget(screenToWorld(viewportCenter()))],
-]);
-
-const DOCUMENT_KEYBOARD_COMMANDS = commandDispatcher([
-  ["startSpacePan", () => {
-    setSpacePanMode(true);
-  }],
-  ["cancelInteraction", cancelCurrentInteraction],
-  ["saveSelection", saveSelection],
-  ["copyAnnotationPrompt", copySelectedAnnotationPrompt],
-  ["deleteAnnotation", deleteSelectedAnnotation],
-]);
-
 await boot();
 
 async function applyHashRoute() {
   const routeToken = ++routeSequence;
   const route = parseHashRoute(window.location.hash);
-  const intent = hashRouteFocusIntent(route, { hasMap: Boolean(state.map) });
+  const intent = hashRouteFocusIntent(route, { hasMap: state.map !== null });
   if (!intent) return;
 
   applyingRoute = true;
   try {
-    await HASH_ROUTE_FOCUS_COMMANDS.execute(intent.type, intent, routeToken);
+    await focusHashRouteIntent(intent, routeToken);
   } finally {
     if (routeToken === routeSequence) applyingRoute = false;
+  }
+}
+
+async function focusHashRouteIntent(intent: HashRouteIntent, routeToken: RouteToken): Promise<void> {
+  switch (intent.type) {
+    case "annotation":
+      await focusAnnotationRoute(intent.id, routeToken);
+      return;
+    case "selection":
+      await focusSelectionRoute(intent.params, routeToken);
+      return;
+    case "map":
+      await focusMapRoute(intent.route, routeToken);
   }
 }
 
@@ -752,7 +657,7 @@ async function focusAnnotationRoute(id: string, routeToken: RouteToken) {
     }
   }
   if (!isCurrentRoute(routeToken)) return;
-  if (!annotation?.geometry?.bounds) return;
+  if (!annotation.geometry?.bounds) return;
   upsertNamedPlace(annotation);
   resetSelectionOverlay();
   zoomToBounds(annotation.geometry.bounds, 1.35);
@@ -775,7 +680,7 @@ async function focusSelectionRoute(params: URLSearchParams, routeToken: RouteTok
   await previewSelection({ routeToken });
 }
 
-async function focusMapRoute(route: NonNullable<ReturnType<typeof parseHashRoute>>, routeToken: RouteToken) {
+async function focusMapRoute(route: MapHashRoute, routeToken: RouteToken) {
   if (!state.map) return;
   const target = mapRouteTarget(state.map, route);
   const action = mapRouteFocusAction(target);
@@ -789,7 +694,21 @@ async function focusMapRoute(route: NonNullable<ReturnType<typeof parseHashRoute
     zoomToBounds(target.bounds, action.zoomPadding);
   }
   state.selectedTarget = target;
-  await MAP_ROUTE_FOCUS_COMMANDS.execute(action.type, target, route, routeToken);
+  await handleMapRouteFocusAction(action, target, route, routeToken);
+}
+
+async function handleMapRouteFocusAction(action: MapRouteFocusAction, target: TargetHit, route: MapHashRoute, routeToken: RouteToken) {
+  switch (action.type) {
+    case "focusFile":
+      if (target.targetType === "file") await showFileForRoute(target, route.params, routeToken);
+      return;
+    case "focusFolder":
+      if (target.targetType !== "folder") return;
+      clearAnnotationForm();
+      setText(controls.inspectorTitle, folderDisplayName(target));
+      setText(controls.inspectorSubtitle, `folder: ${target.path || "."} | ${target.geo?.geohash ?? "unresolved"}`);
+      render();
+  }
 }
 
 async function showFileForRoute(file: MapFile, params: URLSearchParams, routeToken: RouteToken) {
@@ -805,10 +724,7 @@ async function showFileForRoute(file: MapFile, params: URLSearchParams, routeTok
   }
 
   const sourceContext = sourceContextRequest(file.path, lineRange);
-  const [address, source] = await Promise.all([
-    fetchJson<ResolvedAddressResponse>(sourceContext.resolveUrl),
-    fetchJson<SourceRange>(sourceContext.sourceUrl),
-  ]);
+  const [address, source] = await fetchSourceContext(sourceContext);
   if (!isCurrentRoute(routeToken)) return;
   applySourcePanel(sourcePanelState({ path: file.path, deepLink: address.deepLink, source }));
   render();
@@ -926,19 +842,22 @@ function upsertNamedPlace(place: NamedPlace) {
   state.namedPlacesById.set(place.id, place);
 }
 
+function selectedAnnotation(): AnnotationHit | null {
+  return state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null;
+}
+
 function updateSelectionPopover() {
-  const selectedAnnotation = state.selectedTarget?.targetType === "annotation";
-  const isEditing = Boolean(state.editingAnnotation);
-  const hasDraft = Boolean(state.draftSelection || state.resolvedSelection);
-  const selectionReady = Boolean(state.resolvedSelection);
-  const activeAnnotation = state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null;
+  const annotation = selectedAnnotation();
+  const isEditing = state.editingAnnotation !== null;
+  const hasDraft = state.draftSelection !== null || state.resolvedSelection !== null;
+  const selectionReady = state.resolvedSelection !== null;
   if (controls.selectionPopover) controls.selectionPopover.hidden = !(hasDraft || isEditing);
-  if (controls.annotationActions) controls.annotationActions.hidden = !selectedAnnotation || hasDraft || isEditing;
+  if (controls.annotationActions) controls.annotationActions.hidden = annotation === null || hasDraft || isEditing;
   if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = !isEditing;
   setText(controls.selectionContext, selectionContextLabel(state.resolvedSelection ?? state.editingAnnotation));
-  setText(controls.annotationTitle, annotationTitle(activeAnnotation));
-  setText(controls.annotationMeta, selectionContextLabel(activeAnnotation));
-  positionAnnotationActions(activeAnnotation, { visible: selectedAnnotation && !hasDraft && !isEditing });
+  setText(controls.annotationTitle, annotationTitle(annotation));
+  setText(controls.annotationMeta, selectionContextLabel(annotation));
+  positionAnnotationActions(annotation, { visible: annotation !== null && !hasDraft && !isEditing });
   if (controls.saveSelection) {
     controls.saveSelection.disabled = !(selectionReady || isEditing);
     setSaveButtonLabel(isEditing ? COPY_PROMPT_LABEL : selectionReady ? SAVE_AND_COPY_LABEL : "Resolving selection...");
@@ -1020,9 +939,12 @@ function render() {
     if (activityDiscoveryEnabled()) drawDiscoveryFogOverlay(rect);
     if (activityDiscoveryEnabled()) drawActivity();
     renderActivityFeed();
-    positionAnnotationActions(state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null, {
-      visible: Boolean(state.selectedTarget?.targetType === "annotation" && !state.draftSelection && !state.resolvedSelection && !state.editingAnnotation),
-    });
+    const annotation = selectedAnnotation();
+    const annotationActionsVisible = annotation !== null
+      && state.draftSelection === null
+      && state.resolvedSelection === null
+      && state.editingAnnotation === null;
+    positionAnnotationActions(annotation, { visible: annotationActionsVisible });
   } finally {
     frameViewport = null;
   }
@@ -2193,21 +2115,59 @@ function normalizeWheelDelta(delta: number, deltaMode: number) {
 function onCanvasKeyDown(event: KeyboardEvent) {
   canvas.classList.remove("pointer-focused");
   const action = canvasKeyboardAction(event);
-  if (!action || !CANVAS_KEYBOARD_COMMANDS.has(action.type)) return;
+  if (!action) return;
   event.preventDefault();
-  void CANVAS_KEYBOARD_COMMANDS.execute(action.type, action);
+  void handleCanvasKeyboardAction(action);
 }
 
 function onDocumentKeyDown(event: KeyboardEvent) {
   const action = documentKeyboardAction(event, {
     textEntry: isTextEntryTarget(event.target),
     buttonTarget: isButtonTarget(event.target),
-    hasResolvedSelection: Boolean(state.resolvedSelection),
+    hasResolvedSelection: state.resolvedSelection !== null,
     hasSelectedAnnotation: state.selectedTarget?.targetType === "annotation",
   });
-  if (!action || !DOCUMENT_KEYBOARD_COMMANDS.has(action.type)) return;
+  if (!action) return;
   event.preventDefault();
-  void DOCUMENT_KEYBOARD_COMMANDS.execute(action.type, action);
+  void handleDocumentKeyboardAction(action);
+}
+
+async function handleCanvasKeyboardAction(action: CanvasAction): Promise<void> {
+  switch (action.type) {
+    case "pan":
+      animateViewTo(panViewByScreenDelta(state.view, action.delta, viewportSize()));
+      return;
+    case "zoomIn":
+      zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true });
+      return;
+    case "zoomOut":
+      zoomAt(viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR, { animate: true });
+      return;
+    case "fitCodebase":
+      fitCodebaseView({ animate: true });
+      return;
+    case "selectCenter":
+      await selectMapTarget(screenToWorld(viewportCenter()));
+  }
+}
+
+async function handleDocumentKeyboardAction(action: DocumentAction): Promise<void> {
+  switch (action.type) {
+    case "startSpacePan":
+      setSpacePanMode(true);
+      return;
+    case "cancelInteraction":
+      cancelCurrentInteraction();
+      return;
+    case "saveSelection":
+      await saveSelection();
+      return;
+    case "copyAnnotationPrompt":
+      await copySelectedAnnotationPrompt();
+      return;
+    case "deleteAnnotation":
+      await deleteSelectedAnnotation();
+  }
 }
 
 function onDocumentKeyUp(event: KeyboardEvent) {
@@ -2225,7 +2185,7 @@ function isTextEntryTarget(target: EventTarget | null) {
 }
 
 function isButtonTarget(target: EventTarget | null) {
-  return target instanceof HTMLButtonElement || (target instanceof Element && Boolean(target.closest("button")));
+  return target instanceof HTMLButtonElement || (target instanceof Element && target.closest("button") !== null);
 }
 
 function cancelCurrentInteraction() {
@@ -2298,7 +2258,7 @@ function onPointerDown(event: PointerEvent) {
 }
 
 function isSpacePanPointerEvent(event: PointerEvent) {
-  return state.spacePanning || Boolean(event.getModifierState?.("Space"));
+  return state.spacePanning || event.getModifierState?.("Space") === true;
 }
 
 function scheduleTouchSpacePan(event: PointerEvent) {
@@ -2347,7 +2307,7 @@ async function onPointerUp(event: PointerEvent) {
   cancelPendingTouchSpacePan();
   const endTouchSpacePan = state.dragging?.type === "pan" && state.dragging.transient && event.pointerType === "touch";
   if (state.dragging?.type === "draw" && state.draftSelection) {
-    if (event && event.type !== "lostpointercapture") updateDraftSelection(screenToWorld(screenPoint(event)));
+    if (event.type !== "lostpointercapture") updateDraftSelection(screenToWorld(screenPoint(event)));
     if (!hasUsableDraftSelection()) {
       clearDraftSelection();
       render();
@@ -2359,7 +2319,7 @@ async function onPointerUp(event: PointerEvent) {
     return;
   }
 
-  if (state.dragging?.type === "select" && state.lastPointerDown && event) {
+  if (state.dragging?.type === "select" && state.lastPointerDown) {
     const current = screenPoint(event);
     const moved = Math.hypot(current.x - state.lastPointerDown.screen.x, current.y - state.lastPointerDown.screen.y);
     if (moved < 4) scheduleClickSelection(state.lastPointerDown.world);
@@ -2386,8 +2346,8 @@ function onCanvasDoubleClick(event: MouseEvent) {
   const hit = hitTestDrillTarget(world) ?? hitTestAnnotation(world);
   const action = doubleClickMapAction(hit);
 
-  if (action) {
-    void DOUBLE_CLICK_ACTION_COMMANDS.execute(action.type, hit, world);
+  if (action && hit) {
+    void handleDoubleClickAction(action, hit, world);
     return;
   }
 
@@ -2428,8 +2388,48 @@ function hasUsableDraftSelection() {
 async function selectMapTarget(worldPoint: Point) {
   const hit = hitTest(worldPoint);
   const action = mapTargetSelectionAction(hit);
-  if (!action) return;
-  await MAP_TARGET_SELECTION_COMMANDS.execute(action.type, hit, worldPoint);
+  await handleMapTargetSelectionAction(action, hit, worldPoint);
+}
+
+async function handleDoubleClickAction(action: DoubleClickAction, hit: HitTarget, world: Point) {
+  switch (action.type) {
+    case "focusAnnotation":
+      if (hit.targetType !== "annotation" || !hasGeometryBounds(hit)) return;
+      zoomToBounds(hit.geometry.bounds, 1.28);
+      selectAnnotation(hit);
+      return;
+    case "selectFolder":
+      void selectMapTarget(world);
+      if (hit.targetType !== "folder" || !hasBounds(hit)) return;
+      zoomToBounds(hit.bounds, 1.35);
+      return;
+    case "selectFile":
+      if (hit.targetType === "file") await inspectFileTarget(hit, world, { zoomReadable: true });
+      return;
+    case "selectActivity":
+      if (hit.targetType === "activity") await selectActivityEvent(hit, { zoomReadable: true });
+  }
+}
+
+async function handleMapTargetSelectionAction(action: TargetSelectionAction, hit: HitTarget | null, worldPoint: Point) {
+  switch (action.type) {
+    case "clearSelection":
+      clearMapSelection();
+      return;
+    case "focusAnnotation":
+      if (hit?.targetType !== "annotation" || !hasGeometryBounds(hit)) return;
+      zoomToBounds(hit.geometry.bounds, 1.35);
+      selectAnnotation(hit);
+      return;
+    case "selectActivity":
+      if (hit?.targetType === "activity") await selectActivityEvent(hit);
+      return;
+    case "inspectFolder":
+      if (hit?.targetType === "folder") inspectFolderTarget(hit);
+      return;
+    case "inspectFile":
+      if (hit?.targetType === "file") await inspectFileTarget(hit, worldPoint);
+  }
 }
 
 function clearMapSelection() {
@@ -2475,10 +2475,7 @@ async function inspectFileTarget(hit: MapFile & { targetType: "file" }, worldPoi
   }
   const lineRange = sourcePanelLineRange(hit, line, box);
   const sourceContext = sourceContextRequest(hit.path, lineRange);
-  const [address, source] = await Promise.all([
-    fetchJson<ResolvedAddressResponse>(sourceContext.resolveUrl),
-    fetchJson<SourceRange>(sourceContext.sourceUrl),
-  ]);
+  const [address, source] = await fetchSourceContext(sourceContext);
   syncHashRoute(createMapHashRoute(address.targetType, address.geohash, { path: hit.path, lines: sourceContext.lines }));
 
   applySourcePanel(sourcePanelState({ path: hit.path, deepLink: address.deepLink, source }));
@@ -2507,13 +2504,17 @@ async function selectActivityEvent(event: ActivityEvent, { zoomReadable = false 
     if (file) zoomToReadableFile(file, lineRatioForLine(file, lineRange.start));
   }
   const sourceContext = sourceContextRequest(path, lineRange);
-  const [address, source] = await Promise.all([
-    fetchJson<ResolvedAddressResponse>(sourceContext.resolveUrl),
-    fetchJson<SourceRange>(sourceContext.sourceUrl),
-  ]);
+  const [address, source] = await fetchSourceContext(sourceContext);
   syncHashRoute(createMapHashRoute(address.targetType, address.geohash, { path, lines: sourceContext.lines }));
   applySourcePanel(sourcePanelState({ path, deepLink: address.deepLink, source }));
   render();
+}
+
+function fetchSourceContext(sourceContext: ReturnType<typeof sourceContextRequest>): Promise<[ResolvedAddressResponse, SourceRange]> {
+  return Promise.all([
+    fetchJson<ResolvedAddressResponse>(sourceContext.resolveUrl),
+    fetchJson<SourceRange>(sourceContext.sourceUrl),
+  ]);
 }
 
 function selectAnnotation(annotation: MapAnnotationPlace) {
@@ -2533,7 +2534,7 @@ function selectAnnotation(annotation: MapAnnotationPlace) {
 }
 
 function editSelectedAnnotation() {
-  const annotation = state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null;
+  const annotation = selectedAnnotation();
   if (!annotation) return;
   clearPendingAnnotationDelete();
   state.editingAnnotation = annotation;
@@ -2565,8 +2566,51 @@ async function searchMap(event: Event) {
   if (!state.map || !searchQuery.trim()) return;
   const match = mapSearchMatch(state.map, state.namedPlaces, searchQuery);
   const action = mapSearchAction(match);
-  if (!action) return;
-  await MAP_SEARCH_ACTION_COMMANDS.execute(action.type, match);
+  await handleMapSearchAction(action, match);
+}
+
+async function handleMapSearchAction(action: SearchAction, match: SearchMatch | null) {
+  switch (action.type) {
+    case "noMatch":
+      setSearchResult("No matching place found.");
+      return;
+    case "focusPlace":
+      if (!match || (match.type !== "annotation" && match.type !== "namedPlace")) return;
+      focusPlaceSearchMatch(match);
+      return;
+    case "focusFile":
+      if (match?.type === "file") await focusFileSearchMatch(match);
+      return;
+    case "focusFolder":
+      if (match?.type === "folder") focusFolderSearchMatch(match);
+  }
+}
+
+function focusPlaceSearchMatch(match: PlaceSearchMatch) {
+  if (!hasGeometryBounds(match.place)) return;
+  zoomToBounds(match.place.geometry.bounds, 1.35);
+  setSearchResult(match.label ?? "");
+  state.selectedTarget = match.target;
+  const annotation = selectedAnnotation();
+  if (annotation) selectAnnotation(annotation);
+  render();
+}
+
+async function focusFileSearchMatch(match: FileSearchMatch) {
+  if (!hasBounds(match.file)) return;
+  zoomToReadableFile(match.file);
+  await selectMapTarget(boundsCenter(match.file.bounds));
+  setSearchResult(match.label ?? "");
+}
+
+function focusFolderSearchMatch(match: FolderSearchMatch) {
+  if (!hasBounds(match.folder)) return;
+  zoomToBounds(match.folder.bounds, 1.6);
+  state.selectedTarget = { ...match.folder, targetType: "folder" };
+  setText(controls.inspectorTitle, folderDisplayName(match.folder));
+  setText(controls.inspectorSubtitle, `folder: ${match.folder.path || "."} | ${match.folder.geo?.geohash ?? "unresolved"}`);
+  setSearchResult(match.label ?? "");
+  render();
 }
 
 function setSearchResult(message: string) {
@@ -2578,11 +2622,11 @@ function setText(element: HTMLElement | null, value: string) {
 }
 
 function hasBounds<T extends { bounds?: Bounds }>(target: T | null | undefined): target is T & { bounds: Bounds } {
-  return Boolean(target?.bounds);
+  return target?.bounds !== undefined;
 }
 
 function hasGeometryBounds<T extends { geometry?: { bounds?: Bounds } }>(target: T | null | undefined): target is T & { geometry: { bounds: Bounds } } {
-  return Boolean(target?.geometry?.bounds);
+  return target?.geometry?.bounds !== undefined;
 }
 
 function selectionContextLabel(selection: ResolvedSelection | MapAnnotationPlace | null) {
@@ -2640,7 +2684,8 @@ async function previewSelection({ routeToken = null }: { routeToken?: RouteToken
 
 async function saveSelection() {
   clearPendingAnnotationDelete();
-  if (state.selectedTarget?.targetType === "annotation" && !state.resolvedSelection && !state.editingAnnotation) {
+  const annotation = selectedAnnotation();
+  if (annotation && state.resolvedSelection === null && state.editingAnnotation === null) {
     await copySelectedAnnotationPrompt();
     return;
   }
@@ -2712,7 +2757,7 @@ function clearAnnotationForm() {
 }
 
 async function deleteSelectedAnnotation() {
-  const annotation = state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null;
+  const annotation = selectedAnnotation();
   if (!annotation?.id) return;
   if (!isPendingAnnotationDelete(annotation)) {
     armAnnotationDelete(annotation);
@@ -2790,7 +2835,7 @@ function removeNamedPlace(id: string) {
 }
 
 async function copySelectedAnnotationPrompt() {
-  const annotation = state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null;
+  const annotation = selectedAnnotation();
   if (!annotation) return false;
   const copied = await copyToClipboard(annotationClipboardText(annotation, {
     origin: window.location.origin,
@@ -2816,9 +2861,12 @@ function setAnnotationFeedback(message: string, tone = "neutral") {
   controls.annotationFeedback.textContent = message;
   controls.annotationFeedback.hidden = !message;
   controls.annotationFeedback.dataset.tone = tone;
-  positionAnnotationActions(state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null, {
-    visible: Boolean(state.selectedTarget?.targetType === "annotation" && !state.draftSelection && !state.resolvedSelection && !state.editingAnnotation),
-  });
+  const annotation = selectedAnnotation();
+  const annotationActionsVisible = annotation !== null
+    && state.draftSelection === null
+    && state.resolvedSelection === null
+    && state.editingAnnotation === null;
+  positionAnnotationActions(annotation, { visible: annotationActionsVisible });
 }
 
 async function copyToClipboard(text: string) {
@@ -2901,9 +2949,7 @@ async function addActivity(event: SubmitEvent) {
 }
 
 function formDataObject(formData: FormData): Record<string, FormDataEntryValue> {
-  const data: Record<string, FormDataEntryValue> = {};
-  for (const [key, value] of formData) data[key] = value;
-  return data;
+  return Object.fromEntries(formData);
 }
 
 async function clearActivityHistory() {
@@ -3030,13 +3076,7 @@ function activityPathLabel(event: ActivityEvent) {
 }
 
 function pathFromActivity(event: ActivityEvent) {
-  const deepLink = event.address?.deepLink;
-  if (!deepLink) return "";
-  try {
-    return new URL(deepLink).searchParams.get("path") ?? "";
-  } catch {
-    return "";
-  }
+  return pathFromDeepLink(event.address?.deepLink);
 }
 
 function worldToScreen(point: Point) {

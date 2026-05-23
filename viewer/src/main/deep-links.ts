@@ -14,6 +14,8 @@
  * they should re-export the core versions directly (tracked follow-up).
  */
 
+import type { MapRoute, MapRouteKind } from "./render/types.ts";
+
 type RouteMetadata = Record<string, string | number | boolean | null | undefined>;
 type Bounds = {
   x: number;
@@ -23,13 +25,10 @@ type Bounds = {
 };
 type BoundsTuple = [number, number, number, number];
 
-export type HashRoute =
-  | { type: "annotation"; id: string; params: URLSearchParams }
-  | { type: "selection"; params: URLSearchParams }
-  | { type: "map"; kind: string; locator: string; params: URLSearchParams };
+export type HashRoute = MapRoute;
 
 /** Build a `#/map/kind/locator?meta` route. */
-export function createMapHashRoute(kind: string, locator: string, metadata: RouteMetadata = {}): string {
+export function createMapHashRoute(kind: MapRouteKind, locator: string, metadata: RouteMetadata = {}): string {
   const query = searchParams(metadata).toString();
   return `#/map/${encodeURIComponent(kind)}/${encodeURIComponent(locator)}${query ? `?${query}` : ""}`;
 }
@@ -61,7 +60,7 @@ export function parseHashRoute(hash: string): HashRoute | null {
   if (parts[0] === "selection") {
     return { type: "selection", params };
   }
-  if (parts[0] === "map" && parts[1] && parts[2]) {
+  if (parts[0] === "map" && isMapRouteKind(parts[1]) && parts[2]) {
     return { type: "map", kind: parts[1], locator: parts[2], params };
   }
   return null;
@@ -91,6 +90,10 @@ function formatRouteBounds(bounds: Bounds): string {
 
 function routeParts(path: string): string[] {
   return path.split("/").filter(Boolean).map((part) => decodeURIComponent(part));
+}
+
+function isMapRouteKind(kind: string | undefined): kind is MapRouteKind {
+  return kind === "folder" || kind === "file" || kind === "lineRange" || kind === "tokenRange";
 }
 
 function parseBoundsParam(value: string): number[] {

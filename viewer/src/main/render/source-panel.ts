@@ -90,7 +90,7 @@ export function sourceContextRequest(path: string, lineRange: LineRange = {}) {
 
 export function formatSourceLines(source: { lines?: SourceLine[] }): string {
   return (source.lines ?? [])
-    .map((item) => item ? `${String(item.number).padStart(4, " ")}  ${item.text}` : undefined)
+    .map((item) => `${String(item.number).padStart(4, " ")}  ${item.text}`)
     .join("\n");
 }
 

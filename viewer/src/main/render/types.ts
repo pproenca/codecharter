@@ -1,8 +1,6 @@
 /**
  * Shared geometry, codemap, activity, and source-panel types for the viewer's
- * render model. Ported verbatim from legacy `public-src/render-model.ts` so the
- * public surface stays byte-compatible with the legacy bundle that `app.ts`
- * consumes.
+ * render model.
  */
 
 export type Point = { x: number; y: number };
@@ -28,7 +26,6 @@ type MapBaseTarget = {
 };
 
 export type MapFile = MapBaseTarget & {
-  lineCount?: number;
   maxLineLength?: number;
   extension?: string;
   targetType?: "file";
@@ -51,8 +48,32 @@ export type CodecharterCodemap = {
 
 export type MapTargetType = "file" | "folder" | "annotation" | "activity";
 export type TargetHit = (MapFile & { targetType: "file" }) | (MapFolder & { targetType: "folder" });
-export type ActionHit = { targetType: string; [key: string]: unknown };
-export type MapAction = { type: string; zoomPadding?: number };
+export type ActionHit = { targetType: MapTargetType };
+export type MapActionType =
+  | "clearSelection"
+  | "focusAnnotation"
+  | "focusFile"
+  | "focusFolder"
+  | "focusPlace"
+  | "inspectFile"
+  | "inspectFolder"
+  | "noMatch"
+  | "selectActivity"
+  | "selectFile"
+  | "selectFolder";
+export type MapAction =
+  | { type: "clearSelection" }
+  | { type: "focusAnnotation" }
+  | { type: "focusFile"; zoomPadding?: number }
+  | { type: "focusFolder"; zoomPadding?: number }
+  | { type: "focusPlace" }
+  | { type: "inspectFile" }
+  | { type: "inspectFolder" }
+  | { type: "noMatch" }
+  | { type: "selectActivity" }
+  | { type: "selectFile" }
+  | { type: "selectFolder" };
+export type MapActionOf<T extends MapActionType> = Extract<MapAction, { type: T }>;
 
 export type MapAnnotationPlace = {
   id?: string;
@@ -69,9 +90,7 @@ export type MapAnnotationPlace = {
   targetType?: "annotation";
 };
 
-export type NamedPlace = MapAnnotationPlace & {
-  kind?: string;
-};
+export type NamedPlace = MapAnnotationPlace;
 
 export type SearchContext = {
   codemap: CodecharterCodemap;
@@ -80,10 +99,10 @@ export type SearchContext = {
 };
 
 export type SearchMatch =
-  | { type: "annotation"; label?: string; place?: NamedPlace; target?: NamedPlace & { targetType: "annotation" } }
-  | { type: "namedPlace"; label?: string; place?: NamedPlace; target?: null }
-  | { type: "file"; label?: string; file?: MapFile }
-  | { type: "folder"; label?: string; folder?: MapFolder };
+  | { type: "annotation"; label?: string; place: NamedPlace; target: NamedPlace & { targetType: "annotation" } }
+  | { type: "namedPlace"; label?: string; place: NamedPlace; target: null }
+  | { type: "file"; label?: string; file: MapFile }
+  | { type: "folder"; label?: string; folder: MapFolder };
 
 export type FogState = "visible" | "explored" | "unexplored";
 
@@ -94,13 +113,13 @@ export type ActivityAddress = {
   geohash?: string;
   bounds?: Bounds;
   fragments?: ActivityAddressFragment[];
-  targetType?: string;
+  targetType?: MapRouteKind;
   lineRange?: { start: number; end?: number };
   tokenRange?: { start: number; end?: number };
 };
 
 export type ActivityState = "reading" | "editing" | "testing" | "reviewing";
-export type ActivityStateInput = ActivityState | "blocked" | string | undefined;
+export type ActivityStateInput = string | undefined;
 
 export type ActivityEvent = {
   id?: string;
@@ -113,7 +132,7 @@ export type ActivityEvent = {
   address?: ActivityAddress;
   note?: string;
   targetType?: "activity";
-  viewerFogState?: FogState;
+  viewerFogState?: Extract<FogState, "visible" | "explored">;
 };
 
 export type ActivityFogOptions = { now?: number; maxAgeMinutes?: number };
@@ -132,21 +151,20 @@ export type SourceRange = {
 };
 export type SourceCache = Map<string, SourceRange>;
 
-export type MapRoute = {
-  type?: string;
-  id?: string;
-  kind?: string;
-  locator?: string;
-  params?: URLSearchParams;
-};
+export type MapRouteKind = "folder" | "file" | "lineRange" | "tokenRange";
+export type MapRoute =
+  | { type: "annotation"; id: string; params: URLSearchParams }
+  | { type: "selection"; params: URLSearchParams }
+  | { type: "map"; kind: MapRouteKind; locator: string; params: URLSearchParams };
+export type MapHashRoute = Extract<MapRoute, { type: "map" }>;
 
-export type DragState = { type?: string; view: View; start: Point };
+export type DragState = { type: "pan"; view: View; start: Point };
 export type DraftSelection = { type: "rect"; bounds: Bounds };
 export type InteractionState = {
   drawing?: boolean;
   panning?: boolean;
   spacePanning?: boolean;
-  dragging?: { type?: string } | null;
+  dragging?: { type: "draw" | "pan" | "select" } | null;
 };
 
 export type ActivitySummary = {

@@ -15,7 +15,7 @@ import { execFileText } from "./exec-file.ts";
 import { isCodeFile } from "./extensions.ts";
 import { errorMessage } from "./errors.ts";
 import { mapConcurrent } from "./collections.ts";
-import type { ActivityStateInput } from "./activity.ts";
+import type { ActivityAddress, ActivityStateInput } from "./activity.ts";
 import type { ChangedRange } from "./activity-change-range.ts";
 
 const DEFAULT_INTERVAL_MS = 1800;
@@ -31,7 +31,7 @@ export type ActivityWatcherPayload = {
   agentId: string;
   activityState: ActivityStateInput;
   path?: string;
-  address?: unknown;
+  address?: ActivityAddress;
   lineStart?: number;
   lineEnd?: number;
   columnStart?: number;
@@ -252,7 +252,7 @@ async function sendActivityDatagram(endpoint: string | undefined, body: Activity
 }
 
 function isActivityWatchablePath(path: string): boolean {
-  return Boolean(path)
+  return path !== ""
     && path !== "codemap.json"
     && path !== "codecharter.json"
     && !path.startsWith(".git/")

@@ -10,7 +10,7 @@
 
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { ActivityAddress, ActivityStateInput } from "./activity.ts";
+import type { ActivityAddress, ActivityEventInput } from "./activity.ts";
 
 const DEFAULT_FLUSH_INTERVAL_MS = 5000;
 const DEFAULT_MAX_MEMORY_EVENTS = 2000;
@@ -18,23 +18,10 @@ const DEFAULT_MAX_ARCHIVE_QUEUE_EVENTS = 2000;
 
 export type ViewerFogState = "explored" | "visible";
 
-export type StoredActivityEvent = {
-  id?: string | undefined;
-  agentId?: string | undefined;
-  activityState?: ActivityStateInput;
-  state?: ActivityStateInput;
-  address?: ActivityAddress | undefined;
-  timestamp?: string | undefined;
-  note?: string | undefined;
-  hookEventName?: string | undefined;
-  sessionId?: string | undefined;
-  threadId?: string | undefined;
-  threadUri?: string | undefined;
-  turnId?: string | undefined;
-  model?: string | undefined;
-  path?: string | undefined;
-  viewerFogState?: ViewerFogState | undefined;
-  [key: string]: unknown;
+export type StoredActivityEvent = Partial<ActivityEventInput> & {
+  path?: string;
+  address?: ActivityAddress;
+  viewerFogState?: ViewerFogState;
 };
 
 export type ActivityStoreOptions = {
@@ -84,7 +71,7 @@ export class ActivityStore {
     this.events.push(event);
     this.pending.push(event);
     trimOldest(this.events, this.maxMemoryEvents);
-    this.trimPending();
+    trimOldest(this.pending, this.maxArchiveQueueEvents);
     return event;
   }
 
@@ -107,8 +94,8 @@ export class ActivityStore {
       })
       .catch((error) => {
         if (clearGeneration === this.clearGeneration) {
-          this.restorePendingBatch(batch);
-          this.trimPending();
+          this.pending = [...batch, ...this.pending];
+          trimOldest(this.pending, this.maxArchiveQueueEvents);
         }
         throw error;
       });
@@ -136,14 +123,6 @@ export class ActivityStore {
     clearInterval(this.timer);
     await this.flush();
     await this.writeQueue;
-  }
-
-  trimPending(): void {
-    trimOldest(this.pending, this.maxArchiveQueueEvents);
-  }
-
-  restorePendingBatch(batch: StoredActivityEvent[]): void {
-    this.pending = [...batch, ...this.pending];
   }
 }
 

@@ -11,11 +11,14 @@
  */
 
 import type { Bounds } from "./geometry.ts";
+import { MAP_LEVELS } from "./levels.ts";
+import type { MapLevel } from "./levels.ts";
 
 export type DeepLinkMetadata = Record<string, string | number | boolean | null | undefined>;
+export type DeepLinkKind = MapLevel | "annotation";
 
 export type ParsedCodemapDeepLink = {
-  kind: string;
+  kind: DeepLinkKind;
   locator: string;
   metadata: Record<string, string>;
 };
@@ -26,7 +29,7 @@ export type SelectionHashRouteInput = {
 };
 
 /** Build a `codecharter://kind/locator?meta` deep link. @throws on empty kind/locator. */
-export function createCodemapDeepLink(kind: string, locator: string, metadata: DeepLinkMetadata = {}): string {
+export function createCodemapDeepLink(kind: DeepLinkKind, locator: string, metadata: DeepLinkMetadata = {}): string {
   if (!kind) throw new Error("Deep link kind is required");
   if (!locator) throw new Error("Deep link locator is required");
   const query = searchParams(metadata).toString();
@@ -39,15 +42,17 @@ export function parseCodemapDeepLink(value: string): ParsedCodemapDeepLink {
   if (url.protocol !== "codecharter:" && url.protocol !== "codemap:") {
     throw new Error(`Unsupported deep link protocol: ${url.protocol}`);
   }
+  const kind = decodeURIComponent(url.hostname);
+  if (!isDeepLinkKind(kind)) throw new Error(`Unsupported deep link kind: ${kind}`);
   return {
-    kind: decodeURIComponent(url.hostname),
+    kind,
     locator: decodeURIComponent(url.pathname.replace(/^\//, "")),
     metadata: Object.fromEntries(url.searchParams),
   };
 }
 
 /** Build a browser `#/map/kind/locator?meta` hash route. */
-export function createBrowserHashRoute(kind: string, locator: string, metadata: DeepLinkMetadata = {}): string {
+export function createBrowserHashRoute(kind: MapLevel, locator: string, metadata: DeepLinkMetadata = {}): string {
   const query = searchParams(metadata).toString();
   return `#/map/${encodeURIComponent(kind)}/${encodeURIComponent(locator)}${query ? `?${query}` : ""}`;
 }
@@ -80,4 +85,8 @@ function formatRouteNumber(value: number): string {
 
 function formatRouteBounds(bounds: Bounds): string {
   return `${formatRouteNumber(bounds.x)},${formatRouteNumber(bounds.y)},${formatRouteNumber(bounds.width)},${formatRouteNumber(bounds.height)}`;
+}
+
+function isDeepLinkKind(kind: string): kind is DeepLinkKind {
+  return kind === "annotation" || Object.hasOwn(MAP_LEVELS, kind);
 }

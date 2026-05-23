@@ -15,7 +15,7 @@ import type {
   MapTargetRecord,
 } from "./types.ts";
 import { DISCOVERY_FOG_TEXTURE_STEP_PX } from "./constants.ts";
-import { normalizeMapPath } from "./primitives.ts";
+import { normalizeMapPath, pathFromDeepLink } from "./primitives.ts";
 import { canRenderSourceText, landmarkScore, shouldLabelFile } from "./lod.ts";
 import { isLiveActivityEvent } from "./activity.ts";
 
@@ -30,7 +30,7 @@ export function buildActivityFogState(codemap: CodecharterCodemap | null | undef
   for (const event of events ?? []) {
     const path = activityEventFilePath(event, files);
     if (!path) continue;
-    const markerFogState = viewerFogState(event);
+    const markerFogState = event.viewerFogState;
     if (markerFogState) {
       visitedFiles.add(path);
       if (markerFogState === "visible") visibleFiles.add(path);
@@ -135,23 +135,14 @@ export function discoveryFogRevealStyle({ visibleFile = false, readable = false 
 
 function activityEventFilePath(event: ActivityEvent, files: MapTargetRecord<MapFile>): string | null {
   for (const candidate of [
-    event?.address?.path,
-    event?.path,
-    pathFromDeepLink(event?.address?.deepLink),
+    event.address?.path,
+    event.path,
+    pathFromDeepLink(event.address?.deepLink),
   ]) {
     const path = normalizeMapPath(candidate);
     if (path && files[path]) return path;
   }
   return null;
-}
-
-function pathFromDeepLink(deepLink: string | undefined): string {
-  if (!deepLink) return "";
-  try {
-    return new URL(deepLink).searchParams.get("path") ?? "";
-  } catch {
-    return "";
-  }
 }
 
 function markAncestorFolderFog(folderStates: Map<string, FogState>, folders: MapTargetRecord<MapFolder>, filePath: string, fogState: FogState): void {
@@ -172,10 +163,4 @@ function fogStateRank(fogState: FogState | undefined): number {
   if (fogState === "visible") return 2;
   if (fogState === "explored") return 1;
   return 0;
-}
-
-function viewerFogState(event: ActivityEvent): FogState | null {
-  return event.viewerFogState === "visible" || event.viewerFogState === "explored"
-    ? event.viewerFogState
-    : null;
 }

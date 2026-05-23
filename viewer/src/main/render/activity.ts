@@ -29,6 +29,8 @@ import {
 } from "./constants.ts";
 import { boundsCenter, clamp, pointDistance, sortIfNeeded } from "./primitives.ts";
 
+const ACTIVITY_STATES = ["reading", "editing", "testing", "reviewing"] as const satisfies readonly ActivityState[];
+const ACTIVITY_STATE_SET: ReadonlySet<string> = new Set(ACTIVITY_STATES);
 const ACTIVITY_STATE_STYLES: Record<ActivityState, { fill: string; stroke: string; label: string }> = {
   reading: { fill: "#2563eb", stroke: "#dbeafe", label: "#1e3a8a" },
   editing: { fill: "#e11d48", stroke: "#ffe4e6", label: "#9f1239" },
@@ -43,7 +45,7 @@ export function activityActorLabel(event: ActivityEvent): string {
 }
 
 export function activityActorKey(event: ActivityEvent): string {
-  return `${event?.agentId ?? "agent"}:${event?.threadId ?? event?.sessionId ?? "manual"}`;
+  return `${event.agentId ?? "agent"}:${event.threadId ?? event.sessionId ?? "manual"}`;
 }
 
 export function shortActivityId(value: string): string {
@@ -60,14 +62,11 @@ export function normalizeActivityState(activityState: ActivityStateInput): Activ
 }
 
 function isActivityState(activityState: ActivityStateInput): activityState is ActivityState {
-  return activityState === "reading"
-    || activityState === "editing"
-    || activityState === "testing"
-    || activityState === "reviewing";
+  return activityState !== undefined && ACTIVITY_STATE_SET.has(activityState);
 }
 
 export function activityVisualEncoding(event: ActivityEvent, { latest = false, selected = false, now = Date.now() } = {}) {
-  const activityState = normalizeActivityState(event?.activityState);
+  const activityState = normalizeActivityState(event.activityState);
   const ageMinutes = activityAgeMinutes(event, now);
   const decay = 2 ** (-ageMinutes / ACTIVITY_DECAY_HALF_LIFE_MINUTES);
   const vitality = selected ? 1 : clamp(1 - ageMinutes / ACTIVITY_LIVE_WINDOW_MINUTES, 0, 1);
@@ -121,25 +120,21 @@ export function activityTissueBox(screenBox: Bounds, encoding: ActivityTissueEnc
 }
 
 export function activityFragmentBounds(event: ActivityEvent): Bounds[] {
-  const fragments = event?.address?.fragments;
-  if (Array.isArray(fragments)) {
+  const fragments = event.address?.fragments;
+  if (fragments) {
     const bounds: Bounds[] = [];
-    for (const fragment of fragments) {
-      if (fragment.bounds) bounds.push(fragment.bounds);
+    for (const { bounds: fragmentBounds } of fragments) {
+      if (fragmentBounds) bounds.push(fragmentBounds);
     }
     if (bounds.length) return bounds;
   }
-  return event?.address?.bounds ? [event.address.bounds] : [];
+  return event.address?.bounds ? [event.address.bounds] : [];
 }
 
 export function activityPrimaryBounds(event: ActivityEvent): Bounds | null {
-  const fragments = event?.address?.fragments;
-  if (Array.isArray(fragments)) {
-    for (const fragment of fragments) {
-      if (fragment.bounds) return fragment.bounds;
-    }
-  }
-  return event?.address?.bounds ?? null;
+  return event.address?.fragments?.find((fragment) => fragment.bounds)?.bounds
+    ?? event.address?.bounds
+    ?? null;
 }
 
 export function simplifyTrailPoints(points: Point[], minDistance = ACTIVITY_TRAIL_MIN_SEGMENT_PX): Point[] {
@@ -180,8 +175,9 @@ export function activityTrailGroups(events: ActivityEvent[], {
   for (const event of sortedEvents) {
     if (!activityPrimaryBounds(event)) continue;
     const key = activityActorKey(event);
-    if (!byTrail.has(key)) byTrail.set(key, []);
-    byTrail.get(key)?.push(event);
+    const trailEvents = byTrail.get(key);
+    if (trailEvents) trailEvents.push(event);
+    else byTrail.set(key, [event]);
   }
 
   const groups: ActivityEvent[][] = [];
@@ -262,7 +258,7 @@ export function organicTrailSegments(points: Point[], {
 }
 
 export function isLiveActivityEvent(event: ActivityEvent, { now = Date.now(), maxAgeMinutes = ACTIVITY_LIVE_WINDOW_MINUTES }: ActivityFogOptions = {}) {
-  return activityPrimaryBounds(event) && activityAgeMinutes(event, now) <= maxAgeMinutes;
+  return activityPrimaryBounds(event) !== null && activityAgeMinutes(event, now) <= maxAgeMinutes;
 }
 
 export function sortedActivityEvents(events: ActivityEvent[], limit = 80, options: ActivityFogOptions = {}): ActivityEvent[] {
@@ -329,17 +325,17 @@ export function hitTestActivityEvents(events: ActivityEvent[], point: Point, { r
 }
 
 function activityEventHitsPoint(event: ActivityEvent, point: Point, radiusX: number, radiusY: number): boolean {
-  const fragments = event?.address?.fragments;
-  if (Array.isArray(fragments)) {
+  const fragments = event.address?.fragments;
+  if (fragments) {
     let foundFragmentBounds = false;
-    for (const fragment of fragments) {
-      if (!fragment.bounds) continue;
+    for (const { bounds } of fragments) {
+      if (!bounds) continue;
       foundFragmentBounds = true;
-      if (boundsCenterHitsPoint(fragment.bounds, point, radiusX, radiusY)) return true;
+      if (boundsCenterHitsPoint(bounds, point, radiusX, radiusY)) return true;
     }
     if (foundFragmentBounds) return false;
   }
-  return event?.address?.bounds
+  return event.address?.bounds
     ? boundsCenterHitsPoint(event.address.bounds, point, radiusX, radiusY)
     : false;
 }
@@ -449,7 +445,7 @@ function compareActivityEventsByTime(left: ActivityEvent, right: ActivityEvent):
 }
 
 function activityAgeMinutes(event: ActivityEvent, now: number): number {
-  const timestamp = Date.parse(event?.timestamp ?? "");
+  const timestamp = Date.parse(event.timestamp ?? "");
   if (!Number.isFinite(timestamp)) return 0;
   return Math.max(0, (now - timestamp) / 60000);
 }

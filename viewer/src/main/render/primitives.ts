@@ -3,15 +3,8 @@
  * sorting, deterministic string hashing, path normalization, and bounds math.
  * Behaviour is identical to the inline helpers in legacy `render-model.ts`.
  */
-import type { Bounds, MapAction, MapTarget, PaletteColor, Point, Rgb } from "./types.ts";
+import type { Bounds, MapTarget, PaletteColor, Point, Rgb } from "./types.ts";
 import { DISTRICT_PALETTE } from "./constants.ts";
-
-/** Clone the action registered for `key`, or null. Shared by camera + targets. */
-export function actionFor(actions: Map<string, MapAction>, key: string | undefined) {
-  if (!key) return null;
-  const action = actions.get(key);
-  return action ? { ...action } : null;
-}
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -64,9 +57,18 @@ export function containsBoundsPoint(bounds: Bounds, point: Point): boolean {
     && point.y <= bounds.y + bounds.height;
 }
 
-export function normalizeMapPath(path: unknown): string {
+export function normalizeMapPath(path: string | null | undefined): string {
   const normalized = String(path ?? "").replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+$/, "");
   return normalized === "." ? "" : normalized;
+}
+
+export function pathFromDeepLink(deepLink: string | null | undefined): string {
+  if (!deepLink) return "";
+  try {
+    return new URL(deepLink).searchParams.get("path") ?? "";
+  } catch {
+    return "";
+  }
 }
 
 export function rgba(rgb: Rgb, alpha: number): string {

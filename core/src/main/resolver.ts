@@ -11,7 +11,7 @@ import { geohashForBoundsCenter } from "./geohash.ts";
 import { precisionForLevel } from "./levels.ts";
 import { createCodemapDeepLink } from "./deep-links.ts";
 import { codeRangeGeometry } from "./line-coordinate.ts";
-import { sortedUniqueStrings } from "./collections.ts";
+import { objectRecord, sortedUniqueStrings } from "./collections.ts";
 import type { Bounds } from "./geometry.ts";
 import type { GeohashedCoordinate } from "./geo-types.ts";
 import type { MapLevel } from "./levels.ts";
@@ -85,10 +85,9 @@ export function resolveAddress(codemap: CodecharterCodemap, request: AddressRequ
  * `files` and `folders`. Used to reject a corrupt/untrusted map before serving.
  */
 export function isCodecharterCodemap(value: unknown): value is CodecharterCodemap {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const record = value as { files?: unknown; folders?: unknown };
-  return typeof record.files === "object" && record.files !== null && !Array.isArray(record.files)
-    && typeof record.folders === "object" && record.folders !== null && !Array.isArray(record.folders);
+  const record = objectRecord(value);
+  if (!record) return false;
+  return objectRecord(record.files) !== null && objectRecord(record.folders) !== null;
 }
 
 /** Normalize a path to its codemap key form (slashes, `./` prefix, trailing slash, `.` → ""). */

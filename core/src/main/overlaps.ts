@@ -6,20 +6,10 @@
 import { intersects, roundBounds } from "./geometry.ts";
 import { sortIfNeeded } from "./collections.ts";
 import type { Bounds } from "./geometry.ts";
+import type { MapAnnotation, NamedAddress, NamedSelection } from "./selections.ts";
 
-type NamedPlace = {
-  id: string;
-  name: string;
-  kind: string;
-  geometry?: {
-    type?: string;
-    bounds?: Bounds;
-  };
-};
-
-type DrawnRectPlace = NamedPlace & {
-  geometry: { type: "rect"; bounds: Bounds };
-};
+type NamedPlace = NamedSelection | MapAnnotation | NamedAddress;
+type DrawnRectPlace = NamedSelection;
 
 type DrawnPlaceEntry = {
   place: DrawnRectPlace;
@@ -78,7 +68,7 @@ export function findNamedPlaceOverlaps(places: NamedPlace[]): NamedPlaceOverlap[
 function isDrawnRectPlace(place: NamedPlace | undefined): place is DrawnRectPlace {
   return place?.kind === "drawnSelection"
     && place.geometry?.type === "rect"
-    && Boolean(place.geometry.bounds);
+    && place.geometry.bounds !== undefined;
 }
 
 function removeExpiredActivePlaces(active: DrawnPlaceEntry[], x: number): void {

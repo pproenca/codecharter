@@ -101,8 +101,12 @@ export type NamedAddress = {
   kind: "mapAddress";
   createdAt: string;
   updatedAt: string;
-  address: ResolvedAddress | Record<string, unknown>;
+  address: NamedAddressAddress;
 };
+
+export type NamedAddressAddress = ResolvedAddress | (Partial<ResolvedAddress> & {
+  [key: string]: unknown;
+});
 
 type ResolvablePlace = NamedSelection | MapAnnotation;
 type CornerName = "northWest" | "northEast" | "southWest" | "southEast";
@@ -162,7 +166,7 @@ export function createMapAnnotation(codemap: CodecharterCodemap, input: Selectio
   });
 }
 
-export function createNamedAddress(input: { id?: string; name?: string; address: ResolvedAddress | Record<string, unknown> }): NamedAddress {
+export function createNamedAddress(input: { id?: string; name?: string; address: NamedAddressAddress }): NamedAddress {
   const now = new Date().toISOString();
   return {
     id: input.id ?? randomUUID(),

@@ -79,11 +79,6 @@ export type MapAnnotationPlace = {
 export type NamedPlace = MapAnnotationPlace & {
   kind?: string;
 };
-type NamedPlaceSearchEntry = {
-  place: NamedPlace;
-  name: string;
-  normalizedName: string;
-};
 type SearchContext = {
   codemap: CodecharterCodemap;
   namedPlaces: NamedPlace[];
@@ -255,8 +250,6 @@ const MAP_SEARCH_MATCHERS: Array<(context: SearchContext) => SearchMatch | null>
   folderSearchMatch,
 ];
 
-const NAMED_PLACE_SEARCH_ENTRIES = new WeakMap<NamedPlace[], NamedPlaceSearchEntry[]>();
-
 function actionFor(actions: Map<string, MapAction>, key: string | undefined) {
   if (!key) return null;
   const action = actions.get(key);
@@ -265,9 +258,9 @@ function actionFor(actions: Map<string, MapAction>, key: string | undefined) {
 
 function namedPlaceSearchMatch({ namedPlaces, query }: SearchContext): SearchMatch | null {
   let namedPlace: NamedPlace | undefined;
-  for (const entry of namedPlaceSearchEntries(namedPlaces)) {
-    if (!entry.normalizedName.includes(query)) continue;
-    namedPlace = entry.place;
+  for (const place of namedPlaces) {
+    if (!String(place?.name ?? "").toLowerCase().includes(query)) continue;
+    namedPlace = place;
     break;
   }
   if (!namedPlace?.geometry?.bounds) return null;
@@ -309,32 +302,6 @@ function firstSearchTarget<T extends MapTarget>(targets: MapTargetRecord<T>, que
     if (path.toLowerCase().includes(query) || geohash.startsWith(query)) return target;
   }
   return null;
-}
-
-function namedPlaceSearchEntries(namedPlaces: NamedPlace[]): NamedPlaceSearchEntry[] {
-  const cached = NAMED_PLACE_SEARCH_ENTRIES.get(namedPlaces);
-  if (cached && namedPlaceEntriesMatch(namedPlaces, cached)) return cached;
-
-  const entries = new Array(namedPlaces.length);
-  for (let index = 0; index < namedPlaces.length; index += 1) {
-    const place = namedPlaces[index];
-    if (!place) continue;
-    const name = String(place?.name ?? "");
-    entries[index] = { place, name, normalizedName: name.toLowerCase() };
-  }
-  NAMED_PLACE_SEARCH_ENTRIES.set(namedPlaces, entries);
-  return entries;
-}
-
-function namedPlaceEntriesMatch(namedPlaces: NamedPlace[], entries: NamedPlaceSearchEntry[]) {
-  if (namedPlaces.length !== entries.length) return false;
-  for (let index = 0; index < namedPlaces.length; index += 1) {
-    const place = namedPlaces[index];
-    const entry = entries[index];
-    if (!entry) return false;
-    if (entry.place !== place || entry.name !== String(place?.name ?? "")) return false;
-  }
-  return true;
 }
 
 export function detailBand(scale: number): DetailBand {

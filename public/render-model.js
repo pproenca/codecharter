@@ -77,7 +77,6 @@ const MAP_SEARCH_MATCHERS = [
     fileSearchMatch,
     folderSearchMatch,
 ];
-const NAMED_PLACE_SEARCH_ENTRIES = new WeakMap();
 function actionFor(actions, key) {
     if (!key)
         return null;
@@ -86,10 +85,10 @@ function actionFor(actions, key) {
 }
 function namedPlaceSearchMatch({ namedPlaces, query }) {
     let namedPlace;
-    for (const entry of namedPlaceSearchEntries(namedPlaces)) {
-        if (!entry.normalizedName.includes(query))
+    for (const place of namedPlaces) {
+        if (!String(place?.name ?? "").toLowerCase().includes(query))
             continue;
-        namedPlace = entry.place;
+        namedPlace = place;
         break;
     }
     if (!namedPlace?.geometry?.bounds)
@@ -131,34 +130,6 @@ function firstSearchTarget(targets, query) {
             return target;
     }
     return null;
-}
-function namedPlaceSearchEntries(namedPlaces) {
-    const cached = NAMED_PLACE_SEARCH_ENTRIES.get(namedPlaces);
-    if (cached && namedPlaceEntriesMatch(namedPlaces, cached))
-        return cached;
-    const entries = new Array(namedPlaces.length);
-    for (let index = 0; index < namedPlaces.length; index += 1) {
-        const place = namedPlaces[index];
-        if (!place)
-            continue;
-        const name = String(place?.name ?? "");
-        entries[index] = { place, name, normalizedName: name.toLowerCase() };
-    }
-    NAMED_PLACE_SEARCH_ENTRIES.set(namedPlaces, entries);
-    return entries;
-}
-function namedPlaceEntriesMatch(namedPlaces, entries) {
-    if (namedPlaces.length !== entries.length)
-        return false;
-    for (let index = 0; index < namedPlaces.length; index += 1) {
-        const place = namedPlaces[index];
-        const entry = entries[index];
-        if (!entry)
-            return false;
-        if (entry.place !== place || entry.name !== String(place?.name ?? ""))
-            return false;
-    }
-    return true;
 }
 export function detailBand(scale) {
     if (scale < 1.35)

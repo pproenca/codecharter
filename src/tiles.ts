@@ -76,7 +76,7 @@ export function getTile(codemap: TileCodemap, { level = "file", prefix }: { leve
 }
 
 export function visiblePrefixes(codemap: TileCodemap, level: MapLevel = "file"): string[] {
-  return sortedUniqueStrings([...rawMapTargets(codemap)].map((target) => tilePrefixForTarget(target, level)));
+  return sortedUniqueStrings([...objectValues(codemap.folders), ...objectValues(codemap.files)].map((target) => tilePrefixForTarget(target, level)));
 }
 
 function addTarget(tiles: Map<string, TileSerializedTarget[]>, prefix: string, target: TileSerializedTarget): void {
@@ -92,11 +92,6 @@ function* mapTargets(codemap: TileCodemap): Generator<TileSerializedTarget> {
   for (const file of sortedTargets(codemap.files)) {
     yield serializeTarget(file, "file");
   }
-}
-
-function* rawMapTargets(codemap: TileCodemap): Generator<TileMapTarget> {
-  yield* objectValues(codemap.folders);
-  yield* objectValues(codemap.files);
 }
 
 function sortedTargets(targets: Record<string, TileMapTarget>): TileMapTarget[] {

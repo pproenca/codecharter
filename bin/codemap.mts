@@ -385,7 +385,7 @@ const CLI_COMMANDS: CommandHandler[] = [
     if (!reference) throw new Error("resolve requires a CodeCharter deep link or path");
     if (args.length > 3) throw new Error(`Unknown arguments: ${args.slice(3).join(" ")}`);
 
-    if (isCodecharterDeepLink(reference)) {
+    if (reference.startsWith("codecharter://") || reference.startsWith("codemap://")) {
       const resolved = await resolveDeepLink({ root, mapPath, reference, ...optionalProperty("server", server) });
       printResult(resolved, jsonOutput, printResolvedDeepLink);
       return;
@@ -608,10 +608,6 @@ function parseRange(value: string | undefined): Range | undefined {
   const match = value.match(/^(\d+)(?:-(\d+))?$/);
   if (!match) throw new Error(`Invalid range in deep link metadata: ${value}`);
   return { start: Number(match[1]), end: Number(match[2] ?? match[1]) };
-}
-
-function isCodecharterDeepLink(value: string): boolean {
-  return value.startsWith("codecharter://") || value.startsWith("codemap://");
 }
 
 async function doctor({ root, mapPath, server }: DoctorOptions): Promise<DoctorResult> {

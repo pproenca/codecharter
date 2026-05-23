@@ -545,7 +545,7 @@ export function shouldShowFogLabel(fogState: FogState, { selected = false } = {}
 }
 
 export function shouldShowFogSourceText(fogState: FogState, { selected = false } = {}): boolean {
-  return selected || fogState !== "unexplored";
+  return shouldShowFogLabel(fogState, { selected });
 }
 
 export function shouldLabelFoggedFile({ file, box, scale, selected, fogState }: { file: MapFile; box: BoxSize; scale: number; selected?: boolean; fogState: FogState }) {
@@ -1108,25 +1108,16 @@ function mapTargetForPath(codemap: CodecharterCodemap, path: string): TargetHit 
 function mapTargetForGeohash(codemap: CodecharterCodemap, geohash: string | undefined, kind: string | undefined): TargetHit | null {
   const targetType = kind === "folder" ? "folder" : "file";
   if (!geohash) return null;
-  if (targetType === "folder") {
-    let fallback: MapFolder | null = null;
-    for (const target of objectValues(codemap.folders ?? {})) {
-      if (!target.path) continue;
-      const targetGeohash = target.geo?.geohash;
-      if (!targetGeohash) continue;
-      if (targetGeohash.startsWith(geohash)) return { ...target, targetType };
-      if (!fallback && geohash.startsWith(targetGeohash)) fallback = target;
-    }
-    return fallback ? { ...fallback, targetType } : null;
-  }
-  let fallback: MapFile | null = null;
-  for (const target of objectValues(codemap.files ?? {})) {
+  const targets = targetType === "folder" ? objectValues(codemap.folders ?? {}) : objectValues(codemap.files ?? {});
+  let fallback: MapTarget | null = null;
+  for (const target of targets) {
+    if (targetType === "folder" && !target.path) continue;
     const targetGeohash = target.geo?.geohash;
     if (!targetGeohash) continue;
-    if (targetGeohash.startsWith(geohash)) return { ...target, targetType };
+    if (targetGeohash.startsWith(geohash)) return { ...target, targetType } as TargetHit;
     if (!fallback && geohash.startsWith(targetGeohash)) fallback = target;
   }
-  return fallback ? { ...fallback, targetType } : null;
+  return fallback ? { ...fallback, targetType } as TargetHit : null;
 }
 
 function* objectValues<T>(values: Record<string, T>): Generator<T> {

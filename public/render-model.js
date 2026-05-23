@@ -376,7 +376,7 @@ export function shouldShowFogLabel(fogState, { selected = false } = {}) {
     return selected || fogState !== "unexplored";
 }
 export function shouldShowFogSourceText(fogState, { selected = false } = {}) {
-    return selected || fogState !== "unexplored";
+    return shouldShowFogLabel(fogState, { selected });
 }
 export function shouldLabelFoggedFile({ file, box, scale, selected, fogState }) {
     if (!shouldShowFogLabel(fogState, { selected }))
@@ -906,23 +906,11 @@ function mapTargetForGeohash(codemap, geohash, kind) {
     const targetType = kind === "folder" ? "folder" : "file";
     if (!geohash)
         return null;
-    if (targetType === "folder") {
-        let fallback = null;
-        for (const target of objectValues(codemap.folders ?? {})) {
-            if (!target.path)
-                continue;
-            const targetGeohash = target.geo?.geohash;
-            if (!targetGeohash)
-                continue;
-            if (targetGeohash.startsWith(geohash))
-                return { ...target, targetType };
-            if (!fallback && geohash.startsWith(targetGeohash))
-                fallback = target;
-        }
-        return fallback ? { ...fallback, targetType } : null;
-    }
+    const targets = targetType === "folder" ? objectValues(codemap.folders ?? {}) : objectValues(codemap.files ?? {});
     let fallback = null;
-    for (const target of objectValues(codemap.files ?? {})) {
+    for (const target of targets) {
+        if (targetType === "folder" && !target.path)
+            continue;
         const targetGeohash = target.geo?.geohash;
         if (!targetGeohash)
             continue;

@@ -33,17 +33,15 @@ test("codemap activity exits non-zero when it rejects input", async () => {
     cwd: process.cwd(),
     stdio: ["ignore", "pipe", "pipe"],
   });
-  let stdout = "";
-  let stderr = "";
-  cli.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
-  cli.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+  const stdout = captureOutput(cli.stdout);
+  const stderr = captureOutput(cli.stderr);
 
   const [code] = await once(cli, "exit");
 
   assert.equal(code, 1);
-  assert.match(stdout, /^accepted: false$/m);
-  assert.match(stdout, /^error: /m);
-  assert.equal(stderr, "");
+  assert.match(stdout(), /^accepted: false$/m);
+  assert.match(stdout(), /^error: /m);
+  assert.equal(stderr(), "");
 });
 
 test("codecharter init validates TCP port boundaries", async () => {
@@ -109,12 +107,10 @@ test("codecharter dev is a one-command dogfood workflow", { timeout: 8000 }, asy
     cwd: process.cwd(),
     stdio: ["ignore", "pipe", "pipe"],
   });
-  let output = "";
-  cli.stdout.on("data", (chunk) => { output += chunk.toString(); });
-  cli.stderr.on("data", (chunk) => { output += chunk.toString(); });
+  const output = captureOutput(cli.stdout, cli.stderr);
 
   try {
-    await waitFor(() => output.includes(`viewer: http://127.0.0.1:${port}`), () => output);
+    await waitFor(() => output().includes(`viewer: http://127.0.0.1:${port}`), output);
 
     const html = await fetchText(`http://127.0.0.1:${port}/`);
     assert.match(html, /<canvas id="mapCanvas"/);
@@ -161,17 +157,15 @@ test("codecharter init can initialize a fresh repo and start the viewer", { time
     cwd: process.cwd(),
     stdio: ["ignore", "pipe", "pipe"],
   });
-  let output = "";
-  cli.stdout.on("data", (chunk) => { output += chunk.toString(); });
-  cli.stderr.on("data", (chunk) => { output += chunk.toString(); });
+  const output = captureOutput(cli.stdout, cli.stderr);
 
   try {
-    await waitFor(() => output.includes(`viewer: http://127.0.0.1:${port}`), () => output);
-    assert.match(output, /^init: ok$/m);
-    assert.match(output, /^map: \.codecharter\/codecharter\.json$/m);
-    assert.match(output, /^files: 1$/m);
-    assert.match(output, /^hooks: codex,git$/m);
-    assert.match(output, /^next: \/hooks$/m);
+    await waitFor(() => output().includes(`viewer: http://127.0.0.1:${port}`), output);
+    assert.match(output(), /^init: ok$/m);
+    assert.match(output(), /^map: \.codecharter\/codecharter\.json$/m);
+    assert.match(output(), /^files: 1$/m);
+    assert.match(output(), /^hooks: codex,git$/m);
+    assert.match(output(), /^next: \/hooks$/m);
 
     const html = await fetchText(`http://127.0.0.1:${port}/`);
     assert.match(html, /<canvas id="mapCanvas"/);
@@ -226,17 +220,15 @@ test("codecharter dev --setup initializes a fresh repo and starts the viewer", {
     cwd: process.cwd(),
     stdio: ["ignore", "pipe", "pipe"],
   });
-  let output = "";
-  cli.stdout.on("data", (chunk) => { output += chunk.toString(); });
-  cli.stderr.on("data", (chunk) => { output += chunk.toString(); });
+  const output = captureOutput(cli.stdout, cli.stderr);
 
   try {
-    await waitFor(() => output.includes(`viewer: http://127.0.0.1:${port}`), () => output);
-    assert.match(output, /^init: ok$/m);
-    assert.match(output, /^map: \.codecharter\/codecharter\.json$/m);
-    assert.match(output, /^files: 1$/m);
-    assert.match(output, /^hooks: codex,git$/m);
-    assert.match(output, /^next: \/hooks$/m);
+    await waitFor(() => output().includes(`viewer: http://127.0.0.1:${port}`), output);
+    assert.match(output(), /^init: ok$/m);
+    assert.match(output(), /^map: \.codecharter\/codecharter\.json$/m);
+    assert.match(output(), /^files: 1$/m);
+    assert.match(output(), /^hooks: codex,git$/m);
+    assert.match(output(), /^next: \/hooks$/m);
 
     const codemap = await getJson(`http://127.0.0.1:${port}/api/map`);
     assert.equal(codemap.files["src/app.js"].path, "src/app.js");
@@ -280,16 +272,14 @@ test("packed package supports the npx init and resolve path", { timeout: 20000 }
     detached: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
-  let output = "";
-  cli.stdout.on("data", (chunk) => { output += chunk.toString(); });
-  cli.stderr.on("data", (chunk) => { output += chunk.toString(); });
+  const output = captureOutput(cli.stdout, cli.stderr);
 
   try {
-    await waitFor(() => output.includes(`viewer: http://127.0.0.1:${port}`), () => output);
+    await waitFor(() => output().includes(`viewer: http://127.0.0.1:${port}`), output);
     const codemap = await getJson(`http://127.0.0.1:${port}/api/map`);
     assert.equal(codemap.files["src/app.js"].path, "src/app.js");
-    assert.match(output, /^init: ok$/m);
-    assert.match(output, /^next: \/hooks$/m);
+    assert.match(output(), /^init: ok$/m);
+    assert.match(output(), /^next: \/hooks$/m);
     const skill = await readFile(join(root, ".agents", "skills", "codecharter", "SKILL.md"), "utf8");
     assert.match(skill, /resolve "codecharter:\/\/annotation\/<id>"/);
     assert.match(skill, /If `command -v codecharter` fails/);
@@ -344,6 +334,12 @@ async function waitFor(predicate: () => boolean, output: () => string) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   assert.fail(`Timed out waiting for dev CLI readiness\n${output()}`);
+}
+
+function captureOutput(...streams: Array<ReturnType<typeof spawn>["stdout"]>): () => string {
+  let output = "";
+  for (const stream of streams) stream?.on("data", (chunk) => { output += chunk.toString(); });
+  return () => output;
 }
 
 async function waitForExit(child: ReturnType<typeof spawn>) {

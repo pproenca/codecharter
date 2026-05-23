@@ -275,11 +275,7 @@ async function wholeFileRange(root: string | undefined, path: string): Promise<C
 
 function contentLineCount(content: string): number {
   if (content.length === 0) return 1;
-  let lines = 1;
-  for (let index = 0; index < content.length; index += 1) {
-    if (content.charCodeAt(index) === 10 && index !== content.length - 1) lines += 1;
-  }
-  return lines;
+  return content.split("\n").length - (content.endsWith("\n") ? 1 : 0);
 }
 
 function hashString(value: string): string {

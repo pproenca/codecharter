@@ -566,11 +566,7 @@ function refreshNamedPlaces(codemap: CodecharterCodemap, store: unknown): NamedP
 }
 
 function mapAnnotations(places: NamedPlace[]): MapAnnotation[] {
-  const annotations: MapAnnotation[] = [];
-  for (const place of places) {
-    if (place.kind === "mapAnnotation") annotations.push(place);
-  }
-  return annotations;
+  return places.filter((place): place is MapAnnotation => place.kind === "mapAnnotation");
 }
 
 function refreshPlaces(codemap: CodecharterCodemap, places: NamedPlace[]): NamedPlace[] {

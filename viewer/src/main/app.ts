@@ -110,6 +110,7 @@ import {
   parseHashRoute,
 } from "./deep-links.ts";
 import { deleteAnnotationRequest } from "./annotations.ts";
+import { clearActivityClickAction } from "./activity-clear.ts";
 import { copyTextToClipboard } from "./clipboard.ts";
 
 type BrowserControl = HTMLElement & {
@@ -382,6 +383,7 @@ let pendingRenderFrame = 0;
 let applyingRoute = false;
 let routeSequence = 0;
 let clearActivityHold: TimerHandle = null;
+let clearActivityCompletedHold = false;
 let pendingTouchSpacePan: TimerHandle = null;
 let pendingAnnotationDelete: PendingAnnotationDelete | null = null;
 let copyPromptLabelTimer: TimerHandle = null;
@@ -970,7 +972,7 @@ function bindClearActivityHold() {
   control.addEventListener("lostpointercapture", cancelClearActivityHold);
   control.addEventListener("keydown", onClearActivityKeyDown);
   control.addEventListener("keyup", onClearActivityKeyUp);
-  control.addEventListener("click", (event) => event.preventDefault());
+  control.addEventListener("click", onClearActivityClick);
 }
 
 function onClearActivityPointerDown(event: PointerEvent) {
@@ -999,10 +1001,23 @@ function startClearActivityHold() {
   setText(controls.hover, "Hold to clear activity");
   clearActivityHold = setTimeout(() => {
     clearActivityHold = null;
+    clearActivityCompletedHold = true;
     controls.clearActivityTool?.classList.remove("is-holding");
     controls.clearActivityTool?.removeAttribute("aria-description");
     void clearActivityHistory();
   }, CLEAR_ACTIVITY_HOLD_MS);
+}
+
+function onClearActivityClick(event: MouseEvent) {
+  event.preventDefault();
+  const action = clearActivityClickAction({
+    clearedByCompletedHold: clearActivityCompletedHold,
+    disabled: controls.clearActivityTool?.disabled === true,
+  });
+  clearActivityCompletedHold = false;
+  if (action !== "clear") return;
+  cancelClearActivityHold();
+  void clearActivityHistory();
 }
 
 function cancelClearActivityHold() {

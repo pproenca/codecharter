@@ -140,14 +140,15 @@ export async function startServer({
   port,
   activityArchivePath,
   activityFlushIntervalMs,
-  publicRoot = BUNDLED_PUBLIC_ROOT,
+  publicRoot,
   portSearchLimit = DEFAULT_PORT_SEARCH_LIMIT,
 }: ServerOptions): Promise<Server> {
   const resolvedActivityArchivePath = activityArchivePath ?? await configuredActivityArchivePath(root);
+  const resolvedPublicRoot = resolve(publicRoot ?? await defaultPublicRoot(root));
   const state: ServerState = {
     root,
     mapPath,
-    publicRoot,
+    publicRoot: resolvedPublicRoot,
     namedPlacesPath: join(root, ".codecharter", "named-places.json"),
     namedPlacesMutation: Promise.resolve(),
     activityArchivePath: resolvedActivityArchivePath,
@@ -174,6 +175,27 @@ export async function startServer({
 
   console.error(`server: http://127.0.0.1:${actualPort}`);
   return server;
+}
+
+async function defaultPublicRoot(root: string): Promise<string> {
+  const candidates = [
+    BUNDLED_PUBLIC_ROOT,
+    join(root, "dist", "public"),
+    join(root, "viewer", "dist"),
+  ];
+  for (const candidate of candidates) {
+    if (await hasStaticShell(candidate)) return candidate;
+  }
+  return BUNDLED_PUBLIC_ROOT;
+}
+
+async function hasStaticShell(publicRoot: string): Promise<boolean> {
+  try {
+    return (await stat(join(publicRoot, "index.html"))).isFile();
+  } catch (error) {
+    if (isErrnoException(error) && error.code === "ENOENT") return false;
+    throw error;
+  }
 }
 
 async function configuredActivityArchivePath(root: string): Promise<string> {

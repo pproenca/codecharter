@@ -8,8 +8,8 @@ const gitRoot = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "
 const root = gitRoot.status === 0 ? gitRoot.stdout.trim() : process.cwd();
 const localBin = join(root, "node_modules", ".bin", process.platform === "win32" ? "codecharter.cmd" : "codecharter");
 const candidates = existsSync(localBin)
-  ? [{ command: localBin, args: ["codex-hook"] }, { command: "codecharter", args: ["codex-hook"] }, { command: "npx", args: ["--yes", "codecharter", "codex-hook"] }]
-  : [{ command: "codecharter", args: ["codex-hook"] }, { command: "npx", args: ["--yes", "codecharter", "codex-hook"] }];
+  ? [{ command: localBin, args: ["codex-hook"] }, { command: "codecharter", args: ["codex-hook"] }, { command: "npx", args: ["--yes", "codecharter@0.1.0", "codex-hook"] }]
+  : [{ command: "codecharter", args: ["codex-hook"] }, { command: "npx", args: ["--yes", "codecharter@0.1.0", "codex-hook"] }];
 
 for (const candidate of candidates) {
   const result = spawnSync(candidate.command, candidate.args, {

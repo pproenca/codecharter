@@ -1,9 +1,19 @@
 {
   "name": "codecharter",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.2.0",
   "description": "Deterministic geohash-addressed code map with an agent-activity overlay. Modernized monorepo: @codecharter/core (codemap engine + hardened localhost server + CLI) and @codecharter/viewer (canvas SPA).",
   "type": "module",
+  "bin": {
+    "codecharter": "dist/bin/codemap.mjs",
+    "codemap": "dist/bin/codemap.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "workspaces": [
     "core",
     "viewer"
@@ -12,11 +22,17 @@
     "node": ">=22"
   },
   "scripts": {
+    "build": "node scripts/build.mjs",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run build",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "build": "npm run build --workspace @codecharter/viewer",
     "codecharter": "tsx core/bin/codemap.mts",
     "generate": "tsx core/bin/codemap.mts generate",
     "serve": "tsx core/bin/codemap.mts serve"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.2",
+    "tsx": "^4.22.3"
   }
 }

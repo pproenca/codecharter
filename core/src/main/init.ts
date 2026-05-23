@@ -33,6 +33,7 @@ const MANAGED_POST_TOOL_MATCHERS = new Set([
   "Bash|apply_patch|Edit|Write",
   "Bash|apply_patch|Edit|Write|MultiEdit|functions.apply_patch|functions.exec_command",
   "Bash|exec_command|apply_patch|Edit|Write|MultiEdit|functions.apply_patch|functions.exec_command",
+  "Bash|exec_command|apply_patch|Edit|Write|MultiEdit|functions.apply_patch|functions.exec_command|multi_tool_use.parallel",
 ]);
 
 type CodecharterConfig = {
@@ -330,7 +331,7 @@ function codexHooksJson(): CodexHooksConfig {
   return {
     hooks: {
       SessionStart: [{ matcher: "startup|resume|clear", hooks: [handler] }],
-      PostToolUse: [{ matcher: "Bash|exec_command|apply_patch|Edit|Write|MultiEdit|functions.apply_patch|functions.exec_command", hooks: [handler] }],
+      PostToolUse: [{ matcher: "Bash|exec_command|apply_patch|Edit|Write|MultiEdit|functions.apply_patch|functions.exec_command|multi_tool_use.parallel", hooks: [handler] }],
       Stop: [{ hooks: [handler] }],
     },
   };
@@ -351,9 +352,14 @@ const input = readFileSync(0, "utf8");
 const gitRoot = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" });
 const root = gitRoot.status === 0 ? gitRoot.stdout.trim() : process.cwd();
 const localBin = join(root, "node_modules", ".bin", process.platform === "win32" ? "codecharter.cmd" : "codecharter");
+const localTsx = join(root, "node_modules", ".bin", process.platform === "win32" ? "tsx.cmd" : "tsx");
+const localCli = join(root, "core", "bin", "codemap.mts");
+const localSourceCli = existsSync(localTsx) && existsSync(localCli)
+  ? [{ command: localTsx, args: [localCli, "codex-hook"] }]
+  : [];
 const candidates = existsSync(localBin)
-  ? [{ command: localBin, args: ["codex-hook"] }, { command: "codecharter", args: ["codex-hook"] }, { command: "npx", args: ["--yes", "${npxPackage}", "codex-hook"] }]
-  : [{ command: "codecharter", args: ["codex-hook"] }, { command: "npx", args: ["--yes", "${npxPackage}", "codex-hook"] }];
+  ? [{ command: localBin, args: ["codex-hook"] }, ...localSourceCli, { command: "codecharter", args: ["codex-hook"] }, { command: "npx", args: ["--yes", "${npxPackage}", "codex-hook"] }]
+  : [...localSourceCli, { command: "codecharter", args: ["codex-hook"] }, { command: "npx", args: ["--yes", "${npxPackage}", "codex-hook"] }];
 
 for (const candidate of candidates) {
   const result = spawnSync(candidate.command, candidate.args, {
@@ -456,9 +462,14 @@ function escapeRegExp(value: string): string {
 }
 
 async function currentPackageVersion(): Promise<string> {
-  const packagePath = fileURLToPath(new URL("../package.json", import.meta.url));
-  const packageJson = packageJsonFromValue(await readJson(packagePath, { version: "0.1.0" }), { sanitizeVersion: true }) ?? {};
-  return packageJson.version ?? "0.1.0";
+  for (const url of [
+    new URL("../package.json", import.meta.url),
+    new URL("../../../package.json", import.meta.url),
+  ]) {
+    const packageJson = packageJsonFromValue(await readJson(fileURLToPath(url), {}), { sanitizeVersion: true }) ?? {};
+    if (packageJson.version) return packageJson.version;
+  }
+  return "0.1.0";
 }
 
 function codecharterConfigFromValue(value: unknown): CodecharterConfig {

@@ -96,6 +96,10 @@ type ToolInputPathStrategy = {
   matches(toolName: string): boolean;
   paths(input: unknown): string[];
 };
+type ToolInvocation = {
+  name: string;
+  input: unknown;
+};
 
 const GENERIC_READ_COMMAND_STRATEGY: ReadCommandStrategy = { pathCandidates: genericReadPathCandidates, lineRange: emptyLineRange };
 const READ_OPTIONS_WITH_VALUE = new Set(["-n", "--lines", "-e", "--expression"]);
@@ -257,44 +261,42 @@ function normalizeCodexThreadId(value: unknown): string | undefined {
 }
 
 function inferActivityState(payload: HookPayload): ActivityStateInput {
-  if (!isShellTool(payload)) return "editing";
-  const command = findShellCommand(payload.tool_input);
-  if (/\b(pnpm|npm|yarn|bun)\s+(test|vitest|jest)\b/.test(command)) return "testing";
-  if (/\b(vitest|jest|pytest|cargo\s+test|go\s+test|swift\s+test|xcodebuild\s+test)\b/.test(command)) return "testing";
+  for (const command of shellCommands(payload)) {
+    if (/\b(pnpm|npm|yarn|bun)\s+(test|vitest|jest)\b/.test(command)) return "testing";
+    if (/\b(vitest|jest|pytest|cargo\s+test|go\s+test|swift\s+test|xcodebuild\s+test)\b/.test(command)) return "testing";
+  }
   return "editing";
 }
 
 function readCommandActivity(root: string, codemap: CodecharterCodemap, payload: HookPayload): { changes: CodexChange[]; matchedReadCommand: boolean } {
-  if (!isShellTool(payload)) return { changes: [], matchedReadCommand: false };
-  const command = findShellCommand(payload.tool_input);
-  if (!command) return { changes: [], matchedReadCommand: false };
-
   const changes: CodexChange[] = [];
   const seen = new Set<string>();
   let matchedReadCommand = false;
-  for (const segment of commandSegments(command)) {
-    const tokens = shellWords(segment);
-    if (tokens.length === 0) continue;
-    const commandToken = tokens[0];
-    if (!commandToken) continue;
-    const commandName = basename(commandToken);
-    const strategy = READ_COMMAND_STRATEGIES.get(commandName);
-    if (!strategy) continue;
-    matchedReadCommand = true;
+  for (const command of shellCommands(payload)) {
+    for (const segment of commandSegments(command)) {
+      const tokens = shellWords(segment);
+      if (tokens.length === 0) continue;
+      const commandToken = tokens[0];
+      if (!commandToken) continue;
+      const commandName = basename(commandToken);
+      const strategy = READ_COMMAND_STRATEGIES.get(commandName);
+      if (!strategy) continue;
+      matchedReadCommand = true;
 
-    const lineRange = strategy.lineRange({ root, commandName, tokens, codemap });
-    for (const candidate of strategy.pathCandidates({ root, commandName, tokens, codemap })) {
-      const path = normalizeCommandPath(root, candidate);
-      if (!codemap.files?.[path] && !codemap.folders?.[path]) continue;
-      const key = `${path}:${lineRange.lineStart ?? ""}:${lineRange.lineEnd ?? ""}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      changes.push({
-        path,
-        ...lineRange,
-        activityState: "reading",
-        note: `Codex read ${path}`,
-      });
+      const lineRange = strategy.lineRange({ root, commandName, tokens, codemap });
+      for (const candidate of strategy.pathCandidates({ root, commandName, tokens, codemap })) {
+        const path = normalizeCommandPath(root, candidate);
+        if (!codemap.files?.[path] && !codemap.folders?.[path]) continue;
+        const key = `${path}:${lineRange.lineStart ?? ""}:${lineRange.lineEnd ?? ""}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        changes.push({
+          path,
+          ...lineRange,
+          activityState: "reading",
+          note: `Codex read ${path}`,
+        });
+      }
     }
   }
   return { changes, matchedReadCommand };
@@ -304,8 +306,17 @@ function commandSegments(command: string): string[] {
   return command.split(/\n|;|&&/);
 }
 
-function isShellTool(payload: HookPayload): boolean {
-  const toolName = String(payload.tool_name ?? "");
+function shellCommands(payload: HookPayload): string[] {
+  const commands: string[] = [];
+  for (const invocation of toolInvocations(payload)) {
+    if (!isShellToolName(invocation.name)) continue;
+    const command = findShellCommand(invocation.input);
+    if (command) commands.push(command);
+  }
+  return commands;
+}
+
+function isShellToolName(toolName: string): boolean {
   return SHELL_TOOL_NAMES.has(toolName) || toolName.endsWith(".exec_command");
 }
 
@@ -350,18 +361,45 @@ async function toolInputChanges(root: string, payload: HookPayload): Promise<Cod
 }
 
 function toolInputPaths(root: string, payload: HookPayload): string[] {
-  const toolName = String(payload.tool_name ?? "").toLowerCase();
-  const input = payload.tool_input ?? {};
   const paths = new Set<string>();
 
-  for (const strategy of TOOL_INPUT_PATH_STRATEGIES) {
-    if (!strategy.matches(toolName)) continue;
-    for (const path of strategy.paths(input)) {
-      paths.add(normalizeCommandPath(root, path));
+  for (const invocation of toolInvocations(payload)) {
+    const toolName = invocation.name.toLowerCase();
+    for (const strategy of TOOL_INPUT_PATH_STRATEGIES) {
+      if (!strategy.matches(toolName)) continue;
+      for (const path of strategy.paths(invocation.input)) {
+        paths.add(normalizeCommandPath(root, path));
+      }
     }
   }
 
   return [...paths].filter(Boolean);
+}
+
+function toolInvocations(payload: HookPayload): ToolInvocation[] {
+  const invocations: ToolInvocation[] = [{
+    name: String(payload.tool_name ?? ""),
+    input: payload.tool_input ?? {},
+  }];
+  collectNestedToolInvocations(payload.tool_input, invocations);
+  return invocations;
+}
+
+function collectNestedToolInvocations(value: unknown, invocations: ToolInvocation[]): void {
+  if (Array.isArray(value)) {
+    for (const item of value) collectNestedToolInvocations(item, invocations);
+    return;
+  }
+
+  const record = objectRecord(value);
+  if (!record) return;
+  const name = record.recipient_name ?? record.tool_name ?? record.name;
+  const input = record.parameters ?? record.tool_input ?? record.input;
+  if (typeof name === "string") invocations.push({ name, input: input ?? {} });
+
+  for (const child of Object.values(record)) {
+    if (child && typeof child === "object") collectNestedToolInvocations(child, invocations);
+  }
 }
 
 function isStructuredWriteTool(toolName: string): boolean {

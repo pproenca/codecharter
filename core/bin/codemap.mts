@@ -458,8 +458,9 @@ const CLI_COMMANDS: CommandHandler[] = [
         return;
       }
 
-      const mapPath = await resolveCliMapPath(takeOption(args, "--map", undefined));
+      const mapPathOption = takeOption(args, "--map", undefined);
       const outPath = resolvePath(takeOption(args, "--out", DEFAULT_ACTIVITY_ARCHIVE));
+      const server = takeOption(args, "--server", undefined);
       const agentId = takeOption(args, "--agent", "codex");
       const activityState = takeOption(args, "--state", "editing");
       const note = takeOption(args, "--note", "");
@@ -472,6 +473,22 @@ const CLI_COMMANDS: CommandHandler[] = [
         throw new Error("activity requires a path");
       }
 
+      if (server) {
+        const result = await postActivityToServer(server, {
+          path,
+          agentId,
+          activityState,
+          note,
+          ...optionalProperty("lineStart", lineStartRaw),
+          ...optionalProperty("lineEnd", lineEndRaw),
+          ...optionalProperty("columnStart", columnStartRaw),
+          ...optionalProperty("columnEnd", columnEndRaw),
+        });
+        printResult(result, jsonOutput, printActivityResult);
+        return;
+      }
+
+      const mapPath = await resolveCliMapPath(mapPathOption);
       const address = await resolveCliAddress(mapPath, cliAddressRequest(path, {
         lineStartRaw,
         lineEndRaw,
@@ -572,6 +589,24 @@ async function clearActivity({ outPath, server }: ClearActivityOptions) {
 
   await clearActivityArchive(outPath);
   return { source: "archive", path: outPath, cleared: true };
+}
+
+async function postActivityToServer(server: string, body: Record<string, unknown>) {
+  const origin = normalizeOrigin(server);
+  if (!origin) throw new Error("Activity server must be a valid URL");
+  const response = await fetch(`${origin}/api/activity`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const responseBody = (objectRecord(await response.json().catch(() => ({}))) ?? {}) as { accepted?: boolean; error?: string };
+  if (!response.ok) throw new Error(responseBody.error ?? `${response.status} ${response.statusText}`);
+  return {
+    source: "server",
+    origin,
+    accepted: responseBody.accepted === true,
+    path: body.path,
+  };
 }
 
 async function resolveDeepLink({ root, mapPath, reference, server }: DeepLinkResolveOptions) {

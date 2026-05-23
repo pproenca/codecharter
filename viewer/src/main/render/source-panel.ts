@@ -113,10 +113,12 @@ export function annotationClipboardText(annotation: MapAnnotationPlace, { origin
   const reference = annotation.deepLink || `codecharter://annotation/${annotation.id}`;
   const serverFlag = origin ? ` --server ${doubleQuote(origin)}` : "";
   const comment = annotation.comment?.trim() || "<empty>";
+  const trackCommands = annotationActivityCommands(annotation, { origin, note: comment });
   const prompt = [
     `CodeCharter annotation: ${reference}`,
     `Note: ${comment}`,
     `Resolve: npx --yes codecharter@latest --json resolve ${doubleQuote(reference)}${serverFlag}`,
+    ...trackCommands,
   ].join("\n");
   const shareUrl = annotationShareUrl(annotation, href);
   if (!shareUrl) return prompt;
@@ -159,6 +161,20 @@ function annotationShareUrl(annotation: MapAnnotationPlace, href: string): strin
   const url = new URL(href);
   url.hash = annotation.browserHash;
   return url.toString();
+}
+
+function annotationActivityCommands(annotation: MapAnnotationPlace, { origin, note }: { origin: string; note: string }): string[] {
+  if (!origin) return [];
+  return (annotation.resolvedTargets ?? [])
+    .map(targetPath)
+    .filter((path): path is string => Boolean(path))
+    .map((path) => `Track: npx --yes codecharter@latest --json activity ${doubleQuote(path)} --state reading --note ${doubleQuote(note)} --server ${doubleQuote(origin)}`);
+}
+
+function targetPath(target: unknown): string | null {
+  if (!target || typeof target !== "object" || Array.isArray(target)) return null;
+  const path = (target as { path?: unknown }).path;
+  return typeof path === "string" && path ? path : null;
 }
 
 function doubleQuote(value: string): string {

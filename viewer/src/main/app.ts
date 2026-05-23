@@ -109,6 +109,7 @@ import {
   createSelectionHashRoute,
   parseHashRoute,
 } from "./deep-links.ts";
+import { copyTextToClipboard } from "./clipboard.ts";
 
 type BrowserControl = HTMLElement & {
   checked?: boolean;
@@ -2870,12 +2871,7 @@ function setAnnotationFeedback(message: string, tone = "neutral") {
 }
 
 async function copyToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return copyToClipboardFallback(text);
-  }
+  return copyTextToClipboard(text);
 }
 
 async function copyDeferredToClipboard(textPromise: Promise<string>) {
@@ -2895,23 +2891,6 @@ async function copyDeferredToClipboard(textPromise: Promise<string>) {
     return await copyToClipboard(await textPromise);
   } catch {
     return false;
-  }
-}
-
-function copyToClipboardFallback(text: string) {
-  const element = document.createElement("textarea");
-  element.value = text;
-  element.setAttribute("readonly", "");
-  element.style.position = "fixed";
-  element.style.left = "-9999px";
-  document.body.append(element);
-  element.select();
-  try {
-    return document.execCommand("copy");
-  } catch {
-    return false;
-  } finally {
-    element.remove();
   }
 }
 

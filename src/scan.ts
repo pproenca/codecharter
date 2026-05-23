@@ -19,7 +19,7 @@ export type ScanOptions = {
 };
 
 export async function listIncludedFiles(root: string, { excludePaths = [] }: ScanOptions = {}): Promise<string[]> {
-  const excluded = excludePaths.map((path) => normalizeExcludedPath(root, path));
+  const excluded = excludePaths.map((path) => normalizeRepoPath(root, path).replace(/\/+$/, ""));
   const { stdout } = await execFileText("git", ["ls-files", "--cached", "--others", "--exclude-standard"], {
     cwd: root,
     maxBuffer: 10 * 1024 * 1024,
@@ -28,57 +28,37 @@ export async function listIncludedFiles(root: string, { excludePaths = [] }: Sca
   const paths: string[] = [];
   for (const line of stdout.split("\n")) {
     const path = line.trim();
-    if (shouldIncludePath(path, excluded)) paths.push(path);
+    if (path
+      && !excluded.some((excludedPath) => path === excludedPath || path.startsWith(`${excludedPath}/`))
+      && !DEFAULT_EXCLUDED_FILES.has(path)
+      && isCodeFile(path)) {
+      paths.push(path);
+    }
   }
   return sortIfNeeded(paths, compareStrings);
 }
 
-function shouldIncludePath(path: string, excluded: string[]): boolean {
-  return Boolean(path)
-    && !isExcludedPath(path, excluded)
-    && !DEFAULT_EXCLUDED_FILES.has(path)
-    && isCodeFile(path);
-}
-
-function isExcludedPath(path: string, excluded: string[]): boolean {
-  return excluded.some((excludedPath) => path === excludedPath || path.startsWith(`${excludedPath}/`));
-}
-
 export async function scanCodeFiles(root: string, options: ScanOptions = {}): Promise<ScannedFile[]> {
   const paths = await listIncludedFiles(root, options);
-  return scanPaths(root, paths, options.scanConcurrency ?? DEFAULT_SCAN_CONCURRENCY);
+  return mapConcurrent(paths, options.scanConcurrency || DEFAULT_SCAN_CONCURRENCY, (path) => scanPath(root, path));
 }
 
-export function normalizeRepoPath(root: string, path: string): string {
-  const normalized = path.replaceAll("\\", "/");
-  if (isAbsolute(path)) return relative(root, path).replaceAll("\\", "/");
-  return normalized.startsWith("./") ? normalized.slice(2) : normalized;
-}
-
-function normalizeExcludedPath(root: string, path: string): string {
-  return normalizeRepoPath(root, path).replace(/\/+$/, "");
-}
-
-function contentMetrics(content: string): Pick<ScannedFile, "lineCount" | "maxLineLength" | "tokenCount"> {
+async function scanPath(root: string, path: string): Promise<ScannedFile> {
+  const content = await readFile(join(root, path), "utf8");
   const { lineCount, maxLineLength } = lineMetrics(content);
   return {
+    path,
+    extension: extname(path).toLowerCase(),
     lineCount,
     maxLineLength,
     tokenCount: Math.max(1, countMatches(content, TOKEN_PATTERN)),
   };
 }
 
-async function scanPaths(root: string, paths: string[], concurrency: number): Promise<ScannedFile[]> {
-  return mapConcurrent(paths, concurrency || DEFAULT_SCAN_CONCURRENCY, (path) => scanPath(root, path));
-}
-
-async function scanPath(root: string, path: string): Promise<ScannedFile> {
-  const content = await readFile(join(root, path), "utf8");
-  return {
-    path,
-    extension: extname(path).toLowerCase(),
-    ...contentMetrics(content),
-  };
+export function normalizeRepoPath(root: string, path: string): string {
+  const normalized = path.replaceAll("\\", "/");
+  if (isAbsolute(path)) return relative(root, path).replaceAll("\\", "/");
+  return normalized.startsWith("./") ? normalized.slice(2) : normalized;
 }
 
 function lineMetrics(content: string): Pick<ScannedFile, "lineCount" | "maxLineLength"> {

@@ -9,7 +9,7 @@ import type { Bounds } from "./geometry.js";
 import type { CodePlaneDescriptor, GeohashedCoordinate } from "./geohash.js";
 import type { MapLevel } from "./levels.js";
 import type { PreviousCodemapLayout } from "./stability.js";
-import type { FileNode, FolderNode, FlattenedTree, LayoutBounds } from "./tree.js";
+import type { FileNode, FolderNode, LayoutBounds } from "./tree.js";
 
 const DEFAULT_EXCLUDE_PATHS = [
   ".codecharter/codecharter.json",
@@ -109,8 +109,8 @@ export async function generateCodemap({
     },
     mapLevels: MAP_LEVELS,
     codePlane: codePlaneDescriptor(),
-    folders: serializeFolders(folders),
-    files: serializeFiles(files),
+    folders: serializeRecord(folders, serializeFolder),
+    files: serializeRecord(files, serializeFile),
   };
 }
 
@@ -191,10 +191,6 @@ function serializeFolder(folder: FolderNode): SerializedFolder {
   };
 }
 
-function serializeFolders(folders: FlattenedTree["folders"]): Record<string, SerializedFolder> {
-  return serializeRecord(folders, serializeFolder);
-}
-
 function serializeFile(file: FileNode): SerializedFile {
   return {
     path: file.path,
@@ -207,10 +203,6 @@ function serializeFile(file: FileNode): SerializedFile {
     maxLineLength: file.maxLineLength,
     weight: file.weight,
   };
-}
-
-function serializeFiles(files: FlattenedTree["files"]): Record<string, SerializedFile> {
-  return serializeRecord(files, serializeFile);
 }
 
 function serializeRecord<T, U>(record: Record<string, T>, serialize: (value: T) => U): Record<string, U> {

@@ -4,7 +4,6 @@ import { fileURLToPath } from "node:url";
 import { execFileText } from "./exec-file.ts";
 import { readJson, writeJson } from "./store.ts";
 import { PACKAGE_DEPENDENCY_SECTIONS, isErrnoException, objectRecord, packageJsonFromValue, stringArrayFromValue } from "./util.ts";
-import type { PackageDependencySection } from "./util.js";
 
 const CODECHARTER_DIR = ".codecharter";
 const CODEX_DIR = ".codex";
@@ -207,12 +206,7 @@ export async function ensurePackageDevDependency(root: string): Promise<{ skippe
 
   const version = await currentPackageVersion();
   const desiredSpec = `^${version}`;
-  let existingSection: PackageDependencySection | undefined;
-  for (const section of PACKAGE_DEPENDENCY_SECTIONS) {
-    if (!packageJson[section]?.codecharter) continue;
-    existingSection = section;
-    break;
-  }
+  const existingSection = PACKAGE_DEPENDENCY_SECTIONS.find((section) => packageJson[section]?.codecharter);
 
   if (existingSection) {
     const dependencies = packageJson[existingSection] ?? {};
@@ -274,7 +268,6 @@ export async function ensureCodecharterSkill(root: string): Promise<{ skillPath:
   const agentsDir = join(skillDir, "agents");
   const openaiYamlPath = join(agentsDir, "openai.yaml");
   const version = await currentPackageVersion();
-  await mkdir(skillDir, { recursive: true });
   await mkdir(agentsDir, { recursive: true });
   await writeFile(skillPath, codecharterSkillMarkdown(version));
   await writeFile(openaiYamlPath, codecharterSkillOpenaiYaml());

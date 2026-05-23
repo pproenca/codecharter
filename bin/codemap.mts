@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import type { AddressInfo } from "node:net";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { access, readFile, stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createActivityEvent } from "../src/activity.ts";
@@ -1044,12 +1044,6 @@ async function pathStatus(path: string, expectedType: PathKind): Promise<PathSta
 
 async function jsonFileStatus(path: string): Promise<JsonFileStatus> {
   try {
-    await access(path);
-  } catch (error) {
-    if (isErrnoException(error) && error.code === "ENOENT") return { path, exists: false, ok: false };
-    throw error;
-  }
-  try {
     const value = JSON.parse(await readFile(path, "utf8"));
     return {
       path,
@@ -1059,6 +1053,7 @@ async function jsonFileStatus(path: string): Promise<JsonFileStatus> {
       ...optionalProperty("keys", value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value).sort() : undefined),
     };
   } catch (error) {
+    if (isErrnoException(error) && error.code === "ENOENT") return { path, exists: false, ok: false };
     return {
       path,
       exists: true,

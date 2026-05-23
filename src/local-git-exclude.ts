@@ -40,21 +40,14 @@ async function ensureIgnoreFile(path: string, patterns: readonly string[]): Prom
     if (!isErrnoException(error) || error.code !== "ENOENT") throw error;
   }
 
-  const existing = ignorePatterns(current);
-  const missing: string[] = [];
-  for (const pattern of patterns) {
-    if (!existing.has(pattern)) missing.push(pattern);
-  }
+  const existing = new Set(current.split(/\r?\n/).map((line) => line.trim()).filter(Boolean));
+  const missing = patterns.filter((pattern) => !existing.has(pattern));
   if (missing.length === 0) return { skipped: false, patternsAdded: [] };
 
   await mkdir(dirname(path), { recursive: true });
   const separator = current.length === 0 || current.endsWith("\n") ? "" : "\n";
   await writeFile(path, `${current}${separator}${missing.join("\n")}\n`);
   return { skipped: false, patternsAdded: missing };
-}
-
-function ignorePatterns(content: string): Set<string> {
-  return new Set(content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean));
 }
 
 async function localGitExcludePath(root: string): Promise<string | null> {

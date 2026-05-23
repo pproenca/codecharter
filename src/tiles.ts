@@ -110,8 +110,9 @@ function appendMatchingTargets(
   level: MapLevel,
   prefix: string,
 ): void {
-  for (const target of sortedTargets(targets)) {
-    if (tilePrefixForTarget(target, level) !== prefix) continue;
+  const matches = [...objectValues(targets)].filter((target) => tilePrefixForTarget(target, level) === prefix);
+  sortIfNeeded(matches, compareTargetPaths);
+  for (const target of matches) {
     serialized.push(serializeTarget(target, targetType));
   }
 }

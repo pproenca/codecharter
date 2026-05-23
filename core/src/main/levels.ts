@@ -2,9 +2,8 @@
  * Semantic map levels → geohash precision (**BR-003**).
  *
  * The precision each zoom level resolves to. `lineRange` and `tokenRange` are
- * both 12 — column granularity is therefore NOT encoded in the address string
- * (a documented quirk pending SME confirmation; see BUSINESS_RULES BR-003 / the
- * brief's Open Question Q5). Preserved as-is.
+ * both 12 — column granularity is therefore NOT encoded in the address string.
+ * Preserved as-is.
  */
 
 export const MAP_LEVELS = Object.freeze({

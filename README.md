@@ -30,22 +30,4 @@ The CLI is `core/bin/codemap.mts` (commands: `generate`, `resolve`, `serve`,
 
 ## Tests
 
-This repo ships `core`'s self-contained golden test (`core/src/test/geohash.test.ts`).
-The **full equivalence proof** — ~253 differential tests that pin every module
-byte-for-byte against the original legacy implementation, plus the Playwright
-DOM + canvas **pixel-diff** parity suite for the viewer — lives in the
-**modernization workspace** (`../codercharter-modern`), which retains the legacy
-sources for comparison. See `core/TRANSFORMATION_NOTES.md` and
-`viewer/TRANSFORMATION_NOTES.md`.
-
-## How it was built
-
-This codebase was produced by a legacy-modernization workflow. The discovery,
-business-rules, target-architecture, and security-hardening artifacts
-(`ASSESSMENT.md`, `TOPOLOGY.html`, `BUSINESS_RULES.md`, `DATA_OBJECTS.md`,
-`MODERNIZATION_BRIEF.md`, `SECURITY_FINDINGS.md` + `security_remediation.patch`)
-live in the modernization workspace `../codercharter-modern/analysis/`, together
-with the full equivalence/pixel-diff test harness. They are not tracked in this
-repository.
-
-The pre-modernization code is preserved on the `pre-modernization` git tag.
+Run `npm test` for the core and viewer suites.

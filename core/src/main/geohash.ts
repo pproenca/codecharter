@@ -14,7 +14,7 @@
  * step here is intentionally preserved from the legacy `src/geohash.ts`:
  * the `>=` midpoint tie (ties resolve to the upper half), the `1e-12` east-edge
  * epsilon, and the half-open `[-180, 180)` longitude wrap are all behavioral
- * contract, not incidental detail. See `TRANSFORMATION_NOTES.md`.
+ * contract, not incidental detail.
  */
 
 import { clamp } from "./math.ts";

@@ -12,7 +12,6 @@ you are changing.
 | Core engine, CLI, server, and data model | `core/` | `core/CONTEXT.md` | `docs/adr/` |
 | Browser viewer and render model | `viewer/` | `viewer/CONTEXT.md` | `docs/adr/` |
 | Local issue and scratch workspace | `.scratch/`, `docs/agents/` | `CONTEXT.md` | `docs/adr/` |
-| Modernization analysis artifacts | `analysis/`, `core/TRANSFORMATION_NOTES.md`, `viewer/TRANSFORMATION_NOTES.md` | `CONTEXT.md` plus relevant package context | `docs/adr/` |
 
 ## Reading Rules
 

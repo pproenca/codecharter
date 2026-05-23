@@ -192,9 +192,7 @@ function serializeFolder(folder: FolderNode): SerializedFolder {
 }
 
 function childPaths(children: MapNode[]): string[] {
-  const paths: string[] = [];
-  for (const child of children) paths.push(child.path);
-  return paths;
+  return children.map((child) => child.path);
 }
 
 function serializeFolders(folders: FlattenedTree["folders"]): Record<string, SerializedFolder> {

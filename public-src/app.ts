@@ -1107,7 +1107,7 @@ function drawDiscoveryFogOverlay(rect: DOMRect) {
   ctx.restore();
 }
 
-function drawDiscoveryVeil(rect: DOMRect, targetCtx: CanvasRenderingContext2D = ctx) {
+function drawDiscoveryVeil(rect: DOMRect, targetCtx: CanvasRenderingContext2D) {
   const style = discoveryFogVeilStyle();
   const gradient = targetCtx.createLinearGradient(0, 0, rect.width, rect.height);
   gradient.addColorStop(0, `rgba(1, 7, 11, ${style.baseAlpha})`);
@@ -1216,7 +1216,7 @@ function strokeFogTrail(targetCtx: CanvasRenderingContext2D, points: Point[], { 
   if (drawMyceliumPathForContext(targetCtx, points)) targetCtx.stroke();
 }
 
-function drawReadableFogReveal(box: Bounds, { alpha, padding }: RevealStyle, targetCtx: CanvasRenderingContext2D = ctx) {
+function drawReadableFogReveal(box: Bounds, { alpha, padding }: RevealStyle, targetCtx: CanvasRenderingContext2D) {
   const x = Math.max(0, box.x - padding);
   const y = Math.max(0, box.y - padding);
   const right = Math.min(canvas.clientWidth, box.x + box.width + padding);
@@ -1230,7 +1230,7 @@ function drawReadableFogReveal(box: Bounds, { alpha, padding }: RevealStyle, tar
   targetCtx.restore();
 }
 
-function drawFogReveal(key: string, box: Bounds, { alpha, padding, core, mid, lobes = 3 }: RevealStyle, targetCtx: CanvasRenderingContext2D = ctx) {
+function drawFogReveal(key: string, box: Bounds, { alpha, padding, core, mid, lobes = 3 }: RevealStyle, targetCtx: CanvasRenderingContext2D) {
   const radiusX = Math.max(18, box.width / 2 + padding);
   const radiusY = Math.max(18, box.height / 2 + padding);
   const centerX = box.x + box.width / 2;
@@ -1872,30 +1872,7 @@ function strokeOrganicTrail(points: Point[], { color, lineWidth }: StrokeStyle) 
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
   ctx.beginPath();
-  if (drawMyceliumPath(points)) ctx.stroke();
-}
-
-function drawMyceliumPath(points: Point[]) {
-  if (points.length < 2) return;
-
-  const minDistance = Math.min(14, Math.max(6, state.view.scale * 2.2));
-  const segments = organicTrailSegments(points, { minDistance });
-  if (segments.length === 0) return false;
-
-  const first = segments[0];
-  if (!first) return false;
-  ctx.moveTo(first.start.x, first.start.y);
-  for (const segment of segments) {
-    ctx.bezierCurveTo(
-      segment.control1.x,
-      segment.control1.y,
-      segment.control2.x,
-      segment.control2.y,
-      segment.end.x,
-      segment.end.y,
-    );
-  }
-  return true;
+  if (drawMyceliumPathForContext(ctx, points)) ctx.stroke();
 }
 
 function drawActivityCell(center: Point, radius: number, key: string | undefined) {
@@ -2243,9 +2220,6 @@ async function onPointerUp(event: PointerEvent) {
     const current = screenPoint(event);
     const moved = Math.hypot(current.x - state.lastPointerDown.screen.x, current.y - state.lastPointerDown.screen.y);
     if (moved < 4) scheduleClickSelection(state.lastPointerDown.world);
-  } else if (state.dragging?.type === "pan" && state.lastPointerDown && event) {
-    const current = screenPoint(event);
-    const moved = Math.hypot(current.x - state.lastPointerDown.screen.x, current.y - state.lastPointerDown.screen.y);
   }
   state.dragging = null;
   updateInteractionModeUi();
@@ -2427,10 +2401,6 @@ function editSelectedAnnotation() {
 
 function lineAtPoint(file: MapFile, worldPoint: Point) {
   return lineAtWorldPoint(file, worldPoint);
-}
-
-function lineRatioAtPoint(file: MapFile, worldPoint: Point) {
-  return lineRatioForLine(file, lineAtPoint(file, worldPoint));
 }
 
 function lineRatioForLine(file: MapFile, line: number) {

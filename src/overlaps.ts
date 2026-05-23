@@ -62,11 +62,7 @@ export function findNamedPlaceOverlaps(places: NamedPlace[]): NamedPlaceOverlap[
   }
 
   if (!overlapsAreSorted(overlaps)) overlaps.sort(compareOverlaps);
-  const results: NamedPlaceOverlap[] = [];
-  for (const { order, ...overlap } of overlaps) {
-    results.push(overlap);
-  }
-  return results;
+  return overlaps.map(({ order, ...overlap }) => overlap);
 }
 
 function isDrawnRectPlace(place: NamedPlace | undefined): place is DrawnRectPlace {

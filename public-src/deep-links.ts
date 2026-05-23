@@ -102,7 +102,7 @@ function searchParams(metadata: RouteMetadata): URLSearchParams {
 }
 
 function formatRouteNumber(value: number): string {
-  return Number(value).toFixed(12).replace(/\.?0+$/, "");
+  return value.toFixed(12).replace(/\.?0+$/, "");
 }
 
 function formatRouteBounds(bounds: Bounds): string {

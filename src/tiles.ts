@@ -1,4 +1,5 @@
 import { precisionForLevel } from "./levels.ts";
+import { objectValues, stringsAreSorted } from "./util.ts";
 import type { Bounds } from "./geometry.js";
 import type { GeohashedCoordinate } from "./geohash.js";
 import type { MapLevel } from "./levels.js";
@@ -74,8 +75,7 @@ export function buildTileIndex(codemap: TileCodemap, level: MapLevel = "file"): 
     addTarget(tiles, tilePrefixForTarget(target, level), target);
   }
 
-  const tileEntries: [string, TileSerializedTarget[]][] = [];
-  for (const entry of tiles.entries()) tileEntries.push(entry);
+  const tileEntries = [...tiles.entries()];
   if (!tileEntriesAreSorted(tileEntries)) tileEntries.sort(([a], [b]) => a.localeCompare(b));
   const index: Tile[] = [];
   for (const [prefix, targets] of tileEntries) {
@@ -100,8 +100,7 @@ export function visiblePrefixes(codemap: TileCodemap, level: MapLevel = "file"):
   for (const target of rawMapTargets(codemap)) {
     prefixes.add(tilePrefixForTarget(target, level));
   }
-  const sorted: string[] = [];
-  for (const prefix of prefixes) sorted.push(prefix);
+  const sorted = [...prefixes];
   return stringsAreSorted(sorted) ? sorted : sorted.sort((a, b) => a.localeCompare(b));
 }
 
@@ -150,14 +149,6 @@ function appendMatchingTargets(
   }
 }
 
-function* objectValues<T>(values: Record<string, T>): Generator<T> {
-  for (const key in values) {
-    if (!Object.hasOwn(values, key)) continue;
-    const value = values[key];
-    if (value !== undefined) yield value;
-  }
-}
-
 function tileEntriesAreSorted(entries: [string, TileSerializedTarget[]][]): boolean {
   for (let index = 1; index < entries.length; index += 1) {
     const previous = entries[index - 1];
@@ -172,15 +163,6 @@ function targetsAreSorted(targets: TileMapTarget[]): boolean {
     const previous = targets[index - 1];
     const current = targets[index];
     if (previous && current && previous.path.localeCompare(current.path) > 0) return false;
-  }
-  return true;
-}
-
-function stringsAreSorted(values: string[]): boolean {
-  for (let index = 1; index < values.length; index += 1) {
-    const previous = values[index - 1];
-    const current = values[index];
-    if (previous !== undefined && current !== undefined && previous.localeCompare(current) > 0) return false;
   }
   return true;
 }

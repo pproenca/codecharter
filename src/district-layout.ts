@@ -1,5 +1,6 @@
 import { geohashForBoundsCenter } from "./geohash.ts";
 import { FULL_GEOHASH_PRECISION } from "./levels.ts";
+import { round } from "./util.ts";
 import type { Bounds } from "./geometry.js";
 import type { GeohashedCoordinate } from "./geohash.js";
 
@@ -126,9 +127,7 @@ export class DistrictLayoutEngine {
       });
     }
     if (!layoutEntriesAreSorted(ordered)) ordered.sort(compareLayoutEntries);
-    const childrenForLayout: LayoutTarget[] = [];
-    for (const entry of ordered) childrenForLayout.push(entry.child);
-    return childrenForLayout;
+    return ordered.map((entry) => entry.child);
   }
 
   layoutWeight(child: LayoutTarget): number {
@@ -355,8 +354,4 @@ function gutterFor(bounds: Bounds, childCount: number): number {
 
 function hasUsableArea(bounds: Bounds): boolean {
   return bounds.width > MIN_USABLE_SIDE && bounds.height > MIN_USABLE_SIDE;
-}
-
-function round(value: number): number {
-  return Number(value.toFixed(12));
 }

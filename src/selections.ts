@@ -5,6 +5,7 @@ import { clampBounds, intersects, normalizeRect } from "./geometry.ts";
 import { precisionForLevel } from "./levels.ts";
 import { codeRangeRequestForSelection } from "./line-coordinate.ts";
 import { resolveAddress } from "./resolver.ts";
+import { objectRecord, objectValues, stringsAreSorted } from "./util.ts";
 import type { Bounds, Point } from "./geometry.js";
 import type { MapLevel } from "./levels.js";
 import type {
@@ -284,18 +285,8 @@ function intersectingTargets<T extends MapFolderTarget | MapFileTarget>(
 function sortedUniqueGeohashes(targets: ResolvedSelectionTarget[]): string[] {
   const geohashes = new Set<string>();
   for (const target of targets) geohashes.add(target.geohash);
-  const sorted: string[] = [];
-  for (const geohash of geohashes) sorted.push(geohash);
+  const sorted = [...geohashes];
   return stringsAreSorted(sorted) ? sorted : sorted.sort((a, b) => a.localeCompare(b));
-}
-
-function stringsAreSorted(values: string[]): boolean {
-  for (let index = 1; index < values.length; index += 1) {
-    const previous = values[index - 1];
-    const current = values[index];
-    if (previous !== undefined && current !== undefined && previous.localeCompare(current) > 0) return false;
-  }
-  return true;
 }
 
 function targetsAreSorted(targets: ResolvedSelectionTarget[]): boolean {
@@ -339,18 +330,6 @@ function cornerGeohashes(points: Record<CornerName, Point>, precision: number): 
   return corners;
 }
 
-function objectRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
-}
-
-function* objectValues<T>(values: Record<string, T>): Generator<T> {
-  for (const key in values) {
-    if (!Object.hasOwn(values, key)) continue;
-    const value = values[key];
-    if (value !== undefined) yield value;
-  }
-}
-
 function withAnnotationPrompt(annotation: Omit<MapAnnotation, "deepLink" | "browserHash" | "codexPrompt">): MapAnnotation {
   const linked = {
     ...annotation,
@@ -373,14 +352,6 @@ function codexPromptForAnnotation(annotation: Omit<MapAnnotation, "codexPrompt">
 
 function doubleQuote(value: unknown): string {
   return `"${String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
-}
-
-function formatBounds(bounds: Bounds): string {
-  return `x=${formatNumber(bounds.x)}, y=${formatNumber(bounds.y)}, width=${formatNumber(bounds.width)}, height=${formatNumber(bounds.height)}`;
-}
-
-function formatNumber(value: number): string {
-  return Number.parseFloat(value.toFixed(6)).toString();
 }
 
 function annotationName(input: SelectionInput): string {

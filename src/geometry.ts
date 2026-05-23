@@ -1,3 +1,5 @@
+import { clamp, round } from "./util.ts";
+
 export type Bounds = {
   x: number;
   y: number;
@@ -15,13 +17,6 @@ export function intersects(a: Bounds, b: Bounds): boolean {
     && a.x + a.width > b.x
     && a.y < b.y + b.height
     && a.y + a.height > b.y;
-}
-
-export function containsPoint(bounds: Bounds, point: Point): boolean {
-  return point.x >= bounds.x
-    && point.x <= bounds.x + bounds.width
-    && point.y >= bounds.y
-    && point.y <= bounds.y + bounds.height;
 }
 
 export function normalizeRect(rect: Bounds): Bounds {
@@ -47,12 +42,4 @@ export function roundBounds(bounds: Bounds): Bounds {
     width: round(bounds.width),
     height: round(bounds.height),
   };
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-function round(value: number): number {
-  return Number(value.toFixed(12));
 }

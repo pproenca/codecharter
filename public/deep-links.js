@@ -77,7 +77,7 @@ function searchParams(metadata) {
     return params;
 }
 function formatRouteNumber(value) {
-    return Number(value).toFixed(12).replace(/\.?0+$/, "");
+    return value.toFixed(12).replace(/\.?0+$/, "");
 }
 function formatRouteBounds(bounds) {
     return `${formatRouteNumber(bounds.x)},${formatRouteNumber(bounds.y)},${formatRouteNumber(bounds.width)},${formatRouteNumber(bounds.height)}`;

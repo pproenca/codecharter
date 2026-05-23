@@ -1,8 +1,9 @@
-import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileText } from "./exec-file.ts";
 import { readJson, writeJson } from "./store.ts";
+import { objectRecord } from "./util.ts";
 
 const CODECHARTER_DIR = ".codecharter";
 const CODEX_DIR = ".codex";
@@ -196,10 +197,6 @@ export class CodexHooksMerger {
     return hook?.type === "command" && hook.command === CODECHARTER_HOOK_COMMAND;
   }
 
-  sameHook(left: CodexHook, right: CodexHook): boolean {
-    return left?.type === right?.type && left?.command === right?.command;
-  }
-
   hookKeySet(hooks: CodexHook[] = []): Set<string> {
     const keys = new Set<string>();
     for (const hook of hooks) keys.add(this.hookKey(hook));
@@ -228,12 +225,7 @@ export class CodexHooksMerger {
 }
 
 function copyArray<T>(value: readonly T[] | undefined): T[] {
-  if (!Array.isArray(value)) return [];
-  const copy = new Array(value.length);
-  for (let index = 0; index < value.length; index += 1) {
-    copy[index] = value[index];
-  }
-  return copy;
+  return Array.isArray(value) ? [...value] : [];
 }
 
 export async function initializeCodecharter({
@@ -537,16 +529,6 @@ async function currentPackageVersion(): Promise<string> {
   return packageJson.version ?? "0.1.0";
 }
 
-export async function pathExists(path: string): Promise<boolean> {
-  try {
-    await stat(path);
-    return true;
-  } catch (error) {
-    if (isErrnoException(error) && error.code === "ENOENT") return false;
-    throw error;
-  }
-}
-
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error;
 }
@@ -654,8 +636,4 @@ function stringArrayFromValue(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;
   const strings = value.filter((entry) => typeof entry === "string");
   return strings.length === value.length ? strings : null;
-}
-
-function objectRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
 }

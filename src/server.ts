@@ -343,12 +343,7 @@ async function getAnnotationApi(
   const codemap = await loadCodemap(state);
   const id = decodeURIComponent(requiredRestParam(match));
   const store = refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }));
-  let annotation;
-  for (const place of store.places) {
-    if (place.kind !== "mapAnnotation" || place.id !== id) continue;
-    annotation = place;
-    break;
-  }
+  const annotation = store.places.find((place) => place.kind === "mapAnnotation" && place.id === id);
   if (!annotation) throw httpError(404, `No annotation found for id: ${id}`);
   sendJson(response, 200, { annotation });
 }
@@ -458,7 +453,7 @@ async function loadCodemap(state: ServerState): Promise<CodecharterCodemap> {
 async function loadMapVersion(state: ServerState): Promise<{ version: string }> {
   const stats = await stat(state.mapPath, { bigint: true });
   return {
-    version: `${stats.mtimeNs.toString()}:${stats.size.toString()}`,
+    version: `${stats.mtimeNs}:${stats.size}`,
   };
 }
 
@@ -511,8 +506,7 @@ function mergeActivityEvents(...groups: StoredActivityEvent[][]): StoredActivity
       byId.set(event.id ?? `${event.timestamp}:${event.agentId}:${event.note}`, event);
     }
   }
-  const events: StoredActivityEvent[] = [];
-  for (const event of byId.values()) events.push(event);
+  const events = [...byId.values()];
   return activityEventsAreSorted(events) ? events : events.sort(compareActivityEvents);
 }
 
@@ -574,11 +568,7 @@ function mapAnnotations(places: NamedPlace[]): MapAnnotation[] {
 }
 
 function refreshPlaces(codemap: CodecharterCodemap, places: NamedPlace[]): NamedPlace[] {
-  const refreshed: NamedPlace[] = [];
-  for (const place of places) {
-    refreshed.push(refreshPlaceResolution(codemap, place));
-  }
-  return refreshed;
+  return places.map((place) => refreshPlaceResolution(codemap, place));
 }
 
 function requiredParam(url: URL, name: string): string {
@@ -702,7 +692,6 @@ function addressRequestFromBody(body: JsonObject): AddressRequest {
 function storedActivityEventFromRecord(record: JsonObject): StoredActivityEvent {
   const event: StoredActivityEvent = {};
   for (const [key, value] of Object.entries(record)) event[key] = value;
-  if (typeof record.id === "string") event.id = record.id;
   return event;
 }
 

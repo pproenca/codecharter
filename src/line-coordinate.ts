@@ -1,3 +1,4 @@
+import { round } from "./util.ts";
 import type { Bounds } from "./geometry.js";
 
 const EDGE_EPSILON = 1e-12;
@@ -238,23 +239,7 @@ function unionBounds(boundsList: Bounds[]): Bounds {
 }
 
 function unionFragmentBounds(fragments: CodeRangeFragmentGeometry[]): Bounds {
-  let x1 = Number.POSITIVE_INFINITY;
-  let y1 = Number.POSITIVE_INFINITY;
-  let x2 = Number.NEGATIVE_INFINITY;
-  let y2 = Number.NEGATIVE_INFINITY;
-  for (const fragment of fragments) {
-    const bounds = fragment.bounds;
-    x1 = Math.min(x1, bounds.x);
-    y1 = Math.min(y1, bounds.y);
-    x2 = Math.max(x2, bounds.x + bounds.width);
-    y2 = Math.max(y2, bounds.y + bounds.height);
-  }
-  return {
-    x: round(x1),
-    y: round(y1),
-    width: round(x2 - x1),
-    height: round(y2 - y1),
-  };
+  return unionBounds(fragments.map((fragment) => fragment.bounds));
 }
 
 function normalizeRange(left: number, right: number): NormalizedRange {
@@ -287,8 +272,4 @@ function endIndexForRatio(ratio: number, size: number): number {
 function clampRatio(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.min(1, Math.max(0, value));
-}
-
-function round(value: number): number {
-  return Number(value.toFixed(12));
 }

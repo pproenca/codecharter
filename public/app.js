@@ -842,7 +842,7 @@ function drawDiscoveryFogOverlay(rect) {
     ctx.drawImage(fogLayerCanvas, 0, 0, rect.width, rect.height);
     ctx.restore();
 }
-function drawDiscoveryVeil(rect, targetCtx = ctx) {
+function drawDiscoveryVeil(rect, targetCtx) {
     const style = discoveryFogVeilStyle();
     const gradient = targetCtx.createLinearGradient(0, 0, rect.width, rect.height);
     gradient.addColorStop(0, `rgba(1, 7, 11, ${style.baseAlpha})`);
@@ -936,7 +936,7 @@ function strokeFogTrail(targetCtx, points, { alpha, lineWidth }) {
     if (drawMyceliumPathForContext(targetCtx, points))
         targetCtx.stroke();
 }
-function drawReadableFogReveal(box, { alpha, padding }, targetCtx = ctx) {
+function drawReadableFogReveal(box, { alpha, padding }, targetCtx) {
     const x = Math.max(0, box.x - padding);
     const y = Math.max(0, box.y - padding);
     const right = Math.min(canvas.clientWidth, box.x + box.width + padding);
@@ -949,7 +949,7 @@ function drawReadableFogReveal(box, { alpha, padding }, targetCtx = ctx) {
     targetCtx.fillRect(x, y, right - x, bottom - y);
     targetCtx.restore();
 }
-function drawFogReveal(key, box, { alpha, padding, core, mid, lobes = 3 }, targetCtx = ctx) {
+function drawFogReveal(key, box, { alpha, padding, core, mid, lobes = 3 }, targetCtx) {
     const radiusX = Math.max(18, box.width / 2 + padding);
     const radiusY = Math.max(18, box.height / 2 + padding);
     const centerX = box.x + box.width / 2;
@@ -1559,24 +1559,8 @@ function strokeOrganicTrail(points, { color, lineWidth }) {
     ctx.strokeStyle = color;
     ctx.lineWidth = lineWidth;
     ctx.beginPath();
-    if (drawMyceliumPath(points))
+    if (drawMyceliumPathForContext(ctx, points))
         ctx.stroke();
-}
-function drawMyceliumPath(points) {
-    if (points.length < 2)
-        return;
-    const minDistance = Math.min(14, Math.max(6, state.view.scale * 2.2));
-    const segments = organicTrailSegments(points, { minDistance });
-    if (segments.length === 0)
-        return false;
-    const first = segments[0];
-    if (!first)
-        return false;
-    ctx.moveTo(first.start.x, first.start.y);
-    for (const segment of segments) {
-        ctx.bezierCurveTo(segment.control1.x, segment.control1.y, segment.control2.x, segment.control2.y, segment.end.x, segment.end.y);
-    }
-    return true;
 }
 function drawActivityCell(center, radius, key) {
     const points = 10;
@@ -1906,10 +1890,6 @@ async function onPointerUp(event) {
         if (moved < 4)
             scheduleClickSelection(state.lastPointerDown.world);
     }
-    else if (state.dragging?.type === "pan" && state.lastPointerDown && event) {
-        const current = screenPoint(event);
-        const moved = Math.hypot(current.x - state.lastPointerDown.screen.x, current.y - state.lastPointerDown.screen.y);
-    }
     state.dragging = null;
     updateInteractionModeUi();
 }
@@ -2078,9 +2058,6 @@ function editSelectedAnnotation() {
 }
 function lineAtPoint(file, worldPoint) {
     return lineAtWorldPoint(file, worldPoint);
-}
-function lineRatioAtPoint(file, worldPoint) {
-    return lineRatioForLine(file, lineAtPoint(file, worldPoint));
 }
 function lineRatioForLine(file, line) {
     return (line - 0.5) / Math.max(1, file.lineCount ?? 0);

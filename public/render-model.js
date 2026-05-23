@@ -1155,7 +1155,7 @@ export function activityTrailGroups(events, { maxGapMinutes = ACTIVITY_TRAIL_MAX
     for (const event of sortedActivityEvents(events, Number.POSITIVE_INFINITY, { now, maxAgeMinutes })) {
         if (!activityPrimaryBounds(event))
             continue;
-        const key = activityTrailKey(event);
+        const key = activityActorKey(event);
         if (!byTrail.has(key))
             byTrail.set(key, []);
         byTrail.get(key)?.push(event);
@@ -1437,9 +1437,6 @@ function activityAgeMinutes(event, now) {
     if (!Number.isFinite(timestamp))
         return 0;
     return Math.max(0, (now - timestamp) / 60000);
-}
-function activityTrailKey(event) {
-    return activityActorKey(event);
 }
 function shouldStartActivityTrailGroup(previous, event, maxGapMinutes) {
     if (!previous)

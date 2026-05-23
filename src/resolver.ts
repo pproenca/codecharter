@@ -2,6 +2,7 @@ import { geohashForBoundsCenter } from "./geohash.ts";
 import { precisionForLevel } from "./levels.ts";
 import { createCodemapDeepLink } from "./deep-links.ts";
 import { codeRangeGeometry } from "./line-coordinate.ts";
+import { stringsAreSorted } from "./util.ts";
 import type { Bounds } from "./geometry.js";
 import type { GeohashedCoordinate } from "./geohash.js";
 import type { MapLevel } from "./levels.js";
@@ -168,10 +169,6 @@ function hasCodeRangeRequest(request: CodeRangeRequest): boolean {
     || request.columnEnd !== undefined;
 }
 
-function geohashedFragments(fragments: CodeRangeFragmentGeometry[]): ResolvedAddressFragment[] {
-  return geohashedFragmentsWithCoverage(fragments).fragments;
-}
-
 function geohashedFragmentsWithCoverage(fragments: CodeRangeFragmentGeometry[]): FragmentCoverage {
   const coverage = new Set<string>();
   const mapped: ResolvedAddressFragment[] = [];
@@ -194,20 +191,10 @@ function geohashedFragmentsWithCoverage(fragments: CodeRangeFragmentGeometry[]):
   };
 }
 
-function sortedUnique(values: Set<string> | Iterable<string>): string[] {
+function sortedUnique(values: Iterable<string>): string[] {
   const source = values instanceof Set ? values : new Set(values);
-  const unique: string[] = [];
-  for (const value of source) unique.push(value);
+  const unique: string[] = [...source];
   return stringsAreSorted(unique) ? unique : unique.sort((a, b) => a.localeCompare(b));
-}
-
-function stringsAreSorted(values: string[]): boolean {
-  for (let index = 1; index < values.length; index += 1) {
-    const previous = values[index - 1];
-    const current = values[index];
-    if (previous !== undefined && current !== undefined && previous.localeCompare(current) > 0) return false;
-  }
-  return true;
 }
 
 function breadcrumbForPath(path: string): string {

@@ -131,22 +131,7 @@ export class ActivityStore {
   }
 
   restorePendingBatch(batch: StoredActivityEvent[]): void {
-    if (this.pending.length === 0) {
-      this.pending = batch;
-      return;
-    }
-
-    const pending = new Array(batch.length + this.pending.length);
-    let index = 0;
-    for (const event of batch) {
-      pending[index] = event;
-      index += 1;
-    }
-    for (const event of this.pending) {
-      pending[index] = event;
-      index += 1;
-    }
-    this.pending = pending;
+    this.pending = [...batch, ...this.pending];
   }
 }
 
@@ -155,21 +140,13 @@ function trimOldest(events: StoredActivityEvent[], maxEvents: number): void {
 }
 
 function copyArray(values: StoredActivityEvent[]): StoredActivityEvent[] {
-  const copy = new Array<StoredActivityEvent>(values.length);
-  for (let index = 0; index < values.length; index += 1) {
-    const value = values[index];
-    if (value !== undefined) copy[index] = value;
-  }
-  return copy;
+  return values.slice();
 }
 
 export async function appendActivityEvents(archivePath: string, events: StoredActivityEvent[]): Promise<void> {
   if (!events.length) return;
   await mkdir(dirname(archivePath), { recursive: true });
-  const lines = new Array(events.length);
-  for (let index = 0; index < events.length; index += 1) {
-    lines[index] = JSON.stringify(events[index]);
-  }
+  const lines = events.map((event) => JSON.stringify(event));
   await appendFile(archivePath, `${lines.join("\n")}\n`);
 }
 

@@ -80,7 +80,6 @@ function stabilizeFolder(folder: StableFolderNode, previous: PreviousCodemapLayo
     }
     for (const child of newFiles) assignAddress(child);
     for (const child of newFolders) layoutNewFolder(child, child.bounds);
-    return;
   }
 }
 

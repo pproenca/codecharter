@@ -1,3 +1,4 @@
+import { clamp } from "./util.ts";
 import type { Bounds, Point } from "./geometry.js";
 
 const BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz";
@@ -163,10 +164,6 @@ function bisectRange(range: Range, upperHalf: boolean): void {
   const mid = midpoint(range);
   if (upperHalf) range[0] = mid;
   else range[1] = mid;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }
 
 function wrapLongitude(lon: number): number {

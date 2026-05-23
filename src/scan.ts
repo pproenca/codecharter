@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, join, relative } from "node:path";
 import { execFileText } from "./exec-file.ts";
 import { isCodeFile } from "./extensions.ts";
+import { stringsAreSorted } from "./util.ts";
 import type { ScannedFile } from "./tree.js";
 const DEFAULT_EXCLUDED_FILES = new Set([
   "bun.lock",
@@ -18,8 +19,7 @@ export type ScanOptions = {
 };
 
 export async function listIncludedFiles(root: string, { excludePaths = [] }: ScanOptions = {}): Promise<string[]> {
-  const excluded: string[] = [];
-  for (const path of excludePaths) excluded.push(normalizeExcludedPath(root, path));
+  const excluded = excludePaths.map((path) => normalizeExcludedPath(root, path));
   const { stdout } = await execFileText("git", ["ls-files", "--cached", "--others", "--exclude-standard"], {
     cwd: root,
     maxBuffer: 10 * 1024 * 1024,
@@ -45,15 +45,6 @@ function shouldIncludePath(path: string, excluded: string[]): boolean {
 
 function isExcludedPath(path: string, excluded: string[]): boolean {
   return excluded.some((excludedPath) => path === excludedPath || path.startsWith(`${excludedPath}/`));
-}
-
-function stringsAreSorted(values: string[]): boolean {
-  for (let index = 1; index < values.length; index += 1) {
-    const previous = values[index - 1];
-    const current = values[index];
-    if (previous !== undefined && current !== undefined && previous.localeCompare(current) > 0) return false;
-  }
-  return true;
 }
 
 export async function scanCodeFiles(root: string, options: ScanOptions = {}): Promise<ScannedFile[]> {
@@ -83,7 +74,7 @@ function contentMetrics(content: string): Pick<ScannedFile, "lineCount" | "maxLi
 async function scanPaths(root: string, paths: string[], concurrency: number): Promise<ScannedFile[]> {
   const results = new Array<ScannedFile>(paths.length);
   let next = 0;
-  const workerCount = Math.max(1, Math.min(paths.length, Number(concurrency) || DEFAULT_SCAN_CONCURRENCY));
+  const workerCount = Math.max(1, Math.min(paths.length, concurrency || DEFAULT_SCAN_CONCURRENCY));
   const workers: Promise<void>[] = [];
   for (let worker = 0; worker < workerCount; worker += 1) {
     workers.push((async () => {

@@ -8,6 +8,7 @@ import { execFileText } from "./exec-file.ts";
 import { generateCodemap } from "./generator.ts";
 import { normalizePathForMap, resolveAddress } from "./resolver.ts";
 import { readJson, writeJson } from "./store.ts";
+import { objectRecord } from "./util.ts";
 import type { ActivityStateInput } from "./activity.js";
 import type { StoredActivityEvent } from "./activity-store.js";
 import type { CodeChange } from "./activity-watcher.js";
@@ -180,9 +181,7 @@ async function codexHookEvents({ root, mapPath, payload }: CodexHookEventsOption
   if (writeChanges.length > 0) {
     codemap = await refreshCodemap(root, mapPath, previousCodemap);
   }
-  const changes: CodexChange[] = [];
-  for (const change of readChanges) changes.push(change);
-  for (const change of writeChanges) changes.push(change);
+  const changes: CodexChange[] = [...readChanges, ...writeChanges];
   const events: StoredActivityEvent[] = [];
   for (const change of changes) {
     try {
@@ -697,10 +696,6 @@ async function resolveRoot(cwd: string): Promise<string> {
 
 function resolveFromRoot(root: string, path: string): string {
   return isAbsolute(path) ? path : resolve(root, path);
-}
-
-function objectRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
 }
 
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {

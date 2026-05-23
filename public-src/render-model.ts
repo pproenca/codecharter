@@ -1358,7 +1358,7 @@ export function activityTrailGroups(events: ActivityEvent[], {
   const byTrail = new Map<string, ActivityEvent[]>();
   for (const event of sortedActivityEvents(events, Number.POSITIVE_INFINITY, { now, maxAgeMinutes })) {
     if (!activityPrimaryBounds(event)) continue;
-    const key = activityTrailKey(event);
+    const key = activityActorKey(event);
     if (!byTrail.has(key)) byTrail.set(key, []);
     byTrail.get(key)?.push(event);
   }
@@ -1646,10 +1646,6 @@ function activityAgeMinutes(event: ActivityEvent, now: number): number {
   const timestamp = Date.parse(event?.timestamp ?? "");
   if (!Number.isFinite(timestamp)) return 0;
   return Math.max(0, (now - timestamp) / 60000);
-}
-
-function activityTrailKey(event: ActivityEvent): string {
-  return activityActorKey(event);
 }
 
 function shouldStartActivityTrailGroup(previous: ActivityEvent | undefined, event: ActivityEvent, maxGapMinutes: number): boolean {

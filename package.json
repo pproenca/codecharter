@@ -26,7 +26,7 @@
     "prepack": "npm run build",
     "prepublishOnly": "npm run build",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
+    "test": "node --test test/*.test.mjs && npm run test --workspaces --if-present",
     "codecharter": "tsx core/bin/codemap.mts",
     "generate": "tsx core/bin/codemap.mts generate",
     "serve": "tsx core/bin/codemap.mts serve"

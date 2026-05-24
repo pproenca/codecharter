@@ -14,6 +14,10 @@ type ActivityJsonResponse = {
   version?: string;
   unchanged?: true;
 };
+type SourceJsonResponse = {
+  error?: string;
+  lines?: { number: number; text: string }[];
+};
 
 test("startServer serves viewer/dist when running from source", async (t) => {
   const server = await startFixtureServer(t);
@@ -22,6 +26,66 @@ test("startServer serves viewer/dist when running from source", async (t) => {
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html/);
   assert.equal(await response.text(), "<!doctype html><title>viewer</title>");
+});
+
+test("startServer canonicalizes absolute public root overrides", async (t) => {
+  const root = await fixtureRoot();
+  let server: Server | null = null;
+  t.after(async () => {
+    if (server) await closeServer(server);
+    await rm(root, { recursive: true, force: true });
+  });
+  server = await startServer({
+    root,
+    mapPath: join(root, ".codecharter", "codecharter.json"),
+    publicRoot: `${join(root, "viewer", "dist")}/`,
+    port: 0,
+    activityFlushIntervalMs: 0,
+  });
+
+  const response = await fetch(`${serverUrl(server)}/`);
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "<!doctype html><title>viewer</title>");
+});
+
+test("startServer accepts relative root and map paths for source reads", async (t) => {
+  const previousCwd = process.cwd();
+  const root = await sourceFixtureRoot();
+  let server: Server | null = null;
+  t.after(async () => {
+    if (server) await closeServer(server);
+    process.chdir(previousCwd);
+    await rm(root, { recursive: true, force: true });
+  });
+
+  process.chdir(root);
+  server = await startServer({
+    root: ".",
+    mapPath: ".codecharter/codecharter.json",
+    port: 0,
+    activityFlushIntervalMs: 0,
+  });
+
+  const response = await fetch(`${serverUrl(server)}/api/source?path=scripts/build.mjs`);
+  const body = await response.json() as SourceJsonResponse;
+  assert.equal(response.status, 200);
+  assert.equal(body.lines?.[0]?.text, "export const value = 1;");
+});
+
+test("invalid numeric query parameters return 400 instead of 500", async (t) => {
+  const server = await startSourceServer(t);
+  for (const path of [
+    "/api/resolve?path=scripts/build.mjs&lineStart=1.5",
+    "/api/source?path=scripts/build.mjs&lineStart=1.5",
+    "/api/source?path=scripts/build.mjs&lineStart=",
+    "/api/source?path=scripts/build.mjs&lineStart=%20",
+    `/api/source?path=scripts/build.mjs&lineStart=${"9".repeat(400)}`,
+  ]) {
+    const response = await fetch(`${serverUrl(server)}${path}`);
+    const body = await response.json() as SourceJsonResponse;
+    assert.equal(response.status, 400);
+    assert.match(body.error ?? "", /Query parameter must be (?:an|a safe) integer/);
+  }
 });
 
 test("viewer activity summary omits full geometry and supports unchanged version responses", async (t) => {
@@ -71,6 +135,22 @@ async function startActivityServer(t: TestContext, events: readonly StoredActivi
   return startFixtureServer(t, { root, activityArchivePath });
 }
 
+async function startSourceServer(t: TestContext): Promise<Server> {
+  const root = await sourceFixtureRoot();
+  let server: Server | null = null;
+  t.after(async () => {
+    if (server) await closeServer(server);
+    await rm(root, { recursive: true, force: true });
+  });
+  server = await startServer({
+    root,
+    mapPath: join(root, ".codecharter", "codecharter.json"),
+    port: 0,
+    activityFlushIntervalMs: 0,
+  });
+  return server;
+}
+
 async function startFixtureServer(
   t: TestContext,
   { root: providedRoot, activityArchivePath }: { root?: string; activityArchivePath?: string } = {},
@@ -115,6 +195,25 @@ async function fixtureRoot(): Promise<string> {
   await mkdir(join(root, ".codecharter"), { recursive: true });
   await writeFile(join(publicRoot, "index.html"), "<!doctype html><title>viewer</title>");
   await writeFile(join(root, ".codecharter", "codecharter.json"), "{}");
+  return root;
+}
+
+async function sourceFixtureRoot(): Promise<string> {
+  const root = await fixtureRoot();
+  await mkdir(join(root, "scripts"), { recursive: true });
+  await writeFile(join(root, "scripts", "build.mjs"), "export const value = 1;\nconsole.log(value);\n");
+  await writeFile(join(root, ".codecharter", "codecharter.json"), JSON.stringify({
+    folders: {},
+    files: {
+      "scripts/build.mjs": {
+        path: "scripts/build.mjs",
+        bounds: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
+        geo: { lat: 0, lon: 0, geohash: "s00000000000" },
+        lineCount: 2,
+        maxLineLength: 22,
+      },
+    },
+  }));
   return root;
 }
 

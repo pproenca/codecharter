@@ -167,13 +167,19 @@ export async function startServer({
   publicRoot,
   portSearchLimit = DEFAULT_PORT_SEARCH_LIMIT,
 }: ServerOptions): Promise<Server> {
-  const resolvedActivityArchivePath = activityArchivePath ?? await configuredActivityArchivePath(root);
-  const resolvedPublicRoot = resolve(publicRoot ?? await defaultPublicRoot(root));
+  const resolvedRoot = resolve(root);
+  const resolvedMapPath = isAbsolute(mapPath) ? mapPath : resolve(resolvedRoot, mapPath);
+  const resolvedActivityArchivePath = activityArchivePath === undefined
+    ? await configuredActivityArchivePath(resolvedRoot)
+    : isAbsolute(activityArchivePath) ? activityArchivePath : resolve(resolvedRoot, activityArchivePath);
+  const resolvedPublicRoot = publicRoot === undefined
+    ? resolve(await defaultPublicRoot(resolvedRoot))
+    : isAbsolute(publicRoot) ? resolve(publicRoot) : resolve(resolvedRoot, publicRoot);
   const state: ServerState = {
-    root,
-    mapPath,
+    root: resolvedRoot,
+    mapPath: resolvedMapPath,
     publicRoot: resolvedPublicRoot,
-    namedPlacesPath: join(root, ".codecharter", "named-places.json"),
+    namedPlacesPath: join(resolvedRoot, ".codecharter", "named-places.json"),
     namedPlacesMutation: Promise.resolve(),
     activityArchivePath: resolvedActivityArchivePath,
     activityStore: createActivityStore({
@@ -878,7 +884,12 @@ function requiredRestParam(match: ApiRouteMatch): string {
 }
 
 function optionalNumber(value: string | null): number | undefined {
-  return value === null ? undefined : Number(value);
+  if (value === null) return undefined;
+  const trimmed = value.trim();
+  if (!/^[+-]?\d+$/.test(trimmed)) throw httpError(400, `Query parameter must be an integer: ${value}`);
+  const number = Number(trimmed);
+  if (!Number.isSafeInteger(number)) throw httpError(400, `Query parameter must be a safe integer: ${value}`);
+  return number;
 }
 
 function httpError(statusCode: number, message: string): HttpError {

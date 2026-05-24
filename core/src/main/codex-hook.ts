@@ -168,7 +168,7 @@ async function codexHookEvents({ root, mapPath, payload }: CodexHookEventsOption
     && writeChanges.length === 0
     && readChanges.length === 0
     && !readActivity.matchedReadCommand
-    && hasUnmatchedShellCommandSegment(payload);
+    && hasShellEditCommandSegment(payload);
   if (writeChanges.length === 0 && readChanges.length === 0 && !readActivity.matchedReadCommand) {
     writeChanges = await changedCodeChanges(root);
   }
@@ -290,6 +290,7 @@ function readCommandActivity(root: string, codemap: CodecharterCodemap, payload:
       const commandName = basename(commandToken);
       const strategy = READ_COMMAND_STRATEGIES.get(commandName);
       if (!strategy) continue;
+      if (isMutatingReadCommand(commandName, tokens)) continue;
       matchedReadCommand = true;
 
       const lineRange = strategy.lineRange({ root, commandName, tokens, codemap });
@@ -325,16 +326,28 @@ function shellCommands(payload: HookPayload): string[] {
   return commands;
 }
 
-function hasUnmatchedShellCommandSegment(payload: HookPayload): boolean {
+function hasShellEditCommandSegment(payload: HookPayload): boolean {
   for (const command of shellCommands(payload)) {
     for (const segment of commandSegments(command)) {
       const tokens = shellWords(segment);
       const commandToken = tokens[0];
       if (!commandToken) continue;
-      if (!READ_COMMAND_STRATEGIES.has(basename(commandToken))) return true;
+      const commandName = basename(commandToken);
+      if (!READ_COMMAND_STRATEGIES.has(commandName) || isMutatingReadCommand(commandName, tokens)) return true;
     }
   }
   return false;
+}
+
+function isMutatingReadCommand(commandName: string, tokens: string[]): boolean {
+  return commandName === "sed" && tokens.some(isSedInPlaceOption);
+}
+
+function isSedInPlaceOption(token: string): boolean {
+  return token === "-i"
+    || token.startsWith("-i")
+    || token === "--in-place"
+    || token.startsWith("--in-place=");
 }
 
 function isShellToolName(toolName: string): boolean {

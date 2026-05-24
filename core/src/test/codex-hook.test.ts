@@ -75,6 +75,38 @@ test("Codex hook records shell edit heartbeat when no dirty paths remain", async
   }
 });
 
+test("Codex hook treats sed in-place shell commands as edit activity", async () => {
+  const root = await fixtureRoot();
+  try {
+    initCleanGitFixture(root);
+
+    await runCodexHook({
+      cwd: root,
+      input: JSON.stringify({
+        hook_event_name: "PostToolUse",
+        tool_name: "Bash",
+        tool_input: {
+          command: "sed -i 's/one/one/' README.md",
+        },
+        session_id: "session-1",
+        turn_id: "turn-1",
+        model: "test-model",
+      }),
+    });
+
+    const events = await readActivityArchive(root);
+    assert.equal(events.length, 1);
+    assert.equal(events[0]?.activityState, "editing");
+    assert.equal(events[0]?.note, "Codex shell edit activity");
+    assert.equal(events[0]?.address, undefined);
+
+    const refreshedMap = JSON.parse(await readFile(join(root, ".codecharter", "codecharter.json"), "utf8")) as { version?: unknown };
+    assert.equal(refreshedMap.version, 1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("Codex adapter records through a source checkout hook without a package bin", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-codex-adapter-"));
   try {

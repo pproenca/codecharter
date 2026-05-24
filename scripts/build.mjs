@@ -1,3 +1,6 @@
+import { cp, mkdir, rm, chmod, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 /**
  * Build the publishable `codecharter` artifact into dist/ — the package that
  * `npx codecharter` runs. Because the engine has zero runtime dependencies, the
@@ -10,9 +13,6 @@
  *     package.json      copied root manifest (CLI reads ../package.json for --version)
  */
 import { build } from "esbuild";
-import { cp, mkdir, rm, chmod, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const dist = join(root, "dist");

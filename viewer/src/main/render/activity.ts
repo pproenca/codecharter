@@ -1,3 +1,14 @@
+import {
+  ACTIVITY_DECAY_HALF_LIFE_MINUTES,
+  ACTIVITY_DORMANT_AFTER_MINUTES,
+  ACTIVITY_LIVE_WINDOW_MINUTES,
+  ACTIVITY_MIN_ALPHA,
+  ACTIVITY_TRAIL_MAX_GAP_MINUTES,
+  ACTIVITY_TRAIL_MAX_SEGMENT_PX,
+  ACTIVITY_TRAIL_MIN_SEGMENT_PX,
+  ACTIVITY_TRAIL_TENSION,
+} from "./constants.ts";
+import { boundsCenter, clamp, pointDistance, sortIfNeeded } from "./primitives.ts";
 /**
  * Agent-activity visual model (BR-018): age-based decay/dormancy/vitality, marker
  * encoding, trail simplification + curve generation, live-window filtering, and
@@ -17,17 +28,6 @@ import type {
   Point,
   TrailSegment,
 } from "./types.ts";
-import {
-  ACTIVITY_DECAY_HALF_LIFE_MINUTES,
-  ACTIVITY_DORMANT_AFTER_MINUTES,
-  ACTIVITY_LIVE_WINDOW_MINUTES,
-  ACTIVITY_MIN_ALPHA,
-  ACTIVITY_TRAIL_MAX_GAP_MINUTES,
-  ACTIVITY_TRAIL_MAX_SEGMENT_PX,
-  ACTIVITY_TRAIL_MIN_SEGMENT_PX,
-  ACTIVITY_TRAIL_TENSION,
-} from "./constants.ts";
-import { boundsCenter, clamp, pointDistance, sortIfNeeded } from "./primitives.ts";
 
 const ACTIVITY_STATES = [
   "reading",

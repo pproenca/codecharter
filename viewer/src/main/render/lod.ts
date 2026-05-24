@@ -1,18 +1,3 @@
-/**
- * Level-of-detail and parcel/district styling (BR-019). Decides, for a given
- * camera scale and on-screen box, which folders, files, labels, source text,
- * and organic region outlines are drawn, and how they are coloured.
- */
-import type {
-  BoxSize,
-  MapFile,
-  MapFolder,
-  OrganicRegionEdge,
-  Point,
-  Bounds,
-  CodecharterCodemap,
-  DetailBand,
-} from "./types.ts";
 import {
   LANDMARK_NAMES,
   ORGANIC_REGION_EDGE_POSITIONS,
@@ -28,6 +13,21 @@ import {
   rgba,
   sortIfNeeded,
 } from "./primitives.ts";
+/**
+ * Level-of-detail and parcel/district styling (BR-019). Decides, for a given
+ * camera scale and on-screen box, which folders, files, labels, source text,
+ * and organic region outlines are drawn, and how they are coloured.
+ */
+import type {
+  BoxSize,
+  MapFile,
+  MapFolder,
+  OrganicRegionEdge,
+  Point,
+  Bounds,
+  CodecharterCodemap,
+  DetailBand,
+} from "./types.ts";
 
 const ORGANIC_REGION_EDGES: readonly OrganicRegionEdge[] = [
   [

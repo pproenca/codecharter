@@ -1,9 +1,8 @@
-import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import test from "node:test";
 import { fileURLToPath } from "node:url";
-
 import { interactionModeUiState } from "../main/render/camera.ts";
 
 const viewerRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));

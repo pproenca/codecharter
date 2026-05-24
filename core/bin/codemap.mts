@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
-import type { AddressInfo } from "node:net";
-import { createInterface } from "node:readline/promises";
-import { stdin as input, stdout as output } from "node:process";
 import { readFile, stat } from "node:fs/promises";
+import type { AddressInfo } from "node:net";
 import { isAbsolute, join, relative, resolve as resolvePath } from "node:path";
+import { stdin as input, stdout as output } from "node:process";
+import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 // Modernized CLI: a thin wiring layer over the single @codecharter/core barrel.
 // (Legacy imported each src/* module directly; the logic now lives in core.)

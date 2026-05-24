@@ -1,15 +1,14 @@
-import test from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import type { Server } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import type { Server } from "node:http";
+import test from "node:test";
 import type { TestContext } from "node:test";
-
-import { startServer } from "../main/server.ts";
+import { fileURLToPath } from "node:url";
 import type { StoredActivityEvent } from "../main/activity-store.ts";
+import { startServer } from "../main/server.ts";
 
 const repoRoot = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
 const cliPath = join(repoRoot, "core", "bin", "codemap.mts");

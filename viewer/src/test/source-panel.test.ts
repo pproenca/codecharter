@@ -1,6 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
-
+import test from "node:test";
 import { annotationClipboardText } from "../main/render/source-panel.ts";
 import type { MapAnnotationPlace } from "../main/render/types.ts";
 

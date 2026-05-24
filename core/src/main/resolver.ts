@@ -7,14 +7,14 @@
  * scaffolding and is dropped; `resolveAddress` is the entry point.
  */
 
-import { geohashForBoundsCenter } from "./geohash.ts";
-import { precisionForLevel } from "./levels.ts";
-import { createCodemapDeepLink } from "./deep-links.ts";
-import { codeRangeGeometry } from "./line-coordinate.ts";
 import { objectRecord, sortedUniqueStrings } from "./collections.ts";
-import type { Bounds } from "./geometry.ts";
+import { createCodemapDeepLink } from "./deep-links.ts";
 import type { GeohashedCoordinate } from "./geo-types.ts";
+import { geohashForBoundsCenter } from "./geohash.ts";
+import type { Bounds } from "./geometry.ts";
+import { precisionForLevel } from "./levels.ts";
 import type { MapLevel } from "./levels.ts";
+import { codeRangeGeometry } from "./line-coordinate.ts";
 import type {
   CodeRangeFragmentGeometry,
   CodeRangeRequest,

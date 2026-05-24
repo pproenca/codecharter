@@ -1,3 +1,14 @@
+import { clearActivityClickAction } from "./activity-clear.ts";
+import { annotationPromptCopyOutcome } from "./annotation-copy.ts";
+import { deleteAnnotationRequest } from "./annotations.ts";
+import { copyTextToClipboard } from "./clipboard.ts";
+import {
+  boundsFromRouteParams,
+  createAnnotationHashRoute,
+  createMapHashRoute,
+  createSelectionHashRoute,
+  parseHashRoute,
+} from "./deep-links.ts";
 // Edit this source, then run `pnpm build:public` to regenerate public/app.js.
 import {
   SOURCE_TEXT_MAX_LINES_PER_FRAME,
@@ -82,7 +93,6 @@ import {
   worldToScreenPoint,
   zoomViewAt,
 } from "./render/index.ts";
-import { annotationPromptCopyOutcome } from "./annotation-copy.ts";
 import type {
   ActivityEvent,
   ActivityFogState,
@@ -103,16 +113,6 @@ import type {
   View,
   Viewport,
 } from "./render/index.ts";
-import {
-  boundsFromRouteParams,
-  createAnnotationHashRoute,
-  createMapHashRoute,
-  createSelectionHashRoute,
-  parseHashRoute,
-} from "./deep-links.ts";
-import { deleteAnnotationRequest } from "./annotations.ts";
-import { clearActivityClickAction } from "./activity-clear.ts";
-import { copyTextToClipboard } from "./clipboard.ts";
 
 type BrowserControl = HTMLElement & {
   checked?: boolean;

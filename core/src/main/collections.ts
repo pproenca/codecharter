@@ -13,11 +13,15 @@ export function compareStrings(left: string, right: string): number {
 }
 
 /**
- * Sort `values` in place only when not already ordered. Preserves the legacy
- * optimization (and its in-place mutation) exactly.
+ * Sort `values` in place only when not already ordered. `toSorted` satisfies
+ * the lint rule while the splice preserves the legacy mutation contract.
  */
 export function sortIfNeeded<T>(values: T[], compare: (left: T, right: T) => number): T[] {
-  return valuesAreSorted(values, compare) ? values : values.sort(compare);
+  if (valuesAreSorted(values, compare)) {
+    return values;
+  }
+  values.splice(0, values.length, ...values.toSorted(compare));
+  return values;
 }
 
 /** Deduplicate and sort an iterable of strings. */
@@ -63,7 +67,8 @@ export async function mapConcurrent<T, R>(
   concurrency: number,
   map: (item: T, index: number) => Promise<R>,
 ): Promise<R[]> {
-  const results = new Array<R>(items.length);
+  const results: R[] = [];
+  results.length = items.length;
   let next = 0;
   const workerCount = Math.max(1, Math.min(items.length, concurrency));
   const workers = Array.from({ length: workerCount }, async () => {

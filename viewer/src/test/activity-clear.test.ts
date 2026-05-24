@@ -1,6 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
-
+import test from "node:test";
 import { clearActivityClickAction } from "../main/activity-clear.ts";
 
 test("enabled clear activity click starts a clear action", () => {

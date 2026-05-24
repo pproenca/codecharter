@@ -2,7 +2,22 @@ packages:
   - core
   - viewer
 
+minimumReleaseAge: 2880
+
+minimumReleaseAgeExclude:
+  - "@typescript/native-preview*"
+  - "@oxlint/*"
+  - "@oxfmt/*"
+  - "@oxc-project/types"
+  - "@types/node"
+  - "oxfmt"
+  - "oxlint"
+  - "oxlint-tsgolint"
+  - "esbuild"
+  - "tsx"
+
 nodeLinker: hoisted
+blockExoticSubdeps: true
 
 allowBuilds:
   esbuild: true

@@ -12,19 +12,19 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
-import { changedCodeChanges, changedLineRange } from "./activity-watcher.ts";
 import { appendActivityEvents, ensureActivityArchive } from "./activity-store.ts";
+import type { StoredActivityEvent } from "./activity-store.ts";
+import { changedCodeChanges, changedLineRange } from "./activity-watcher.ts";
+import type { CodeChange } from "./activity-watcher.ts";
 import { createActivityEvent } from "./activity.ts";
+import type { ActivityEventInput, ActivityStateInput } from "./activity.ts";
+import { mapConcurrent, objectRecord } from "./collections.ts";
+import { isErrnoException } from "./errors.ts";
 import { execFileText } from "./exec-file.ts";
 import { generateCodemap } from "./generator.ts";
 import { normalizePathForMap, resolveAddress } from "./resolver.ts";
-import { readJson, writeJson } from "./store.ts";
-import { isErrnoException } from "./errors.ts";
-import { mapConcurrent, objectRecord } from "./collections.ts";
-import type { ActivityEventInput, ActivityStateInput } from "./activity.ts";
-import type { StoredActivityEvent } from "./activity-store.ts";
-import type { CodeChange } from "./activity-watcher.ts";
 import type { CodecharterCodemap } from "./resolver.ts";
+import { readJson, writeJson } from "./store.ts";
 
 const DEFAULT_CONFIG_PATH = ".codecharter/config.json";
 const DEFAULT_MAP_PATH = ".codecharter/codecharter.json";

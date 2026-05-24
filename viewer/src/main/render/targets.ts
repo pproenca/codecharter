@@ -1,3 +1,12 @@
+import { normalizeActivityState, shortActivityId } from "./activity.ts";
+import {
+  boundsCenter,
+  compareTargetAreaThenPath,
+  containsBoundsPoint,
+  lastPathSegment,
+  normalizeMapPath,
+  objectValues,
+} from "./primitives.ts";
 /**
  * Map target resolution: search matching, hash-route → target lookup, pointer
  * hit-testing for files/folders/annotations, selection-panel copy, and hover
@@ -23,15 +32,6 @@ import type {
   SearchMatch,
   TargetHit,
 } from "./types.ts";
-import {
-  boundsCenter,
-  compareTargetAreaThenPath,
-  containsBoundsPoint,
-  lastPathSegment,
-  normalizeMapPath,
-  objectValues,
-} from "./primitives.ts";
-import { normalizeActivityState, shortActivityId } from "./activity.ts";
 
 type MapRouteTargetType = TargetHit["targetType"];
 type MapRouteFocusAction = MapActionOf<"focusFile" | "focusFolder">;

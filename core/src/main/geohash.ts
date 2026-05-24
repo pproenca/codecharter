@@ -17,14 +17,14 @@
  * contract, not incidental detail.
  */
 
-import { clamp } from "./math.ts";
-import type { Bounds, Point } from "./geometry.ts";
 import type {
   CodePlaneDescriptor,
   GeoCoordinate,
   GeohashBounds,
   GeohashedCoordinate,
 } from "./geo-types.ts";
+import type { Bounds, Point } from "./geometry.ts";
+import { clamp } from "./math.ts";
 
 export type {
   GeoCoordinate,

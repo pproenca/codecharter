@@ -1,8 +1,7 @@
-import test from "node:test";
 import assert from "node:assert/strict";
-
-import { createMapAnnotation } from "../main/selections.ts";
+import test from "node:test";
 import type { CodecharterCodemap } from "../main/resolver.ts";
+import { createMapAnnotation } from "../main/selections.ts";
 
 test("map annotation codex prompt is compact and uses one resolve command", () => {
   const annotation = createMapAnnotation(fixtureCodemap(), {

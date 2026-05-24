@@ -1,13 +1,12 @@
-import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
+import test from "node:test";
+import type { StoredActivityEvent } from "../main/activity-store.ts";
 import { runCodexHook } from "../main/codex-hook.ts";
 import { ensureCodexAdapter } from "../main/init.ts";
-import type { StoredActivityEvent } from "../main/activity-store.ts";
 
 test("Codex hook records nested parallel shell read activity", async () => {
   const root = await fixtureRoot();

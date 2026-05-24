@@ -14,10 +14,10 @@ import {
   placeChildrenInGrowth,
   roundBounds,
 } from "./district-layout.ts";
-import { sortedChildren, sortedFiles, sortedFolders } from "./tree.ts";
-import type { Bounds } from "./geometry.ts";
-import type { GeohashedCoordinate } from "./geo-types.ts";
 import type { LayoutTarget } from "./district-layout.ts";
+import type { GeohashedCoordinate } from "./geo-types.ts";
+import type { Bounds } from "./geometry.ts";
+import { sortedChildren, sortedFiles, sortedFolders } from "./tree.ts";
 import type { FileNode, FolderNode, MapNode } from "./tree.ts";
 
 type PreviousFolderTarget = {

@@ -1,3 +1,7 @@
+import { isLiveActivityEvent } from "./activity.ts";
+import { DISCOVERY_FOG_TEXTURE_STEP_PX } from "./constants.ts";
+import { canRenderSourceText, landmarkScore, shouldLabelFile } from "./lod.ts";
+import { normalizeMapPath, pathFromDeepLink } from "./primitives.ts";
 /**
  * Fog-of-war / discovery overlay. Files and folders touched by agent activity
  * become "explored"; currently-live ones become "visible"; everything else is
@@ -14,10 +18,6 @@ import type {
   MapFolder,
   MapTargetRecord,
 } from "./types.ts";
-import { DISCOVERY_FOG_TEXTURE_STEP_PX } from "./constants.ts";
-import { normalizeMapPath, pathFromDeepLink } from "./primitives.ts";
-import { canRenderSourceText, landmarkScore, shouldLabelFile } from "./lod.ts";
-import { isLiveActivityEvent } from "./activity.ts";
 
 export function buildActivityFogState(
   codemap: CodecharterCodemap | null | undefined,

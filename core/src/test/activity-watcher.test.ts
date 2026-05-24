@@ -1,6 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
-
+import test from "node:test";
 import { parseGitStatusPorcelain } from "../main/activity-watcher.ts";
 
 test("activity watcher ignores Codex hook files that are excluded from the codemap", () => {

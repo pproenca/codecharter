@@ -1,3 +1,12 @@
+import {
+  KEYBOARD_PAN_PIXELS,
+  MAP_MAX_SCALE,
+  MAP_MIN_SCALE,
+  SOURCE_TEXT_MIN_LINE_HEIGHT,
+  SOURCE_TEXT_MIN_WIDTH,
+  SOURCE_TEXT_ZOOM_HEADROOM,
+} from "./constants.ts";
+import { clamp } from "./primitives.ts";
 /**
  * Camera projection, zoom/pan transforms, keyboard navigation, and pointer
  * interaction state (BR-019 scale clamp). All world coordinates are in the unit
@@ -18,15 +27,6 @@ import type {
   Viewport,
   ActionHit,
 } from "./types.ts";
-import {
-  KEYBOARD_PAN_PIXELS,
-  MAP_MAX_SCALE,
-  MAP_MIN_SCALE,
-  SOURCE_TEXT_MIN_LINE_HEIGHT,
-  SOURCE_TEXT_MIN_WIDTH,
-  SOURCE_TEXT_ZOOM_HEADROOM,
-} from "./constants.ts";
-import { clamp } from "./primitives.ts";
 
 type DoubleClickAction = MapActionOf<
   "focusAnnotation" | "selectFolder" | "selectFile" | "selectActivity"

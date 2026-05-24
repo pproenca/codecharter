@@ -5,10 +5,10 @@
  * scaffolding and is dropped; only the free functions ship.
  */
 
-import { precisionForLevel } from "./levels.ts";
 import { objectValues, sortIfNeeded, sortedUniqueStrings } from "./collections.ts";
-import type { Bounds } from "./geometry.ts";
 import type { GeohashedCoordinate } from "./geo-types.ts";
+import type { Bounds } from "./geometry.ts";
+import { precisionForLevel } from "./levels.ts";
 import type { MapLevel } from "./levels.ts";
 
 export type TileTargetType = "folder" | "file";

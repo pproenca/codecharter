@@ -1,6 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
-
+import test from "node:test";
 import { copyTextToClipboard } from "../main/clipboard.ts";
 
 test("copying text falls back to clipboard.write when writeText is rejected", async () => {

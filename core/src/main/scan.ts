@@ -12,9 +12,9 @@
 
 import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, join, relative } from "node:path";
+import { compareStrings, mapConcurrent, sortIfNeeded } from "./collections.ts";
 import { execFileText } from "./exec-file.ts";
 import { isCodeFile } from "./extensions.ts";
-import { compareStrings, mapConcurrent, sortIfNeeded } from "./collections.ts";
 import type { ScannedFile } from "./tree.ts";
 
 const DEFAULT_EXCLUDED_FILES = new Set([

@@ -14,17 +14,17 @@ import {
   PROJECTION_ORDER,
   PROJECTION_TYPE,
 } from "./district-layout.ts";
-import { MAP_LEVELS } from "./levels.ts";
+import type { CodePlaneDescriptor, GeohashedCoordinate } from "./geo-types.ts";
 import { codePlaneDescriptor } from "./geohash.ts";
+import type { Bounds } from "./geometry.ts";
+import { MAP_LEVELS } from "./levels.ts";
+import type { MapLevel } from "./levels.ts";
 import { scanCodeFiles } from "./scan.ts";
 import { stabilizeTreeLayout } from "./stability.ts";
-import { buildFileTree, flattenTree, sortedChildren, sortedFiles, sortedFolders } from "./tree.ts";
-import { layoutTree } from "./treemap.ts";
-import type { Bounds } from "./geometry.ts";
-import type { CodePlaneDescriptor, GeohashedCoordinate } from "./geo-types.ts";
-import type { MapLevel } from "./levels.ts";
 import type { PreviousCodemapLayout } from "./stability.ts";
+import { buildFileTree, flattenTree, sortedChildren, sortedFiles, sortedFolders } from "./tree.ts";
 import type { FileNode, FolderNode, LayoutBounds } from "./tree.ts";
+import { layoutTree } from "./treemap.ts";
 
 const DEFAULT_EXCLUDE_PATHS = [
   ".codecharter/codecharter.json",

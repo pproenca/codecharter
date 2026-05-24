@@ -1,6 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
-
+import test from "node:test";
 import { screenBoundsForView, canRenderSourceText } from "../main/render/index.ts";
 import type { MapFile } from "../main/render/index.ts";
 

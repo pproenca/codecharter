@@ -1,13 +1,12 @@
-import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import type { Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Server } from "node:http";
+import test from "node:test";
 import type { TestContext } from "node:test";
-
-import { startServer } from "../main/server.ts";
 import type { StoredActivityEvent } from "../main/activity-store.ts";
+import { startServer } from "../main/server.ts";
 
 type ActivityJsonResponse = {
   events: StoredActivityEvent[];

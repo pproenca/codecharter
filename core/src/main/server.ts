@@ -14,34 +14,31 @@
  * `routes/`/`handlers/` is a follow-up the brief tracks separately.
  */
 
+import { createReadStream } from "node:fs";
+import { readFile, stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { IncomingMessage, Server, ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
-import { createReadStream } from "node:fs";
-import { readFile, stat } from "node:fs/promises";
-import { createInterface } from "node:readline";
 import { extname, isAbsolute, join, resolve, sep } from "node:path";
+import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import { createActivityEvent } from "./activity.ts";
 import { createActivityStore } from "./activity-store.ts";
+import type { StoredActivityEvent, ViewerFogState } from "./activity-store.ts";
+import { createActivityEvent } from "./activity.ts";
+import type { ActivityAddress, ActivityEventInput } from "./activity.ts";
+import { objectRecord, sortIfNeeded } from "./collections.ts";
+import { errorMessage, isErrnoException } from "./errors.ts";
 import { MAP_LEVELS } from "./levels.ts";
+import type { MapLevel } from "./levels.ts";
 import { findNamedPlaceOverlaps } from "./overlaps.ts";
 import { isCodecharterCodemap, normalizePathForMap, resolveAddress } from "./resolver.ts";
+import type { AddressRequest, CodecharterCodemap } from "./resolver.ts";
 import {
   createMapAnnotation,
   createNamedAddress,
   createNamedSelection,
   refreshPlaceResolution,
 } from "./selections.ts";
-import { readSourceRange } from "./source.ts";
-import { readJson, writeJson } from "./store.ts";
-import { buildTileIndex, getTile, visiblePrefixes } from "./tiles.ts";
-import { objectRecord, sortIfNeeded } from "./collections.ts";
-import { errorMessage, isErrnoException } from "./errors.ts";
-import type { ActivityAddress, ActivityEventInput } from "./activity.ts";
-import type { StoredActivityEvent, ViewerFogState } from "./activity-store.ts";
-import type { AddressRequest, CodecharterCodemap } from "./resolver.ts";
-import type { MapLevel } from "./levels.ts";
 import type {
   MapAnnotation,
   NamedAddress,
@@ -49,6 +46,9 @@ import type {
   SelectionGeometry,
   SelectionInput,
 } from "./selections.ts";
+import { readSourceRange } from "./source.ts";
+import { readJson, writeJson } from "./store.ts";
+import { buildTileIndex, getTile, visiblePrefixes } from "./tiles.ts";
 
 const MIME_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",

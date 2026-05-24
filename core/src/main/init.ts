@@ -11,15 +11,15 @@
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execFileText } from "./exec-file.ts";
-import { readJson, writeJson } from "./store.ts";
-import { isErrnoException } from "./errors.ts";
 import { objectRecord } from "./collections.ts";
+import { isErrnoException } from "./errors.ts";
+import { execFileText } from "./exec-file.ts";
 import {
   PACKAGE_DEPENDENCY_SECTIONS,
   packageJsonFromValue,
   stringArrayFromValue,
 } from "./records.ts";
+import { readJson, writeJson } from "./store.ts";
 
 const CODECHARTER_DIR = ".codecharter";
 const CODEX_DIR = ".codex";

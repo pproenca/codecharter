@@ -1,6 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
-
+import test from "node:test";
 import { annotationPromptCopyOutcome } from "../main/annotation-copy.ts";
 
 test("successful annotation prompt copy closes the annotation action panel", () => {

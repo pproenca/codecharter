@@ -5,8 +5,8 @@
  */
 
 import { createReadStream } from "node:fs";
-import { createInterface } from "node:readline";
 import { join } from "node:path";
+import { createInterface } from "node:readline";
 
 export type SourceFileReference = {
   path: string;

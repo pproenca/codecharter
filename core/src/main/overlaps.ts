@@ -3,8 +3,8 @@
  * Edge-touching rectangles neither overlap nor stay active.
  */
 
-import { intersects, roundBounds } from "./geometry.ts";
 import { sortIfNeeded } from "./collections.ts";
+import { intersects, roundBounds } from "./geometry.ts";
 import type { Bounds } from "./geometry.ts";
 import type { MapAnnotation, NamedAddress, NamedSelection } from "./selections.ts";
 

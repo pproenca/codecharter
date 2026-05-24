@@ -9,15 +9,16 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { objectRecord, objectValues, sortIfNeeded, sortedUniqueStrings } from "./collections.ts";
 import { createAnnotationHashRoute, createCodemapDeepLink } from "./deep-links.ts";
 import { codePointToGeo, encodeGeohash } from "./geohash.ts";
 import { clampBounds, intersects, normalizeRect } from "./geometry.ts";
-import { precisionForLevel } from "./levels.ts";
-import { codeRangeRequestForSelection } from "./line-coordinate.ts";
-import { resolveAddress } from "./resolver.ts";
-import { objectRecord, objectValues, sortIfNeeded, sortedUniqueStrings } from "./collections.ts";
 import type { Bounds, Point } from "./geometry.ts";
+import { precisionForLevel } from "./levels.ts";
 import type { MapLevel } from "./levels.ts";
+import { codeRangeRequestForSelection } from "./line-coordinate.ts";
+import type { NormalizedRange } from "./line-coordinate.ts";
+import { resolveAddress } from "./resolver.ts";
 import type {
   AddressTargetType,
   CodecharterCodemap,
@@ -25,7 +26,6 @@ import type {
   MapFolderTarget,
   ResolvedAddress,
 } from "./resolver.ts";
-import type { NormalizedRange } from "./line-coordinate.ts";
 
 const DEFAULT_ANNOTATION_NAME = "Map annotation";
 const ANNOTATION_NAME_MAX_LENGTH = 72;

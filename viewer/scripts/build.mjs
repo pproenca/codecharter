@@ -1,3 +1,6 @@
+import { cp, mkdir, rm } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 /**
  * Bundle the viewer SPA. esbuild inlines `app.ts` together with the render
  * model and deep-link codec into a single ES module, then the static shell
@@ -5,9 +8,6 @@
  * the @codecharter/core server serves via `publicRoot`.
  */
 import { build } from "esbuild";
-import { cp, mkdir, rm } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const dist = join(root, "dist");

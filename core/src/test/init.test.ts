@@ -1,9 +1,8 @@
-import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
+import test from "node:test";
 import { ensureCodecharterSkill } from "../main/init.ts";
 
 test("generated CodeCharter skill resolves compact prompts through local CLIs before npx", async (t) => {

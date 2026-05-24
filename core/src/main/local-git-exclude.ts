@@ -5,8 +5,8 @@
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
-import { execFileText } from "./exec-file.ts";
 import { isErrnoException } from "./errors.ts";
+import { execFileText } from "./exec-file.ts";
 
 export const CODECHARTER_GITIGNORE_PATTERNS: readonly string[] = [
   ".codecharter/",

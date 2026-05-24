@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 /**
  * Characterization tests for the geohash / code-plane projection module.
  *
@@ -13,8 +14,6 @@
  * oracle, temporarily repoint the import at the legacy module (see README).
  */
 import test from "node:test";
-import assert from "node:assert/strict";
-
 import {
   encodeGeohash,
   decodeGeohashBounds,

@@ -1,10 +1,10 @@
+import { DISTRICT_PALETTE } from "./constants.ts";
 /**
  * Low-level helpers shared across the render-model modules: clamping, stable
  * sorting, deterministic string hashing, path normalization, and bounds math.
  * Behaviour is identical to the inline helpers in legacy `render-model.ts`.
  */
 import type { Bounds, MapTarget, PaletteColor, Point, Rgb } from "./types.ts";
-import { DISTRICT_PALETTE } from "./constants.ts";
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -12,7 +12,11 @@ export function clamp(value: number, min: number, max: number): number {
 
 /** Sort in place only when the array is not already ordered (legacy parity). */
 export function sortIfNeeded<T>(values: T[], compare: (left: T, right: T) => number): T[] {
-  return valuesAreSorted(values, compare) ? values : values.sort(compare);
+  if (valuesAreSorted(values, compare)) {
+    return values;
+  }
+  values.splice(0, values.length, ...values.toSorted(compare));
+  return values;
 }
 
 export function valuesAreSorted<T>(values: T[], compare: (left: T, right: T) => number): boolean {

@@ -1,6 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
-
+import test from "node:test";
 import { mapRouteTarget, mapSearchMatch } from "../main/render/targets.ts";
 import type { CodecharterCodemap, NamedPlace } from "../main/render/types.ts";
 

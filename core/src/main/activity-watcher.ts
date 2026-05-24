@@ -11,12 +11,12 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { changedRangeFromUnifiedDiff } from "./activity-change-range.ts";
+import type { ChangedRange } from "./activity-change-range.ts";
+import type { ActivityAddress, ActivityStateInput } from "./activity.ts";
+import { mapConcurrent } from "./collections.ts";
+import { errorMessage } from "./errors.ts";
 import { execFileText } from "./exec-file.ts";
 import { isCodeFile } from "./extensions.ts";
-import { errorMessage } from "./errors.ts";
-import { mapConcurrent } from "./collections.ts";
-import type { ActivityAddress, ActivityStateInput } from "./activity.ts";
-import type { ChangedRange } from "./activity-change-range.ts";
 
 const DEFAULT_INTERVAL_MS = 1800;
 const DEFAULT_THROTTLE_MS = 5000;

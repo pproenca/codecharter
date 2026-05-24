@@ -13,12 +13,12 @@
  * test-only surface and is dropped in favor of the free functions.
  */
 
+import { sortIfNeeded } from "./collections.ts";
+import type { GeohashedCoordinate } from "./geo-types.ts";
 import { geohashForBoundsCenter } from "./geohash.ts";
+import type { Bounds } from "./geometry.ts";
 import { FULL_GEOHASH_PRECISION } from "./levels.ts";
 import { round } from "./math.ts";
-import { sortIfNeeded } from "./collections.ts";
-import type { Bounds } from "./geometry.ts";
-import type { GeohashedCoordinate } from "./geo-types.ts";
 
 export const PROJECTION_TYPE = "filesystem-district-map";
 export const PROJECTION_LAYOUT_VERSION = 3;

@@ -1,6 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
-
+import test from "node:test";
 import { createMapHashRoute, parseHashRoute } from "../main/deep-links.ts";
 
 test("createMapHashRoute writes resolver-backed map route kinds", () => {

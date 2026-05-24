@@ -8,8 +8,8 @@
  * scaffolding and is dropped.
  */
 
-import { round } from "./math.ts";
 import type { Bounds } from "./geometry.ts";
+import { round } from "./math.ts";
 
 const EDGE_EPSILON = 1e-12;
 

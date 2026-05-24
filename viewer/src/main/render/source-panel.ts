@@ -1,3 +1,11 @@
+import {
+  SOURCE_CACHE_LIMIT,
+  SOURCE_PANEL_CONTEXT_AFTER,
+  SOURCE_PANEL_CONTEXT_BEFORE,
+  SOURCE_PANEL_MAX_LINES,
+} from "./constants.ts";
+import { canRenderSourceText } from "./lod.ts";
+import { clamp, normalizeMapPath } from "./primitives.ts";
 /**
  * Source-text panel layout, on-demand line-range computation, an LRU source
  * cache, and the annotation clipboard prompt. Line ranges are clamped to the
@@ -15,14 +23,6 @@ import type {
   SourceLine,
   SourceRange,
 } from "./types.ts";
-import {
-  SOURCE_CACHE_LIMIT,
-  SOURCE_PANEL_CONTEXT_AFTER,
-  SOURCE_PANEL_CONTEXT_BEFORE,
-  SOURCE_PANEL_MAX_LINES,
-} from "./constants.ts";
-import { clamp, normalizeMapPath } from "./primitives.ts";
-import { canRenderSourceText } from "./lod.ts";
 
 export function sourceTextLayoutForBox(box: HorizontalBox, viewportWidth: number) {
   const visibleLeft = Math.max(box.x, 0);
@@ -139,7 +139,7 @@ export function sourcePanelState({
 
 export function annotationClipboardText(
   annotation: MapAnnotationPlace,
-  { origin = "", href = "" }: { origin?: string; href?: string } = {},
+  { origin = "" }: { origin?: string; href?: string } = {},
 ) {
   const reference = annotation.deepLink || `codecharter://annotation/${annotation.id}`;
   const serverFlag = origin ? ` --server ${doubleQuote(origin)}` : "";

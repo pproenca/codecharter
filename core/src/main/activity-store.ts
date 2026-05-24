@@ -90,7 +90,7 @@ export class ActivityStore {
         console.warn(`warning: activity-archive-queue-recovered error=${error.message}`);
       })
       .then(async () => {
-        await appendActivityEvents(archivePath, batch);
+        if (clearGeneration === this.clearGeneration) await appendActivityEvents(archivePath, batch);
       })
       .catch((error) => {
         if (clearGeneration === this.clearGeneration) {
@@ -105,6 +105,7 @@ export class ActivityStore {
 
   async clear(): Promise<void> {
     this.clearGeneration += 1;
+    const archivePath = this.archivePath;
     this.events.length = 0;
     this.pending.length = 0;
     this.writeQueue = this.writeQueue
@@ -112,7 +113,7 @@ export class ActivityStore {
         console.warn(`warning: activity-archive-queue-recovered error=${error.message}`);
       })
       .then(async () => {
-        if (this.archivePath) await clearActivityArchive(this.archivePath);
+        if (archivePath) await clearActivityArchive(archivePath);
       });
     return this.writeQueue;
   }

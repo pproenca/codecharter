@@ -15,6 +15,7 @@ import { extname, isAbsolute, join, relative } from "node:path";
 import { compareStrings, mapConcurrent, sortIfNeeded } from "./collections.ts";
 import { execFileText } from "./exec-file.ts";
 import { isCodeFile } from "./extensions.ts";
+import { isRegularFileWithinRoot } from "./path-containment.ts";
 import type { ScannedFile } from "./tree.ts";
 
 const DEFAULT_EXCLUDED_FILES = new Set([
@@ -56,7 +57,8 @@ export async function listIncludedFiles(
         (excludedPath) => path === excludedPath || path.startsWith(`${excludedPath}/`),
       ) &&
       !DEFAULT_EXCLUDED_FILES.has(path) &&
-      isCodeFile(path)
+      isCodeFile(path) &&
+      (await isRegularFileWithinRoot(root, path))
     ) {
       paths.push(path);
     }

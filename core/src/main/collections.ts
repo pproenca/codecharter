@@ -20,7 +20,11 @@ export function sortIfNeeded<T>(values: T[], compare: (left: T, right: T) => num
   if (valuesAreSorted(values, compare)) {
     return values;
   }
-  values.splice(0, values.length, ...values.toSorted(compare));
+  const sorted = values.toSorted(compare);
+  for (let index = 0; index < sorted.length; index += 1) {
+    values[index] = sorted[index]!;
+  }
+  values.length = sorted.length;
   return values;
 }
 

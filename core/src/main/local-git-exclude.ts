@@ -7,6 +7,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 import { isErrnoException } from "./errors.ts";
 import { execFileText } from "./exec-file.ts";
+import { assertNoSymlinkWritePath, assertSafeRootWritePath } from "./path-containment.ts";
 
 export const CODECHARTER_GITIGNORE_PATTERNS: readonly string[] = [
   ".codecharter/",
@@ -26,7 +27,7 @@ export async function ensureCodecharterGitignore(
   root: string,
   patterns: readonly string[] = CODECHARTER_GITIGNORE_PATTERNS,
 ): Promise<IgnoreFileResult> {
-  return ensureIgnoreFile(join(root, ".gitignore"), patterns);
+  return ensureIgnoreFile(join(root, ".gitignore"), patterns, { root });
 }
 
 /** Ensure the patterns exist in the repo's local `.git/info/exclude` (skipped if not a repo). */
@@ -44,7 +45,14 @@ export async function ensureLocalGitExcludes(
 async function ensureIgnoreFile(
   path: string,
   patterns: readonly string[],
+  { root }: { root?: string } = {},
 ): Promise<IgnoreFileResult> {
+  if (root) {
+    await assertSafeRootWritePath(root, path);
+  } else {
+    await assertNoSymlinkWritePath(path);
+  }
+
   let current = "";
   try {
     current = await readFile(path, "utf8");

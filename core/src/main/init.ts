@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { objectRecord } from "./collections.ts";
 import { isErrnoException } from "./errors.ts";
 import { execFileText } from "./exec-file.ts";
+import { assertNoSymlinkWritePath, assertSafeRootWritePath } from "./path-containment.ts";
 import {
   PACKAGE_DEPENDENCY_SECTIONS,
   packageJsonFromValue,
@@ -240,6 +241,7 @@ export async function ensurePackageDevDependency(
   root: string,
 ): Promise<{ skipped: boolean; changed?: boolean }> {
   const packagePath = join(root, "package.json");
+  await assertSafeRootWritePath(root, packagePath);
   const packageJson = packageJsonFromValue(await readJson(packagePath, null));
   if (!packageJson || packageJson.name === "codecharter") {
     return { skipped: true };
@@ -272,6 +274,7 @@ export async function ensurePackageDevDependency(
 
 export async function ensureCodecharterConfig(root: string, mapPath: string): Promise<string> {
   const configPath = join(root, CODECHARTER_DIR, "config.json");
+  await assertSafeRootWritePath(root, configPath);
   const existing = codecharterConfigFromValue(await readJson(configPath, {}));
   await writeJson(configPath, {
     version: 1,
@@ -297,6 +300,8 @@ export async function ensureCodexAdapter(
   const hookPath = join(hooksDir, "codecharter-codex-hook.mjs");
   const hooksJsonPath = join(root, CODEX_DIR, "hooks.json");
   const version = await currentPackageVersion();
+  await assertSafeRootWritePath(root, hookPath);
+  await assertSafeRootWritePath(root, hooksJsonPath);
   await writeFile(hookPath, codexHookShim(version), { mode: 0o755 });
   await chmod(hookPath, 0o755);
   await writeJson(
@@ -315,6 +320,8 @@ export async function ensureCodecharterSkill(
   const openaiYamlPath = join(agentsDir, "openai.yaml");
   const version = await currentPackageVersion();
   await mkdir(agentsDir, { recursive: true });
+  await assertSafeRootWritePath(root, skillPath);
+  await assertSafeRootWritePath(root, openaiYamlPath);
   await writeFile(skillPath, codecharterSkillMarkdown(version));
   await writeFile(openaiYamlPath, codecharterSkillOpenaiYaml());
   return { skillPath, openaiYamlPath };
@@ -338,6 +345,7 @@ export async function ensureGitMapHooks(
 }
 
 async function installManagedHookBlock(hookPath: string, block: string): Promise<void> {
+  await assertNoSymlinkWritePath(hookPath);
   let current = "";
   try {
     current = await readFile(hookPath, "utf8");

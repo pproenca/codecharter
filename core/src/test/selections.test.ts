@@ -16,11 +16,25 @@ test("map annotation codex prompt is compact and uses one resolve command", () =
     [
       "CodeCharter annotation: codecharter://annotation/annotation-1",
       "Note: go explore here",
-      'Resolve: codecharter --json resolve "codecharter://annotation/annotation-1"',
+      "Resolve: codecharter --json resolve 'codecharter://annotation/annotation-1'",
     ].join("\n"),
   );
   assert.equal(annotation.codexPrompt.includes("npx --yes"), false);
   assert.equal(annotation.codexPrompt.length < 180, true);
+});
+
+test("map annotation codex prompt shell-quotes command substitutions", () => {
+  const annotation = createMapAnnotation(fixtureCodemap(), {
+    id: "$(printf PWNED)",
+    comment: "go explore here",
+    level: "file",
+    geometry: { type: "rect", bounds: { x: 0, y: 0, width: 0.5, height: 0.5 } },
+  });
+
+  assert.match(
+    annotation.codexPrompt,
+    /Resolve: codecharter --json resolve 'codecharter:\/\/annotation\/%24\(printf%20PWNED\)'/,
+  );
 });
 
 function fixtureCodemap(): CodecharterCodemap {

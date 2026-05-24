@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm, symlink } from "node:fs/promises";
 import type { Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -89,6 +89,85 @@ test("invalid numeric query parameters return 400 instead of 500", async (t) => 
     assert.equal(response.status, 400);
     assert.match(body.error ?? "", /Query parameter must be (?:an|a safe) integer/);
   }
+});
+
+test("source reads reject symlink-backed mapped files outside the repo", async (t) => {
+  const root = await sourceFixtureRoot();
+  const outside = await mkdtemp(join(tmpdir(), "codecharter-outside-source-"));
+  let server: Server | null = null;
+  t.after(async () => {
+    if (server) {
+      await closeServer(server);
+    }
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  });
+
+  await writeFile(join(outside, "secret.md"), "outside secret\n");
+  await symlink(join(outside, "secret.md"), join(root, "scripts", "leak.mjs"));
+  await writeFile(
+    join(root, ".codecharter", "codecharter.json"),
+    JSON.stringify({
+      folders: {},
+      files: {
+        "scripts/leak.mjs": {
+          path: "scripts/leak.mjs",
+          bounds: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
+          geo: { lat: 0, lon: 0, geohash: "s00000000000" },
+          lineCount: 1,
+          maxLineLength: 14,
+        },
+      },
+    }),
+  );
+  server = await startServer({
+    root,
+    mapPath: join(root, ".codecharter", "codecharter.json"),
+    port: 0,
+    activityFlushIntervalMs: 0,
+  });
+
+  const response = await fetch(`${serverUrl(server)}/api/source?path=scripts/leak.mjs`);
+  const body = (await response.json()) as SourceJsonResponse;
+  assert.equal(response.status, 400);
+  assert.match(body.error ?? "", /escapes repository root/);
+  assert.equal(JSON.stringify(body).includes("outside secret"), false);
+});
+
+test("API mutations reject cross-site non-JSON requests", async (t) => {
+  const server = await startSourceServer(t);
+  const response = await fetch(`${serverUrl(server)}/api/annotations`, {
+    method: "POST",
+    headers: {
+      "content-type": "text/plain",
+      origin: "https://attacker.example",
+      "sec-fetch-site": "cross-site",
+    },
+    body: JSON.stringify(annotationBody()),
+  });
+  const body = (await response.json()) as SourceJsonResponse;
+
+  assert.equal(response.status, 403);
+  assert.match(body.error ?? "", /Cross-site/);
+
+  const annotations = (await (await fetch(`${serverUrl(server)}/api/annotations`)).json()) as {
+    annotations?: unknown[];
+  };
+  assert.deepEqual(annotations.annotations, []);
+});
+
+test("API mutations accept same-origin JSON requests", async (t) => {
+  const server = await startSourceServer(t);
+  const url = serverUrl(server);
+  const response = await fetch(`${url}/api/annotations`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: url },
+    body: JSON.stringify(annotationBody()),
+  });
+  const body = (await response.json()) as { annotation?: { comment?: string } };
+
+  assert.equal(response.status, 201);
+  assert.equal(body.annotation?.comment, "trusted");
 });
 
 test("viewer activity summary omits full geometry and supports unchanged version responses", async (t) => {
@@ -247,6 +326,15 @@ async function sourceFixtureRoot(): Promise<string> {
     }),
   );
   return root;
+}
+
+function annotationBody(): Record<string, unknown> {
+  return {
+    id: "annotation-1",
+    comment: "trusted",
+    level: "file",
+    geometry: { type: "rect", bounds: { x: 0, y: 0, width: 0.5, height: 0.5 } },
+  };
 }
 
 function serverUrl(server: Server): string {

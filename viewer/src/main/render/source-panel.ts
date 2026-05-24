@@ -142,12 +142,12 @@ export function annotationClipboardText(
   { origin = "" }: { origin?: string; href?: string } = {},
 ) {
   const reference = annotation.deepLink || `codecharter://annotation/${annotation.id}`;
-  const serverFlag = origin ? ` --server ${doubleQuote(origin)}` : "";
+  const serverFlag = origin ? ` --server ${shellSingleQuote(origin)}` : "";
   const comment = annotation.comment?.trim() || "<empty>";
   return [
     `CodeCharter annotation: ${reference}`,
     `Note: ${comment}`,
-    `Resolve: codecharter --json resolve ${doubleQuote(reference)}${serverFlag}`,
+    `Resolve: codecharter --json resolve ${shellSingleQuote(reference)}${serverFlag}`,
   ].join("\n");
 }
 
@@ -198,8 +198,8 @@ export function cachedSourceRange(
   return null;
 }
 
-function doubleQuote(value: string): string {
-  return `"${String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+function shellSingleQuote(value: string): string {
+  return `'${String(value).replaceAll("'", "'\\''")}'`;
 }
 
 function capLineRange(

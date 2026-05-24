@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import type { StoredActivityEvent } from "../main/activity-store.ts";
 import { runCodexHook } from "../main/codex-hook.ts";
-import { ensureCodexAdapter } from "../main/init.ts";
+import { ensureCodexAdapter, ensureGitMapHooks } from "../main/init.ts";
 
 test("Codex hook records nested parallel shell read activity", async () => {
   const root = await fixtureRoot();
@@ -145,6 +145,44 @@ test("Codex adapter records through a source checkout hook without a package bin
     );
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("ensureCodexAdapter refuses symlinked hook targets", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-codex-adapter-"));
+  const outside = await mkdtemp(join(tmpdir(), "codecharter-codex-adapter-outside-"));
+  try {
+    await mkdir(join(root, ".codex", "hooks"), { recursive: true });
+    const outsideHook = join(outside, "outside-hook.mjs");
+    await writeFile(outsideHook, "outside secret\n");
+    await symlink(outsideHook, join(root, ".codex", "hooks", "codecharter-codex-hook.mjs"));
+
+    await assert.rejects(ensureCodexAdapter(root), /symlink/);
+    assert.equal(await readFile(outsideHook, "utf8"), "outside secret\n");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("ensureGitMapHooks refuses symlinked hooks directories", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codecharter-git-hooks-"));
+  const outside = await mkdtemp(join(tmpdir(), "codecharter-git-hooks-outside-"));
+  try {
+    initGitRepository(root);
+    await mkdir(outside, { recursive: true });
+    await writeFile(join(outside, "post-merge"), "outside secret\n");
+    await rm(join(root, ".git", "hooks"), { recursive: true, force: true });
+    await symlink(outside, join(root, ".git", "hooks"));
+
+    await assert.rejects(
+      ensureGitMapHooks(root, join(root, ".codecharter", "codecharter.json")),
+      /symlink/,
+    );
+    assert.equal(await readFile(join(outside, "post-merge"), "utf8"), "outside secret\n");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
   }
 });
 

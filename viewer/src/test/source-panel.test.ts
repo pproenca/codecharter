@@ -22,10 +22,29 @@ test("annotation clipboard prompt is compact and resolves targets with one local
     [
       "CodeCharter annotation: codecharter://annotation/annotation-1",
       "Note: go explore here",
-      'Resolve: codecharter --json resolve "codecharter://annotation/annotation-1" --server "http://127.0.0.1:4173"',
+      "Resolve: codecharter --json resolve 'codecharter://annotation/annotation-1' --server 'http://127.0.0.1:4173'",
     ].join("\n"),
   );
   assert.equal(prompt.includes("Track:"), false);
   assert.equal(prompt.includes("CodeCharter URL:"), false);
   assert.equal(prompt.length < 220, true);
+});
+
+test("annotation clipboard prompt shell-quotes command substitutions", () => {
+  const annotation: MapAnnotationPlace = {
+    id: "$(printf PWNED)",
+    comment: "unsafe shell characters",
+    deepLink: "codecharter://annotation/$(printf PWNED)",
+    browserHash: "#/annotation/%24(printf%20PWNED)",
+    resolvedTargets: [{ targetType: "file", path: "scripts/build.mjs" }],
+  };
+
+  const prompt = annotationClipboardText(annotation, {
+    origin: "http://127.0.0.1:4173",
+  });
+
+  assert.match(
+    prompt,
+    /Resolve: codecharter --json resolve 'codecharter:\/\/annotation\/\$\(printf PWNED\)' --server 'http:\/\/127\.0\.0\.1:4173'/,
+  );
 });

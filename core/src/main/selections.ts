@@ -413,7 +413,7 @@ function withAnnotationPrompt(
 
 function codexPromptForAnnotation(annotation: Omit<MapAnnotation, "codexPrompt">): string {
   const comment = annotation.comment?.trim() || "<empty>";
-  const reference = doubleQuote(annotation.deepLink);
+  const reference = shellSingleQuote(annotation.deepLink);
   return (
     `CodeCharter annotation: ${annotation.deepLink}\n` +
     `Note: ${comment}\n` +
@@ -421,8 +421,8 @@ function codexPromptForAnnotation(annotation: Omit<MapAnnotation, "codexPrompt">
   );
 }
 
-function doubleQuote(value: unknown): string {
-  return `"${String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+function shellSingleQuote(value: unknown): string {
+  return `'${String(value).replaceAll("'", "'\\''")}'`;
 }
 
 function annotationName(input: SelectionInput): string {

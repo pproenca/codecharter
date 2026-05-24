@@ -20,6 +20,8 @@ type OrderedOverlap = NamedPlaceOverlap & {
   order: [number, number];
 };
 
+export const MAX_NAMED_PLACE_OVERLAPS = 10_000;
+
 export type NamedPlaceOverlap = {
   placeIds: [string, string];
   names: [string, string];
@@ -44,6 +46,7 @@ export function findNamedPlaceOverlaps(places: NamedPlace[]): NamedPlaceOverlap[
   const overlaps: OrderedOverlap[] = [];
   const active: DrawnPlaceEntry[] = [];
 
+  let capped = false;
   for (const candidate of drawn) {
     const bounds = candidate.place.geometry.bounds;
     removeExpiredActivePlaces(active, bounds.x);
@@ -60,8 +63,15 @@ export function findNamedPlaceOverlaps(places: NamedPlace[]): NamedPlaceOverlap[
         names: [left.place.name, right.place.name],
         bounds: intersectionBounds(left.place.geometry.bounds, right.place.geometry.bounds),
       });
+      if (overlaps.length >= MAX_NAMED_PLACE_OVERLAPS) {
+        capped = true;
+        break;
+      }
     }
 
+    if (capped) {
+      break;
+    }
     active.push(candidate);
   }
 

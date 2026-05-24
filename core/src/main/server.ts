@@ -31,6 +31,7 @@ import { errorMessage, isErrnoException } from "./errors.ts";
 import { MAP_LEVELS } from "./levels.ts";
 import type { MapLevel } from "./levels.ts";
 import { findNamedPlaceOverlaps } from "./overlaps.ts";
+import { realPathWithinRoot } from "./path-containment.ts";
 import { isCodecharterCodemap, normalizePathForMap, resolveAddress } from "./resolver.ts";
 import type { AddressRequest, CodecharterCodemap } from "./resolver.ts";
 import {
@@ -62,6 +63,7 @@ const DEFAULT_PORT_SEARCH_LIMIT = 20;
 const DEFAULT_ACTIVITY_ARCHIVE = ".codecharter/activity.jsonl";
 const MAX_BODY_BYTES = 1024 * 1024; // HARDENING: cap request bodies at 1 MB (DoS)
 const LOCAL_HOSTNAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const VIEWER_ACTIVITY_LIVE_WINDOW_MS = 360 * 60 * 1000;
 const VIEWER_ACTIVITY_TRAIL_LIMIT = 80;
 
@@ -358,6 +360,7 @@ async function handleApi(
 ): Promise<void> {
   const match = matchingApiRoute(request, url);
   if (match) {
+    assertSafeMutationRequest(request);
     await match.route.handle(state, request, response, url, match);
     return;
   }
@@ -380,6 +383,40 @@ function matchingApiRoute(request: IncomingMessage, url: URL): MatchedApiRoute |
 
 function knownApiPath(url: URL): boolean {
   return API_ROUTES.some((route) => matchApiPath(route, url.pathname));
+}
+
+function assertSafeMutationRequest(request: IncomingMessage): void {
+  if (!MUTATING_METHODS.has(request.method ?? "")) {
+    return;
+  }
+
+  const fetchSite = String(request.headers["sec-fetch-site"] ?? "").toLowerCase();
+  if (fetchSite === "cross-site") {
+    throw httpError(403, "Cross-site API mutations are not allowed");
+  }
+
+  const origin = request.headers.origin;
+  if (typeof origin === "string" && !isLoopbackOrigin(origin)) {
+    throw httpError(403, "Cross-origin API mutations are not allowed");
+  }
+
+  if (request.method !== "DELETE" && !isJsonContentType(request.headers["content-type"])) {
+    throw httpError(415, "API mutations require application/json");
+  }
+}
+
+function isLoopbackOrigin(origin: string): boolean {
+  try {
+    const { hostname, protocol } = new URL(origin);
+    return protocol === "http:" && LOCAL_HOSTNAMES.has(hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+function isJsonContentType(value: string | string[] | undefined): boolean {
+  const contentType = Array.isArray(value) ? value[0] : value;
+  return contentType?.split(";", 1)[0]?.trim().toLowerCase() === "application/json";
 }
 
 function apiRoute(
@@ -491,6 +528,9 @@ async function getSourceApi(
   // HARDENING (CWE-22): with an untrusted codemap (Q4), a poisoned key like
   // "../../etc/passwd" must not escape root. Confine the resolved path.
   assertWithinRoot(state.root, file.path);
+  if (!(await realPathWithinRoot(state.root, file.path))) {
+    throw httpError(400, "Source path escapes repository root");
+  }
   const lineEnd = optionalNumber(url.searchParams.get("lineEnd"));
   sendJson(
     response,

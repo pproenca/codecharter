@@ -16,6 +16,8 @@ Treat code structure as geography.
   geohash levels, Deep Links, activity telemetry, or discovery fog.
 - Prefer exploring local source before asking questions local context can
   answer.
+- Fix, triage, review, and design answers need source context, relevant tests,
+  current behavior, and ADR or dependency contract proof where applicable.
 - If design decisions are unclear, use the `grill-me` skill: ask one question at
   a time and include a recommended answer.
 - For spatial indexing, geohashing, map navigation, or codebase-as-map work, use

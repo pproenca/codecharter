@@ -71,24 +71,33 @@ test("mapSearchMatch returns discriminated payloads with their required targets"
 });
 
 test("mapRouteTarget resolves paths and geohash prefixes without synthetic root-folder hits", () => {
-  assert.equal(mapRouteTarget(codemap, {
-    type: "map",
-    kind: "file",
-    locator: "s123",
-    params: new URLSearchParams("path=src/app.ts"),
-  })?.targetType, "file");
+  assert.equal(
+    mapRouteTarget(codemap, {
+      type: "map",
+      kind: "file",
+      locator: "s123",
+      params: new URLSearchParams("path=src/app.ts"),
+    })?.targetType,
+    "file",
+  );
 
-  assert.deepEqual(mapRouteTarget(codemap, {
-    type: "map",
-    kind: "folder",
-    locator: "s",
-    params: new URLSearchParams(),
-  }), { ...codemap.folders?.src, targetType: "folder" });
+  assert.deepEqual(
+    mapRouteTarget(codemap, {
+      type: "map",
+      kind: "folder",
+      locator: "s",
+      params: new URLSearchParams(),
+    }),
+    { ...codemap.folders?.src, targetType: "folder" },
+  );
 
-  assert.deepEqual(mapRouteTarget(codemap, {
-    type: "map",
-    kind: "file",
-    locator: "s12345",
-    params: new URLSearchParams(),
-  }), { ...codemap.files?.["src/app.ts"], targetType: "file" });
+  assert.deepEqual(
+    mapRouteTarget(codemap, {
+      type: "map",
+      kind: "file",
+      locator: "s12345",
+      params: new URLSearchParams(),
+    }),
+    { ...codemap.files?.["src/app.ts"], targetType: "file" },
+  );
 });

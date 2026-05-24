@@ -24,6 +24,8 @@ export const FULL_GEOHASH_PRECISION = MAP_LEVELS.lineRange;
 /** Resolve a level to its geohash precision. @throws on an unknown level. */
 export function precisionForLevel(level: MapLevel): number {
   const precision = MAP_LEVELS[level];
-  if (!precision) throw new Error(`Unknown map level: ${level}`);
+  if (!precision) {
+    throw new Error(`Unknown map level: ${level}`);
+  }
   return precision;
 }

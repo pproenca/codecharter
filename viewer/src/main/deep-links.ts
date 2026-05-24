@@ -28,7 +28,11 @@ type BoundsTuple = [number, number, number, number];
 export type HashRoute = MapRoute;
 
 /** Build a `#/map/kind/locator?meta` route. */
-export function createMapHashRoute(kind: MapRouteKind, locator: string, metadata: RouteMetadata = {}): string {
+export function createMapHashRoute(
+  kind: MapRouteKind,
+  locator: string,
+  metadata: RouteMetadata = {},
+): string {
   const query = searchParams(metadata).toString();
   return `#/map/${encodeURIComponent(kind)}/${encodeURIComponent(locator)}${query ? `?${query}` : ""}`;
 }
@@ -39,14 +43,22 @@ export function createAnnotationHashRoute(id: string): string {
 }
 
 /** Build a `#/selection?level=&bounds=` route. */
-export function createSelectionHashRoute({ level = "file", bounds }: { level?: string; bounds: Bounds }): string {
+export function createSelectionHashRoute({
+  level = "file",
+  bounds,
+}: {
+  level?: string;
+  bounds: Bounds;
+}): string {
   const params = new URLSearchParams({ level, bounds: formatRouteBounds(bounds) });
   return `#/selection?${params.toString()}`;
 }
 
 /** Parse a window hash into a typed route, or `null` if unrecognized. */
 export function parseHashRoute(hash: string): HashRoute | null {
-  if (!hash || hash === "#") return null;
+  if (!hash || hash === "#") {
+    return null;
+  }
   const value = hash.startsWith("#") ? hash.slice(1) : hash;
   const queryStart = value.indexOf("?");
   const path = queryStart === -1 ? value : value.slice(0, queryStart);
@@ -69,19 +81,25 @@ export function parseHashRoute(hash: string): HashRoute | null {
 /** Decode a `bounds` query param into a valid unit-square rectangle, or `null` (BR-030). */
 export function boundsFromRouteParams(params: URLSearchParams): Bounds | null {
   const values = parseBoundsParam(params.get("bounds") ?? "");
-  if (!isBoundsTuple(values) || !isValidSelectionBounds(values)) return null;
+  if (!isBoundsTuple(values) || !isValidSelectionBounds(values)) {
+    return null;
+  }
   return { x: values[0], y: values[1], width: values[2], height: values[3] };
 }
 
 function searchParams(metadata: RouteMetadata): URLSearchParams {
   return new URLSearchParams(
-    Object.entries(metadata).flatMap(([key, value]) => (value !== undefined && value !== "" ? [[key, String(value)]] : [])),
+    Object.entries(metadata).flatMap(([key, value]) =>
+      value !== undefined && value !== "" ? [[key, String(value)]] : [],
+    ),
   );
 }
 
 // Unified with @codecharter/core's formatRouteNumber (debt #3): coerce via Number.
 function formatRouteNumber(value: number): string {
-  return Number(value).toFixed(12).replace(/\.?0+$/, "");
+  return Number(value)
+    .toFixed(12)
+    .replace(/\.?0+$/, "");
 }
 
 function formatRouteBounds(bounds: Bounds): string {
@@ -89,7 +107,10 @@ function formatRouteBounds(bounds: Bounds): string {
 }
 
 function routeParts(path: string): string[] {
-  return path.split("/").filter(Boolean).map((part) => decodeURIComponent(part));
+  return path
+    .split("/")
+    .filter(Boolean)
+    .map((part) => decodeURIComponent(part));
 }
 
 function isMapRouteKind(kind: string | undefined): kind is MapRouteKind {
@@ -105,7 +126,11 @@ function isBoundsTuple(values: number[]): values is BoundsTuple {
 }
 
 function isValidSelectionBounds([x, y, width, height]: BoundsTuple): boolean {
-  if (width <= 0 || height <= 0) return false;
-  if (x < 0 || y < 0 || x > 1 || y > 1) return false;
+  if (width <= 0 || height <= 0) {
+    return false;
+  }
+  if (x < 0 || y < 0 || x > 1 || y > 1) {
+    return false;
+  }
   return x + width <= 1 && y + height <= 1;
 }

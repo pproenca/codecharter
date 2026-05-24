@@ -80,7 +80,9 @@ export class ActivityStore {
   }
 
   async flush(): Promise<void> {
-    if (!this.archivePath || this.pending.length === 0) return;
+    if (!this.archivePath || this.pending.length === 0) {
+      return;
+    }
     const archivePath = this.archivePath;
     const batch = this.pending;
     const clearGeneration = this.clearGeneration;
@@ -90,7 +92,9 @@ export class ActivityStore {
         console.warn(`warning: activity-archive-queue-recovered error=${error.message}`);
       })
       .then(async () => {
-        if (clearGeneration === this.clearGeneration) await appendActivityEvents(archivePath, batch);
+        if (clearGeneration === this.clearGeneration) {
+          await appendActivityEvents(archivePath, batch);
+        }
       })
       .catch((error) => {
         if (clearGeneration === this.clearGeneration) {
@@ -113,13 +117,17 @@ export class ActivityStore {
         console.warn(`warning: activity-archive-queue-recovered error=${error.message}`);
       })
       .then(async () => {
-        if (archivePath) await clearActivityArchive(archivePath);
+        if (archivePath) {
+          await clearActivityArchive(archivePath);
+        }
       });
     return this.writeQueue;
   }
 
   async close(): Promise<void> {
-    if (this.closed) return;
+    if (this.closed) {
+      return;
+    }
     this.closed = true;
     clearInterval(this.timer);
     await this.flush();
@@ -128,12 +136,19 @@ export class ActivityStore {
 }
 
 function trimOldest(events: StoredActivityEvent[], maxEvents: number): void {
-  if (events.length > maxEvents) events.splice(0, events.length - maxEvents);
+  if (events.length > maxEvents) {
+    events.splice(0, events.length - maxEvents);
+  }
 }
 
 /** Append events to the archive as one JSON object per line. */
-export async function appendActivityEvents(archivePath: string, events: StoredActivityEvent[]): Promise<void> {
-  if (!events.length) return;
+export async function appendActivityEvents(
+  archivePath: string,
+  events: StoredActivityEvent[],
+): Promise<void> {
+  if (!events.length) {
+    return;
+  }
   await mkdir(dirname(archivePath), { recursive: true });
   await appendFile(archivePath, `${events.map((event) => JSON.stringify(event)).join("\n")}\n`);
 }

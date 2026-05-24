@@ -35,7 +35,9 @@ export function findNamedPlaceOverlaps(places: NamedPlace[]): NamedPlaceOverlap[
   const drawn: DrawnPlaceEntry[] = [];
   for (let index = 0; index < places.length; index += 1) {
     const place = places[index];
-    if (isDrawnRectPlace(place)) drawn.push({ place, index });
+    if (isDrawnRectPlace(place)) {
+      drawn.push({ place, index });
+    }
   }
   sortIfNeeded(drawn, compareDrawnPlaces);
 
@@ -47,7 +49,9 @@ export function findNamedPlaceOverlaps(places: NamedPlace[]): NamedPlaceOverlap[
     removeExpiredActivePlaces(active, bounds.x);
 
     for (const other of active) {
-      if (!intersects(other.place.geometry.bounds, bounds)) continue;
+      if (!intersects(other.place.geometry.bounds, bounds)) {
+        continue;
+      }
       const [left, right]: [DrawnPlaceEntry, DrawnPlaceEntry] =
         other.index < candidate.index ? [other, candidate] : [candidate, other];
       overlaps.push({
@@ -66,18 +70,24 @@ export function findNamedPlaceOverlaps(places: NamedPlace[]): NamedPlaceOverlap[
 }
 
 function isDrawnRectPlace(place: NamedPlace | undefined): place is DrawnRectPlace {
-  return place?.kind === "drawnSelection"
-    && place.geometry?.type === "rect"
-    && place.geometry.bounds !== undefined;
+  return (
+    place?.kind === "drawnSelection" &&
+    place.geometry?.type === "rect" &&
+    place.geometry.bounds !== undefined
+  );
 }
 
 function removeExpiredActivePlaces(active: DrawnPlaceEntry[], x: number): void {
   let write = 0;
   for (let read = 0; read < active.length; read += 1) {
     const entry = active[read];
-    if (!entry) continue;
+    if (!entry) {
+      continue;
+    }
     const bounds = entry.place.geometry.bounds;
-    if (bounds.x + bounds.width <= x) continue;
+    if (bounds.x + bounds.width <= x) {
+      continue;
+    }
     active[write] = entry;
     write += 1;
   }

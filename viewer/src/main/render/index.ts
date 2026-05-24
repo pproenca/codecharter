@@ -12,4 +12,11 @@ export * from "./fog.ts";
 export * from "./activity.ts";
 export * from "./source-panel.ts";
 export * from "./targets.ts";
-export { boundsCenter, containsBoundsPoint, hashString, normalizeMapPath, pathFromDeepLink, rgba } from "./primitives.ts";
+export {
+  boundsCenter,
+  containsBoundsPoint,
+  hashString,
+  normalizeMapPath,
+  pathFromDeepLink,
+  rgba,
+} from "./primitives.ts";

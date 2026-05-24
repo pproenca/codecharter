@@ -2,37 +2,46 @@
   "name": "codecharter",
   "version": "0.2.1",
   "description": "Deterministic geohash-addressed code map with an agent-activity overlay. Modernized monorepo: @codecharter/core (codemap engine + hardened localhost server + CLI) and @codecharter/viewer (canvas SPA).",
-  "type": "module",
   "bin": {
     "codecharter": "dist/bin/codemap.mjs",
     "codemap": "dist/bin/codemap.mjs"
-  },
-  "files": [
-    "dist",
-    "README.md"
-  ],
-  "publishConfig": {
-    "access": "public"
   },
   "workspaces": [
     "core",
     "viewer"
   ],
-  "engines": {
-    "node": ">=22"
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "prepack": "npm run build",
-    "prepublishOnly": "npm run build",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "node --test test/*.test.mjs && npm run test --workspaces --if-present",
+    "prepack": "pnpm build",
+    "prepublishOnly": "pnpm build",
+    "typecheck": "pnpm tsgo",
+    "tsgo": "node scripts/run-tsgo.mjs",
+    "lint": "oxlint core viewer scripts test",
+    "format": "oxfmt --write --threads=1 package.json pnpm-workspace.yaml .oxlintrc.json AGENTS.md README.md VISION.md CONTEXT.md CONTEXT-MAP.md core viewer scripts test docs .github",
+    "format:check": "oxfmt --check --threads=1 package.json pnpm-workspace.yaml .oxlintrc.json AGENTS.md README.md VISION.md CONTEXT.md CONTEXT-MAP.md core viewer scripts test docs .github",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "test": "node --test test/*.test.mjs && pnpm -r --if-present test",
     "codecharter": "tsx core/bin/codemap.mts",
     "generate": "tsx core/bin/codemap.mts generate",
     "serve": "tsx core/bin/codemap.mts serve"
   },
   "devDependencies": {
+    "@typescript/native-preview": "7.0.0-dev.20260519.1",
     "esbuild": "^0.24.2",
+    "oxfmt": "0.51.0",
+    "oxlint": "1.66.0",
     "tsx": "^4.22.3"
-  }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.2.2+sha512.36e6621fad506178936455e70247b8808ef4ec25797a9f437a93281a020484e2607f6a469a22e982987c3dbb8866e3071514ab10a4a1749e06edcd1ec118436f"
 }

@@ -27,7 +27,7 @@ notes.
 
 - Lead with the task or product concept the reader is trying to understand.
 - Prefer one recommended path before alternatives.
-- Keep examples runnable against this repo's npm scripts and CLI.
+- Keep examples runnable against this repo's pnpm scripts and CLI.
 - Keep local paths generic unless the doc is specifically for local agent
   workflow.
 - Do not add screenshots, generated maps, or local activity artifacts to docs

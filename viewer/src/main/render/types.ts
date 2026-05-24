@@ -99,7 +99,12 @@ export type SearchContext = {
 };
 
 export type SearchMatch =
-  | { type: "annotation"; label?: string; place: NamedPlace; target: NamedPlace & { targetType: "annotation" } }
+  | {
+      type: "annotation";
+      label?: string;
+      place: NamedPlace;
+      target: NamedPlace & { targetType: "annotation" };
+    }
   | { type: "namedPlace"; label?: string; place: NamedPlace; target: null }
   | { type: "file"; label?: string; file: MapFile }
   | { type: "folder"; label?: string; folder: MapFolder };

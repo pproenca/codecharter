@@ -11,8 +11,8 @@ const viewerRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 test("static toolbar shell marks Pan as the default active tool", async () => {
   const html = await readFile(join(viewerRoot, "web", "index.html"), "utf8");
 
-  assert.match(html, /id="selectTool" class="icon-tool"[^>]*aria-pressed="false"/);
-  assert.match(html, /id="panTool" class="icon-tool active"[^>]*aria-pressed="true"/);
+  assert.match(html, /id="selectTool"[\s\S]*?class="icon-tool"[\s\S]*?aria-pressed="false"/);
+  assert.match(html, /id="panTool"[\s\S]*?class="icon-tool active"[\s\S]*?aria-pressed="true"/);
 });
 
 test("interaction state exposes Pan as active when panning is the current mode", () => {

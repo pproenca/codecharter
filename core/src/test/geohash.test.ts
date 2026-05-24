@@ -182,7 +182,7 @@ test("BR-001 prefix property holds for several arbitrary interior points", () =>
 // --- BASE32 alphabet invariant --------------------------------------------
 
 test("BR-001 encoded strings only ever contain BASE32 chars (no a/i/l/o)", () => {
-  const allowed = new Set([...BASE32]);
+  const allowed = new Set(BASE32);
   assert.ok(!allowed.has("a") && !allowed.has("i") && !allowed.has("l") && !allowed.has("o"));
   const samples: Array<[number, number]> = [
     [0, 0],
@@ -204,7 +204,7 @@ test("BR-001 encoded strings only ever contain BASE32 chars (no a/i/l/o)", () =>
 // --- error paths -----------------------------------------------------------
 
 test("BR-001 throws on non-finite latitude", () => {
-  assert.throws(() => encodeGeohash(NaN, 0), {
+  assert.throws(() => encodeGeohash(Number.NaN, 0), {
     message: "Latitude and longitude must be finite numbers",
   });
   assert.throws(() => encodeGeohash(Infinity, 0), {
@@ -216,7 +216,7 @@ test("BR-001 throws on non-finite latitude", () => {
 });
 
 test("BR-001 throws on non-finite longitude", () => {
-  assert.throws(() => encodeGeohash(0, NaN), {
+  assert.throws(() => encodeGeohash(0, Number.NaN), {
     message: "Latitude and longitude must be finite numbers",
   });
   assert.throws(() => encodeGeohash(0, Infinity), {
@@ -246,7 +246,7 @@ test("BR-001 throws on negative precision -1", () => {
 });
 
 test("BR-001 throws on NaN precision", () => {
-  assert.throws(() => encodeGeohash(0, 0, NaN), {
+  assert.throws(() => encodeGeohash(0, 0, Number.NaN), {
     message: "Geohash precision must be a positive integer",
   });
 });
@@ -307,7 +307,9 @@ test("BR-002 decodes London hash 'gcpvj0duq533' to its golden bounding box", () 
 // --- round-trip property ---------------------------------------------------
 
 function wrapLongitude(lon: number): number {
-  if (lon >= -180 && lon < 180) return lon;
+  if (lon >= -180 && lon < 180) {
+    return lon;
+  }
   return ((((lon + 180) % 360) + 360) % 360) - 180;
 }
 
@@ -336,7 +338,7 @@ test("BR-002 round-trip: encoded point falls inside its own decoded box (grid)",
 
 test("BR-002 round-trip: random sample stays inside decoded box", () => {
   // Deterministic LCG so the sample is reproducible.
-  let state = 0x2545f491_4f6cdd1d & 0xffffffff;
+  let state = 1_332_534_784;
   const rand = () => {
     state = (1103515245 * state + 12345) & 0x7fffffff;
     return state / 0x7fffffff;
@@ -446,7 +448,7 @@ test("codePointToGeo maps an interior point just shy of the east edge linearly (
 });
 
 test("codePointToGeo throws on non-finite x", () => {
-  assert.throws(() => codePointToGeo({ x: NaN, y: 0 }), {
+  assert.throws(() => codePointToGeo({ x: Number.NaN, y: 0 }), {
     message: "Code-plane point coordinates must be finite numbers",
   });
 });
@@ -471,7 +473,7 @@ test("geohashForBoundsCenter on the full plane {0,0,1,1} hashes the origin", () 
 
 test("geohashForBoundsCenter returns an object shaped {lat, lon, geohash}", () => {
   const result = geohashForBoundsCenter({ x: 0, y: 0, width: 1, height: 1 });
-  assert.deepEqual(Object.keys(result).sort(), ["geohash", "lat", "lon"]);
+  assert.deepEqual(Object.keys(result).toSorted(), ["geohash", "lat", "lon"]);
   assert.equal(typeof result.lat, "number");
   assert.equal(typeof result.lon, "number");
   assert.equal(typeof result.geohash, "string");
@@ -526,10 +528,7 @@ test("codePlaneDescriptor reports the internal geo domain", () => {
 });
 
 test("codePlaneDescriptor.transform.xToLon literally embeds 180 - 1e-12", () => {
-  assert.equal(
-    codePlaneDescriptor().transform.xToLon,
-    "x >= 1 ? 179.999999999999 : x * 360 - 180",
-  );
+  assert.equal(codePlaneDescriptor().transform.xToLon, "x >= 1 ? 179.999999999999 : x * 360 - 180");
 });
 
 test("codePlaneDescriptor.transform.yToLat is exactly '90 - y * 180'", () => {
@@ -553,13 +552,13 @@ test("codePlaneDescriptor returns the full descriptor object verbatim", () => {
 // ---------------------------------------------------------------------------
 // Exported type surface — compile-time assertions.
 // These never run; they fail the build if the modern module drops or renames
-// a type. (tsx type-checks lazily, but `tsc --noEmit` against tsconfig will.)
+// a type. (tsx type-checks lazily, but `pnpm typecheck` against tsconfig will.)
 // ---------------------------------------------------------------------------
 
 test("type surface is preserved (compile-time)", () => {
-  const _geo: GeoCoordinate = { lat: 0, lon: 0 };
-  const _bounds: GeohashBounds = { lat: { min: 0, max: 0 }, lon: { min: 0, max: 0 } };
-  const _hashed: GeohashedCoordinate = { lat: 0, lon: 0, geohash: "s" };
-  const _descriptor: CodePlaneDescriptor = codePlaneDescriptor();
-  assert.ok(_geo && _bounds && _hashed && _descriptor);
+  const geo: GeoCoordinate = { lat: 0, lon: 0 };
+  const bounds: GeohashBounds = { lat: { min: 0, max: 0 }, lon: { min: 0, max: 0 } };
+  const hashed: GeohashedCoordinate = { lat: 0, lon: 0, geohash: "s" };
+  const descriptor: CodePlaneDescriptor = codePlaneDescriptor();
+  assert.ok(geo && bounds && hashed && descriptor);
 });

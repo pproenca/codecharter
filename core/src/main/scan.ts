@@ -33,20 +33,31 @@ export type ScanOptions = {
 };
 
 /** List repo-relative code files git knows about, minus excludes/lockfiles, sorted. */
-export async function listIncludedFiles(root: string, { excludePaths = [] }: ScanOptions = {}): Promise<string[]> {
+export async function listIncludedFiles(
+  root: string,
+  { excludePaths = [] }: ScanOptions = {},
+): Promise<string[]> {
   const excluded = excludePaths.map((path) => normalizeRepoPath(root, path).replace(/\/+$/, ""));
-  const { stdout } = await execFileText("git", ["ls-files", "--cached", "--others", "--exclude-standard"], {
-    cwd: root,
-    maxBuffer: 10 * 1024 * 1024,
-  });
+  const { stdout } = await execFileText(
+    "git",
+    ["ls-files", "--cached", "--others", "--exclude-standard"],
+    {
+      cwd: root,
+      maxBuffer: 10 * 1024 * 1024,
+    },
+  );
 
   const paths: string[] = [];
   for (const line of stdout.split("\n")) {
     const path = line.trim();
-    if (path
-      && !excluded.some((excludedPath) => path === excludedPath || path.startsWith(`${excludedPath}/`))
-      && !DEFAULT_EXCLUDED_FILES.has(path)
-      && isCodeFile(path)) {
+    if (
+      path &&
+      !excluded.some(
+        (excludedPath) => path === excludedPath || path.startsWith(`${excludedPath}/`),
+      ) &&
+      !DEFAULT_EXCLUDED_FILES.has(path) &&
+      isCodeFile(path)
+    ) {
       paths.push(path);
     }
   }
@@ -54,9 +65,14 @@ export async function listIncludedFiles(root: string, { excludePaths = [] }: Sca
 }
 
 /** Scan every included file, computing its metrics (parallel, order-preserving). */
-export async function scanCodeFiles(root: string, options: ScanOptions = {}): Promise<ScannedFile[]> {
+export async function scanCodeFiles(
+  root: string,
+  options: ScanOptions = {},
+): Promise<ScannedFile[]> {
   const paths = await listIncludedFiles(root, options);
-  return mapConcurrent(paths, options.scanConcurrency || DEFAULT_SCAN_CONCURRENCY, (path) => scanPath(root, path));
+  return mapConcurrent(paths, options.scanConcurrency || DEFAULT_SCAN_CONCURRENCY, (path) =>
+    scanPath(root, path),
+  );
 }
 
 async function scanPath(root: string, path: string): Promise<ScannedFile> {
@@ -73,12 +89,16 @@ async function scanPath(root: string, path: string): Promise<ScannedFile> {
 
 function normalizeRepoPath(root: string, path: string): string {
   const normalized = path.replaceAll("\\", "/");
-  if (isAbsolute(path)) return relative(root, path).replaceAll("\\", "/");
+  if (isAbsolute(path)) {
+    return relative(root, path).replaceAll("\\", "/");
+  }
   return normalized.startsWith("./") ? normalized.slice(2) : normalized;
 }
 
 function lineMetrics(content: string): Pick<ScannedFile, "lineCount" | "maxLineLength"> {
-  if (content.length === 0) return { lineCount: 1, maxLineLength: 1 };
+  if (content.length === 0) {
+    return { lineCount: 1, maxLineLength: 1 };
+  }
   let lineCount = 1;
   let maxLineLength = 1;
   let currentLineLength = 0;
@@ -86,18 +106,24 @@ function lineMetrics(content: string): Pick<ScannedFile, "lineCount" | "maxLineL
     if (content[index] === "\n") {
       maxLineLength = Math.max(maxLineLength, currentLineLength);
       currentLineLength = 0;
-      if (index !== content.length - 1) lineCount += 1;
+      if (index !== content.length - 1) {
+        lineCount += 1;
+      }
     } else {
       currentLineLength += 1;
     }
   }
-  if (!content.endsWith("\n")) maxLineLength = Math.max(maxLineLength, currentLineLength);
+  if (!content.endsWith("\n")) {
+    maxLineLength = Math.max(maxLineLength, currentLineLength);
+  }
   return { lineCount, maxLineLength };
 }
 
 function countMatches(content: string, pattern: RegExp): number {
   pattern.lastIndex = 0;
   let count = 0;
-  while (pattern.exec(content)) count += 1;
+  while (pattern.test(content)) {
+    count += 1;
+  }
   return count;
 }

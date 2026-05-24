@@ -38,7 +38,9 @@ const HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/;
 /** The overall changed line range (min start … max end across hunks). */
 export function lineRangeFromUnifiedDiff(diff: string): LineRange {
   const range = changedRangeFromUnifiedDiff(diff);
-  if (range.lineStart === undefined) return {};
+  if (range.lineStart === undefined) {
+    return {};
+  }
   return {
     lineStart: range.lineStart,
     ...(range.lineEnd === undefined ? {} : { lineEnd: range.lineEnd }),
@@ -52,14 +54,18 @@ export function changedRangeFromUnifiedDiff(diff: string): ChangedRange {
   let matchedHunks = 0;
   for (const match of diff.matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)) {
     const start = match[1];
-    if (start === undefined) continue;
+    if (start === undefined) {
+      continue;
+    }
     const range = changedHunkRange(start, match[2]);
     lineStart = Math.min(lineStart, range.start);
     lineEnd = Math.max(lineEnd, range.end);
     matchedHunks += 1;
   }
 
-  if (matchedHunks === 0) return {};
+  if (matchedHunks === 0) {
+    return {};
+  }
   const fragments = tokenFragments(diff);
   const tokenSpan = columnSpanFromFragments(fragments);
   return {
@@ -88,11 +94,18 @@ function tokenFragments(diff: string): TokenFragment[] {
       nextLine = Number(hunk[1]);
       continue;
     }
-    if (nextLine === null) continue;
+    if (nextLine === null) {
+      continue;
+    }
     if (rawLine.startsWith("+") && !rawLine.startsWith("+++")) {
       const span = tokenColumnSpan(rawLine.slice(1));
       if (span) {
-        fragments.push({ lineStart: nextLine, lineEnd: nextLine, columnStart: span.start, columnEnd: span.end });
+        fragments.push({
+          lineStart: nextLine,
+          lineEnd: nextLine,
+          columnStart: span.start,
+          columnEnd: span.end,
+        });
       }
       nextLine += 1;
     } else if (!rawLine.startsWith("-")) {
@@ -104,7 +117,9 @@ function tokenFragments(diff: string): TokenFragment[] {
 }
 
 function columnSpanFromFragments(fragments: TokenFragment[]): ColumnSpan | null {
-  if (!fragments.length) return null;
+  if (!fragments.length) {
+    return null;
+  }
   let start = Number.POSITIVE_INFINITY;
   let end = Number.NEGATIVE_INFINITY;
   for (const fragment of fragments) {
@@ -115,7 +130,9 @@ function columnSpanFromFragments(fragments: TokenFragment[]): ColumnSpan | null 
 }
 
 function tokenColumnSpan(line: string): ColumnSpan | null {
-  if (line.length === 0) return null;
+  if (line.length === 0) {
+    return null;
+  }
   TOKEN_PATTERN.lastIndex = 0;
   let match: RegExpExecArray | null;
   let minColumn = Infinity;
@@ -124,6 +141,8 @@ function tokenColumnSpan(line: string): ColumnSpan | null {
     minColumn = Math.min(minColumn, match.index + 1);
     maxColumn = Math.max(maxColumn, match.index + match[0].length);
   }
-  if (Number.isFinite(minColumn)) return { start: minColumn, end: maxColumn };
+  if (Number.isFinite(minColumn)) {
+    return { start: minColumn, end: maxColumn };
+  }
   return { start: 1, end: line.length };
 }

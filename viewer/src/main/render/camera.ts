@@ -28,8 +28,12 @@ import {
 } from "./constants.ts";
 import { clamp } from "./primitives.ts";
 
-type DoubleClickAction = MapActionOf<"focusAnnotation" | "selectFolder" | "selectFile" | "selectActivity">;
-type TargetSelectionAction = MapActionOf<"clearSelection" | "focusAnnotation" | "selectActivity" | "inspectFolder" | "inspectFile">;
+type DoubleClickAction = MapActionOf<
+  "focusAnnotation" | "selectFolder" | "selectFile" | "selectActivity"
+>;
+type TargetSelectionAction = MapActionOf<
+  "clearSelection" | "focusAnnotation" | "selectActivity" | "inspectFolder" | "inspectFile"
+>;
 
 const DOUBLE_CLICK_TARGET_ACTIONS = {
   annotation: { type: "focusAnnotation" },
@@ -46,10 +50,7 @@ const MAP_TARGET_SELECTION_ACTIONS = {
 } satisfies Record<MapTargetType, Exclude<TargetSelectionAction, MapActionOf<"clearSelection">>>;
 
 export function labelBoxesOverlap(a: Bounds, b: Bounds): boolean {
-  return a.x < b.x + b.width
-    && a.x + a.width > b.x
-    && a.y < b.y + b.height
-    && a.y + a.height > b.y;
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
 export function worldToScreenPoint(point: Point, view: View, viewport: Viewport): Point {
@@ -77,13 +78,22 @@ export function screenBoundsForView(bounds: Bounds, view: View, viewport: Viewpo
 }
 
 export function isScreenBoxVisible(box: Bounds, viewport: Viewport): boolean {
-  return box.x + box.width >= 0
-    && box.y + box.height >= 0
-    && box.x <= viewport.width
-    && box.y <= viewport.height;
+  return (
+    box.x + box.width >= 0 &&
+    box.y + box.height >= 0 &&
+    box.x <= viewport.width &&
+    box.y <= viewport.height
+  );
 }
 
-export function zoomViewAt(view: View, screenAnchor: Point, factor: number, viewport: Viewport, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE): View {
+export function zoomViewAt(
+  view: View,
+  screenAnchor: Point,
+  factor: number,
+  viewport: Viewport,
+  minScale = MAP_MIN_SCALE,
+  maxScale = MAP_MAX_SCALE,
+): View {
   const before = screenToWorldPoint(screenAnchor, view, viewport);
   const scale = clamp(view.scale * factor, minScale, maxScale);
   const after = screenToWorldPoint(screenAnchor, { ...view, scale }, viewport);
@@ -103,10 +113,14 @@ export function panViewByScreenDelta(view: View, delta: Point, viewport: Viewpor
 }
 
 export function panViewForDrag(drag: DragState, screen: Point, viewport: Viewport): View {
-  return panViewByScreenDelta(drag.view, {
-    x: drag.start.x - screen.x,
-    y: drag.start.y - screen.y,
-  }, viewport);
+  return panViewByScreenDelta(
+    drag.view,
+    {
+      x: drag.start.x - screen.x,
+      y: drag.start.y - screen.y,
+    },
+    viewport,
+  );
 }
 
 export type CanvasKeyboardAction =
@@ -124,13 +138,25 @@ export function canvasKeyboardAction(event: KeyboardEventLike): CanvasKeyboardAc
     ArrowUp: { x: 0, y: -KEYBOARD_PAN_PIXELS },
   };
   const key = event.key;
-  if (!key) return null;
+  if (!key) {
+    return null;
+  }
   const delta = keyDeltas[key];
-  if (delta) return { type: "pan", delta };
-  if (key === "+" || key === "=") return { type: "zoomIn" };
-  if (key === "-" || key === "_") return { type: "zoomOut" };
-  if (key === "0") return { type: "fitCodebase" };
-  if (key === "Enter") return { type: "selectCenter" };
+  if (delta) {
+    return { type: "pan", delta };
+  }
+  if (key === "+" || key === "=") {
+    return { type: "zoomIn" };
+  }
+  if (key === "-" || key === "_") {
+    return { type: "zoomOut" };
+  }
+  if (key === "0") {
+    return { type: "fitCodebase" };
+  }
+  if (key === "Enter") {
+    return { type: "selectCenter" };
+  }
   return null;
 }
 
@@ -141,7 +167,10 @@ export type DocumentKeyboardAction =
   | { type: "copyAnnotationPrompt" }
   | { type: "deleteAnnotation" };
 
-export function documentKeyboardAction(event: KeyboardEventLike, context: DocumentKeyboardContext = {}): DocumentKeyboardAction | null {
+export function documentKeyboardAction(
+  event: KeyboardEventLike,
+  context: DocumentKeyboardContext = {},
+): DocumentKeyboardAction | null {
   const commandModifier = event.metaKey || event.ctrlKey;
   const {
     textEntry = false,
@@ -150,21 +179,39 @@ export function documentKeyboardAction(event: KeyboardEventLike, context: Docume
     hasResolvedSelection = false,
   } = context;
 
-  if (!textEntry && !buttonTarget && isSpaceKeyEvent(event) && !event.repeat) return { type: "startSpacePan" };
-  if (event.key === "Escape") return { type: "cancelInteraction" };
-  if (commandModifier && event.key === "Enter" && (hasResolvedSelection || hasSelectedAnnotation)) return { type: "saveSelection" };
-  if (!textEntry && commandModifier && event.key?.toLowerCase() === "c" && hasSelectedAnnotation) return { type: "copyAnnotationPrompt" };
-  if (!textEntry && (event.key === "Delete" || event.key === "Backspace") && hasSelectedAnnotation) return { type: "deleteAnnotation" };
+  if (!textEntry && !buttonTarget && isSpaceKeyEvent(event) && !event.repeat) {
+    return { type: "startSpacePan" };
+  }
+  if (event.key === "Escape") {
+    return { type: "cancelInteraction" };
+  }
+  if (commandModifier && event.key === "Enter" && (hasResolvedSelection || hasSelectedAnnotation)) {
+    return { type: "saveSelection" };
+  }
+  if (!textEntry && commandModifier && event.key?.toLowerCase() === "c" && hasSelectedAnnotation) {
+    return { type: "copyAnnotationPrompt" };
+  }
+  if (
+    !textEntry &&
+    (event.key === "Delete" || event.key === "Backspace") &&
+    hasSelectedAnnotation
+  ) {
+    return { type: "deleteAnnotation" };
+  }
   return null;
 }
 
 export function doubleClickMapAction(hit: ActionHit | null | undefined): DoubleClickAction | null {
-  if (!hit) return null;
+  if (!hit) {
+    return null;
+  }
   return { ...DOUBLE_CLICK_TARGET_ACTIONS[hit.targetType] };
 }
 
 export function mapTargetSelectionAction(hit: ActionHit | null | undefined): TargetSelectionAction {
-  if (!hit) return { type: "clearSelection" };
+  if (!hit) {
+    return { type: "clearSelection" };
+  }
   return { ...MAP_TARGET_SELECTION_ACTIONS[hit.targetType] };
 }
 
@@ -172,7 +219,13 @@ export function isSpaceKeyEvent(event: KeyboardEventLike): boolean {
   return event.code === "Space" || event.key === " " || event.key === "Spacebar";
 }
 
-export function viewForBounds(bounds: Bounds, _viewport: Viewport, paddingFactor = 1.2, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE): View {
+export function viewForBounds(
+  bounds: Bounds,
+  _viewport: Viewport,
+  paddingFactor = 1.2,
+  minScale = MAP_MIN_SCALE,
+  maxScale = MAP_MAX_SCALE,
+): View {
   const scaleX = 1 / Math.max(bounds.width * paddingFactor, 0.001);
   const scaleY = 1 / Math.max(bounds.height * paddingFactor, 0.001);
   const scale = clamp(Math.min(scaleX, scaleY), minScale, maxScale);
@@ -183,25 +236,43 @@ export function viewForBounds(bounds: Bounds, _viewport: Viewport, paddingFactor
   };
 }
 
-export function viewForReadableFile(file: MapFile, viewport: Viewport, lineRatio = 0.5, minScale = MAP_MIN_SCALE, maxScale = MAP_MAX_SCALE): View {
+export function viewForReadableFile(
+  file: MapFile,
+  viewport: Viewport,
+  lineRatio = 0.5,
+  minScale = MAP_MIN_SCALE,
+  maxScale = MAP_MAX_SCALE,
+): View {
   const bounds = file.bounds ?? { x: 0, y: 0, width: 1, height: 1 };
   const lineCount = file.lineCount ?? 0;
   const widthScale = SOURCE_TEXT_MIN_WIDTH / Math.max(bounds.width * viewport.width, 0.001);
-  const lineScale = (SOURCE_TEXT_MIN_LINE_HEIGHT * Math.max(1, lineCount)) / Math.max(bounds.height * viewport.height, 0.001);
-  const scale = clamp(Math.max(widthScale, lineScale) * SOURCE_TEXT_ZOOM_HEADROOM, minScale, maxScale);
+  const lineScale =
+    (SOURCE_TEXT_MIN_LINE_HEIGHT * Math.max(1, lineCount)) /
+    Math.max(bounds.height * viewport.height, 0.001);
+  const scale = clamp(
+    Math.max(widthScale, lineScale) * SOURCE_TEXT_ZOOM_HEADROOM,
+    minScale,
+    maxScale,
+  );
   const screenWidth = bounds.width * viewport.width * scale;
   const focusX = bounds.x + bounds.width / 2;
   const focusY = bounds.y + bounds.height * clamp(lineRatio, 0, 1);
   return {
     scale,
-    x: screenWidth > viewport.width * 0.9
-      ? bounds.x - 24 / (viewport.width * scale)
-      : focusX - 0.5 / scale,
+    x:
+      screenWidth > viewport.width * 0.9
+        ? bounds.x - 24 / (viewport.width * scale)
+        : focusX - 0.5 / scale,
     y: focusY - 0.5 / scale,
   };
 }
 
-export function interactionModeUiState({ drawing = false, panning = false, spacePanning = false, dragging = null }: InteractionState = {}) {
+export function interactionModeUiState({
+  drawing = false,
+  panning = false,
+  spacePanning = false,
+  dragging = null,
+}: InteractionState = {}) {
   const draggingPan = dragging?.type === "pan";
   return {
     selectActive: !drawing && !panning && !spacePanning && !draggingPan,
@@ -226,8 +297,13 @@ export function draftSelectionFromDrag(start: Point, current: Point): DraftSelec
   };
 }
 
-export function isUsableDraftSelection(selection: DraftSelection | null | undefined, { viewport, scale, minPixels = 4 }: { viewport: Viewport; scale: number; minPixels?: number }): boolean {
-  if (!selection) return false;
+export function isUsableDraftSelection(
+  selection: DraftSelection | null | undefined,
+  { viewport, scale, minPixels = 4 }: { viewport: Viewport; scale: number; minPixels?: number },
+): boolean {
+  if (!selection) {
+    return false;
+  }
   const bounds = selection.bounds;
   const width = Math.abs(bounds.width) * viewport.width * scale;
   const height = Math.abs(bounds.height) * viewport.height * scale;

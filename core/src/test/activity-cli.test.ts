@@ -40,24 +40,31 @@ async function startActivityFixtureServer(t: TestContext): Promise<Server> {
   const root = await mkdtemp(join(tmpdir(), "codecharter-activity-cli-"));
   let server: Server | null = null;
   t.after(async () => {
-    if (server) await new Promise<void>((resolve, reject) => server?.close((error) => error ? reject(error) : resolve()));
+    if (server) {
+      await new Promise<void>((resolve, reject) =>
+        server?.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
     await rm(root, { recursive: true, force: true });
   });
   await mkdir(join(root, ".codecharter"), { recursive: true });
   await mkdir(join(root, "viewer", "dist"), { recursive: true });
   await writeFile(join(root, "viewer", "dist", "index.html"), "<!doctype html>");
-  await writeFile(join(root, ".codecharter", "codecharter.json"), JSON.stringify({
-    folders: {},
-    files: {
-      "scripts/build.mjs": {
-        path: "scripts/build.mjs",
-        bounds: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
-        geo: { lat: 0, lon: 0, geohash: "s00000000000" },
-        lineCount: 10,
-        maxLineLength: 80,
+  await writeFile(
+    join(root, ".codecharter", "codecharter.json"),
+    JSON.stringify({
+      folders: {},
+      files: {
+        "scripts/build.mjs": {
+          path: "scripts/build.mjs",
+          bounds: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
+          geo: { lat: 0, lon: 0, geohash: "s00000000000" },
+          lineCount: 10,
+          maxLineLength: 80,
+        },
       },
-    },
-  }));
+    }),
+  );
   server = await startServer({
     root,
     mapPath: join(root, ".codecharter", "codecharter.json"),
@@ -75,22 +82,37 @@ function serverUrl(server: Server): string {
 
 async function execCli(args: string[]): Promise<Record<string, any>> {
   const { stdout } = await new Promise<{ stdout: string }>((resolve, reject) => {
-    execFile(process.execPath, ["--import", "tsx", cliPath, ...args], {
-      cwd: repoRoot,
-      encoding: "utf8",
-    }, (error, stdout, stderr) => {
-      if (error) reject(new Error(`${error.message}\n${stderr}`));
-      else resolve({ stdout });
-    });
+    execFile(
+      process.execPath,
+      ["--import", "tsx", cliPath, ...args],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+      },
+      (error, stdout, stderr) => {
+        if (error) {
+          reject(new Error(`${error.message}\n${stderr}`));
+        } else {
+          resolve({ stdout });
+        }
+      },
+    );
   });
   return JSON.parse(stdout);
 }
 
-async function waitForActivity(server: Server, path: string): Promise<StoredActivityEvent | undefined> {
+async function waitForActivity(
+  server: Server,
+  path: string,
+): Promise<StoredActivityEvent | undefined> {
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    const snapshot = await fetch(`${serverUrl(server)}/api/activity`).then((response) => response.json()) as { events: StoredActivityEvent[] };
+    const snapshot = (await fetch(`${serverUrl(server)}/api/activity`).then((response) =>
+      response.json(),
+    )) as { events: StoredActivityEvent[] };
     const event = snapshot.events.find((candidate) => candidate.address?.path === path);
-    if (event) return event;
+    if (event) {
+      return event;
+    }
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
   return undefined;

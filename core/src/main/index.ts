@@ -22,19 +22,16 @@ export type {
 } from "./geohash.ts";
 
 export { clamp, round } from "./math.ts";
-export { compareStrings, sortIfNeeded, sortedUniqueStrings, objectValues, objectRecord } from "./collections.ts";
 export {
-  intersects,
-  normalizeRect,
-  clampBounds,
-  roundBounds,
-} from "./geometry.ts";
+  compareStrings,
+  sortIfNeeded,
+  sortedUniqueStrings,
+  objectValues,
+  objectRecord,
+} from "./collections.ts";
+export { intersects, normalizeRect, clampBounds, roundBounds } from "./geometry.ts";
 export type { Point, Bounds } from "./geometry.ts";
-export {
-  MAP_LEVELS,
-  FULL_GEOHASH_PRECISION,
-  precisionForLevel,
-} from "./levels.ts";
+export { MAP_LEVELS, FULL_GEOHASH_PRECISION, precisionForLevel } from "./levels.ts";
 export type { MapLevel } from "./levels.ts";
 
 export {
@@ -44,13 +41,23 @@ export {
   createAnnotationHashRoute,
   createSelectionHashRoute,
 } from "./deep-links.ts";
-export type { DeepLinkMetadata, ParsedCodemapDeepLink, SelectionHashRouteInput } from "./deep-links.ts";
+export type {
+  DeepLinkMetadata,
+  ParsedCodemapDeepLink,
+  SelectionHashRouteInput,
+} from "./deep-links.ts";
 
 export { findNamedPlaceOverlaps } from "./overlaps.ts";
 export type { NamedPlaceOverlap } from "./overlaps.ts";
 
 export { tilePrefixForTarget, buildTileIndex, getTile, visiblePrefixes } from "./tiles.ts";
-export type { Tile, TileCodemap, TileMapTarget, TileSerializedTarget, TileTargetType } from "./tiles.ts";
+export type {
+  Tile,
+  TileCodemap,
+  TileMapTarget,
+  TileSerializedTarget,
+  TileTargetType,
+} from "./tiles.ts";
 
 export { codeRangeGeometry, codeRangeRequestForSelection } from "./line-coordinate.ts";
 export type {
@@ -92,7 +99,15 @@ export type {
 } from "./selections.ts";
 
 // --- Map-generation layout engine -----------------------------------------
-export { buildFileTree, flattenTree, sortedChildren, sortedFolders, sortedFiles, FileNode, FolderNode } from "./tree.ts";
+export {
+  buildFileTree,
+  flattenTree,
+  sortedChildren,
+  sortedFolders,
+  sortedFiles,
+  FileNode,
+  FolderNode,
+} from "./tree.ts";
 export type { ScannedFile, LayoutBounds, MapNode, FlattenedTree } from "./tree.ts";
 
 // Note: district-layout's `roundBounds` (which floors extent) is intentionally
@@ -134,7 +149,13 @@ export { mapConcurrent } from "./collections.ts";
 export { readJson, writeJson } from "./store.ts";
 export { isErrnoException, errorMessage } from "./errors.ts";
 export { createActivityEvent, normalizeActivityState } from "./activity.ts";
-export type { ActivityEvent, ActivityEventInput, ActivityState, ActivityStateInput, ActivityAddress } from "./activity.ts";
+export type {
+  ActivityEvent,
+  ActivityEventInput,
+  ActivityState,
+  ActivityStateInput,
+  ActivityAddress,
+} from "./activity.ts";
 export { changedRangeFromUnifiedDiff, lineRangeFromUnifiedDiff } from "./activity-change-range.ts";
 export type { ChangedRange, LineRange, TokenFragment } from "./activity-change-range.ts";
 export {
@@ -144,9 +165,18 @@ export {
   ensureActivityArchive,
   clearActivityArchive,
 } from "./activity-store.ts";
-export type { StoredActivityEvent, ActivityStoreOptions, ActivitySnapshot } from "./activity-store.ts";
+export type {
+  StoredActivityEvent,
+  ActivityStoreOptions,
+  ActivitySnapshot,
+} from "./activity-store.ts";
 
-export { packageJsonFromValue, stringRecordFromValue, stringArrayFromValue, PACKAGE_DEPENDENCY_SECTIONS } from "./records.ts";
+export {
+  packageJsonFromValue,
+  stringRecordFromValue,
+  stringArrayFromValue,
+  PACKAGE_DEPENDENCY_SECTIONS,
+} from "./records.ts";
 export type { PackageJsonWithDependencies, PackageDependencySection } from "./records.ts";
 
 export { readSourceRange } from "./source.ts";
@@ -171,7 +201,11 @@ export {
   changedLineRange,
   parseGitStatusPorcelain,
 } from "./activity-watcher.ts";
-export type { CodeChange, ActivityWatcherPayload, ActivityWatcherOptions } from "./activity-watcher.ts";
+export type {
+  CodeChange,
+  ActivityWatcherPayload,
+  ActivityWatcherOptions,
+} from "./activity-watcher.ts";
 
 // --- Setup / provisioning --------------------------------------------------
 export {

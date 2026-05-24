@@ -58,14 +58,19 @@ export type CodeRangeGeometry = {
 };
 
 /** Resolve a code-range request into bounds + line/token ranges + per-fragment geometry. */
-export function codeRangeGeometry(file: CodeFileGeometry, request: CodeRangeRequest): CodeRangeGeometry {
+export function codeRangeGeometry(
+  file: CodeFileGeometry,
+  request: CodeRangeRequest,
+): CodeRangeGeometry {
   const lineRange = lineRangeForRequest(file, request);
   const lineBounds = lineRangeBounds(file, lineRange);
   const tokenRange = tokenRangeForRequest(file, request);
   const fragments = fragmentGeometries(file, request.fragments);
   const bounds = fragments.length
     ? unionBounds(fragments.map((fragment) => fragment.bounds))
-    : tokenRange ? tokenBounds(file, lineBounds, tokenRange) : lineBounds;
+    : tokenRange
+      ? tokenBounds(file, lineBounds, tokenRange)
+      : lineBounds;
 
   return {
     lineRange,
@@ -84,7 +89,8 @@ export function codeRangeRequestForSelection(
   targetMode?: string,
 ): CodeRangeSelectionRequest {
   const lineRange = lineRangeForSelection(file, selectionBounds);
-  const tokenRange = targetMode === "tokenRange" ? tokenRangeForSelection(file, selectionBounds) : {};
+  const tokenRange =
+    targetMode === "tokenRange" ? tokenRangeForSelection(file, selectionBounds) : {};
   return {
     lineStart: lineRange.start,
     lineEnd: lineRange.end,
@@ -92,14 +98,22 @@ export function codeRangeRequestForSelection(
   };
 }
 
-function lineRangeForRequest(file: CodeFileGeometry, request: CodeRangeFragmentRequest): NormalizedRange {
+function lineRangeForRequest(
+  file: CodeFileGeometry,
+  request: CodeRangeFragmentRequest,
+): NormalizedRange {
   const lineStart = normalizeLine(request.lineStart ?? request.lineEnd, file.lineCount);
   const lineEnd = normalizeLine(request.lineEnd ?? request.lineStart, file.lineCount);
   return normalizeRange(lineStart, lineEnd);
 }
 
-function tokenRangeForRequest(file: CodeFileGeometry, request: CodeRangeFragmentRequest): NormalizedRange | null {
-  if (request.columnStart === undefined && request.columnEnd === undefined) return null;
+function tokenRangeForRequest(
+  file: CodeFileGeometry,
+  request: CodeRangeFragmentRequest,
+): NormalizedRange | null {
+  if (request.columnStart === undefined && request.columnEnd === undefined) {
+    return null;
+  }
   const width = Math.max(1, file.maxLineLength ?? 1);
   const columnStart = normalizeColumn(request.columnStart ?? request.columnEnd, width);
   const columnEnd = normalizeColumn(request.columnEnd ?? request.columnStart, width);
@@ -110,17 +124,26 @@ function fragmentGeometries(
   file: CodeFileGeometry,
   fragments: CodeRangeFragmentRequest[] | undefined,
 ): CodeRangeFragmentGeometry[] {
-  if (!Array.isArray(fragments)) return [];
+  if (!Array.isArray(fragments)) {
+    return [];
+  }
   const geometries: CodeRangeFragmentGeometry[] = [];
   for (const fragment of fragments) {
     const geometry = fragmentGeometry(file, fragment);
-    if (geometry) geometries.push(geometry);
+    if (geometry) {
+      geometries.push(geometry);
+    }
   }
   return geometries;
 }
 
-function fragmentGeometry(file: CodeFileGeometry, fragment: CodeRangeFragmentRequest | undefined): CodeRangeFragmentGeometry | null {
-  if (fragment?.lineStart === undefined && fragment?.lineEnd === undefined) return null;
+function fragmentGeometry(
+  file: CodeFileGeometry,
+  fragment: CodeRangeFragmentRequest | undefined,
+): CodeRangeFragmentGeometry | null {
+  if (fragment?.lineStart === undefined && fragment?.lineEnd === undefined) {
+    return null;
+  }
   const lineRange = lineRangeForRequest(file, fragment);
   const lineBounds = lineRangeBounds(file, lineRange);
   const tokenRange = tokenRangeForRequest(file, fragment);
@@ -143,7 +166,11 @@ function lineRangeBounds(file: CodeFileGeometry, lineRange: NormalizedRange): Bo
   };
 }
 
-function tokenBounds(file: CodeFileGeometry, lineBounds: Bounds, tokenRange: NormalizedRange): Bounds {
+function tokenBounds(
+  file: CodeFileGeometry,
+  lineBounds: Bounds,
+  tokenRange: NormalizedRange,
+): Bounds {
   const width = Math.max(1, file.maxLineLength ?? 1);
   const startRatio = (tokenRange.start - 1) / width;
   const endRatio = tokenRange.end / width;
@@ -157,16 +184,23 @@ function tokenBounds(file: CodeFileGeometry, lineBounds: Bounds, tokenRange: Nor
 
 function lineRangeForSelection(file: CodeFileGeometry, selectionBounds: Bounds): NormalizedRange {
   const top = clampRatio((selectionBounds.y - file.bounds.y) / file.bounds.height);
-  const bottom = clampRatio((selectionBounds.y + selectionBounds.height - file.bounds.y) / file.bounds.height);
+  const bottom = clampRatio(
+    (selectionBounds.y + selectionBounds.height - file.bounds.y) / file.bounds.height,
+  );
   const lineCount = Math.max(1, file.lineCount ?? 1);
   const start = startIndexForRatio(top, lineCount);
   const end = Math.max(start, endIndexForRatio(bottom, lineCount));
   return { start, end };
 }
 
-function tokenRangeForSelection(file: CodeFileGeometry, selectionBounds: Bounds): { columnStart: number; columnEnd: number } {
+function tokenRangeForSelection(
+  file: CodeFileGeometry,
+  selectionBounds: Bounds,
+): { columnStart: number; columnEnd: number } {
   const left = clampRatio((selectionBounds.x - file.bounds.x) / file.bounds.width);
-  const right = clampRatio((selectionBounds.x + selectionBounds.width - file.bounds.x) / file.bounds.width);
+  const right = clampRatio(
+    (selectionBounds.x + selectionBounds.width - file.bounds.x) / file.bounds.width,
+  );
   const maxLineLength = Math.max(1, file.maxLineLength ?? 1);
   const columnStart = startIndexForRatio(left, maxLineLength);
   const columnEnd = Math.max(columnStart, endIndexForRatio(right, maxLineLength));
@@ -201,13 +235,17 @@ function normalizeRange(left: number, right: number): NormalizedRange {
 
 function normalizeLine(value: number | string | undefined, lineCount: number): number {
   const line = Number(value);
-  if (!Number.isInteger(line)) throw new Error(`Line must be an integer: ${value}`);
+  if (!Number.isInteger(line)) {
+    throw new Error(`Line must be an integer: ${value}`);
+  }
   return Math.min(lineCount, Math.max(1, line));
 }
 
 function normalizeColumn(value: number | string | undefined, maxLineLength: number): number {
   const column = Number(value);
-  if (!Number.isInteger(column)) throw new Error(`Column must be an integer: ${value}`);
+  if (!Number.isInteger(column)) {
+    throw new Error(`Column must be an integer: ${value}`);
+  }
   return Math.min(maxLineLength, Math.max(1, column));
 }
 
@@ -220,6 +258,8 @@ function endIndexForRatio(ratio: number, size: number): number {
 }
 
 function clampRatio(value: number): number {
-  if (!Number.isFinite(value)) return 0;
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
   return Math.min(1, Math.max(0, value));
 }

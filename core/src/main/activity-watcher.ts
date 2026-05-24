@@ -58,7 +58,10 @@ export type ActivityWatcherOptions = {
   intervalMs?: number;
   throttleMs?: number;
   prepareChanges?: (changes: CodeChange[]) => void | Promise<void>;
-  createActivityPayload?: (change: CodeChange, context: ActivityPayloadContext) => ActivityWatcherPayload | null | undefined;
+  createActivityPayload?: (
+    change: CodeChange,
+    context: ActivityPayloadContext,
+  ) => ActivityWatcherPayload | null | undefined;
   postActivity?: (endpoint: string | undefined, payload: ActivityWatcherPayload) => Promise<void>;
 };
 
@@ -70,8 +73,14 @@ export class ActivityWatcher {
   private readonly intervalMs: number;
   private readonly throttleMs: number;
   private readonly prepareChanges: (changes: CodeChange[]) => void | Promise<void>;
-  private readonly createActivityPayload: (change: CodeChange, context: ActivityPayloadContext) => ActivityWatcherPayload | null | undefined;
-  private readonly postActivity: (endpoint: string | undefined, payload: ActivityWatcherPayload) => Promise<void>;
+  private readonly createActivityPayload: (
+    change: CodeChange,
+    context: ActivityPayloadContext,
+  ) => ActivityWatcherPayload | null | undefined;
+  private readonly postActivity: (
+    endpoint: string | undefined,
+    payload: ActivityWatcherPayload,
+  ) => Promise<void>;
   private readonly recent = new Map<string, RecentChange>();
   private initialPoll: NodeJS.Timeout | null = null;
   private timer: NodeJS.Timeout | null = null;
@@ -116,19 +125,27 @@ export class ActivityWatcher {
   }
 
   close(): void {
-    if (this.initialPoll) clearTimeout(this.initialPoll);
-    if (this.timer) clearInterval(this.timer);
+    if (this.initialPoll) {
+      clearTimeout(this.initialPoll);
+    }
+    if (this.timer) {
+      clearInterval(this.timer);
+    }
   }
 
   async poll(): Promise<void> {
-    if (this.pollInFlight) return;
+    if (this.pollInFlight) {
+      return;
+    }
     this.pollInFlight = true;
     try {
       const paths = await changedGitPaths(this.root);
       const activePaths = new Set(paths);
       const now = Date.now();
       for (const path of this.recent.keys()) {
-        if (!activePaths.has(path)) this.recent.delete(path);
+        if (!activePaths.has(path)) {
+          this.recent.delete(path);
+        }
       }
 
       const changes = await changedRangesForPaths(this.root, paths);
@@ -137,19 +154,32 @@ export class ActivityWatcher {
       for (const change of changes) {
         const { path } = change;
         const previous = this.recent.get(path);
-        if (previous?.signature === change.signature) continue;
-        if (previous && now - previous.timestamp < this.throttleMs) continue;
+        if (previous?.signature === change.signature) {
+          continue;
+        }
+        if (previous && now - previous.timestamp < this.throttleMs) {
+          continue;
+        }
         this.recent.set(path, { signature: change.signature, timestamp: now });
         let payload;
         try {
-          payload = this.createActivityPayload(change, { agentId: this.agentId, activityState: this.activityState });
+          payload = this.createActivityPayload(change, {
+            agentId: this.agentId,
+            activityState: this.activityState,
+          });
         } catch (error) {
-          console.warn(`warning: activity-watcher-skipped path=${path} error=${errorMessage(error)}`);
+          console.warn(
+            `warning: activity-watcher-skipped path=${path} error=${errorMessage(error)}`,
+          );
           continue;
         }
-        if (!payload) continue;
+        if (!payload) {
+          continue;
+        }
         void this.postActivity(this.endpoint, payload).catch((error) => {
-          console.warn(`warning: activity-watcher-post-skipped path=${path} error=${errorMessage(error)}`);
+          console.warn(
+            `warning: activity-watcher-post-skipped path=${path} error=${errorMessage(error)}`,
+          );
         });
       }
     } finally {
@@ -169,7 +199,7 @@ export async function changedCodeChanges(root?: string): Promise<CodeChange[]> {
 function changedRangesForPaths(root: string | undefined, paths: string[]): Promise<CodeChange[]> {
   return mapConcurrent(paths, DEFAULT_CHANGE_RANGE_CONCURRENCY, async (path) => ({
     path,
-    ...await changedLineRange(root, path),
+    ...(await changedLineRange(root, path)),
   }));
 }
 
@@ -178,11 +208,17 @@ export function parseGitStatusPorcelain(raw: string): string[] {
   const entries = raw.split("\0");
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index];
-    if (!entry) continue;
+    if (!entry) {
+      continue;
+    }
     const status = entry.slice(0, 2);
     const path = entry.slice(3);
-    if (isCopiedOrRenamedStatus(status)) index += 1;
-    if (isActivityWatchablePath(path)) paths.push(path);
+    if (isCopiedOrRenamedStatus(status)) {
+      index += 1;
+    }
+    if (isActivityWatchablePath(path)) {
+      paths.push(path);
+    }
   }
   return paths;
 }
@@ -192,11 +228,18 @@ function isCopiedOrRenamedStatus(status: string): boolean {
 }
 
 async function changedGitPaths(root: string | undefined): Promise<string[]> {
-  const { stdout } = await execFileText("git", ["status", "--porcelain=v1", "-z", "--untracked-files=all"], { cwd: root });
+  const { stdout } = await execFileText(
+    "git",
+    ["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+    { cwd: root },
+  );
   return parseGitStatusPorcelain(stdout);
 }
 
-export async function changedLineRange(root: string | undefined, path: string): Promise<ChangedRange & { signature: string }> {
+export async function changedLineRange(
+  root: string | undefined,
+  path: string,
+): Promise<ChangedRange & { signature: string }> {
   const diffs = await Promise.all([
     gitDiff(root, ["diff", "--unified=0", "--", path]),
     gitDiff(root, ["diff", "--cached", "--unified=0", "--", path]),
@@ -223,7 +266,10 @@ async function gitDiff(root: string | undefined, args: string[]): Promise<string
   }
 }
 
-function defaultActivityPayload(change: CodeChange, { agentId, activityState }: ActivityPayloadContext): ActivityWatcherPayload {
+function defaultActivityPayload(
+  change: CodeChange,
+  { agentId, activityState }: ActivityPayloadContext,
+): ActivityWatcherPayload {
   return {
     agentId,
     activityState,
@@ -237,8 +283,13 @@ function defaultActivityPayload(change: CodeChange, { agentId, activityState }: 
   };
 }
 
-async function sendActivityDatagram(endpoint: string | undefined, body: ActivityWatcherPayload): Promise<void> {
-  if (!endpoint) return;
+async function sendActivityDatagram(
+  endpoint: string | undefined,
+  body: ActivityWatcherPayload,
+): Promise<void> {
+  if (!endpoint) {
+    return;
+  }
   try {
     await fetch(endpoint, {
       method: "POST",
@@ -252,17 +303,22 @@ async function sendActivityDatagram(endpoint: string | undefined, body: Activity
 }
 
 function isActivityWatchablePath(path: string): boolean {
-  return path !== ""
-    && path !== "codemap.json"
-    && path !== "codecharter.json"
-    && !path.startsWith(".git/")
-    && !path.startsWith(".codex/")
-    && !path.startsWith(".codecharter/")
-    && !path.startsWith(".scratch/")
-    && isCodeFile(path);
+  return (
+    path !== "" &&
+    path !== "codemap.json" &&
+    path !== "codecharter.json" &&
+    !path.startsWith(".git/") &&
+    !path.startsWith(".codex/") &&
+    !path.startsWith(".codecharter/") &&
+    !path.startsWith(".scratch/") &&
+    isCodeFile(path)
+  );
 }
 
-async function wholeFileRange(root: string | undefined, path: string): Promise<ChangedRange & { signature?: string }> {
+async function wholeFileRange(
+  root: string | undefined,
+  path: string,
+): Promise<ChangedRange & { signature?: string }> {
   try {
     const content = await readFile(join(root ?? ".", path), "utf8");
     const lineCount = contentLineCount(content);
@@ -273,7 +329,9 @@ async function wholeFileRange(root: string | undefined, path: string): Promise<C
 }
 
 function contentLineCount(content: string): number {
-  if (content.length === 0) return 1;
+  if (content.length === 0) {
+    return 1;
+  }
   return content.split("\n").length - (content.endsWith("\n") ? 1 : 0);
 }
 

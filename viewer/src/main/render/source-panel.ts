@@ -36,12 +36,20 @@ export function sourceTextLayoutForBox(box: HorizontalBox, viewportWidth: number
   };
 }
 
-export function visibleLineRangeForBox(file: MapFile, box: Bounds, viewportHeight: number): { start: number; end: number } | null {
+export function visibleLineRangeForBox(
+  file: MapFile,
+  box: Bounds,
+  viewportHeight: number,
+): { start: number; end: number } | null {
   const lineCount = file.lineCount ?? 0;
-  if (lineCount <= 0) return null;
+  if (lineCount <= 0) {
+    return null;
+  }
   const top = Math.max(box.y, 0);
   const bottom = Math.min(box.y + box.height, viewportHeight);
-  if (bottom <= top) return null;
+  if (bottom <= top) {
+    return null;
+  }
 
   const startRatio = clamp((top - box.y) / box.height, 0, 1);
   const endRatio = clamp((bottom - box.y) / box.height, 0, 1);
@@ -54,16 +62,26 @@ export function visibleLineRangeForBox(file: MapFile, box: Bounds, viewportHeigh
 export function lineAtWorldPoint(file: MapFile, worldPoint: Point): number {
   const bounds = file.bounds;
   const lineCount = file.lineCount ?? 0;
-  if (!bounds || lineCount <= 0) return 1;
+  if (!bounds || lineCount <= 0) {
+    return 1;
+  }
   const rawLine = ((worldPoint.y - bounds.y) / bounds.height) * lineCount;
   return Math.max(1, Math.min(lineCount, Math.floor(rawLine) + 1));
 }
 
-export function sourcePanelLineRangeForBox(file: MapFile, focusLine: number, box: BoxSize | Bounds, viewportHeight: number): { start: number; end: number } {
-  const visibleRange = canRenderSourceText(file, box) && isPositionedBox(box)
-    ? visibleLineRangeForBox(file, box, viewportHeight)
-    : null;
-  if (visibleRange) return capLineRange(file, visibleRange.start, visibleRange.end, focusLine);
+export function sourcePanelLineRangeForBox(
+  file: MapFile,
+  focusLine: number,
+  box: BoxSize | Bounds,
+  viewportHeight: number,
+): { start: number; end: number } {
+  const visibleRange =
+    canRenderSourceText(file, box) && isPositionedBox(box)
+      ? visibleLineRangeForBox(file, box, viewportHeight)
+      : null;
+  if (visibleRange) {
+    return capLineRange(file, visibleRange.start, visibleRange.end, focusLine);
+  }
   return capLineRange(
     file,
     Math.max(1, focusLine - SOURCE_PANEL_CONTEXT_BEFORE),
@@ -94,7 +112,17 @@ export function formatSourceLines(source: { lines?: SourceLine[] }): string {
     .join("\n");
 }
 
-export function sourcePanelState({ path = "", deepLink = "", source = null, fallbackOutput = "" }: { path?: string; deepLink?: string; source?: SourceRange | null; fallbackOutput?: string } = {}) {
+export function sourcePanelState({
+  path = "",
+  deepLink = "",
+  source = null,
+  fallbackOutput = "",
+}: {
+  path?: string;
+  deepLink?: string;
+  source?: SourceRange | null;
+  fallbackOutput?: string;
+} = {}) {
   if (source) {
     return {
       sourceTitle: path && deepLink ? `${path} · ${deepLink}` : path || deepLink,
@@ -109,7 +137,10 @@ export function sourcePanelState({ path = "", deepLink = "", source = null, fall
   };
 }
 
-export function annotationClipboardText(annotation: MapAnnotationPlace, { origin = "", href = "" }: { origin?: string; href?: string } = {}) {
+export function annotationClipboardText(
+  annotation: MapAnnotationPlace,
+  { origin = "", href = "" }: { origin?: string; href?: string } = {},
+) {
   const reference = annotation.deepLink || `codecharter://annotation/${annotation.id}`;
   const serverFlag = origin ? ` --server ${doubleQuote(origin)}` : "";
   const comment = annotation.comment?.trim() || "<empty>";
@@ -124,22 +155,42 @@ export function sourceRangeCacheKey(path: string, lineStart: number, lineEnd: nu
   return `${normalizeMapPath(path)}:${lineStart}-${lineEnd}`;
 }
 
-export function rememberSourceRange(cache: SourceCache, cacheKey: string, source: SourceRange, limit = SOURCE_CACHE_LIMIT): void {
-  if (cache.has(cacheKey)) cache.delete(cacheKey);
+export function rememberSourceRange(
+  cache: SourceCache,
+  cacheKey: string,
+  source: SourceRange,
+  limit = SOURCE_CACHE_LIMIT,
+): void {
+  if (cache.has(cacheKey)) {
+    cache.delete(cacheKey);
+  }
   cache.set(cacheKey, source);
   while (cache.size > limit) {
     const oldestKey = cache.keys().next().value;
-    if (oldestKey === undefined) break;
+    if (oldestKey === undefined) {
+      break;
+    }
     cache.delete(oldestKey);
   }
 }
 
-export function cachedSourceRange(cache: SourceCache, path: string, lineStart: number, lineEnd: number): SourceRange | null {
+export function cachedSourceRange(
+  cache: SourceCache,
+  path: string,
+  lineStart: number,
+  lineEnd: number,
+): SourceRange | null {
   const normalized = normalizeMapPath(path);
   for (const [cacheKey, source] of cache) {
-    if (normalizeMapPath(source.path) !== normalized) continue;
-    if (!source.lineRange) continue;
-    if (source.lineRange.start > lineStart || source.lineRange.end < lineEnd) continue;
+    if (normalizeMapPath(source.path) !== normalized) {
+      continue;
+    }
+    if (!source.lineRange) {
+      continue;
+    }
+    if (source.lineRange.start > lineStart || source.lineRange.end < lineEnd) {
+      continue;
+    }
     cache.delete(cacheKey);
     cache.set(cacheKey, source);
     return source;
@@ -151,11 +202,21 @@ function doubleQuote(value: string): string {
   return `"${String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
-function capLineRange(file: MapFile, start: number, end: number, focusLine: number): { start: number; end: number } {
-  if (end - start + 1 <= SOURCE_PANEL_MAX_LINES) return { start, end };
+function capLineRange(
+  file: MapFile,
+  start: number,
+  end: number,
+  focusLine: number,
+): { start: number; end: number } {
+  if (end - start + 1 <= SOURCE_PANEL_MAX_LINES) {
+    return { start, end };
+  }
   const before = Math.floor(SOURCE_PANEL_MAX_LINES / 2);
   const lineCount = file.lineCount ?? Math.max(end, focusLine, 1);
-  const cappedStart = Math.max(1, Math.min(focusLine - before, lineCount - SOURCE_PANEL_MAX_LINES + 1));
+  const cappedStart = Math.max(
+    1,
+    Math.min(focusLine - before, lineCount - SOURCE_PANEL_MAX_LINES + 1),
+  );
   return {
     start: cappedStart,
     end: Math.min(lineCount, cappedStart + SOURCE_PANEL_MAX_LINES - 1),

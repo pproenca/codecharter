@@ -14,9 +14,11 @@ export async function copyTextToClipboard(
   text: string,
   environment: ClipboardEnvironment = browserClipboardEnvironment(),
 ) {
-  return await writeTextToClipboard(text, environment)
-    || await writeClipboardItem(text, environment)
-    || copyTextWithLegacyCommand(text, environment);
+  return (
+    (await writeTextToClipboard(text, environment)) ||
+    (await writeClipboardItem(text, environment)) ||
+    copyTextWithLegacyCommand(text, environment)
+  );
 }
 
 function browserClipboardEnvironment(): ClipboardEnvironment {
@@ -29,7 +31,9 @@ function browserClipboardEnvironment(): ClipboardEnvironment {
 }
 
 async function writeTextToClipboard(text: string, { navigator }: ClipboardEnvironment) {
-  if (!navigator?.clipboard?.writeText) return false;
+  if (!navigator?.clipboard?.writeText) {
+    return false;
+  }
   try {
     await navigator.clipboard.writeText(text);
     return true;
@@ -38,8 +42,13 @@ async function writeTextToClipboard(text: string, { navigator }: ClipboardEnviro
   }
 }
 
-async function writeClipboardItem(text: string, { Blob, ClipboardItem, navigator }: ClipboardEnvironment) {
-  if (!navigator?.clipboard?.write || !ClipboardItem || !Blob) return false;
+async function writeClipboardItem(
+  text: string,
+  { Blob, ClipboardItem, navigator }: ClipboardEnvironment,
+) {
+  if (!navigator?.clipboard?.write || !ClipboardItem || !Blob) {
+    return false;
+  }
   try {
     const item = new ClipboardItem({
       "text/plain": new Blob([text], { type: "text/plain" }),
@@ -52,7 +61,9 @@ async function writeClipboardItem(text: string, { Blob, ClipboardItem, navigator
 }
 
 function copyTextWithLegacyCommand(text: string, { document }: ClipboardEnvironment) {
-  if (!document?.body) return false;
+  if (!document?.body) {
+    return false;
+  }
   const element = document.createElement("textarea");
   element.value = text;
   element.setAttribute("readonly", "");

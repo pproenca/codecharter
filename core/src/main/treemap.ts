@@ -13,7 +13,11 @@ export function layoutTree(root: FolderNode): FolderNode {
   return root;
 }
 
-function assignFolderLayout(folder: FolderNode, bounds: LayoutBounds, options: { root?: boolean } = {}): void {
+function assignFolderLayout(
+  folder: FolderNode,
+  bounds: LayoutBounds,
+  options: { root?: boolean } = {},
+): void {
   folder.bounds = roundBounds(bounds);
   assignAddress(folder);
 
@@ -27,7 +31,9 @@ function assignFolderLayout(folder: FolderNode, bounds: LayoutBounds, options: {
   folder.growthArea = growthArea;
 
   for (const child of sortedFolders(folder)) {
-    if (child.bounds) assignFolderLayout(child, child.bounds);
+    if (child.bounds) {
+      assignFolderLayout(child, child.bounds);
+    }
   }
   for (const child of sortedFiles(folder)) {
     assignAddress(child);

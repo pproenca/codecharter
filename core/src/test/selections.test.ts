@@ -12,11 +12,14 @@ test("map annotation codex prompt is compact and uses one resolve command", () =
     geometry: { type: "rect", bounds: { x: 0, y: 0, width: 0.5, height: 0.5 } },
   });
 
-  assert.equal(annotation.codexPrompt, [
-    "CodeCharter annotation: codecharter://annotation/annotation-1",
-    "Note: go explore here",
-    "Resolve: codecharter --json resolve \"codecharter://annotation/annotation-1\"",
-  ].join("\n"));
+  assert.equal(
+    annotation.codexPrompt,
+    [
+      "CodeCharter annotation: codecharter://annotation/annotation-1",
+      "Note: go explore here",
+      'Resolve: codecharter --json resolve "codecharter://annotation/annotation-1"',
+    ].join("\n"),
+  );
   assert.equal(annotation.codexPrompt.includes("npx --yes"), false);
   assert.equal(annotation.codexPrompt.length < 180, true);
 });

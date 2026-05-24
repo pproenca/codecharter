@@ -27,10 +27,7 @@ export type Bounds = {
 
 /** Strict AABB overlap — touching edges do NOT count as intersecting. */
 export function intersects(a: Bounds, b: Bounds): boolean {
-  return a.x < b.x + b.width
-    && a.x + a.width > b.x
-    && a.y < b.y + b.height
-    && a.y + a.height > b.y;
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
 /** Normalize a rectangle so width/height are non-negative, then round (BR-004). */

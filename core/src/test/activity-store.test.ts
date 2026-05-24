@@ -11,7 +11,10 @@ test("clear keeps queued pre-clear events out of the archive while preserving po
   const root = await mkdtemp(join(tmpdir(), "codecharter-activity-store-"));
   const beforeClearArchivePath = join(root, "before-clear.jsonl");
   const afterClearArchivePath = join(root, "after-clear.jsonl");
-  const store = createActivityStore({ archivePath: beforeClearArchivePath, flushIntervalMs: 60_000 });
+  const store = createActivityStore({
+    archivePath: beforeClearArchivePath,
+    flushIntervalMs: 60_000,
+  });
   t.after(async () => {
     await store.close();
     await rm(root, { recursive: true, force: true });
@@ -37,9 +40,15 @@ function activityEvent(id: string): StoredActivityEvent {
 async function archiveEventIds(path: string): Promise<string[]> {
   try {
     const content = await readFile(path, "utf8");
-    return content.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line).id as string);
+    return content
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line).id as string);
   } catch (error) {
-    if (isErrnoException(error) && error.code === "ENOENT") return [];
+    if (isErrnoException(error) && error.code === "ENOENT") {
+      return [];
+    }
     throw error;
   }
 }

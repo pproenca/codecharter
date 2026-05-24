@@ -5,7 +5,12 @@ export type ClearActivityClickState = {
 
 export type ClearActivityClickAction = "clear" | "ignore";
 
-export function clearActivityClickAction({ clearedByCompletedHold, disabled }: ClearActivityClickState): ClearActivityClickAction {
-  if (disabled || clearedByCompletedHold) return "ignore";
+export function clearActivityClickAction({
+  clearedByCompletedHold,
+  disabled,
+}: ClearActivityClickState): ClearActivityClickAction {
+  if (disabled || clearedByCompletedHold) {
+    return "ignore";
+  }
   return "clear";
 }

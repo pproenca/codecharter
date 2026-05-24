@@ -10,9 +10,7 @@ test("annotation clipboard prompt is compact and resolves targets with one local
     comment: "go explore here",
     deepLink: "codecharter://annotation/annotation-1",
     browserHash: "#/annotation/annotation-1",
-    resolvedTargets: [
-      { targetType: "file", path: "scripts/build.mjs" },
-    ],
+    resolvedTargets: [{ targetType: "file", path: "scripts/build.mjs" }],
   };
 
   const prompt = annotationClipboardText(annotation, {
@@ -20,11 +18,14 @@ test("annotation clipboard prompt is compact and resolves targets with one local
     href: "http://127.0.0.1:4173/#/annotation/annotation-1",
   });
 
-  assert.equal(prompt, [
-    "CodeCharter annotation: codecharter://annotation/annotation-1",
-    "Note: go explore here",
-    "Resolve: codecharter --json resolve \"codecharter://annotation/annotation-1\" --server \"http://127.0.0.1:4173\"",
-  ].join("\n"));
+  assert.equal(
+    prompt,
+    [
+      "CodeCharter annotation: codecharter://annotation/annotation-1",
+      "Note: go explore here",
+      'Resolve: codecharter --json resolve "codecharter://annotation/annotation-1" --server "http://127.0.0.1:4173"',
+    ].join("\n"),
+  );
   assert.equal(prompt.includes("Track:"), false);
   assert.equal(prompt.includes("CodeCharter URL:"), false);
   assert.equal(prompt.length < 220, true);

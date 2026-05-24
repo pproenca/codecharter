@@ -159,7 +159,7 @@ const CONTROL_SELECTORS = [
   ["activityFeed", "#activityFeed"],
   ["activityForm", "#activityForm"],
 ] as const satisfies readonly (readonly [string, string])[];
-type BrowserControlName = typeof CONTROL_SELECTORS[number][0];
+type BrowserControlName = (typeof CONTROL_SELECTORS)[number][0];
 const LAYER_TOGGLE_CONTROLS = [
   "showFolders",
   "showOrganicRegions",
@@ -189,8 +189,12 @@ type PlaceSearchMatch = Extract<SearchMatch, { type: "annotation" | "namedPlace"
 type FileSearchMatch = Extract<SearchMatch, { type: "file" }>;
 type FolderSearchMatch = Extract<SearchMatch, { type: "folder" }>;
 type MapRouteFocusAction = MapActionOf<"focusFile" | "focusFolder">;
-type DoubleClickAction = MapActionOf<"focusAnnotation" | "selectFolder" | "selectFile" | "selectActivity">;
-type TargetSelectionAction = MapActionOf<"clearSelection" | "focusAnnotation" | "selectActivity" | "inspectFolder" | "inspectFile">;
+type DoubleClickAction = MapActionOf<
+  "focusAnnotation" | "selectFolder" | "selectFile" | "selectActivity"
+>;
+type TargetSelectionAction = MapActionOf<
+  "clearSelection" | "focusAnnotation" | "selectActivity" | "inspectFolder" | "inspectFile"
+>;
 type SearchAction = MapActionOf<"noMatch" | "focusPlace" | "focusFile" | "focusFolder">;
 type RouteToken = number;
 type ParsedLineRange = { start: number; end: number };
@@ -286,7 +290,10 @@ type MapApplicationState = {
   clearSourceState(): void;
 };
 
-const canvas = requiredElement(document.querySelector<HTMLCanvasElement>("#mapCanvas"), "map canvas");
+const canvas = requiredElement(
+  document.querySelector<HTMLCanvasElement>("#mapCanvas"),
+  "map canvas",
+);
 const ctx = requiredContext(canvas.getContext("2d"), "map canvas context");
 const fogMaskCanvas = document.createElement("canvas");
 const fogMaskCtx = requiredContext(fogMaskCanvas.getContext("2d"), "fog mask canvas context");
@@ -312,7 +319,9 @@ const POLLING_ERROR_NOTICE_THRESHOLD = 2;
 function createPollingTask(): PollingTask {
   let timer: TimerHandle = null;
   const stop = () => {
-    if (timer) clearInterval(timer);
+    if (timer) {
+      clearInterval(timer);
+    }
     timer = null;
   };
   return {
@@ -366,13 +375,17 @@ function createMapApplicationState(): MapApplicationState {
 
 function createMapControls(root: Document = document): BrowserControls {
   const controls = Object.fromEntries(
-    CONTROL_SELECTORS.map(([name, selector]) => [name, root.querySelector<BrowserControl>(selector)]),
+    CONTROL_SELECTORS.map(([name, selector]) => [
+      name,
+      root.querySelector<BrowserControl>(selector),
+    ]),
   ) as Record<BrowserControlName, BrowserControl | null>;
 
   return Object.assign(controls, {
-    layerToggles: () => LAYER_TOGGLE_CONTROLS
-      .map((name) => controls[name])
-      .filter((control): control is BrowserControl => control !== null),
+    layerToggles: () =>
+      LAYER_TOGGLE_CONTROLS.map((name) => controls[name]).filter(
+        (control): control is BrowserControl => control !== null,
+      ),
   });
 }
 
@@ -412,7 +425,8 @@ async function boot() {
   state.overlaps = names.overlaps ?? [];
   state.activity = activity.events ?? [];
   state.activitySignature = activitySignature(state.activity);
-  state.activityVersion = typeof activity.version === "string" ? activity.version : state.activitySignature;
+  state.activityVersion =
+    typeof activity.version === "string" ? activity.version : state.activitySignature;
   state.activityDetail = "summary";
   rebuildActivityFog();
   bindEvents();
@@ -450,16 +464,16 @@ function reconcileSelectedTarget(target: HitTarget | null) {
 }
 
 function isHitTarget(value: unknown): value is HitTarget {
-  return value !== null
-    && typeof value === "object"
-    && !Array.isArray(value)
-    && "targetType" in value
-    && (
-      value.targetType === "file"
-      || value.targetType === "folder"
-      || value.targetType === "annotation"
-      || value.targetType === "activity"
-    );
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    "targetType" in value &&
+    (value.targetType === "file" ||
+      value.targetType === "folder" ||
+      value.targetType === "annotation" ||
+      value.targetType === "activity")
+  );
 }
 
 function rebuildActivityFog() {
@@ -522,7 +536,10 @@ function bindEvents() {
   canvas.addEventListener("blur", () => canvas.classList.remove("pointer-focused"));
   canvas.tabIndex = 0;
   canvas.setAttribute("role", "application");
-  canvas.setAttribute("aria-label", "CodeCharter map canvas. Use the pointer tool to select items, the hand tool or Space drag to pan, arrow keys to pan, plus and minus to zoom, double click to zoom in, 0 to fit the codebase, Enter to select the center, and Escape to cancel the current action.");
+  canvas.setAttribute(
+    "aria-label",
+    "CodeCharter map canvas. Use the pointer tool to select items, the hand tool or Space drag to pan, arrow keys to pan, plus and minus to zoom, double click to zoom in, 0 to fit the codebase, Enter to select the center, and Escape to cancel the current action.",
+  );
   canvas.addEventListener("keydown", onCanvasKeyDown);
   updateInteractionModeUi();
 }
@@ -539,7 +556,9 @@ async function refreshMap() {
   try {
     const mapVersion = await fetchJson<MapVersionResponse>("/api/map-version");
     clearPollingError("map");
-    if (!mapVersion.version || mapVersion.version === state.mapVersion) return;
+    if (!mapVersion.version || mapVersion.version === state.mapVersion) {
+      return;
+    }
     const [map, names] = await Promise.all([
       fetchJson<CodecharterCodemap>("/api/map"),
       fetchJson<NamedPlacesResponse>("/api/named-places"),
@@ -556,7 +575,9 @@ async function refreshMap() {
 async function refreshActivity() {
   try {
     const changed = await loadActivity(activityDiscoveryEnabled() ? "full" : "summary");
-    if (changed) render();
+    if (changed) {
+      render();
+    }
   } catch (error) {
     reportPollingError("activity", error);
   }
@@ -574,7 +595,9 @@ async function handleActivityToggle() {
 async function loadActivity(detail: ActivityDetail, { force = false } = {}) {
   const activity = await fetchJson<ActivityResponse>(activityRequestUrl(detail, { force }));
   clearPollingError("activity");
-  if (activity.unchanged === true) return false;
+  if (activity.unchanged === true) {
+    return false;
+  }
   const events = activity.events ?? [];
   const nextSignature = activitySignature(events);
   const nextVersion = typeof activity.version === "string" ? activity.version : nextSignature;
@@ -582,7 +605,9 @@ async function loadActivity(detail: ActivityDetail, { force = false } = {}) {
   state.activityVersion = nextVersion;
   state.activityDetail = detail;
   if (!replacingDetail && nextSignature === state.activitySignature) {
-    if (events.length) rebuildActivityFog();
+    if (events.length) {
+      rebuildActivityFog();
+    }
     return events.length > 0;
   }
   state.activity = events;
@@ -593,7 +618,9 @@ async function loadActivity(detail: ActivityDetail, { force = false } = {}) {
 
 function activityRequestUrl(detail: ActivityDetail, { force = false } = {}) {
   const params = new URLSearchParams({ view: "viewer", detail });
-  if (!force && state.activityVersion && state.activityDetail === detail) params.set("version", state.activityVersion);
+  if (!force && state.activityVersion && state.activityDetail === detail) {
+    params.set("version", state.activityVersion);
+  }
   return `/api/activity?${params.toString()}`;
 }
 
@@ -612,9 +639,13 @@ function reportPollingError(key: string, error: unknown) {
 }
 
 function clearPollingError(key: string) {
-  if (!pollingErrors.has(key)) return;
+  if (!pollingErrors.has(key)) {
+    return;
+  }
   pollingErrors.delete(key);
-  if (pollingErrors.size === 0) setText(controls.hover, "Reconnected");
+  if (pollingErrors.size === 0) {
+    setText(controls.hover, "Reconnected");
+  }
 }
 
 function activitySignature(events: ActivityEvent[]): string {
@@ -628,17 +659,24 @@ async function applyHashRoute() {
   const routeToken = ++routeSequence;
   const route = parseHashRoute(window.location.hash);
   const intent = hashRouteFocusIntent(route, { hasMap: state.map !== null });
-  if (!intent) return;
+  if (!intent) {
+    return;
+  }
 
   applyingRoute = true;
   try {
     await focusHashRouteIntent(intent, routeToken);
   } finally {
-    if (routeToken === routeSequence) applyingRoute = false;
+    if (routeToken === routeSequence) {
+      applyingRoute = false;
+    }
   }
 }
 
-async function focusHashRouteIntent(intent: HashRouteIntent, routeToken: RouteToken): Promise<void> {
+async function focusHashRouteIntent(
+  intent: HashRouteIntent,
+  routeToken: RouteToken,
+): Promise<void> {
   switch (intent.type) {
     case "annotation":
       await focusAnnotationRoute(intent.id, routeToken);
@@ -653,16 +691,24 @@ async function focusHashRouteIntent(intent: HashRouteIntent, routeToken: RouteTo
 
 async function focusAnnotationRoute(id: string, routeToken: RouteToken) {
   let annotation: NamedPlace | null | undefined = state.namedPlacesById.get(id);
-  if (annotation?.kind !== "mapAnnotation") annotation = null;
+  if (annotation?.kind !== "mapAnnotation") {
+    annotation = null;
+  }
   if (!annotation) {
     try {
-      annotation = (await fetchJson<AnnotationResponse>(`/api/annotations/${encodeURIComponent(id)}`)).annotation;
+      annotation = (
+        await fetchJson<AnnotationResponse>(`/api/annotations/${encodeURIComponent(id)}`)
+      ).annotation;
     } catch {
       return;
     }
   }
-  if (!isCurrentRoute(routeToken)) return;
-  if (!annotation.geometry?.bounds) return;
+  if (!isCurrentRoute(routeToken)) {
+    return;
+  }
+  if (!annotation.geometry?.bounds) {
+    return;
+  }
   upsertNamedPlace(annotation);
   resetSelectionOverlay();
   zoomToBounds(annotation.geometry.bounds, 1.35);
@@ -671,7 +717,9 @@ async function focusAnnotationRoute(id: string, routeToken: RouteToken) {
 
 async function focusSelectionRoute(params: URLSearchParams, routeToken: RouteToken) {
   const bounds = boundsFromRouteParams(params);
-  if (!bounds) return;
+  if (!bounds) {
+    return;
+  }
   resetSelectionOverlay();
   state.drawing = true;
   updateInteractionModeUi();
@@ -686,13 +734,18 @@ async function focusSelectionRoute(params: URLSearchParams, routeToken: RouteTok
 }
 
 async function focusMapRoute(route: MapHashRoute, routeToken: RouteToken) {
-  if (!state.map) return;
+  if (!state.map) {
+    return;
+  }
   const target = mapRouteTarget(state.map, route);
   const action = mapRouteFocusAction(target);
-  if (!target || !action || !hasBounds(target)) return;
+  if (!target || !action || !hasBounds(target)) {
+    return;
+  }
 
   resetSelectionOverlay();
-  const routeLineRange = target.targetType === "file" ? parseLineRange(route.params.get("lines")) : null;
+  const routeLineRange =
+    target.targetType === "file" ? parseLineRange(route.params.get("lines")) : null;
   if (target.targetType === "file" && routeLineRange) {
     zoomToReadableFile(target, lineRatioForLine(target, routeLineRange.start));
   } else {
@@ -702,16 +755,28 @@ async function focusMapRoute(route: MapHashRoute, routeToken: RouteToken) {
   await handleMapRouteFocusAction(action, target, route, routeToken);
 }
 
-async function handleMapRouteFocusAction(action: MapRouteFocusAction, target: TargetHit, route: MapHashRoute, routeToken: RouteToken) {
+async function handleMapRouteFocusAction(
+  action: MapRouteFocusAction,
+  target: TargetHit,
+  route: MapHashRoute,
+  routeToken: RouteToken,
+) {
   switch (action.type) {
     case "focusFile":
-      if (target.targetType === "file") await showFileForRoute(target, route.params, routeToken);
+      if (target.targetType === "file") {
+        await showFileForRoute(target, route.params, routeToken);
+      }
       return;
     case "focusFolder":
-      if (target.targetType !== "folder") return;
+      if (target.targetType !== "folder") {
+        return;
+      }
       clearAnnotationForm();
       setText(controls.inspectorTitle, folderDisplayName(target));
-      setText(controls.inspectorSubtitle, `folder: ${target.path || "."} | ${target.geo?.geohash ?? "unresolved"}`);
+      setText(
+        controls.inspectorSubtitle,
+        `folder: ${target.path || "."} | ${target.geo?.geohash ?? "unresolved"}`,
+      );
       render();
   }
 }
@@ -730,13 +795,17 @@ async function showFileForRoute(file: MapFile, params: URLSearchParams, routeTok
 
   const sourceContext = sourceContextRequest(file.path, lineRange);
   const [address, source] = await fetchSourceContext(sourceContext);
-  if (!isCurrentRoute(routeToken)) return;
+  if (!isCurrentRoute(routeToken)) {
+    return;
+  }
   applySourcePanel(sourcePanelState({ path: file.path, deepLink: address.deepLink, source }));
   render();
 }
 
 function syncHashRoute(hash: string) {
-  if (applyingRoute || !hash || window.location.hash === hash) return;
+  if (applyingRoute || !hash || window.location.hash === hash) {
+    return;
+  }
   window.history.replaceState(null, "", hash);
 }
 
@@ -751,7 +820,9 @@ function setDrawMode(enabled: boolean) {
     state.selectedTarget = null;
     state.editingAnnotation = null;
   }
-  if (!enabled) clearDraftSelection();
+  if (!enabled) {
+    clearDraftSelection();
+  }
   updateInteractionModeUi();
   setSelectionStatus(enabled ? "Drag an area. Esc cancels." : "Draw mode off.");
   updateSelectionPopover();
@@ -776,7 +847,9 @@ function setPanMode() {
 }
 
 function setSpacePanMode(enabled: boolean) {
-  if (state.spacePanning === enabled) return;
+  if (state.spacePanning === enabled) {
+    return;
+  }
   state.spacePanning = enabled;
   updateInteractionModeUi();
 }
@@ -801,7 +874,9 @@ function clearDraftSelection() {
   state.draftSelection = null;
   state.resolvedSelection = null;
   state.editingAnnotation = null;
-  if (controls.saveSelection) controls.saveSelection.disabled = true;
+  if (controls.saveSelection) {
+    controls.saveSelection.disabled = true;
+  }
   setSaveButtonLabel();
   updateSelectionPopover();
 }
@@ -814,9 +889,15 @@ function resetSelectionOverlay() {
   state.draftSelection = null;
   state.resolvedSelection = null;
   state.editingAnnotation = null;
-  if (controls.selectionComment) controls.selectionComment.value = "";
-  if (controls.saveSelection) controls.saveSelection.disabled = true;
-  if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = true;
+  if (controls.selectionComment) {
+    controls.selectionComment.value = "";
+  }
+  if (controls.saveSelection) {
+    controls.saveSelection.disabled = true;
+  }
+  if (controls.deleteAnnotation) {
+    controls.deleteAnnotation.hidden = true;
+  }
   setSaveButtonLabel();
   setSelectionStatus("");
   updateInteractionModeUi();
@@ -829,14 +910,18 @@ function setNamedPlaces(places: NamedPlace[]) {
   state.namedPlaceIndexesById = new Map();
   for (let index = 0; index < places.length; index += 1) {
     const place = places[index];
-    if (!place?.id) continue;
+    if (!place?.id) {
+      continue;
+    }
     state.namedPlacesById.set(place.id, place);
     state.namedPlaceIndexesById.set(place.id, index);
   }
 }
 
 function upsertNamedPlace(place: NamedPlace) {
-  if (!place.id) return;
+  if (!place.id) {
+    return;
+  }
   const index = state.namedPlaceIndexesById.get(place.id);
   if (index === undefined) {
     state.namedPlaces.push(place);
@@ -856,16 +941,33 @@ function updateSelectionPopover() {
   const isEditing = state.editingAnnotation !== null;
   const hasDraft = state.draftSelection !== null || state.resolvedSelection !== null;
   const selectionReady = state.resolvedSelection !== null;
-  if (controls.selectionPopover) controls.selectionPopover.hidden = !(hasDraft || isEditing);
-  if (controls.annotationActions) controls.annotationActions.hidden = annotation === null || hasDraft || isEditing;
-  if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = !isEditing;
-  setText(controls.selectionContext, selectionContextLabel(state.resolvedSelection ?? state.editingAnnotation));
+  if (controls.selectionPopover) {
+    controls.selectionPopover.hidden = !(hasDraft || isEditing);
+  }
+  if (controls.annotationActions) {
+    controls.annotationActions.hidden = annotation === null || hasDraft || isEditing;
+  }
+  if (controls.deleteAnnotation) {
+    controls.deleteAnnotation.hidden = !isEditing;
+  }
+  setText(
+    controls.selectionContext,
+    selectionContextLabel(state.resolvedSelection ?? state.editingAnnotation),
+  );
   setText(controls.annotationTitle, annotationTitle(annotation));
   setText(controls.annotationMeta, selectionContextLabel(annotation));
-  positionAnnotationActions(annotation, { visible: annotation !== null && !hasDraft && !isEditing });
+  positionAnnotationActions(annotation, {
+    visible: annotation !== null && !hasDraft && !isEditing,
+  });
   if (controls.saveSelection) {
     controls.saveSelection.disabled = !(selectionReady || isEditing);
-    setSaveButtonLabel(isEditing ? COPY_PROMPT_LABEL : selectionReady ? SAVE_AND_COPY_LABEL : "Resolving selection...");
+    setSaveButtonLabel(
+      isEditing
+        ? COPY_PROMPT_LABEL
+        : selectionReady
+          ? SAVE_AND_COPY_LABEL
+          : "Resolving selection...",
+    );
   }
 }
 
@@ -890,7 +992,11 @@ function positionAnnotationActions(annotation: MapAnnotationPlace | null, { visi
 
   const panelHeight = panel.offsetHeight || 98;
   const centerX = target.x + target.width / 2;
-  const left = clamp(centerX - panelWidth / 2, margin, Math.max(margin, canvas.clientWidth - panelWidth - margin));
+  const left = clamp(
+    centerX - panelWidth / 2,
+    margin,
+    Math.max(margin, canvas.clientWidth - panelWidth - margin),
+  );
   const belowTop = target.y + target.height + gap;
   const aboveTop = target.y - panelHeight - gap;
   const fitsBelow = belowTop + panelHeight <= canvas.clientHeight - statusReserve;
@@ -933,22 +1039,41 @@ function render() {
     setText(controls.viewport, `scale ${state.view.scale.toFixed(2)} | level ${DEFAULT_MAP_LEVEL}`);
 
     drawCompassRose();
-    if (layerEnabled("showGrid", false)) drawGrid();
-    if (layerEnabled("showFolders")) drawFolders();
-    if (layerEnabled("showOrganicRegions")) drawOrganicRegions();
-    if (layerEnabled("showFiles")) drawFiles();
+    if (layerEnabled("showGrid", false)) {
+      drawGrid();
+    }
+    if (layerEnabled("showFolders")) {
+      drawFolders();
+    }
+    if (layerEnabled("showOrganicRegions")) {
+      drawOrganicRegions();
+    }
+    if (layerEnabled("showFiles")) {
+      drawFiles();
+    }
     drawQueuedLabels();
-    if (layerEnabled("showNames")) drawNamedPlaces();
-    if (layerEnabled("showNames")) drawOverlaps();
-    if (state.draftSelection) drawSelection(state.draftSelection.bounds, "rgba(245, 158, 11, 0.18)", "#f59e0b", [6, 4]);
-    if (activityDiscoveryEnabled()) drawDiscoveryFogOverlay(rect);
-    if (activityDiscoveryEnabled()) drawActivity();
+    if (layerEnabled("showNames")) {
+      drawNamedPlaces();
+    }
+    if (layerEnabled("showNames")) {
+      drawOverlaps();
+    }
+    if (state.draftSelection) {
+      drawSelection(state.draftSelection.bounds, "rgba(245, 158, 11, 0.18)", "#f59e0b", [6, 4]);
+    }
+    if (activityDiscoveryEnabled()) {
+      drawDiscoveryFogOverlay(rect);
+    }
+    if (activityDiscoveryEnabled()) {
+      drawActivity();
+    }
     renderActivityFeed();
     const annotation = selectedAnnotation();
-    const annotationActionsVisible = annotation !== null
-      && state.draftSelection === null
-      && state.resolvedSelection === null
-      && state.editingAnnotation === null;
+    const annotationActionsVisible =
+      annotation !== null &&
+      state.draftSelection === null &&
+      state.resolvedSelection === null &&
+      state.editingAnnotation === null;
     positionAnnotationActions(annotation, { visible: annotationActionsVisible });
   } finally {
     frameViewport = null;
@@ -956,7 +1081,9 @@ function render() {
 }
 
 function requestRender() {
-  if (pendingRenderFrame) return;
+  if (pendingRenderFrame) {
+    return;
+  }
   pendingRenderFrame = requestAnimationFrame(() => {
     pendingRenderFrame = 0;
     render();
@@ -965,7 +1092,9 @@ function requestRender() {
 
 function bindClearActivityHold() {
   const control = controls.clearActivityTool;
-  if (!control) return;
+  if (!control) {
+    return;
+  }
   control.addEventListener("pointerdown", onClearActivityPointerDown);
   control.addEventListener("pointerup", cancelClearActivityHold);
   control.addEventListener("pointerleave", cancelClearActivityHold);
@@ -977,28 +1106,39 @@ function bindClearActivityHold() {
 }
 
 function onClearActivityPointerDown(event: PointerEvent) {
-  if (event.button !== 0 || controls.clearActivityTool?.disabled) return;
+  if (event.button !== 0 || controls.clearActivityTool?.disabled) {
+    return;
+  }
   event.preventDefault();
   controls.clearActivityTool?.setPointerCapture?.(event.pointerId);
   startClearActivityHold();
 }
 
 function onClearActivityKeyDown(event: KeyboardEvent) {
-  if (event.repeat || controls.clearActivityTool?.disabled) return;
-  if (event.key !== " " && event.key !== "Enter") return;
+  if (event.repeat || controls.clearActivityTool?.disabled) {
+    return;
+  }
+  if (event.key !== " " && event.key !== "Enter") {
+    return;
+  }
   event.preventDefault();
   startClearActivityHold();
 }
 
 function onClearActivityKeyUp(event: KeyboardEvent) {
-  if (event.key !== " " && event.key !== "Enter") return;
+  if (event.key !== " " && event.key !== "Enter") {
+    return;
+  }
   cancelClearActivityHold();
 }
 
 function startClearActivityHold() {
   cancelClearActivityHold();
   controls.clearActivityTool?.classList.add("is-holding");
-  controls.clearActivityTool?.setAttribute("aria-description", "Hold until the progress fill completes to clear activity history.");
+  controls.clearActivityTool?.setAttribute(
+    "aria-description",
+    "Hold until the progress fill completes to clear activity history.",
+  );
   setText(controls.hover, "Hold to clear activity");
   clearActivityHold = setTimeout(() => {
     clearActivityHold = null;
@@ -1016,13 +1156,17 @@ function onClearActivityClick(event: MouseEvent) {
     disabled: controls.clearActivityTool?.disabled === true,
   });
   clearActivityCompletedHold = false;
-  if (action !== "clear") return;
+  if (action !== "clear") {
+    return;
+  }
   cancelClearActivityHold();
   void clearActivityHistory();
 }
 
 function cancelClearActivityHold() {
-  if (!clearActivityHold) return;
+  if (!clearActivityHold) {
+    return;
+  }
   clearTimeout(clearActivityHold);
   clearActivityHold = null;
   controls.clearActivityTool?.classList.remove("is-holding");
@@ -1093,7 +1237,11 @@ function drawDiscoveryVeil(rect: DOMRect, targetCtx: CanvasRenderingContext2D) {
   targetCtx.fillRect(0, 0, rect.width, rect.height);
 }
 
-function drawDiscoveryVeilTexture(rect: DOMRect, style: ReturnType<typeof discoveryFogVeilStyle>, targetCtx: CanvasRenderingContext2D = ctx) {
+function drawDiscoveryVeilTexture(
+  rect: DOMRect,
+  style: ReturnType<typeof discoveryFogVeilStyle>,
+  targetCtx: CanvasRenderingContext2D = ctx,
+) {
   const step = style.textureStep;
   targetCtx.save();
   targetCtx.fillStyle = `rgba(190, 244, 216, ${style.textureAlpha})`;
@@ -1102,7 +1250,9 @@ function drawDiscoveryVeilTexture(rect: DOMRect, style: ReturnType<typeof discov
     for (let x = -step; x < rect.width + step; x += step) {
       const column = Math.floor(x / step);
       const unit = integerNoise(column, row);
-      if (unit < 0.52) continue;
+      if (unit < 0.52) {
+        continue;
+      }
       const size = 1 + unit * 1.8;
       const offsetX = (integerNoise(column + 19, row - 7) - 0.5) * step * 0.44;
       const offsetY = (integerNoise(column - 11, row + 23) - 0.5) * step * 0.44;
@@ -1132,15 +1282,21 @@ function buildDiscoveryFogMask(rect: DOMRect) {
 
 function drawDiscoveryFogReveals(targetCtx: CanvasRenderingContext2D) {
   const fog = state.activityFog;
-  if (!fog) return;
+  if (!fog) {
+    return;
+  }
   for (const path of fog.visitedFiles) {
     const file = state.map?.files?.[path];
-    if (!file?.bounds) continue;
+    if (!file?.bounds) {
+      continue;
+    }
     const box = screenBounds(file.bounds);
     const visibleFile = fog.visibleFiles.has(path);
     const readable = state.view.scale > 2 && canRenderSourceText(file, box);
     const revealStyle = discoveryFogRevealStyle({ visibleFile, readable });
-    if (!visible(expandedBox(box, revealStyle.padding + 14))) continue;
+    if (!visible(expandedBox(box, revealStyle.padding + 14))) {
+      continue;
+    }
     if (readable) {
       drawReadableFogReveal(box, revealStyle, targetCtx);
     } else {
@@ -1151,9 +1307,12 @@ function drawDiscoveryFogReveals(targetCtx: CanvasRenderingContext2D) {
 
 function drawDiscoveryTrailMask(targetCtx: CanvasRenderingContext2D) {
   const events = sortedActivityEvents(state.activity);
-  if (events.length < 2) return;
-  const trailPointGroups = activityTrailGroups(events, { presorted: true })
-    .flatMap((agentEvents) => activityTrailPointGroups(activityTrailPoints(agentEvents)));
+  if (events.length < 2) {
+    return;
+  }
+  const trailPointGroups = activityTrailGroups(events, { presorted: true }).flatMap((agentEvents) =>
+    activityTrailPointGroups(activityTrailPoints(agentEvents)),
+  );
   targetCtx.save();
   targetCtx.lineCap = "round";
   targetCtx.lineJoin = "round";
@@ -1168,19 +1327,31 @@ function drawDiscoveryTrailMask(targetCtx: CanvasRenderingContext2D) {
   targetCtx.restore();
 }
 
-function strokeFogTrail(targetCtx: CanvasRenderingContext2D, points: Point[], { alpha, lineWidth }: FogTrailStyle) {
+function strokeFogTrail(
+  targetCtx: CanvasRenderingContext2D,
+  points: Point[],
+  { alpha, lineWidth }: FogTrailStyle,
+) {
   targetCtx.strokeStyle = `rgba(0, 0, 0, ${alpha})`;
   targetCtx.lineWidth = lineWidth;
   targetCtx.beginPath();
-  if (drawMyceliumPathForContext(targetCtx, points)) targetCtx.stroke();
+  if (drawMyceliumPathForContext(targetCtx, points)) {
+    targetCtx.stroke();
+  }
 }
 
-function drawReadableFogReveal(box: Bounds, { alpha, padding }: RevealStyle, targetCtx: CanvasRenderingContext2D) {
+function drawReadableFogReveal(
+  box: Bounds,
+  { alpha, padding }: RevealStyle,
+  targetCtx: CanvasRenderingContext2D,
+) {
   const x = Math.max(0, box.x - padding);
   const y = Math.max(0, box.y - padding);
   const right = Math.min(canvas.clientWidth, box.x + box.width + padding);
   const bottom = Math.min(canvas.clientHeight, box.y + box.height + padding);
-  if (right <= x || bottom <= y) return;
+  if (right <= x || bottom <= y) {
+    return;
+  }
 
   targetCtx.save();
   targetCtx.filter = "blur(10px)";
@@ -1189,7 +1360,12 @@ function drawReadableFogReveal(box: Bounds, { alpha, padding }: RevealStyle, tar
   targetCtx.restore();
 }
 
-function drawFogReveal(key: string, box: Bounds, { alpha, padding, core, mid, lobes = 3 }: RevealStyle, targetCtx: CanvasRenderingContext2D) {
+function drawFogReveal(
+  key: string,
+  box: Bounds,
+  { alpha, padding, core, mid, lobes = 3 }: RevealStyle,
+  targetCtx: CanvasRenderingContext2D,
+) {
   const radiusX = Math.max(18, box.width / 2 + padding);
   const radiusY = Math.max(18, box.height / 2 + padding);
   const centerX = box.x + box.width / 2;
@@ -1202,19 +1378,41 @@ function drawFogReveal(key: string, box: Bounds, { alpha, padding, core, mid, lo
     const distance = 0.16 + hashUnit(`${key}:fog-distance:${index}`) * 0.2;
     const lobeRadiusX = radiusX * (0.46 + hashUnit(`${key}:fog-rx:${index}`) * 0.18);
     const lobeRadiusY = radiusY * (0.46 + hashUnit(`${key}:fog-ry:${index}`) * 0.18);
-    drawFogRevealGradient({
-      x: centerX + Math.cos(angle) * radiusX * distance,
-      y: centerY + Math.sin(angle) * radiusY * distance,
-      radiusX: lobeRadiusX,
-      radiusY: lobeRadiusY,
-      alpha: alpha * 0.28,
-      core: 0.2,
-      mid: 0.72,
-    }, targetCtx);
+    drawFogRevealGradient(
+      {
+        x: centerX + Math.cos(angle) * radiusX * distance,
+        y: centerY + Math.sin(angle) * radiusY * distance,
+        radiusX: lobeRadiusX,
+        radiusY: lobeRadiusY,
+        alpha: alpha * 0.28,
+        core: 0.2,
+        mid: 0.72,
+      },
+      targetCtx,
+    );
   }
 }
 
-function drawFogRevealGradient({ x, y, radiusX, radiusY, alpha, core, mid }: { x: number; y: number; radiusX: number; radiusY: number; alpha: number; core: number; mid: number }, targetCtx: CanvasRenderingContext2D = ctx) {
+function drawFogRevealGradient(
+  {
+    x,
+    y,
+    radiusX,
+    radiusY,
+    alpha,
+    core,
+    mid,
+  }: {
+    x: number;
+    y: number;
+    radiusX: number;
+    radiusY: number;
+    alpha: number;
+    core: number;
+    mid: number;
+  },
+  targetCtx: CanvasRenderingContext2D = ctx,
+) {
   targetCtx.save();
   targetCtx.translate(x, y);
   targetCtx.scale(radiusX, radiusY);
@@ -1231,14 +1429,20 @@ function drawFogRevealGradient({ x, y, radiusX, radiusY, alpha, core, mid }: { x
 }
 
 function drawMyceliumPathForContext(targetCtx: CanvasRenderingContext2D, points: Point[]) {
-  if (points.length < 2) return false;
+  if (points.length < 2) {
+    return false;
+  }
 
   const minDistance = Math.min(14, Math.max(6, state.view.scale * 2.2));
   const segments = organicTrailSegments(points, { minDistance });
-  if (segments.length === 0) return false;
+  if (segments.length === 0) {
+    return false;
+  }
 
   const first = segments[0];
-  if (!first) return false;
+  if (!first) {
+    return false;
+  }
   targetCtx.moveTo(first.start.x, first.start.y);
   for (const segment of segments) {
     targetCtx.bezierCurveTo(
@@ -1298,20 +1502,32 @@ function drawCompassRose() {
 function drawFolders() {
   const fogEnabled = activityDiscoveryEnabled();
   for (const folder of state.mapFolders) {
-    if (!folder.path || !folder.bounds) continue;
+    if (!folder.path || !folder.bounds) {
+      continue;
+    }
     const box = screenBounds(folder.bounds);
-    if (!visible(box)) continue;
+    if (!visible(box)) {
+      continue;
+    }
     const depth = folderDepth(folder.path);
-    if (!shouldDrawFolder(state.view.scale, depth, box)) continue;
-    const selected = state.selectedTarget?.targetType === "folder" && state.selectedTarget.path === folder.path;
-    const fogState = fogEnabled ? fogStateForFolder(state.activityFog, folder, { selected }) : "visible";
+    if (!shouldDrawFolder(state.view.scale, depth, box)) {
+      continue;
+    }
+    const selected =
+      state.selectedTarget?.targetType === "folder" && state.selectedTarget.path === folder.path;
+    const fogState = fogEnabled
+      ? fogStateForFolder(state.activityFog, folder, { selected })
+      : "visible";
     const style = folderStyle(folder.path, depth);
     const fogStyle = folderFogStyle(style, fogState, depth, selected, fogEnabled);
     ctx.fillStyle = fogStyle.fill;
     ctx.strokeStyle = fogStyle.stroke;
     ctx.lineWidth = selected ? 2.6 : fogStyle.lineWidth;
     drawRect(box);
-    if (shouldShowFogLabel(fogState, { selected }) && shouldLabelFolder(state.view.scale, depth, box)) {
+    if (
+      shouldShowFogLabel(fogState, { selected }) &&
+      shouldLabelFolder(state.view.scale, depth, box)
+    ) {
       queueLabelInBox({
         text: folderDisplayName(folder),
         box,
@@ -1327,15 +1543,26 @@ function drawFolders() {
 function drawOrganicRegions() {
   const fogEnabled = activityDiscoveryEnabled();
   for (const { folder, depth } of state.organicRegionFolders) {
-    if (!folder.bounds) continue;
+    if (!folder.bounds) {
+      continue;
+    }
     const box = screenBounds(folder.bounds);
-    if (!visible(box)) continue;
-    if (!shouldDrawOrganicRegion(state.view.scale, depth, box)) continue;
+    if (!visible(box)) {
+      continue;
+    }
+    if (!shouldDrawOrganicRegion(state.view.scale, depth, box)) {
+      continue;
+    }
     const points = cachedOrganicRegionPoints(folder.bounds, folder.path, depth);
-    if (points.length < 3) continue;
+    if (points.length < 3) {
+      continue;
+    }
     const style = organicRegionStyle(folder.path, depth);
-    const selected = state.selectedTarget?.targetType === "folder" && state.selectedTarget.path === folder.path;
-    const fogState = fogEnabled ? fogStateForFolder(state.activityFog, folder, { selected }) : "visible";
+    const selected =
+      state.selectedTarget?.targetType === "folder" && state.selectedTarget.path === folder.path;
+    const fogState = fogEnabled
+      ? fogStateForFolder(state.activityFog, folder, { selected })
+      : "visible";
     const fogStyle = organicRegionFogStyle(style, fogState, depth, selected, fogEnabled);
 
     ctx.save();
@@ -1353,13 +1580,22 @@ function drawFiles() {
   const fogEnabled = activityDiscoveryEnabled();
   let renderedSourceLines = 0;
   for (const file of state.mapFiles) {
-    if (!file.bounds) continue;
+    if (!file.bounds) {
+      continue;
+    }
     const box = screenBounds(file.bounds);
-    if (!visible(box)) continue;
-    const selected = state.selectedTarget?.targetType === "file" && state.selectedTarget.path === file.path;
-    const fogState = fogEnabled ? fogStateForFile(state.activityFog, file, { selected }) : "visible";
+    if (!visible(box)) {
+      continue;
+    }
+    const selected =
+      state.selectedTarget?.targetType === "file" && state.selectedTarget.path === file.path;
+    const fogState = fogEnabled
+      ? fogStateForFile(state.activityFog, file, { selected })
+      : "visible";
     const visualState = fileVisualState({ file, box, scale: state.view.scale, selected });
-    if (visualState === "hidden") continue;
+    if (visualState === "hidden") {
+      continue;
+    }
 
     const style = fileFogStyle({ fogState, selected, visualState, discoveryMode: fogEnabled });
     ctx.fillStyle = style.fill;
@@ -1377,18 +1613,32 @@ function drawFiles() {
       });
     }
     if (
-      shouldShowFogSourceText(fogState, { selected })
-      && canRenderSourceText(file, box)
-      && renderedSourceLines < SOURCE_TEXT_MAX_LINES_PER_FRAME
+      shouldShowFogSourceText(fogState, { selected }) &&
+      canRenderSourceText(file, box) &&
+      renderedSourceLines < SOURCE_TEXT_MAX_LINES_PER_FRAME
     ) {
-      renderedSourceLines += drawSourceText(file, box, SOURCE_TEXT_MAX_LINES_PER_FRAME - renderedSourceLines);
-    } else if (shouldShowFogSourceText(fogState, { selected }) && state.view.scale > 6 && box.height > 34) {
+      renderedSourceLines += drawSourceText(
+        file,
+        box,
+        SOURCE_TEXT_MAX_LINES_PER_FRAME - renderedSourceLines,
+      );
+    } else if (
+      shouldShowFogSourceText(fogState, { selected }) &&
+      state.view.scale > 6 &&
+      box.height > 34
+    ) {
       drawLineBands(file, box);
     }
   }
 }
 
-function folderFogStyle(style: FolderRenderStyle, fogState: FogState, depth: number, selected: boolean, discoveryMode = false) {
+function folderFogStyle(
+  style: FolderRenderStyle,
+  fogState: FogState,
+  depth: number,
+  selected: boolean,
+  discoveryMode = false,
+) {
   if (discoveryMode) {
     return {
       ...style,
@@ -1417,7 +1667,13 @@ function folderFogStyle(style: FolderRenderStyle, fogState: FogState, depth: num
   };
 }
 
-function organicRegionFogStyle(style: OrganicRegionRenderStyle, fogState: FogState, depth: number, selected: boolean, discoveryMode = false) {
+function organicRegionFogStyle(
+  style: OrganicRegionRenderStyle,
+  fogState: FogState,
+  depth: number,
+  selected: boolean,
+  discoveryMode = false,
+) {
   if (discoveryMode) {
     return {
       ...style,
@@ -1444,7 +1700,12 @@ function organicRegionFogStyle(style: OrganicRegionRenderStyle, fogState: FogSta
   };
 }
 
-function fileFogStyle({ fogState, selected, visualState, discoveryMode = false }: FileFogStyleOptions) {
+function fileFogStyle({
+  fogState,
+  selected,
+  visualState,
+  discoveryMode = false,
+}: FileFogStyleOptions) {
   if (selected) {
     return {
       fill: "rgba(255, 255, 255, 0.82)",
@@ -1472,7 +1733,8 @@ function fileFogStyle({ fogState, selected, visualState, discoveryMode = false }
   if (fogState === "explored") {
     return {
       fill: "rgba(42, 70, 57, 0.42)",
-      stroke: visualState === "aggregate" ? "rgba(126, 153, 134, 0.18)" : "rgba(126, 153, 134, 0.34)",
+      stroke:
+        visualState === "aggregate" ? "rgba(126, 153, 134, 0.18)" : "rgba(126, 153, 134, 0.34)",
       label: "rgba(177, 202, 185, 0.76)",
       lineWidth: visualState === "aggregate" ? 0.35 : state.view.scale > 2.2 ? 0.9 : 0.55,
     };
@@ -1488,7 +1750,9 @@ function fileFogStyle({ fogState, selected, visualState, discoveryMode = false }
 function drawOrganicPath(points: Point[]) {
   const firstPoint = points[0];
   const secondPoint = points[1];
-  if (!firstPoint || !secondPoint) return;
+  if (!firstPoint || !secondPoint) {
+    return;
+  }
   const first = worldToScreen(firstPoint);
   const second = worldToScreen(secondPoint);
   ctx.beginPath();
@@ -1497,7 +1761,9 @@ function drawOrganicPath(points: Point[]) {
   for (let index = 1; index <= points.length; index += 1) {
     const controlPoint = points[index % points.length];
     const nextPoint = points[(index + 1) % points.length];
-    if (!controlPoint || !nextPoint) continue;
+    if (!controlPoint || !nextPoint) {
+      continue;
+    }
     const control = worldToScreen(controlPoint);
     const next = worldToScreen(nextPoint);
     ctx.quadraticCurveTo(control.x, control.y, (control.x + next.x) / 2, (control.y + next.y) / 2);
@@ -1509,9 +1775,13 @@ function drawOrganicPath(points: Point[]) {
 function drawSourceText(file: MapFile, box: Bounds, remainingBudget: number): number {
   const visibleRange = visibleLineRange(file, box);
   const lineCount = file.lineCount ?? 0;
-  if (!visibleRange) return 0;
+  if (!visibleRange) {
+    return 0;
+  }
   const clipBox = screenIntersection(box);
-  if (!clipBox) return 0;
+  if (!clipBox) {
+    return 0;
+  }
 
   const budgetedEnd = Math.min(visibleRange.end, visibleRange.start + remainingBudget - 1);
   const fetchStart = Math.max(1, visibleRange.start - SOURCE_TEXT_PREFETCH_LINES);
@@ -1527,7 +1797,8 @@ function drawSourceText(file: MapFile, box: Bounds, remainingBudget: number): nu
 
   const linesByNumber = sourceLinesByNumber(cached);
   const lineHeight = lineHeightForFile(file, box);
-  const firstBaseline = box.y + (visibleRange.start - 1) * lineHeight + Math.min(13, lineHeight * 0.78);
+  const firstBaseline =
+    box.y + (visibleRange.start - 1) * lineHeight + Math.min(13, lineHeight * 0.78);
   const sourceTextLayout = sourceTextLayoutForBox(box, canvas.clientWidth);
   let drawn = 0;
 
@@ -1540,7 +1811,9 @@ function drawSourceText(file: MapFile, box: Bounds, remainingBudget: number): nu
 
   for (let lineNumber = visibleRange.start; lineNumber <= budgetedEnd; lineNumber += 1) {
     const y = firstBaseline + drawn * lineHeight;
-    if (y > box.y + box.height) break;
+    if (y > box.y + box.height) {
+      break;
+    }
     const text = linesByNumber.get(lineNumber) ?? "";
     ctx.fillStyle = "rgba(63, 83, 97, 0.58)";
     ctx.fillText(String(lineNumber).padStart(4, " "), sourceTextLayout.lineNumberX, y);
@@ -1555,7 +1828,9 @@ function drawSourceText(file: MapFile, box: Bounds, remainingBudget: number): nu
 
 function sourceLinesByNumber(source: SourceRange): Map<number | string, string> {
   const cached = sourceLinesByNumberCache.get(source);
-  if (cached) return cached;
+  if (cached) {
+    return cached;
+  }
   const linesByNumber = new Map<number | string, string>();
   for (const line of source.lines ?? []) {
     linesByNumber.set(line.number, line.text);
@@ -1567,7 +1842,12 @@ function sourceLinesByNumber(source: SourceRange): Map<number | string, string> 
 function drawSourcePlaceholder(box: Bounds) {
   ctx.save();
   ctx.fillStyle = "rgba(255, 255, 255, 0.36)";
-  ctx.fillRect(box.x + 4, box.y + 4, Math.max(0, box.width - 8), Math.min(24, Math.max(0, box.height - 8)));
+  ctx.fillRect(
+    box.x + 4,
+    box.y + 4,
+    Math.max(0, box.width - 8),
+    Math.min(24, Math.max(0, box.height - 8)),
+  );
   ctx.restore();
 }
 
@@ -1576,7 +1856,9 @@ function visibleLineRange(file: MapFile, box: Bounds) {
 }
 
 function requestSourceRange(path: string, lineStart: number, lineEnd: number, cacheKey: string) {
-  if (state.pendingSourceRequests.has(cacheKey)) return;
+  if (state.pendingSourceRequests.has(cacheKey)) {
+    return;
+  }
   state.pendingSourceRequests.add(cacheKey);
   fetchJson<SourceRange>(sourceContextRequest(path, { start: lineStart, end: lineEnd }).sourceUrl)
     .then((source) => {
@@ -1598,12 +1880,16 @@ function truncateLine(text: string, maxChars: number) {
 function drawLineBands(file: MapFile, box: Bounds) {
   const lines = Math.min(file.lineCount ?? 0, 80);
   const clipBox = screenIntersection(box);
-  if (!clipBox) return;
+  if (!clipBox) {
+    return;
+  }
   ctx.strokeStyle = "rgba(4, 120, 87, 0.18)";
   ctx.lineWidth = 1;
   for (let i = 1; i < lines; i += 1) {
     const y = box.y + (box.height * i) / lines;
-    if (y < clipBox.y || y > clipBox.y + clipBox.height) continue;
+    if (y < clipBox.y || y > clipBox.y + clipBox.height) {
+      continue;
+    }
     ctx.beginPath();
     ctx.moveTo(clipBox.x, y);
     ctx.lineTo(clipBox.x + clipBox.width, y);
@@ -1618,21 +1904,29 @@ function drawNamedPlaces() {
       annotations.push(place);
       continue;
     }
-    if (place.kind !== "drawnSelection") continue;
-    if (!hasGeometryBounds(place)) continue;
+    if (place.kind !== "drawnSelection") {
+      continue;
+    }
+    if (!hasGeometryBounds(place)) {
+      continue;
+    }
     drawSelection(place.geometry.bounds, "rgba(245, 158, 11, 0.08)", "#f59e0b", []);
     const box = screenBounds(place.geometry.bounds);
     drawLabel(place.name ?? "", box.x + 6, box.y + 16, "#92400e");
   }
 
   annotations.forEach((annotation, index) => {
-    const selected = state.selectedTarget?.targetType === "annotation" && state.selectedTarget.id === annotation.id;
+    const selected =
+      state.selectedTarget?.targetType === "annotation" &&
+      state.selectedTarget.id === annotation.id;
     drawAnnotation(annotation, index + 1, selected);
   });
 }
 
 function drawAnnotation(annotation: MapAnnotationPlace, markerNumber: number, selected: boolean) {
-  if (!hasGeometryBounds(annotation)) return;
+  if (!hasGeometryBounds(annotation)) {
+    return;
+  }
   drawAnnotationMembrane(
     annotation.geometry.bounds,
     selected ? "rgba(37, 99, 235, 0.13)" : "rgba(37, 99, 235, 0.07)",
@@ -1648,15 +1942,25 @@ function drawAnnotation(annotation: MapAnnotationPlace, markerNumber: number, se
   drawAnnotationMarker(annotation, markerNumber, selected);
 }
 
-function drawAnnotationMembrane(bounds: Bounds, fill: string, stroke: string, selected: boolean, key: string) {
+function drawAnnotationMembrane(
+  bounds: Bounds,
+  fill: string,
+  stroke: string,
+  selected: boolean,
+  key: string,
+) {
   const points = cachedOrganicRegionPoints(bounds, `annotation:${key}`, 0);
-  if (points.length < 3) return;
+  if (points.length < 3) {
+    return;
+  }
 
   ctx.save();
   ctx.fillStyle = fill;
   ctx.strokeStyle = stroke;
   ctx.lineWidth = selected ? 2.5 : 1.6;
-  if (!selected) ctx.setLineDash([6, 5]);
+  if (!selected) {
+    ctx.setLineDash([6, 5]);
+  }
   drawOrganicPath(points);
   ctx.fill();
   ctx.stroke();
@@ -1666,14 +1970,22 @@ function drawAnnotationMembrane(bounds: Bounds, fill: string, stroke: string, se
 function cachedOrganicRegionPoints(bounds: Bounds, key: string, depth: number): Point[] {
   const cacheKey = `${key}:${depth}:${bounds.x}:${bounds.y}:${bounds.width}:${bounds.height}`;
   const cached = organicRegionPointsCache.get(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    return cached;
+  }
   const points = organicRegionPoints(bounds, key, depth);
   organicRegionPointsCache.set(cacheKey, points);
   return points;
 }
 
-function drawAnnotationMarker(annotation: MapAnnotationPlace, markerNumber: number, selected: boolean) {
-  if (!hasGeometryBounds(annotation)) return;
+function drawAnnotationMarker(
+  annotation: MapAnnotationPlace,
+  markerNumber: number,
+  selected: boolean,
+) {
+  if (!hasGeometryBounds(annotation)) {
+    return;
+  }
   const center = worldToScreen(boundsCenter(annotation.geometry.bounds));
   const radius = selected ? 13 : 11;
   ctx.save();
@@ -1695,7 +2007,9 @@ function drawAnnotationMarker(annotation: MapAnnotationPlace, markerNumber: numb
 function drawOverlaps() {
   for (const overlap of state.overlaps) {
     const box = screenBounds(overlap.bounds);
-    if (!visible(box)) continue;
+    if (!visible(box)) {
+      continue;
+    }
     ctx.save();
     ctx.fillStyle = "rgba(225, 29, 72, 0.18)";
     ctx.strokeStyle = "#e11d48";
@@ -1703,7 +2017,9 @@ function drawOverlaps() {
     ctx.setLineDash([3, 3]);
     drawRect(box);
     ctx.restore();
-    if (box.width > 44 && box.height > 16) drawLabel("Overlap", box.x + 6, box.y + 16, "#9f1239");
+    if (box.width > 44 && box.height > 16) {
+      drawLabel("Overlap", box.x + 6, box.y + 16, "#9f1239");
+    }
   }
 }
 
@@ -1717,7 +2033,9 @@ function drawActivity() {
 
   for (const item of items) {
     const { event, latest, selected, encoding, style, fillColor, primaryBounds } = item;
-    if (!primaryBounds) continue;
+    if (!primaryBounds) {
+      continue;
+    }
     const center = boundsCenter(primaryBounds);
     const p = worldToScreen(center);
     const haloColor = activityHaloColor(style, encoding);
@@ -1753,13 +2071,17 @@ function drawActivity() {
   }
 }
 
-function activityRenderItems(events: ActivityEvent[], latestByAgent: Map<string, ActivityEvent>): ActivityRenderItem[] {
+function activityRenderItems(
+  events: ActivityEvent[],
+  latestByAgent: Map<string, ActivityEvent>,
+): ActivityRenderItem[] {
   const now = Date.now();
   const items: ActivityRenderItem[] = [];
   for (const event of events) {
     const key = activityActorKey(event);
     const latest = latestByAgent.get(key) === event;
-    const selected = state.selectedTarget?.targetType === "activity" && state.selectedTarget.id === event.id;
+    const selected =
+      state.selectedTarget?.targetType === "activity" && state.selectedTarget.id === event.id;
     const encoding = activityVisualEncoding(event, { latest, selected, now });
     const style = activityStateStyle(encoding.activityState);
     items.push({
@@ -1778,9 +2100,15 @@ function activityRenderItems(events: ActivityEvent[], latestByAgent: Map<string,
 
 function drawActivityMembranes(items: ActivityRenderItem[], { discoveryMode = false } = {}) {
   for (const { event, latest, selected, encoding, fillColor } of items) {
-    if (discoveryMode && state.view.scale > 6 && !selected) continue;
-    if (discoveryMode && !latest && !selected) continue;
-    if (encoding.membraneAlpha <= 0.08 && !selected) continue;
+    if (discoveryMode && state.view.scale > 6 && !selected) {
+      continue;
+    }
+    if (discoveryMode && !latest && !selected) {
+      continue;
+    }
+    if (encoding.membraneAlpha <= 0.08 && !selected) {
+      continue;
+    }
 
     for (const bounds of activityFragmentBounds(event)) {
       const tissueBox = activityTissueBox(screenBounds(bounds), encoding);
@@ -1790,7 +2118,8 @@ function drawActivityMembranes(items: ActivityRenderItem[], { discoveryMode = fa
       };
       const radius = Math.max(tissueBox.width, tissueBox.height) * 0.82;
       const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
-      const membraneAlpha = discoveryMode && !selected ? encoding.membraneAlpha * 0.45 : encoding.membraneAlpha;
+      const membraneAlpha =
+        discoveryMode && !selected ? encoding.membraneAlpha * 0.45 : encoding.membraneAlpha;
       gradient.addColorStop(0, hexToRgba(fillColor, membraneAlpha));
       gradient.addColorStop(0.58, hexToRgba(fillColor, membraneAlpha * 0.45));
       gradient.addColorStop(1, hexToRgba(fillColor, 0));
@@ -1805,17 +2134,25 @@ function drawActivityMembranes(items: ActivityRenderItem[], { discoveryMode = fa
   }
 }
 
-function drawActivityTrails(events: ActivityEvent[], latestByAgent: Map<string, ActivityEvent>, { discoveryMode = false } = {}) {
+function drawActivityTrails(
+  events: ActivityEvent[],
+  latestByAgent: Map<string, ActivityEvent>,
+  { discoveryMode = false } = {},
+) {
   for (const agentEvents of activityTrailGroups(events, { presorted: true })) {
     const trailLatest = agentEvents.at(-1);
-    if (!trailLatest) continue;
+    if (!trailLatest) {
+      continue;
+    }
     const latest = latestByAgent.get(activityActorKey(trailLatest)) === trailLatest;
     const selected = activityTrailSelected(agentEvents);
     const encoding = activityVisualEncoding(trailLatest, { latest, selected });
     const style = activityStateStyle(encoding.activityState);
     const fillColor = activityFillColor(style, encoding);
     const pointGroups = activityTrailPointGroups(activityTrailPoints(agentEvents));
-    if (pointGroups.length === 0) continue;
+    if (pointGroups.length === 0) {
+      continue;
+    }
 
     ctx.save();
     ctx.lineCap = "round";
@@ -1838,7 +2175,13 @@ function drawActivityTrails(events: ActivityEvent[], latestByAgent: Map<string, 
       });
       if (!discoveryMode || selected || latest) {
         strokeOrganicTrail(points, {
-          color: hexToRgba(fillColor, Math.min(discoveryMode ? 0.42 : 0.9, encoding.trailAlpha * (discoveryMode ? 0.46 : 0.95))),
+          color: hexToRgba(
+            fillColor,
+            Math.min(
+              discoveryMode ? 0.42 : 0.9,
+              encoding.trailAlpha * (discoveryMode ? 0.46 : 0.95),
+            ),
+          ),
           lineWidth: encoding.lineWidth * (discoveryMode ? 0.82 : 1),
         });
       }
@@ -1848,7 +2191,9 @@ function drawActivityTrails(events: ActivityEvent[], latestByAgent: Map<string, 
 }
 
 function activityTrailSelected(events: ActivityEvent[]) {
-  if (state.selectedTarget?.targetType !== "activity") return false;
+  if (state.selectedTarget?.targetType !== "activity") {
+    return false;
+  }
   const selectedId = state.selectedTarget.id;
   return events.some((event) => event.id === selectedId);
 }
@@ -1857,7 +2202,9 @@ function activityTrailPoints(events: ActivityEvent[]): Point[] {
   const points: Point[] = [];
   for (const event of events) {
     const bounds = activityPrimaryBounds(event);
-    if (bounds) points.push(worldToScreen(boundsCenter(bounds)));
+    if (bounds) {
+      points.push(worldToScreen(boundsCenter(bounds)));
+    }
   }
   return points;
 }
@@ -1866,7 +2213,9 @@ function strokeOrganicTrail(points: Point[], { color, lineWidth }: StrokeStyle) 
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
   ctx.beginPath();
-  if (drawMyceliumPathForContext(ctx, points)) ctx.stroke();
+  if (drawMyceliumPathForContext(ctx, points)) {
+    ctx.stroke();
+  }
 }
 
 function drawActivityCell(center: Point, radius: number, key: string | undefined) {
@@ -1910,7 +2259,9 @@ function activityHaloColor(style: ActivityStyle, encoding: ActivityEncoding) {
 }
 
 function formatActivityAge(ageMinutes: number) {
-  if (ageMinutes < 60) return `${Math.max(1, Math.round(ageMinutes))}m ago`;
+  if (ageMinutes < 60) {
+    return `${Math.max(1, Math.round(ageMinutes))}m ago`;
+  }
   return `${Math.round(ageMinutes / 60)}h ago`;
 }
 
@@ -1921,7 +2272,9 @@ function hexToRgba(hex: string, alpha: number) {
 
 function hexRgb(hex: string): readonly [number, number, number] {
   const cached = hexRgbCache.get(hex);
-  if (cached) return cached;
+  if (cached) {
+    return cached;
+  }
   const value = hex.replace("#", "");
   const rgb = [
     Number.parseInt(value.slice(0, 2), 16),
@@ -1934,7 +2287,9 @@ function hexRgb(hex: string): readonly [number, number, number] {
 
 function hashUnit(value: string) {
   const cached = hashUnitCache.get(value);
-  if (cached !== undefined) return cached;
+  if (cached !== undefined) {
+    return cached;
+  }
   const unit = hashString(value) / 0xffffffff;
   hashUnitCache.set(value, unit);
   return unit;
@@ -1947,9 +2302,13 @@ function integerNoise(x: number, y: number) {
 }
 
 function renderActivityFeed() {
-  if (!controls.activityFeed) return;
+  if (!controls.activityFeed) {
+    return;
+  }
   const feedKey = `${state.activitySignature}:${Math.floor(Date.now() / 60000)}`;
-  if (feedKey === activityFeedRenderKey) return;
+  if (feedKey === activityFeedRenderKey) {
+    return;
+  }
   activityFeedRenderKey = feedKey;
   const latest = activityFeedEvents(state.activity);
 
@@ -1990,10 +2349,11 @@ function drawSelection(bounds: Bounds, fill: string, stroke: string, dash: numbe
 
 function drawRect(box: Bounds) {
   const viewport = viewportSize();
-  const overdraw = box.x < 0
-    || box.y < 0
-    || box.x + box.width > viewport.width
-    || box.y + box.height > viewport.height;
+  const overdraw =
+    box.x < 0 ||
+    box.y < 0 ||
+    box.x + box.width > viewport.width ||
+    box.y + box.height > viewport.height;
   if (overdraw && box.width * box.height > viewport.width * viewport.height * 4) {
     drawClippedRect(box, viewport);
     return;
@@ -2009,7 +2369,9 @@ function drawClippedRect(box: Bounds, viewport: Viewport) {
   const y1 = Math.max(0, box.y);
   const x2 = Math.min(viewport.width, box.x + box.width);
   const y2 = Math.min(viewport.height, box.y + box.height);
-  if (x2 <= x1 || y2 <= y1) return;
+  if (x2 <= x1 || y2 <= y1) {
+    return;
+  }
 
   ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
   ctx.beginPath();
@@ -2045,15 +2407,21 @@ function drawLabel(text: string, x: number, y: number, color: string, size = 12,
 
 function queueLabelInBox(label: FrameLabel) {
   const placement = labelPlacement(label.text, label.box, label.size, label.weight);
-  if (!placement) return;
+  if (!placement) {
+    return;
+  }
   frameLabels.push({ ...label, ...placement });
 }
 
 function drawQueuedLabels() {
   const placed: Bounds[] = [];
-  if (!labelsAreInPriorityOrder(frameLabels)) frameLabels.sort((a, b) => b.priority - a.priority);
+  if (!labelsAreInPriorityOrder(frameLabels)) {
+    frameLabels.sort((a, b) => b.priority - a.priority);
+  }
   for (const label of frameLabels) {
-    if (placed.some((other) => labelBoxesOverlap(label.collisionBox, other))) continue;
+    if (placed.some((other) => labelBoxesOverlap(label.collisionBox, other))) {
+      continue;
+    }
     ctx.save();
     ctx.beginPath();
     ctx.rect(label.box.x, label.box.y, label.box.width, label.box.height);
@@ -2068,14 +2436,23 @@ function labelsAreInPriorityOrder(labels: PlacedFrameLabel[]) {
   for (let index = 1; index < labels.length; index += 1) {
     const previous = labels[index - 1];
     const current = labels[index];
-    if (!previous || !current || previous.priority < current.priority) return false;
+    if (!previous || !current || previous.priority < current.priority) {
+      return false;
+    }
   }
   return true;
 }
 
-function labelPlacement(text: string, box: Bounds, size = 12, weight = "400"): Pick<PlacedFrameLabel, "x" | "y" | "collisionBox"> | null {
+function labelPlacement(
+  text: string,
+  box: Bounds,
+  size = 12,
+  weight = "400",
+): Pick<PlacedFrameLabel, "x" | "y" | "collisionBox"> | null {
   const area = screenIntersection(box);
-  if (!area || area.width < 56 || area.height < size + 8) return null;
+  if (!area || area.width < 56 || area.height < size + 8) {
+    return null;
+  }
 
   ctx.save();
   ctx.font = `${weight} ${size}px Inter, system-ui, sans-serif`;
@@ -2084,8 +2461,13 @@ function labelPlacement(text: string, box: Bounds, size = 12, weight = "400"): P
 
   const x = clamp(box.x + 8, area.x + 8, area.x + Math.max(8, area.width - width - 6));
   const naturalY = box.y + size + 5;
-  const stickyY = area.y + Math.min(Math.max(size + 8, area.height * 0.35), Math.max(size + 8, area.height - 8));
-  const y = clamp(naturalY < area.y + size + 6 ? stickyY : naturalY, area.y + size + 6, area.y + area.height - 8);
+  const stickyY =
+    area.y + Math.min(Math.max(size + 8, area.height * 0.35), Math.max(size + 8, area.height - 8));
+  const y = clamp(
+    naturalY < area.y + size + 6 ? stickyY : naturalY,
+    area.y + size + 6,
+    area.y + area.height - 8,
+  );
 
   return {
     x,
@@ -2113,8 +2495,11 @@ function onWheel(event: WheelEvent) {
 
 function zoomAt(screenAnchor: Point, factor: number, { animate = false } = {}) {
   const nextView = zoomViewAt(state.view, screenAnchor, factor, viewportSize());
-  if (animate) animateViewTo(nextView);
-  else setViewImmediate(nextView);
+  if (animate) {
+    animateViewTo(nextView);
+  } else {
+    setViewImmediate(nextView);
+  }
 }
 
 function panByWheel(event: WheelEvent) {
@@ -2124,16 +2509,24 @@ function panByWheel(event: WheelEvent) {
 }
 
 function normalizeWheelDelta(delta: number, deltaMode: number) {
-  if (!Number.isFinite(delta)) return 0;
-  if (deltaMode === WheelEvent.DOM_DELTA_LINE) return delta * 16;
-  if (deltaMode === WheelEvent.DOM_DELTA_PAGE) return delta * canvas.clientHeight;
+  if (!Number.isFinite(delta)) {
+    return 0;
+  }
+  if (deltaMode === WheelEvent.DOM_DELTA_LINE) {
+    return delta * 16;
+  }
+  if (deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+    return delta * canvas.clientHeight;
+  }
   return delta;
 }
 
 function onCanvasKeyDown(event: KeyboardEvent) {
   canvas.classList.remove("pointer-focused");
   const action = canvasKeyboardAction(event);
-  if (!action) return;
+  if (!action) {
+    return;
+  }
   event.preventDefault();
   void handleCanvasKeyboardAction(action);
 }
@@ -2145,7 +2538,9 @@ function onDocumentKeyDown(event: KeyboardEvent) {
     hasResolvedSelection: state.resolvedSelection !== null,
     hasSelectedAnnotation: state.selectedTarget?.targetType === "annotation",
   });
-  if (!action) return;
+  if (!action) {
+    return;
+  }
   event.preventDefault();
   void handleDocumentKeyboardAction(action);
 }
@@ -2196,14 +2591,19 @@ function onDocumentKeyUp(event: KeyboardEvent) {
 }
 
 function isTextEntryTarget(target: EventTarget | null) {
-  return target instanceof HTMLInputElement
-    || target instanceof HTMLTextAreaElement
-    || target instanceof HTMLSelectElement
-    || (target instanceof HTMLElement && target.isContentEditable);
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
 }
 
 function isButtonTarget(target: EventTarget | null) {
-  return target instanceof HTMLButtonElement || (target instanceof Element && target.closest("button") !== null);
+  return (
+    target instanceof HTMLButtonElement ||
+    (target instanceof Element && target.closest("button") !== null)
+  );
 }
 
 function cancelCurrentInteraction() {
@@ -2211,7 +2611,9 @@ function cancelCurrentInteraction() {
   cancelPendingClickSelection();
   if (state.editingAnnotation) {
     state.editingAnnotation = null;
-    if (controls.selectionComment) controls.selectionComment.value = "";
+    if (controls.selectionComment) {
+      controls.selectionComment.value = "";
+    }
     updateSelectionPopover();
     setSelectionStatus("Edit cancelled.");
     render();
@@ -2230,7 +2632,9 @@ function cancelCurrentInteraction() {
 
   if (state.selectedTarget) {
     state.selectedTarget = null;
-    if (controls.selectionComment) controls.selectionComment.value = "";
+    if (controls.selectionComment) {
+      controls.selectionComment.value = "";
+    }
     updateSelectionPopover();
     clearSelectionHashRoute();
     setSelectionStatus("Selection cleared.");
@@ -2248,7 +2652,9 @@ function clearSelectionHashRoute() {
 function onPointerDown(event: PointerEvent) {
   cancelCameraAnimation();
   cancelPendingTouchSpacePan();
-  if (state.dragging?.type !== "select") cancelPendingClickSelection();
+  if (state.dragging?.type !== "select") {
+    cancelPendingClickSelection();
+  }
   canvas.classList.add("pointer-focused");
   try {
     canvas.setPointerCapture(event.pointerId);
@@ -2264,10 +2670,18 @@ function onPointerDown(event: PointerEvent) {
   if (state.drawing && !spacePan) {
     state.selectedTarget = null;
     state.dragging = { type: "draw", start: point, current: point };
-    state.draftSelection = { type: "rect", bounds: { x: point.x, y: point.y, width: 0, height: 0 } };
+    state.draftSelection = {
+      type: "rect",
+      bounds: { x: point.x, y: point.y, width: 0, height: 0 },
+    };
     render();
   } else if (state.panning || spacePan) {
-    state.dragging = { type: "pan", start: screenPoint(event), view: { ...state.view }, transient: spacePan };
+    state.dragging = {
+      type: "pan",
+      start: screenPoint(event),
+      view: { ...state.view },
+      transient: spacePan,
+    };
   } else {
     state.dragging = { type: "select", start: screen, world: point };
     scheduleTouchSpacePan(event);
@@ -2280,10 +2694,14 @@ function isSpacePanPointerEvent(event: PointerEvent) {
 }
 
 function scheduleTouchSpacePan(event: PointerEvent) {
-  if (event.pointerType !== "touch") return;
+  if (event.pointerType !== "touch") {
+    return;
+  }
   pendingTouchSpacePan = window.setTimeout(() => {
     pendingTouchSpacePan = null;
-    if (state.dragging?.type !== "select" || !state.lastPointerDown) return;
+    if (state.dragging?.type !== "select" || !state.lastPointerDown) {
+      return;
+    }
     setSpacePanMode(true);
     state.dragging = {
       type: "pan",
@@ -2296,7 +2714,9 @@ function scheduleTouchSpacePan(event: PointerEvent) {
 }
 
 function cancelPendingTouchSpacePan() {
-  if (!pendingTouchSpacePan) return;
+  if (!pendingTouchSpacePan) {
+    return;
+  }
   window.clearTimeout(pendingTouchSpacePan);
   pendingTouchSpacePan = null;
 }
@@ -2305,14 +2725,26 @@ function onPointerMove(event: PointerEvent) {
   const screen = screenPoint(event);
   const world = screenToWorld(screen);
   if (state.dragging?.type === "select" && state.lastPointerDown) {
-    const moved = Math.hypot(screen.x - state.lastPointerDown.screen.x, screen.y - state.lastPointerDown.screen.y);
-    if (moved > 4) cancelPendingTouchSpacePan();
+    const moved = Math.hypot(
+      screen.x - state.lastPointerDown.screen.x,
+      screen.y - state.lastPointerDown.screen.y,
+    );
+    if (moved > 4) {
+      cancelPendingTouchSpacePan();
+    }
   }
   const hit = hitTest(world);
-  setText(controls.hover, hit ? mapHoverLabel(hit) : `x ${world.x.toFixed(4)}, y ${world.y.toFixed(4)}`);
+  setText(
+    controls.hover,
+    hit ? mapHoverLabel(hit) : `x ${world.x.toFixed(4)}, y ${world.y.toFixed(4)}`,
+  );
 
-  if (!state.dragging) return;
-  if (state.dragging.type === "select") return;
+  if (!state.dragging) {
+    return;
+  }
+  if (state.dragging.type === "select") {
+    return;
+  }
   if (state.dragging.type === "pan") {
     state.view = panViewForDrag(state.dragging, screen, viewportSize());
   } else {
@@ -2323,9 +2755,12 @@ function onPointerMove(event: PointerEvent) {
 
 async function onPointerUp(event: PointerEvent) {
   cancelPendingTouchSpacePan();
-  const endTouchSpacePan = state.dragging?.type === "pan" && state.dragging.transient && event.pointerType === "touch";
+  const endTouchSpacePan =
+    state.dragging?.type === "pan" && state.dragging.transient && event.pointerType === "touch";
   if (state.dragging?.type === "draw" && state.draftSelection) {
-    if (event.type !== "lostpointercapture") updateDraftSelection(screenToWorld(screenPoint(event)));
+    if (event.type !== "lostpointercapture") {
+      updateDraftSelection(screenToWorld(screenPoint(event)));
+    }
     if (!hasUsableDraftSelection()) {
       clearDraftSelection();
       render();
@@ -2339,24 +2774,36 @@ async function onPointerUp(event: PointerEvent) {
 
   if (state.dragging?.type === "select" && state.lastPointerDown) {
     const current = screenPoint(event);
-    const moved = Math.hypot(current.x - state.lastPointerDown.screen.x, current.y - state.lastPointerDown.screen.y);
-    if (moved < 4) scheduleClickSelection(state.lastPointerDown.world);
+    const moved = Math.hypot(
+      current.x - state.lastPointerDown.screen.x,
+      current.y - state.lastPointerDown.screen.y,
+    );
+    if (moved < 4) {
+      scheduleClickSelection(state.lastPointerDown.world);
+    }
   }
   state.dragging = null;
-  if (endTouchSpacePan) setSpacePanMode(false);
+  if (endTouchSpacePan) {
+    setSpacePanMode(false);
+  }
   updateInteractionModeUi();
 }
 
 function onPointerCancel(event?: PointerEvent) {
   cancelPendingTouchSpacePan();
-  const endTouchSpacePan = state.dragging?.type === "pan" && state.dragging.transient && event?.pointerType === "touch";
+  const endTouchSpacePan =
+    state.dragging?.type === "pan" && state.dragging.transient && event?.pointerType === "touch";
   state.dragging = null;
-  if (endTouchSpacePan) setSpacePanMode(false);
+  if (endTouchSpacePan) {
+    setSpacePanMode(false);
+  }
   updateInteractionModeUi();
 }
 
 function onCanvasDoubleClick(event: MouseEvent) {
-  if (state.drawing) return;
+  if (state.drawing) {
+    return;
+  }
   event.preventDefault();
   cancelPendingClickSelection();
   const screen = screenPoint(event);
@@ -2381,7 +2828,9 @@ function scheduleClickSelection(worldPoint: Point) {
 }
 
 function cancelPendingClickSelection() {
-  if (!state.pendingClickSelection) return;
+  if (!state.pendingClickSelection) {
+    return;
+  }
   window.clearTimeout(state.pendingClickSelection);
   state.pendingClickSelection = null;
 }
@@ -2391,7 +2840,9 @@ function hitTestDrillTarget(world: Point) {
 }
 
 function updateDraftSelection(world: Point) {
-  if (state.dragging?.type !== "draw") return;
+  if (state.dragging?.type !== "draw") {
+    return;
+  }
   state.dragging.current = world;
   state.draftSelection = draftSelectionFromDrag(state.dragging.start, world);
 }
@@ -2412,41 +2863,61 @@ async function selectMapTarget(worldPoint: Point) {
 async function handleDoubleClickAction(action: DoubleClickAction, hit: HitTarget, world: Point) {
   switch (action.type) {
     case "focusAnnotation":
-      if (hit.targetType !== "annotation" || !hasGeometryBounds(hit)) return;
+      if (hit.targetType !== "annotation" || !hasGeometryBounds(hit)) {
+        return;
+      }
       zoomToBounds(hit.geometry.bounds, 1.28);
       selectAnnotation(hit);
       return;
     case "selectFolder":
       void selectMapTarget(world);
-      if (hit.targetType !== "folder" || !hasBounds(hit)) return;
+      if (hit.targetType !== "folder" || !hasBounds(hit)) {
+        return;
+      }
       zoomToBounds(hit.bounds, 1.35);
       return;
     case "selectFile":
-      if (hit.targetType === "file") await inspectFileTarget(hit, world, { zoomReadable: true });
+      if (hit.targetType === "file") {
+        await inspectFileTarget(hit, world, { zoomReadable: true });
+      }
       return;
     case "selectActivity":
-      if (hit.targetType === "activity") await selectActivityEvent(hit, { zoomReadable: true });
+      if (hit.targetType === "activity") {
+        await selectActivityEvent(hit, { zoomReadable: true });
+      }
   }
 }
 
-async function handleMapTargetSelectionAction(action: TargetSelectionAction, hit: HitTarget | null, worldPoint: Point) {
+async function handleMapTargetSelectionAction(
+  action: TargetSelectionAction,
+  hit: HitTarget | null,
+  worldPoint: Point,
+) {
   switch (action.type) {
     case "clearSelection":
       clearMapSelection();
       return;
     case "focusAnnotation":
-      if (hit?.targetType !== "annotation" || !hasGeometryBounds(hit)) return;
+      if (hit?.targetType !== "annotation" || !hasGeometryBounds(hit)) {
+        return;
+      }
       zoomToBounds(hit.geometry.bounds, 1.35);
       selectAnnotation(hit);
       return;
     case "selectActivity":
-      if (hit?.targetType === "activity") await selectActivityEvent(hit);
+      if (hit?.targetType === "activity") {
+        await selectActivityEvent(hit);
+      }
       return;
     case "inspectFolder":
-      if (hit?.targetType === "folder") inspectFolderTarget(hit);
+      if (hit?.targetType === "folder") {
+        inspectFolderTarget(hit);
+      }
       return;
     case "inspectFile":
-      if (hit?.targetType === "file") await inspectFileTarget(hit, worldPoint);
+      if (hit?.targetType === "file") {
+        await inspectFileTarget(hit, worldPoint);
+      }
   }
 }
 
@@ -2481,8 +2952,14 @@ function inspectFolderTarget(hit: TargetHit) {
   render();
 }
 
-async function inspectFileTarget(hit: MapFile & { targetType: "file" }, worldPoint: Point, { zoomReadable = false } = {}) {
-  if (!hasBounds(hit)) return;
+async function inspectFileTarget(
+  hit: MapFile & { targetType: "file" },
+  worldPoint: Point,
+  { zoomReadable = false } = {},
+) {
+  if (!hasBounds(hit)) {
+    return;
+  }
   inspectMapTarget(hit);
   const line = lineAtPoint(hit, worldPoint);
   const lineRatio = lineRatioForLine(hit, line);
@@ -2494,7 +2971,12 @@ async function inspectFileTarget(hit: MapFile & { targetType: "file" }, worldPoi
   const lineRange = sourcePanelLineRange(hit, line, box);
   const sourceContext = sourceContextRequest(hit.path, lineRange);
   const [address, source] = await fetchSourceContext(sourceContext);
-  syncHashRoute(createMapHashRoute(address.targetType, address.geohash, { path: hit.path, lines: sourceContext.lines }));
+  syncHashRoute(
+    createMapHashRoute(address.targetType, address.geohash, {
+      path: hit.path,
+      lines: sourceContext.lines,
+    }),
+  );
 
   applySourcePanel(sourcePanelState({ path: hit.path, deepLink: address.deepLink, source }));
   render();
@@ -2503,15 +2985,23 @@ async function inspectFileTarget(hit: MapFile & { targetType: "file" }, worldPoi
 async function selectActivityEvent(event: ActivityEvent, { zoomReadable = false } = {}) {
   state.selectedTarget = { ...event, targetType: "activity" };
   clearAnnotationForm();
-  setText(controls.inspectorTitle, `${activityActorLabel(event)}: ${normalizeActivityState(event.activityState)}`);
-  setText(controls.inspectorSubtitle, `activity: ${activityPathLabel(event)} | ${event.address?.geohash ?? "unresolved"}`);
+  setText(
+    controls.inspectorTitle,
+    `${activityActorLabel(event)}: ${normalizeActivityState(event.activityState)}`,
+  );
+  setText(
+    controls.inspectorSubtitle,
+    `activity: ${activityPathLabel(event)} | ${event.address?.geohash ?? "unresolved"}`,
+  );
 
   const path = pathFromActivity(event);
   if (!path) {
-    applySourcePanel(sourcePanelState({
-      fallbackOutput: event.note || "Activity selected.",
-      ...(event.address?.deepLink === undefined ? {} : { deepLink: event.address.deepLink }),
-    }));
+    applySourcePanel(
+      sourcePanelState({
+        fallbackOutput: event.note || "Activity selected.",
+        ...(event.address?.deepLink === undefined ? {} : { deepLink: event.address.deepLink }),
+      }),
+    );
     render();
     return;
   }
@@ -2519,16 +3009,22 @@ async function selectActivityEvent(event: ActivityEvent, { zoomReadable = false 
   const lineRange = event.address?.lineRange ?? { start: 1 };
   if (zoomReadable) {
     const file = state.map?.files?.[path];
-    if (file) zoomToReadableFile(file, lineRatioForLine(file, lineRange.start));
+    if (file) {
+      zoomToReadableFile(file, lineRatioForLine(file, lineRange.start));
+    }
   }
   const sourceContext = sourceContextRequest(path, lineRange);
   const [address, source] = await fetchSourceContext(sourceContext);
-  syncHashRoute(createMapHashRoute(address.targetType, address.geohash, { path, lines: sourceContext.lines }));
+  syncHashRoute(
+    createMapHashRoute(address.targetType, address.geohash, { path, lines: sourceContext.lines }),
+  );
   applySourcePanel(sourcePanelState({ path, deepLink: address.deepLink, source }));
   render();
 }
 
-function fetchSourceContext(sourceContext: ReturnType<typeof sourceContextRequest>): Promise<[ResolvedAddressResponse, SourceRange]> {
+function fetchSourceContext(
+  sourceContext: ReturnType<typeof sourceContextRequest>,
+): Promise<[ResolvedAddressResponse, SourceRange]> {
   return Promise.all([
     fetchJson<ResolvedAddressResponse>(sourceContext.resolveUrl),
     fetchJson<SourceRange>(sourceContext.sourceUrl),
@@ -2542,8 +3038,12 @@ function selectAnnotation(annotation: MapAnnotationPlace) {
   state.resolvedSelection = null;
   state.editingAnnotation = null;
   syncHashRoute(createAnnotationHashRoute(annotation.id ?? ""));
-  if (controls.selectionComment) controls.selectionComment.value = "";
-  if (controls.saveSelection) controls.saveSelection.disabled = true;
+  if (controls.selectionComment) {
+    controls.selectionComment.value = "";
+  }
+  if (controls.saveSelection) {
+    controls.saveSelection.disabled = true;
+  }
   setSaveButtonLabel();
   setCopyButtonLabel();
   setAnnotationFeedback("");
@@ -2553,12 +3053,16 @@ function selectAnnotation(annotation: MapAnnotationPlace) {
 
 function editSelectedAnnotation() {
   const annotation = selectedAnnotation();
-  if (!annotation) return;
+  if (!annotation) {
+    return;
+  }
   clearPendingAnnotationDelete();
   state.editingAnnotation = annotation;
   state.draftSelection = null;
   state.resolvedSelection = null;
-  if (controls.selectionComment) controls.selectionComment.value = annotation.comment ?? "";
+  if (controls.selectionComment) {
+    controls.selectionComment.value = annotation.comment ?? "";
+  }
   updateSelectionPopover();
   focusSelectionComment();
   setSelectionStatus("Adjust the prompt text, then copy or press Escape.");
@@ -2581,7 +3085,9 @@ async function searchMap(event: Event) {
   event.preventDefault();
   const query = controls.searchInput?.value;
   const searchQuery = query ?? "";
-  if (!state.map || !searchQuery.trim()) return;
+  if (!state.map || !searchQuery.trim()) {
+    return;
+  }
   const match = mapSearchMatch(state.map, state.namedPlaces, searchQuery);
   const action = mapSearchAction(match);
   await handleMapSearchAction(action, match);
@@ -2593,62 +3099,89 @@ async function handleMapSearchAction(action: SearchAction, match: SearchMatch | 
       setSearchResult("No matching place found.");
       return;
     case "focusPlace":
-      if (!match || (match.type !== "annotation" && match.type !== "namedPlace")) return;
+      if (!match || (match.type !== "annotation" && match.type !== "namedPlace")) {
+        return;
+      }
       focusPlaceSearchMatch(match);
       return;
     case "focusFile":
-      if (match?.type === "file") await focusFileSearchMatch(match);
+      if (match?.type === "file") {
+        await focusFileSearchMatch(match);
+      }
       return;
     case "focusFolder":
-      if (match?.type === "folder") focusFolderSearchMatch(match);
+      if (match?.type === "folder") {
+        focusFolderSearchMatch(match);
+      }
   }
 }
 
 function focusPlaceSearchMatch(match: PlaceSearchMatch) {
-  if (!hasGeometryBounds(match.place)) return;
+  if (!hasGeometryBounds(match.place)) {
+    return;
+  }
   zoomToBounds(match.place.geometry.bounds, 1.35);
   setSearchResult(match.label ?? "");
   state.selectedTarget = match.target;
   const annotation = selectedAnnotation();
-  if (annotation) selectAnnotation(annotation);
+  if (annotation) {
+    selectAnnotation(annotation);
+  }
   render();
 }
 
 async function focusFileSearchMatch(match: FileSearchMatch) {
-  if (!hasBounds(match.file)) return;
+  if (!hasBounds(match.file)) {
+    return;
+  }
   zoomToReadableFile(match.file);
   await selectMapTarget(boundsCenter(match.file.bounds));
   setSearchResult(match.label ?? "");
 }
 
 function focusFolderSearchMatch(match: FolderSearchMatch) {
-  if (!hasBounds(match.folder)) return;
+  if (!hasBounds(match.folder)) {
+    return;
+  }
   zoomToBounds(match.folder.bounds, 1.6);
   state.selectedTarget = { ...match.folder, targetType: "folder" };
   setText(controls.inspectorTitle, folderDisplayName(match.folder));
-  setText(controls.inspectorSubtitle, `folder: ${match.folder.path || "."} | ${match.folder.geo?.geohash ?? "unresolved"}`);
+  setText(
+    controls.inspectorSubtitle,
+    `folder: ${match.folder.path || "."} | ${match.folder.geo?.geohash ?? "unresolved"}`,
+  );
   setSearchResult(match.label ?? "");
   render();
 }
 
 function setSearchResult(message: string) {
-  if (controls.searchResult) controls.searchResult.textContent = message;
+  if (controls.searchResult) {
+    controls.searchResult.textContent = message;
+  }
 }
 
 function setText(element: HTMLElement | null, value: string) {
-  if (element) element.textContent = value;
+  if (element) {
+    element.textContent = value;
+  }
 }
 
-function hasBounds<T extends { bounds?: Bounds }>(target: T | null | undefined): target is T & { bounds: Bounds } {
+function hasBounds<T extends { bounds?: Bounds }>(
+  target: T | null | undefined,
+): target is T & { bounds: Bounds } {
   return target?.bounds !== undefined;
 }
 
-function hasGeometryBounds<T extends { geometry?: { bounds?: Bounds } }>(target: T | null | undefined): target is T & { geometry: { bounds: Bounds } } {
+function hasGeometryBounds<T extends { geometry?: { bounds?: Bounds } }>(
+  target: T | null | undefined,
+): target is T & { geometry: { bounds: Bounds } } {
   return target?.geometry?.bounds !== undefined;
 }
 
 function selectionContextLabel(selection: ResolvedSelection | MapAnnotationPlace | null) {
-  if (!selection) return "";
+  if (!selection) {
+    return "";
+  }
   const targets = selection.resolvedTargets ?? [];
   const targetCount = targets.length;
   const targetLabel = targetCount === 1 ? "1 file" : `${targetCount} files`;
@@ -2658,22 +3191,27 @@ function selectionContextLabel(selection: ResolvedSelection | MapAnnotationPlace
 }
 
 function annotationTitle(annotation: MapAnnotationPlace | null) {
-  const title = annotation?.comment?.trim().split(/\r?\n/).find(Boolean)
-    ?? annotation?.name?.trim()
-    ?? "";
+  const title =
+    annotation?.comment?.trim().split(/\r?\n/).find(Boolean) ?? annotation?.name?.trim() ?? "";
   return title || "Map annotation";
 }
 
 function applySourcePanel(panel: SourcePanel) {
   setText(controls.sourceTitle, panel.sourceTitle);
   setText(controls.sourceOutput, panel.sourceOutput);
-  if (panel.scrollTop !== undefined && Number.isFinite(panel.scrollTop) && controls.sourceOutput) controls.sourceOutput.scrollTop = panel.scrollTop;
+  if (panel.scrollTop !== undefined && Number.isFinite(panel.scrollTop) && controls.sourceOutput) {
+    controls.sourceOutput.scrollTop = panel.scrollTop;
+  }
 }
 
 function parseLineRange(value: string | null | undefined): ParsedLineRange | null {
-  if (!value) return null;
+  if (!value) {
+    return null;
+  }
   const match = value.match(/^(\d+)(?:-(\d+))?$/);
-  if (!match) return null;
+  if (!match) {
+    return null;
+  }
   return {
     start: Number(match[1]),
     end: Number(match[2] ?? match[1]),
@@ -2682,21 +3220,36 @@ function parseLineRange(value: string | null | undefined): ParsedLineRange | nul
 
 async function previewSelection({ routeToken = null }: { routeToken?: RouteToken | null } = {}) {
   const draftSelection = state.draftSelection;
-  if (!draftSelection) return;
+  if (!draftSelection) {
+    return;
+  }
   const body = {
     level: DEFAULT_MAP_LEVEL,
     geometry: draftSelection,
   };
   const resolvedSelection = await postJson<ResolvedSelection>("/api/selections/resolve", body);
-  if (routeToken && !isCurrentRoute(routeToken)) return;
-  if (state.draftSelection !== draftSelection) return;
+  if (routeToken && !isCurrentRoute(routeToken)) {
+    return;
+  }
+  if (state.draftSelection !== draftSelection) {
+    return;
+  }
   state.resolvedSelection = resolvedSelection;
-  syncHashRoute(createSelectionHashRoute({ level: DEFAULT_MAP_LEVEL, bounds: resolvedSelection.geometry.bounds }));
-  if (controls.saveSelection) controls.saveSelection.disabled = false;
+  syncHashRoute(
+    createSelectionHashRoute({
+      level: DEFAULT_MAP_LEVEL,
+      bounds: resolvedSelection.geometry.bounds,
+    }),
+  );
+  if (controls.saveSelection) {
+    controls.saveSelection.disabled = false;
+  }
   setSaveButtonLabel();
   updateSelectionPopover();
   focusSelectionComment();
-  setSelectionStatus("Selection ready. Add a comment, then save or press Command Enter on macOS or Control Enter elsewhere.");
+  setSelectionStatus(
+    "Selection ready. Add a comment, then save or press Command Enter on macOS or Control Enter elsewhere.",
+  );
   render();
 }
 
@@ -2713,9 +3266,13 @@ async function saveSelection() {
     return;
   }
   const selection = state.resolvedSelection;
-  if (!selection) return;
+  if (!selection) {
+    return;
+  }
   const comment = controls.selectionComment?.value?.trim() ?? "";
-  if (controls.saveSelection) controls.saveSelection.disabled = true;
+  if (controls.saveSelection) {
+    controls.saveSelection.disabled = true;
+  }
   setSaveButtonLabel("Saving...");
   setSelectionStatus("Saving annotation...");
   const payload = {
@@ -2724,15 +3281,21 @@ async function saveSelection() {
     geometry: selection.geometry,
   };
   const savedPromise = postJson<AnnotationSaveResponse>("/api/annotations", payload);
-  const copiedPromise = copyDeferredToClipboard(savedPromise.then((saved) => annotationClipboardText(saved.annotation, {
-    origin: window.location.origin,
-    href: window.location.href,
-  })));
+  const copiedPromise = copyDeferredToClipboard(
+    savedPromise.then((saved) =>
+      annotationClipboardText(saved.annotation, {
+        origin: window.location.origin,
+        href: window.location.href,
+      }),
+    ),
+  );
   const saved = await savedPromise;
   upsertNamedPlace(saved.annotation);
   const copied = await copiedPromise;
   const copyOutcome = annotationPromptCopyOutcome(copied);
-  state.selectedTarget = copyOutcome.closeActions ? null : { ...saved.annotation, targetType: "annotation" };
+  state.selectedTarget = copyOutcome.closeActions
+    ? null
+    : { ...saved.annotation, targetType: "annotation" };
   syncHashRoute(createAnnotationHashRoute(saved.annotation.id));
   state.drawing = false;
   state.panning = true;
@@ -2743,24 +3306,37 @@ async function saveSelection() {
   updateSelectionPopover();
   setCopyButtonLabel();
   setSaveButtonLabel(copied ? "Copied" : "Saved. Copy failed");
-  if (!copyOutcome.copied) setAnnotationFeedback("Saved, but clipboard copy failed.", "error");
+  if (!copyOutcome.copied) {
+    setAnnotationFeedback("Saved, but clipboard copy failed.", "error");
+  }
   setSelectionStatus(copied ? "Copied." : "Saved. Copy failed.");
   render();
 }
 
 async function copyEditedAnnotationPrompt(annotation: MapAnnotationPlace) {
   const comment = controls.selectionComment?.value?.trim() ?? "";
-  const copied = await copyToClipboard(annotationClipboardText({ ...annotation, comment }, {
-    origin: window.location.origin,
-    href: window.location.href,
-  }));
+  const copied = await copyToClipboard(
+    annotationClipboardText(
+      { ...annotation, comment },
+      {
+        origin: window.location.origin,
+        href: window.location.href,
+      },
+    ),
+  );
   const copyOutcome = annotationPromptCopyOutcome(copied);
   state.editingAnnotation = null;
-  if (copyOutcome.closeActions) state.selectedTarget = null;
-  if (controls.selectionComment) controls.selectionComment.value = "";
+  if (copyOutcome.closeActions) {
+    state.selectedTarget = null;
+  }
+  if (controls.selectionComment) {
+    controls.selectionComment.value = "";
+  }
   updateSelectionPopover();
   setCopyButtonLabel(copyOutcome.buttonLabel, { reset: true });
-  if ("feedback" in copyOutcome) setAnnotationFeedback(copyOutcome.feedback.message, copyOutcome.feedback.tone);
+  if ("feedback" in copyOutcome) {
+    setAnnotationFeedback(copyOutcome.feedback.message, copyOutcome.feedback.tone);
+  }
   setSelectionStatus(copyOutcome.selectionStatus);
   render();
   return copied;
@@ -2768,18 +3344,28 @@ async function copyEditedAnnotationPrompt(annotation: MapAnnotationPlace) {
 
 function clearAnnotationForm() {
   clearPendingAnnotationDelete();
-  if (state.draftSelection || state.resolvedSelection) return;
+  if (state.draftSelection || state.resolvedSelection) {
+    return;
+  }
   state.editingAnnotation = null;
-  if (controls.selectionComment) controls.selectionComment.value = "";
-  if (controls.saveSelection) controls.saveSelection.disabled = true;
-  if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = true;
+  if (controls.selectionComment) {
+    controls.selectionComment.value = "";
+  }
+  if (controls.saveSelection) {
+    controls.saveSelection.disabled = true;
+  }
+  if (controls.deleteAnnotation) {
+    controls.deleteAnnotation.hidden = true;
+  }
   setSaveButtonLabel();
   updateSelectionPopover();
 }
 
 async function deleteSelectedAnnotation() {
   const annotation = selectedAnnotation();
-  if (!annotation?.id) return;
+  if (!annotation?.id) {
+    return;
+  }
   if (!isPendingAnnotationDelete(annotation)) {
     armAnnotationDelete(annotation);
     return;
@@ -2793,12 +3379,16 @@ async function deleteSelectedAnnotation() {
   state.draftSelection = null;
   state.resolvedSelection = null;
   state.editingAnnotation = null;
-  if (controls.selectionComment) controls.selectionComment.value = "";
+  if (controls.selectionComment) {
+    controls.selectionComment.value = "";
+  }
   if (window.location.hash === createAnnotationHashRoute(annotation.id)) {
     window.history.replaceState(null, "", "#");
   }
   setDeleteButtonsDisabled(false);
-  if (controls.deleteAnnotation) controls.deleteAnnotation.hidden = true;
+  if (controls.deleteAnnotation) {
+    controls.deleteAnnotation.hidden = true;
+  }
   setSaveButtonLabel();
   setCopyButtonLabel();
   setDeleteButtonLabel();
@@ -2808,7 +3398,9 @@ async function deleteSelectedAnnotation() {
 }
 
 function armAnnotationDelete(annotation: MapAnnotationPlace) {
-  if (!annotation.id) return;
+  if (!annotation.id) {
+    return;
+  }
   clearPendingAnnotationDelete();
   setDeleteButtonLabel(CONFIRM_DELETE_ANNOTATION_LABEL);
   setSelectionStatus("Press Delete again to delete this annotation.");
@@ -2827,45 +3419,67 @@ function isPendingAnnotationDelete(annotation: MapAnnotationPlace) {
 }
 
 function clearPendingAnnotationDelete() {
-  if (!pendingAnnotationDelete) return;
+  if (!pendingAnnotationDelete) {
+    return;
+  }
   window.clearTimeout(pendingAnnotationDelete.timer);
   pendingAnnotationDelete = null;
   setDeleteButtonLabel();
 }
 
 function setDeleteButtonLabel(label = DELETE_ANNOTATION_LABEL) {
-  if (controls.deleteAnnotation) controls.deleteAnnotation.textContent = label;
-  if (controls.deleteAnnotationAction) controls.deleteAnnotationAction.textContent = label;
+  if (controls.deleteAnnotation) {
+    controls.deleteAnnotation.textContent = label;
+  }
+  if (controls.deleteAnnotationAction) {
+    controls.deleteAnnotationAction.textContent = label;
+  }
 }
 
 function setDeleteButtonsDisabled(disabled: boolean) {
-  if (controls.deleteAnnotation) controls.deleteAnnotation.disabled = disabled;
-  if (controls.deleteAnnotationAction) controls.deleteAnnotationAction.disabled = disabled;
+  if (controls.deleteAnnotation) {
+    controls.deleteAnnotation.disabled = disabled;
+  }
+  if (controls.deleteAnnotationAction) {
+    controls.deleteAnnotationAction.disabled = disabled;
+  }
 }
 
 function removeNamedPlace(id: string) {
   const index = state.namedPlaceIndexesById.get(id);
-  if (index === undefined) return;
+  if (index === undefined) {
+    return;
+  }
   state.namedPlaces.splice(index, 1);
   state.namedPlacesById.delete(id);
   state.namedPlaceIndexesById.delete(id);
   for (let nextIndex = index; nextIndex < state.namedPlaces.length; nextIndex += 1) {
     const place = state.namedPlaces[nextIndex];
-    if (place?.id) state.namedPlaceIndexesById.set(place.id, nextIndex);
+    if (place?.id) {
+      state.namedPlaceIndexesById.set(place.id, nextIndex);
+    }
   }
 }
 
 async function copySelectedAnnotationPrompt() {
   const annotation = selectedAnnotation();
-  if (!annotation) return false;
-  const copied = await copyToClipboard(annotationClipboardText(annotation, {
-    origin: window.location.origin,
-    href: window.location.href,
-  }));
+  if (!annotation) {
+    return false;
+  }
+  const copied = await copyToClipboard(
+    annotationClipboardText(annotation, {
+      origin: window.location.origin,
+      href: window.location.href,
+    }),
+  );
   const copyOutcome = annotationPromptCopyOutcome(copied);
-  if (copyOutcome.closeActions) state.selectedTarget = null;
+  if (copyOutcome.closeActions) {
+    state.selectedTarget = null;
+  }
   setCopyButtonLabel(copyOutcome.buttonLabel, { reset: true });
-  if ("feedback" in copyOutcome) setAnnotationFeedback(copyOutcome.feedback.message, copyOutcome.feedback.tone);
+  if ("feedback" in copyOutcome) {
+    setAnnotationFeedback(copyOutcome.feedback.message, copyOutcome.feedback.tone);
+  }
   setSelectionStatus(copyOutcome.selectionStatus);
   updateSelectionPopover();
   render();
@@ -2873,24 +3487,31 @@ async function copySelectedAnnotationPrompt() {
 }
 
 function focusSelectionComment() {
-  if (!controls.selectionComment || state.lastPointerType === "touch") return;
+  if (!controls.selectionComment || state.lastPointerType === "touch") {
+    return;
+  }
   controls.selectionComment.focus({ preventScroll: true });
 }
 
 function setSelectionStatus(message: string) {
-  if (controls.selectionStatus) controls.selectionStatus.textContent = message;
+  if (controls.selectionStatus) {
+    controls.selectionStatus.textContent = message;
+  }
 }
 
 function setAnnotationFeedback(message: string, tone = "neutral") {
-  if (!controls.annotationFeedback) return;
+  if (!controls.annotationFeedback) {
+    return;
+  }
   controls.annotationFeedback.textContent = message;
   controls.annotationFeedback.hidden = !message;
   controls.annotationFeedback.dataset.tone = tone;
   const annotation = selectedAnnotation();
-  const annotationActionsVisible = annotation !== null
-    && state.draftSelection === null
-    && state.resolvedSelection === null
-    && state.editingAnnotation === null;
+  const annotationActionsVisible =
+    annotation !== null &&
+    state.draftSelection === null &&
+    state.resolvedSelection === null &&
+    state.editingAnnotation === null;
   positionAnnotationActions(annotation, { visible: annotationActionsVisible });
 }
 
@@ -2919,11 +3540,15 @@ async function copyDeferredToClipboard(textPromise: Promise<string>) {
 }
 
 function setSaveButtonLabel(label = SAVE_AND_COPY_LABEL) {
-  if (controls.saveSelection) controls.saveSelection.textContent = label;
+  if (controls.saveSelection) {
+    controls.saveSelection.textContent = label;
+  }
 }
 
 function setCopyButtonLabel(label = COPY_PROMPT_LABEL, { reset = false } = {}) {
-  if (!controls.copyAnnotationPrompt) return;
+  if (!controls.copyAnnotationPrompt) {
+    return;
+  }
   if (copyPromptLabelTimer) {
     window.clearTimeout(copyPromptLabelTimer);
     copyPromptLabelTimer = null;
@@ -2939,7 +3564,9 @@ function setCopyButtonLabel(label = COPY_PROMPT_LABEL, { reset = false } = {}) {
 
 async function addActivity(event: SubmitEvent) {
   event.preventDefault();
-  if (!(controls.activityForm instanceof HTMLFormElement)) return;
+  if (!(controls.activityForm instanceof HTMLFormElement)) {
+    return;
+  }
   const data = formDataObject(new FormData(controls.activityForm));
   await postJson("/api/activity", {
     agentId: data.agentId,
@@ -2956,7 +3583,9 @@ function formDataObject(formData: FormData): Record<string, FormDataEntryValue> 
 }
 
 async function clearActivityHistory() {
-  if (controls.clearActivityTool) controls.clearActivityTool.disabled = true;
+  if (controls.clearActivityTool) {
+    controls.clearActivityTool.disabled = true;
+  }
   try {
     await deleteJson("/api/activity");
     state.activity = [];
@@ -2964,7 +3593,9 @@ async function clearActivityHistory() {
     state.activityVersion = "";
     state.activityDetail = "summary";
     rebuildActivityFog();
-    if (state.selectedTarget?.targetType === "activity") state.selectedTarget = null;
+    if (state.selectedTarget?.targetType === "activity") {
+      state.selectedTarget = null;
+    }
     setText(controls.hover, "Activity cleared");
     render();
   } finally {
@@ -2977,9 +3608,13 @@ async function clearActivityHistory() {
 
 function hitTest(point: Point): HitTarget | null {
   const annotation = hitTestAnnotation(point);
-  if (annotation) return annotation;
+  if (annotation) {
+    return annotation;
+  }
   const activity = hitTestActivity(point);
-  if (activity) return activity;
+  if (activity) {
+    return activity;
+  }
   return hitTestMapTargets(point);
 }
 
@@ -2994,7 +3629,9 @@ function hitTestAnnotation(point: Point) {
 }
 
 function hitTestActivity(point: Point) {
-  if (!activityDiscoveryEnabled()) return null;
+  if (!activityDiscoveryEnabled()) {
+    return null;
+  }
   const radiusX = 13 / (canvas.clientWidth * state.view.scale);
   const radiusY = 13 / (canvas.clientHeight * state.view.scale);
   return hitTestActivityEvents(state.activity, point, { radiusX, radiusY });
@@ -3011,10 +3648,14 @@ function zoomToReadableFile(file: MapFile, lineRatio = 0.5) {
 }
 
 function fitCodebaseView({ animate = false } = {}) {
-  const bounds = state.map?.folders?.[""]?.bounds ?? state.map?.codePlane?.bounds ?? { x: 0, y: 0, width: 1, height: 1 };
+  const bounds = state.map?.folders?.[""]?.bounds ??
+    state.map?.codePlane?.bounds ?? { x: 0, y: 0, width: 1, height: 1 };
   const view = viewForBounds(bounds, viewportSize(), 1.02);
-  if (animate) animateViewTo(view);
-  else setViewImmediate(view);
+  if (animate) {
+    animateViewTo(view);
+  } else {
+    setViewImmediate(view);
+  }
 }
 
 function setViewImmediate(view: View) {
@@ -3035,7 +3676,9 @@ function animateViewTo(targetView: View) {
   state.cameraAnimation = { frame: 0 };
 
   const step = (now: number) => {
-    if (!state.cameraAnimation) return;
+    if (!state.cameraAnimation) {
+      return;
+    }
     const progress = Math.min(1, (now - startedAt) / CAMERA_ANIMATION_MS);
     const eased = easeCamera(progress);
     state.view = interpolateView(fromView, targetView, eased);
@@ -3053,7 +3696,9 @@ function animateViewTo(targetView: View) {
 }
 
 function cancelCameraAnimation() {
-  if (!state.cameraAnimation) return;
+  if (!state.cameraAnimation) {
+    return;
+  }
   cancelAnimationFrame(state.cameraAnimation.frame);
   state.cameraAnimation = null;
 }
@@ -3074,7 +3719,9 @@ function activityPathLabel(event: ActivityEvent) {
   const path = pathFromActivity(event);
   const address = event.address;
   const lines = address?.lineRange ? `:${address.lineRange.start}-${address.lineRange.end}` : "";
-  const columns = address?.tokenRange ? `@${address.tokenRange.start}-${address.tokenRange.end}` : "";
+  const columns = address?.tokenRange
+    ? `@${address.tokenRange.start}-${address.tokenRange.end}`
+    : "";
   return `${path || (address?.deepLink ?? "")}${lines}${columns}`;
 }
 
@@ -3111,7 +3758,9 @@ function screenIntersection(box: Bounds): Bounds | null {
   const y1 = Math.max(0, box.y);
   const x2 = Math.min(canvas.clientWidth, box.x + box.width);
   const y2 = Math.min(canvas.clientHeight, box.y + box.height);
-  if (x2 <= x1 || y2 <= y1) return null;
+  if (x2 <= x1 || y2 <= y1) {
+    return null;
+  }
   return { x: x1, y: y1, width: x2 - x1, height: y2 - y1 };
 }
 
@@ -3149,16 +3798,22 @@ async function postJson<T = unknown>(url: string, body: unknown): Promise<T> {
 
 async function requestJson<T = unknown>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, options);
-  if (!response.ok) throw new Error(await response.text());
-  return await response.json() as T;
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return (await response.json()) as T;
 }
 
 function requiredElement<T extends Element>(element: T | null, name: string): T {
-  if (!element) throw new Error(`Missing ${name}`);
+  if (!element) {
+    throw new Error(`Missing ${name}`);
+  }
   return element;
 }
 
 function requiredContext<T>(context: T | null, name: string): T {
-  if (!context) throw new Error(`Missing ${name}`);
+  if (!context) {
+    throw new Error(`Missing ${name}`);
+  }
   return context;
 }

@@ -29,9 +29,17 @@ export type SelectionHashRouteInput = {
 };
 
 /** Build a `codecharter://kind/locator?meta` deep link. @throws on empty kind/locator. */
-export function createCodemapDeepLink(kind: DeepLinkKind, locator: string, metadata: DeepLinkMetadata = {}): string {
-  if (!kind) throw new Error("Deep link kind is required");
-  if (!locator) throw new Error("Deep link locator is required");
+export function createCodemapDeepLink(
+  kind: DeepLinkKind,
+  locator: string,
+  metadata: DeepLinkMetadata = {},
+): string {
+  if (!kind) {
+    throw new Error("Deep link kind is required");
+  }
+  if (!locator) {
+    throw new Error("Deep link locator is required");
+  }
   const query = searchParams(metadata).toString();
   return `codecharter://${encodeURIComponent(kind)}/${encodeURIComponent(locator)}${query ? `?${query}` : ""}`;
 }
@@ -43,7 +51,9 @@ export function parseCodemapDeepLink(value: string): ParsedCodemapDeepLink {
     throw new Error(`Unsupported deep link protocol: ${url.protocol}`);
   }
   const kind = decodeURIComponent(url.hostname);
-  if (!isDeepLinkKind(kind)) throw new Error(`Unsupported deep link kind: ${kind}`);
+  if (!isDeepLinkKind(kind)) {
+    throw new Error(`Unsupported deep link kind: ${kind}`);
+  }
   return {
     kind,
     locator: decodeURIComponent(url.pathname.replace(/^\//, "")),
@@ -52,20 +62,31 @@ export function parseCodemapDeepLink(value: string): ParsedCodemapDeepLink {
 }
 
 /** Build a browser `#/map/kind/locator?meta` hash route. */
-export function createBrowserHashRoute(kind: MapLevel, locator: string, metadata: DeepLinkMetadata = {}): string {
+export function createBrowserHashRoute(
+  kind: MapLevel,
+  locator: string,
+  metadata: DeepLinkMetadata = {},
+): string {
   const query = searchParams(metadata).toString();
   return `#/map/${encodeURIComponent(kind)}/${encodeURIComponent(locator)}${query ? `?${query}` : ""}`;
 }
 
 /** Build a browser `#/annotation/<id>` hash route. @throws on empty id. */
 export function createAnnotationHashRoute(id: string): string {
-  if (!id) throw new Error("Annotation id is required");
+  if (!id) {
+    throw new Error("Annotation id is required");
+  }
   return `#/annotation/${encodeURIComponent(id)}`;
 }
 
 /** Build a browser `#/selection?level=&bounds=` hash route. @throws on missing bounds. */
-export function createSelectionHashRoute({ level = "file", bounds }: SelectionHashRouteInput): string {
-  if (!bounds) throw new Error("Selection bounds are required");
+export function createSelectionHashRoute({
+  level = "file",
+  bounds,
+}: SelectionHashRouteInput): string {
+  if (!bounds) {
+    throw new Error("Selection bounds are required");
+  }
   const params = new URLSearchParams({ level, bounds: formatRouteBounds(bounds) });
   return `#/selection?${params.toString()}`;
 }
@@ -80,7 +101,9 @@ function searchParams(metadata: DeepLinkMetadata): URLSearchParams {
 }
 
 function formatRouteNumber(value: number): string {
-  return Number(value).toFixed(12).replace(/\.?0+$/, "");
+  return Number(value)
+    .toFixed(12)
+    .replace(/\.?0+$/, "");
 }
 
 function formatRouteBounds(bounds: Bounds): string {

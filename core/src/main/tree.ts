@@ -141,7 +141,9 @@ export function buildFileTree(files: ScannedFile[]): FolderNode {
   for (const file of files) {
     let current = root;
     const segments = file.path.split("/");
-    for (const segment of segments.slice(0, -1)) current = current.childFolder(segment);
+    for (const segment of segments.slice(0, -1)) {
+      current = current.childFolder(segment);
+    }
     current.addFile(file);
   }
 
@@ -156,8 +158,12 @@ export function flattenTree(root: FolderNode): FlattenedTree {
 
   function visitFolder(node: FolderNode): void {
     folders[node.path] = node;
-    for (const child of sortedFolders(node)) visitFolder(child);
-    for (const child of sortedFiles(node)) files[child.path] = child;
+    for (const child of sortedFolders(node)) {
+      visitFolder(child);
+    }
+    for (const child of sortedFiles(node)) {
+      files[child.path] = child;
+    }
   }
 
   visitFolder(root);

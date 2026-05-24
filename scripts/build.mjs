@@ -50,6 +50,10 @@ await cp(join(root, "viewer/web/style.css"), join(dist, "public/style.css"));
 
 // 3. Manifest the CLI reads for `--version`.
 const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
-await writeFile(join(dist, "package.json"), JSON.stringify({ name: manifest.name, version: manifest.version, type: "module" }, null, 2) + "\n");
+await writeFile(
+  join(dist, "package.json"),
+  JSON.stringify({ name: manifest.name, version: manifest.version, type: "module" }, null, 2) +
+    "\n",
+);
 
 console.log(`built publishable codecharter -> ${dist}`);

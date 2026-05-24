@@ -35,15 +35,21 @@ export function objectRecord(value: unknown): Record<string, unknown> | null {
 /** Yield a record's defined own values, skipping inherited keys and `undefined`. */
 export function* objectValues<T>(values: Record<string, T>): Generator<T> {
   for (const key in values) {
-    if (!Object.hasOwn(values, key)) continue;
+    if (!Object.hasOwn(values, key)) {
+      continue;
+    }
     const value = values[key];
-    if (value !== undefined) yield value;
+    if (value !== undefined) {
+      yield value;
+    }
   }
 }
 
 function valuesAreSorted<T>(values: T[], compare: (left: T, right: T) => number): boolean {
   for (let index = 1; index < values.length; index += 1) {
-    if (compare(values[index - 1]!, values[index]!) > 0) return false;
+    if (compare(values[index - 1]!, values[index]!) > 0) {
+      return false;
+    }
   }
   return true;
 }

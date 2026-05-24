@@ -68,7 +68,9 @@ test("Codex hook records shell edit heartbeat when no dirty paths remain", async
     assert.equal(events[0]?.note, "Codex shell edit activity");
     assert.equal(events[0]?.address, undefined);
 
-    const refreshedMap = JSON.parse(await readFile(join(root, ".codecharter", "codecharter.json"), "utf8")) as { version?: unknown };
+    const refreshedMap = JSON.parse(
+      await readFile(join(root, ".codecharter", "codecharter.json"), "utf8"),
+    ) as { version?: unknown };
     assert.equal(refreshedMap.version, 1);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -100,7 +102,9 @@ test("Codex hook treats sed in-place shell commands as edit activity", async () 
     assert.equal(events[0]?.note, "Codex shell edit activity");
     assert.equal(events[0]?.address, undefined);
 
-    const refreshedMap = JSON.parse(await readFile(join(root, ".codecharter", "codecharter.json"), "utf8")) as { version?: unknown };
+    const refreshedMap = JSON.parse(
+      await readFile(join(root, ".codecharter", "codecharter.json"), "utf8"),
+    ) as { version?: unknown };
     assert.equal(refreshedMap.version, 1);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -130,19 +134,29 @@ test("Codex adapter records through a source checkout hook without a package bin
     const hooksJson = JSON.parse(await readFile(hooksJsonPath, "utf8")) as {
       hooks: { PostToolUse?: { matcher?: string }[] };
     };
-    assert.equal(hooksJson.hooks.PostToolUse?.[0]?.matcher?.includes("multi_tool_use.parallel"), true);
+    assert.equal(
+      hooksJson.hooks.PostToolUse?.[0]?.matcher?.includes("multi_tool_use.parallel"),
+      true,
+    );
 
     const installedHook = await readFile(hookPath, "utf8");
-    assert.match(installedHook, new RegExp(`codecharter@${escapeRegExp(await rootPackageVersion())}`));
+    assert.match(
+      installedHook,
+      new RegExp(`codecharter@${escapeRegExp(await rootPackageVersion())}`),
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
 async function rootPackageVersion(): Promise<string> {
-  const manifest = JSON.parse(await readFile(new URL("../../../package.json", import.meta.url), "utf8")) as { version?: unknown };
+  const manifest = JSON.parse(
+    await readFile(new URL("../../../package.json", import.meta.url), "utf8"),
+  ) as { version?: unknown };
   const { version } = manifest;
-  if (typeof version !== "string") throw new TypeError("package.json version must be a string");
+  if (typeof version !== "string") {
+    throw new TypeError("package.json version must be a string");
+  }
   return version;
 }
 
@@ -155,23 +169,29 @@ async function fixtureRoot(): Promise<string> {
   initGitRepository(root);
   await mkdir(join(root, ".codecharter"), { recursive: true });
   await writeFile(join(root, "README.md"), "one\ntwo\nthree\n");
-  await writeFile(join(root, ".codecharter", "config.json"), JSON.stringify({
-    mapPath: ".codecharter/codecharter.json",
-    activityPath: ".scratch/codecharter/activity.jsonl",
-    agents: { codex: { activityPath: ".scratch/codecharter/activity.jsonl" } },
-  }));
-  await writeFile(join(root, ".codecharter", "codecharter.json"), JSON.stringify({
-    folders: {},
-    files: {
-      "README.md": {
-        path: "README.md",
-        bounds: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
-        geo: { lat: 0, lon: 0, geohash: "s00000000000" },
-        lineCount: 3,
-        maxLineLength: 5,
+  await writeFile(
+    join(root, ".codecharter", "config.json"),
+    JSON.stringify({
+      mapPath: ".codecharter/codecharter.json",
+      activityPath: ".scratch/codecharter/activity.jsonl",
+      agents: { codex: { activityPath: ".scratch/codecharter/activity.jsonl" } },
+    }),
+  );
+  await writeFile(
+    join(root, ".codecharter", "codecharter.json"),
+    JSON.stringify({
+      folders: {},
+      files: {
+        "README.md": {
+          path: "README.md",
+          bounds: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
+          geo: { lat: 0, lon: 0, geohash: "s00000000000" },
+          lineCount: 3,
+          maxLineLength: 5,
+        },
       },
-    },
-  }));
+    }),
+  );
   return root;
 }
 
@@ -180,16 +200,26 @@ function initGitRepository(root: string): void {
 }
 
 function initCleanGitFixture(root: string): void {
-  execFileSync("git", ["config", "user.email", "codecharter@example.test"], { cwd: root, stdio: "ignore" });
+  execFileSync("git", ["config", "user.email", "codecharter@example.test"], {
+    cwd: root,
+    stdio: "ignore",
+  });
   execFileSync("git", ["config", "user.name", "CodeCharter Test"], { cwd: root, stdio: "ignore" });
   execFileSync("git", ["config", "commit.gpgsign", "false"], { cwd: root, stdio: "ignore" });
-  execFileSync("git", ["add", "README.md", ".codecharter/config.json", ".codecharter/codecharter.json"], { cwd: root, stdio: "ignore" });
+  execFileSync(
+    "git",
+    ["add", "README.md", ".codecharter/config.json", ".codecharter/codecharter.json"],
+    { cwd: root, stdio: "ignore" },
+  );
   execFileSync("git", ["commit", "-m", "fixture"], { cwd: root, stdio: "ignore" });
 }
 
 async function readActivityArchive(root: string): Promise<StoredActivityEvent[]> {
   const content = await readFile(join(root, ".scratch", "codecharter", "activity.jsonl"), "utf8");
-  return content.trim().split("\n").map((line) => JSON.parse(line) as StoredActivityEvent);
+  return content
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line) as StoredActivityEvent);
 }
 
 async function installFakeSourceCheckout(root: string): Promise<void> {
@@ -197,13 +227,16 @@ async function installFakeSourceCheckout(root: string): Promise<void> {
   await mkdir(join(root, "core", "bin"), { recursive: true });
   await writeFile(join(root, "core", "bin", "codemap.mts"), "");
   const fakeTsxPath = join(root, "node_modules", ".bin", "tsx");
-  await writeFile(fakeTsxPath, `#!/usr/bin/env node
+  await writeFile(
+    fakeTsxPath,
+    `#!/usr/bin/env node
 import { readFileSync, writeFileSync } from "node:fs";
 writeFileSync("captured-hook.json", JSON.stringify({
   argv: process.argv.slice(2),
   cwd: process.cwd(),
   input: readFileSync(0, "utf8"),
 }));
-`);
+`,
+  );
   await chmod(fakeTsxPath, 0o755);
 }

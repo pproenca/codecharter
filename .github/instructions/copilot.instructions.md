@@ -6,8 +6,10 @@ Always reuse existing code before adding a new helper.
 
 - Runtime: Node >=22.
 - Language: TypeScript, ESM, strict mode.
-- Package manager: npm workspaces.
+- Package manager: pnpm workspaces.
 - Build: esbuild through `scripts/build.mjs`.
+- Lint/format: Oxlint and Oxfmt.
+- Typecheck: tsgo.
 - Tests: Node test runner for root smoke tests and workspace package tests.
 - CLI: `core/bin/codemap.mts`, exposed as `codecharter` and legacy `codemap`.
 
@@ -53,10 +55,13 @@ Always reuse existing code before adding a new helper.
 
 ## Commands
 
-- Install: `npm install`.
-- Build: `npm run build`.
-- Typecheck: `npm run typecheck`.
-- Test: `npm test`.
-- Generate map: `npm run generate`.
-- Serve viewer/API: `npm run serve`.
-- CLI: `npm run codecharter -- <command>`.
+- Install: `pnpm install`.
+- Build: `pnpm build`.
+- Typecheck: `pnpm typecheck`.
+- Lint: `pnpm lint`.
+- Format check: `pnpm format:check`.
+- Test: `pnpm test`.
+- Full check: `pnpm check`.
+- Generate map: `pnpm generate`.
+- Serve viewer/API: `pnpm serve`.
+- CLI: `pnpm codecharter -- <command>`.

@@ -8,7 +8,7 @@ Treat code structure as geography.
 
 ## Start
 
-- Runtime: Node >=22, ESM, npm workspaces.
+- Runtime: Node >=22, ESM, pnpm workspaces.
 - Product language: read `CONTEXT-MAP.md`, then `CONTEXT.md`.
 - Package language: read `core/CONTEXT.md` before core work and
   `viewer/CONTEXT.md` before viewer work.
@@ -74,24 +74,27 @@ Treat code structure as geography.
 
 ## Commands
 
-- Install: `npm install`.
-- Build: `npm run build`.
-- Typecheck: `npm run typecheck`.
-- Test: `npm test`.
-- Generate map: `npm run generate`.
-- Serve viewer/API: `npm run serve`.
-- CLI: `npm run codecharter -- <command>`.
+- Install: `pnpm install`.
+- Build: `pnpm build`.
+- Typecheck: `pnpm typecheck` (`tsgo`).
+- Lint: `pnpm lint` (`oxlint`).
+- Format: `pnpm format` / `pnpm format:check` (`oxfmt`).
+- Test: `pnpm test`.
+- Full local check: `pnpm check`.
+- Generate map: `pnpm generate`.
+- Serve viewer/API: `pnpm serve`.
+- CLI: `pnpm codecharter -- <command>`.
 - Common CLI commands: `generate`, `resolve`, `serve`, `dev`, `doctor`, `init`.
-- Do not swap package managers or lockfile strategy without explicit approval.
+- Package manager/runtime: repo defaults only. No swaps without approval.
 
 ## Validation
 
 - Docs-only changes: `git diff --check`.
-- Core behavior changes: run focused core tests, then `npm test` when feasible.
-- Viewer behavior changes: `npm run build`; inspect in a browser when the
+- Core behavior changes: run focused core tests, then `pnpm test` when feasible.
+- Viewer behavior changes: `pnpm build`; inspect in a browser when the
   changed surface is visual or interactive.
 - Published surfaces, CLI wiring, package output, or dynamic import boundaries:
-  run `npm run build` before handoff.
+  run `pnpm build` before handoff.
 - If proof is blocked, report the exact missing command, dependency, or runtime
   condition.
 
@@ -99,6 +102,8 @@ Treat code structure as geography.
 
 - TypeScript ESM, strict. Avoid `any`; prefer real types, `unknown`, and narrow
   adapters.
+- Formatting is `oxfmt`, not Prettier. Linting is `oxlint`. Typechecking is
+  `tsgo`.
 - External JSON/input boundaries should use existing validation helpers or
   explicit narrowing.
 - Keep geohash math deterministic: longitude encodes first, the base32 alphabet

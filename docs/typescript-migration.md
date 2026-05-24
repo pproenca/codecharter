@@ -1,7 +1,7 @@
 # TypeScript Layout
 
 CodeCharter is now a TypeScript monorepo. The core engine and browser viewer are
-separate npm workspaces, and the root build creates the publishable CLI package.
+separate pnpm workspaces, and the root build creates the publishable CLI package.
 
 ## Workspaces
 
@@ -11,14 +11,14 @@ separate npm workspaces, and the root build creates the publishable CLI package.
 - `viewer/`: `@codecharter/viewer`, browser TypeScript for the canvas app
   shell, Browser Hash Routes, render model, source panel, activity visuals, and
   Discovery Fog.
-- `dist/`: root publishable output from `npm run build`, containing
+- `dist/`: root publishable output from `pnpm build`, containing
   `dist/bin/codemap.mjs`, `dist/public/`, and `dist/package.json`.
-- `viewer/dist/`: viewer-only bundle from
-  `npm run build --workspace @codecharter/viewer`.
+- `viewer/dist/`: viewer-only bundle from `pnpm --filter @codecharter/viewer
+build`.
 
 ## Typecheck Rules
 
-- `npm run typecheck` runs workspace typechecks through npm workspaces.
+- `pnpm typecheck` runs `tsgo` against the core and viewer TypeScript configs.
 - `core/tsconfig.json` checks `core/src/**/*.ts` and `core/bin/**/*.mts` with
   `module` and `moduleResolution` set to `NodeNext`.
 - `viewer/tsconfig.json` checks `viewer/src/**/*.ts` with `module` set to
@@ -33,10 +33,10 @@ separate npm workspaces, and the root build creates the publishable CLI package.
 
 ## Build Rules
 
-- Root `npm run build` bundles `core/bin/codemap.mts` and the core engine into
+- Root `pnpm build` bundles `core/bin/codemap.mts` and the core engine into
   `dist/bin/codemap.mjs`, then bundles `viewer/src/main/app.ts` into
   `dist/public/app.js`.
-- Viewer `npm run build --workspace @codecharter/viewer` bundles
+- Viewer `pnpm --filter @codecharter/viewer build` bundles
   `viewer/src/main/app.ts` into `viewer/dist/app.js` and copies
   `viewer/web/index.html` and `viewer/web/style.css`.
 - Do not edit generated JavaScript in `dist/` or `viewer/dist/` when TypeScript

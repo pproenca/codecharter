@@ -211,7 +211,16 @@ const METADATA_EXCLUDE_PATHS = [
   ".agents/skills/codecharter/SKILL.md",
   ".agents/skills/codecharter/agents/openai.yaml",
 ];
-const MAP_ANNOTATION_STRING_FIELDS = ["id", "name", "comment", "createdAt", "updatedAt", "deepLink", "browserHash", "codexPrompt"];
+const MAP_ANNOTATION_STRING_FIELDS = [
+  "id",
+  "name",
+  "comment",
+  "createdAt",
+  "updatedAt",
+  "deepLink",
+  "browserHash",
+  "codexPrompt",
+];
 
 function usage(): string {
   return `Usage:
@@ -229,18 +238,28 @@ For agents:
 
 function takeOption(args: string[], name: string, fallback: string): string;
 function takeOption(args: string[], name: string, fallback: undefined): string | undefined;
-function takeOption(args: string[], name: string, fallback: string | undefined): string | undefined {
+function takeOption(
+  args: string[],
+  name: string,
+  fallback: string | undefined,
+): string | undefined {
   const index = optionIndex(args, name);
-  if (index === -1) return fallback;
+  if (index === -1) {
+    return fallback;
+  }
   const value = args[index + 1];
-  if (!value) throw new Error(`Missing value for ${name}`);
+  if (!value) {
+    throw new Error(`Missing value for ${name}`);
+  }
   args.splice(index, 2);
   return value;
 }
 
 function takeFlag(args: string[], name: string): boolean {
   const index = optionIndex(args, name);
-  if (index === -1) return false;
+  if (index === -1) {
+    return false;
+  }
   args.splice(index, 1);
   return true;
 }
@@ -248,7 +267,9 @@ function takeFlag(args: string[], name: string): boolean {
 function optionIndex(args: string[], name: string): number {
   const limit = optionSearchLimit(args);
   for (let index = 0; index < limit; index += 1) {
-    if (args[index] === name) return index;
+    if (args[index] === name) {
+      return index;
+    }
   }
   return -1;
 }
@@ -273,7 +294,9 @@ async function main() {
     return;
   }
 
-  if (jsonOutput) throw new Error(`Unknown command: ${command}`);
+  if (jsonOutput) {
+    throw new Error(`Unknown command: ${command}`);
+  }
   console.error(usage());
   process.exitCode = 1;
 }
@@ -283,7 +306,7 @@ function command(aliases: string[], execute: CommandHandler["execute"]): Command
 }
 
 const HELP_COMMAND = command(["--help", "-h", "help"], () => {
-    console.log(usage());
+  console.log(usage());
 });
 
 const CLI_COMMANDS: CommandHandler[] = [
@@ -296,10 +319,15 @@ const CLI_COMMANDS: CommandHandler[] = [
     const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
     const server = takeOption(args, "--server", undefined);
     stripArgumentSeparator(args);
-    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+    if (args.length > 0) {
+      throw new Error(`Unknown arguments: ${args.join(" ")}`);
+    }
     const result = await doctor({ root, mapPath, ...optionalProperty("server", server) });
-    if (jsonOutput) printJson(result);
-    else printDoctor(result);
+    if (jsonOutput) {
+      printJson(result);
+    } else {
+      printDoctor(result);
+    }
   }),
   command(["generate"], async ({ args }) => {
     const root = resolvePath(takeOption(args, "--root", "."));
@@ -307,7 +335,9 @@ const CLI_COMMANDS: CommandHandler[] = [
     const fresh = takeFlag(args, "--fresh");
     const quiet = takeFlag(args, "--quiet");
     stripArgumentSeparator(args);
-    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+    if (args.length > 0) {
+      throw new Error(`Unknown arguments: ${args.join(" ")}`);
+    }
 
     await writeCodemap({ root, out, fresh, quiet });
   }),
@@ -325,10 +355,20 @@ const CLI_COMMANDS: CommandHandler[] = [
     const noGitHooks = takeFlag(args, "--no-git-hooks");
     assertPositiveIntegerPort(port);
     stripArgumentSeparator(args);
-    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+    if (args.length > 0) {
+      throw new Error(`Unknown arguments: ${args.join(" ")}`);
+    }
 
-    const installCodex = noCodex ? false : yes ? true : await confirm("Install Codex activity tracking hooks?", true);
-    const installGitHooks = noGitHooks ? false : yes ? true : await confirm("Install local Git hooks to refresh the map?", true);
+    const installCodex = noCodex
+      ? false
+      : yes
+        ? true
+        : await confirm("Install Codex activity tracking hooks?", true);
+    const installGitHooks = noGitHooks
+      ? false
+      : yes
+        ? true
+        : await confirm("Install local Git hooks to refresh the map?", true);
 
     if (startDev) {
       await setupAndRunDev({
@@ -366,7 +406,9 @@ const CLI_COMMANDS: CommandHandler[] = [
     const open = takeFlag(args, "--open");
     assertPositiveIntegerPort(port);
     stripArgumentSeparator(args);
-    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+    if (args.length > 0) {
+      throw new Error(`Unknown arguments: ${args.join(" ")}`);
+    }
 
     if (setup) {
       await setupAndRunDev({
@@ -397,21 +439,33 @@ const CLI_COMMANDS: CommandHandler[] = [
     const columnEndRaw = takeOption(args, "--column-end", undefined);
     stripArgumentSeparator(args);
     const [reference, lineStartRaw, lineEndRaw] = args;
-    if (!reference) throw new Error("resolve requires a CodeCharter deep link or path");
-    if (args.length > 3) throw new Error(`Unknown arguments: ${args.slice(3).join(" ")}`);
+    if (!reference) {
+      throw new Error("resolve requires a CodeCharter deep link or path");
+    }
+    if (args.length > 3) {
+      throw new Error(`Unknown arguments: ${args.slice(3).join(" ")}`);
+    }
 
     if (reference.startsWith("codecharter://") || reference.startsWith("codemap://")) {
-      const resolved = await resolveDeepLink({ root, mapPath, reference, ...optionalProperty("server", server) });
+      const resolved = await resolveDeepLink({
+        root,
+        mapPath,
+        reference,
+        ...optionalProperty("server", server),
+      });
       printResult(resolved, jsonOutput, printResolvedDeepLink);
       return;
     }
 
-    const address = await resolveCliAddress(mapPath, cliAddressRequest(reference, {
-      lineStartRaw,
-      lineEndRaw,
-      columnStartRaw,
-      columnEndRaw,
-    }));
+    const address = await resolveCliAddress(
+      mapPath,
+      cliAddressRequest(reference, {
+        lineStartRaw,
+        lineEndRaw,
+        columnStartRaw,
+        columnEndRaw,
+      }),
+    );
     printResult(address, jsonOutput, printResolvedAddress);
   }),
   command(["annotation"], async ({ args, jsonOutput }) => {
@@ -420,10 +474,20 @@ const CLI_COMMANDS: CommandHandler[] = [
     const server = takeOption(args, "--server", undefined);
     stripArgumentSeparator(args);
     const [reference] = args;
-    if (!reference) throw new Error("annotation requires an id, codecharter://annotation link, or CodeCharter URL");
-    if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
+    if (!reference) {
+      throw new Error(
+        "annotation requires an id, codecharter://annotation link, or CodeCharter URL",
+      );
+    }
+    if (args.length > 1) {
+      throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
+    }
 
-    printResult(await readAnnotation({ root, mapPath, reference, ...optionalProperty("server", server) }), jsonOutput, printAnnotation);
+    printResult(
+      await readAnnotation({ root, mapPath, reference, ...optionalProperty("server", server) }),
+      jsonOutput,
+      printAnnotation,
+    );
   }),
   command(["annotations"], async ({ args, jsonOutput }) => {
     const root = resolvePath(takeOption(args, "--root", "."));
@@ -431,23 +495,37 @@ const CLI_COMMANDS: CommandHandler[] = [
     const server = takeOption(args, "--server", undefined);
     const limit = optionalNumber(takeOption(args, "--limit", undefined));
     stripArgumentSeparator(args);
-    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+    if (args.length > 0) {
+      throw new Error(`Unknown arguments: ${args.join(" ")}`);
+    }
 
-    printResult(await listAnnotations({
-      root,
-      mapPath,
-      ...optionalProperty("server", server),
-      ...optionalProperty("limit", limit),
-    }), jsonOutput, printAnnotations);
+    printResult(
+      await listAnnotations({
+        root,
+        mapPath,
+        ...optionalProperty("server", server),
+        ...optionalProperty("limit", limit),
+      }),
+      jsonOutput,
+      printAnnotations,
+    );
   }),
   command(["api"], async ({ args, jsonOutput }) => {
     const server = takeOption(args, "--server", undefined);
     stripArgumentSeparator(args);
     const [reference] = args;
-    if (!reference) throw new Error("api requires a local /api path or CodeCharter API URL");
-    if (args.length > 1) throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
+    if (!reference) {
+      throw new Error("api requires a local /api path or CodeCharter API URL");
+    }
+    if (args.length > 1) {
+      throw new Error(`Unknown arguments: ${args.slice(1).join(" ")}`);
+    }
 
-    printResult(await readApi({ reference, ...optionalProperty("server", server) }), jsonOutput, printApi);
+    printResult(
+      await readApi({ reference, ...optionalProperty("server", server) }),
+      jsonOutput,
+      printApi,
+    );
   }),
   command(["activity"], async ({ args, jsonOutput }) => {
     let hardFailure = false;
@@ -489,18 +567,23 @@ const CLI_COMMANDS: CommandHandler[] = [
       }
 
       const mapPath = await resolveCliMapPath(mapPathOption);
-      const address = await resolveCliAddress(mapPath, cliAddressRequest(path, {
-        lineStartRaw,
-        lineEndRaw,
-        columnStartRaw,
-        columnEndRaw,
-      }));
+      const address = await resolveCliAddress(
+        mapPath,
+        cliAddressRequest(path, {
+          lineStartRaw,
+          lineEndRaw,
+          columnStartRaw,
+          columnEndRaw,
+        }),
+      );
       const event = createActivityEvent(address, { agentId, activityState, note });
       await appendActivityEvents(outPath, [event]);
       printResult({ accepted: true, event }, jsonOutput, printActivityResult);
     } catch (error) {
       printResult({ accepted: false, error: errorMessage(error) }, jsonOutput, printActivityResult);
-      if (hardFailure) process.exitCode = 1;
+      if (hardFailure) {
+        process.exitCode = 1;
+      }
     }
   }),
   command(["codex-hook"], async () => {
@@ -514,16 +597,18 @@ const CLI_COMMANDS: CommandHandler[] = [
     const open = takeFlag(args, "--open");
     assertPositiveIntegerPort(port);
     stripArgumentSeparator(args);
-    if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+    if (args.length > 0) {
+      throw new Error(`Unknown arguments: ${args.join(" ")}`);
+    }
 
     const server = await startServer({ root, mapPath, port });
     await printViewerReady(server, { open });
   }),
 ];
 
-const COMMANDS_BY_NAME = new Map(CLI_COMMANDS.flatMap((handler) =>
-  handler.aliases.map((alias) => [alias, handler] as const)
-));
+const COMMANDS_BY_NAME = new Map(
+  CLI_COMMANDS.flatMap((handler) => handler.aliases.map((alias) => [alias, handler] as const)),
+);
 
 function commandFor(name: string | undefined): CommandHandler | undefined {
   return name ? COMMANDS_BY_NAME.get(name) : HELP_COMMAND;
@@ -554,7 +639,9 @@ async function setupAndRunDev({
     installCodex,
     installGitHooks,
   });
-  const initialCodemap = isCodecharterCodemap(setupResult.codemap) ? setupResult.codemap : undefined;
+  const initialCodemap = isCodecharterCodemap(setupResult.codemap)
+    ? setupResult.codemap
+    : undefined;
   await runDevServer({
     root,
     mapPath,
@@ -565,7 +652,9 @@ async function setupAndRunDev({
     open,
     ...optionalProperty("initialCodemap", initialCodemap),
   });
-  if (printHooksNext) console.log("next: /hooks");
+  if (printHooksNext) {
+    console.log("next: /hooks");
+  }
 }
 
 async function runClearActivityCommand(args: string[], jsonOutput: boolean): Promise<void> {
@@ -573,17 +662,27 @@ async function runClearActivityCommand(args: string[], jsonOutput: boolean): Pro
   const outPath = resolvePath(root, takeOption(args, "--out", DEFAULT_ACTIVITY_ARCHIVE));
   const server = takeOption(args, "--server", undefined);
   stripArgumentSeparator(args);
-  if (args.length > 0) throw new Error(`Unknown arguments: ${args.join(" ")}`);
+  if (args.length > 0) {
+    throw new Error(`Unknown arguments: ${args.join(" ")}`);
+  }
 
-  printResult(await clearActivity({ outPath, ...optionalProperty("server", server) }), jsonOutput, printActivityClearResult);
+  printResult(
+    await clearActivity({ outPath, ...optionalProperty("server", server) }),
+    jsonOutput,
+    printActivityClearResult,
+  );
 }
 
 async function clearActivity({ outPath, server }: ClearActivityOptions) {
   const origin = normalizeOrigin(server);
   if (origin) {
     const response = await fetch(`${origin}/api/activity`, { method: "DELETE" });
-    const body = (objectRecord(await response.json().catch(() => ({}))) ?? {}) as { error?: string };
-    if (!response.ok) throw new Error(body.error ?? `${response.status} ${response.statusText}`);
+    const body = (objectRecord(await response.json().catch(() => ({}))) ?? {}) as {
+      error?: string;
+    };
+    if (!response.ok) {
+      throw new Error(body.error ?? `${response.status} ${response.statusText}`);
+    }
     return { source: "server", origin, ...body };
   }
 
@@ -593,14 +692,21 @@ async function clearActivity({ outPath, server }: ClearActivityOptions) {
 
 async function postActivityToServer(server: string, body: Record<string, unknown>) {
   const origin = normalizeOrigin(server);
-  if (!origin) throw new Error("Activity server must be a valid URL");
+  if (!origin) {
+    throw new Error("Activity server must be a valid URL");
+  }
   const response = await fetch(`${origin}/api/activity`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  const responseBody = (objectRecord(await response.json().catch(() => ({}))) ?? {}) as { accepted?: boolean; error?: string };
-  if (!response.ok) throw new Error(responseBody.error ?? `${response.status} ${response.statusText}`);
+  const responseBody = (objectRecord(await response.json().catch(() => ({}))) ?? {}) as {
+    accepted?: boolean;
+    error?: string;
+  };
+  if (!response.ok) {
+    throw new Error(responseBody.error ?? `${response.status} ${response.statusText}`);
+  }
   return {
     source: "server",
     origin,
@@ -615,7 +721,12 @@ async function resolveDeepLink({ root, mapPath, reference, server }: DeepLinkRes
     return {
       kind: "annotation",
       reference,
-      ...await readAnnotation({ root, mapPath, reference, ...optionalProperty("server", server) }),
+      ...(await readAnnotation({
+        root,
+        mapPath,
+        reference,
+        ...optionalProperty("server", server),
+      })),
     };
   }
 
@@ -629,21 +740,36 @@ async function resolveDeepLink({ root, mapPath, reference, server }: DeepLinkRes
     };
   }
 
-  throw new Error(`Cannot resolve ${reference}: ${parsed.kind} links require a path in link metadata`);
+  throw new Error(
+    `Cannot resolve ${reference}: ${parsed.kind} links require a path in link metadata`,
+  );
 }
 
-async function resolveCliAddress(mapPath: string, { path, lineStartRaw, lineEndRaw, columnStartRaw, columnEndRaw }: CliAddressRequest): Promise<ResolvedAddress> {
+async function resolveCliAddress(
+  mapPath: string,
+  { path, lineStartRaw, lineEndRaw, columnStartRaw, columnEndRaw }: CliAddressRequest,
+): Promise<ResolvedAddress> {
   const columnStart = optionalNumber(columnStartRaw);
   const columnEnd = optionalNumber(columnEndRaw);
   const codemap = JSON.parse(await readFile(mapPath, "utf8"));
   const lineStart = optionalNumber(lineStartRaw);
   const lineEnd = lineEndRaw === undefined ? lineStart : optionalNumber(lineEndRaw);
-  return resolveAddress(codemap, addressRequest(path, { lineStart, lineEnd, columnStart, columnEnd }));
+  return resolveAddress(
+    codemap,
+    addressRequest(path, { lineStart, lineEnd, columnStart, columnEnd }),
+  );
 }
 
-function requestFromDeepLink(parsed: ParsedCodemapDeepLink): CliAddressRequest & { lineStart?: number; lineEnd?: number; columnStart?: number; columnEnd?: number } {
+function requestFromDeepLink(parsed: ParsedCodemapDeepLink): CliAddressRequest & {
+  lineStart?: number;
+  lineEnd?: number;
+  columnStart?: number;
+  columnEnd?: number;
+} {
   const path = parsed.metadata.path;
-  if (!path) throw new Error("Deep link does not include path metadata");
+  if (!path) {
+    throw new Error("Deep link does not include path metadata");
+  }
   const lineRange = parseRange(parsed.metadata.lines);
   const columnRange = parseRange(parsed.metadata.columns);
   return {
@@ -654,9 +780,13 @@ function requestFromDeepLink(parsed: ParsedCodemapDeepLink): CliAddressRequest &
 }
 
 function parseRange(value: string | undefined): Range | undefined {
-  if (!value) return undefined;
+  if (!value) {
+    return undefined;
+  }
   const match = value.match(/^(\d+)(?:-(\d+))?$/);
-  if (!match) throw new Error(`Invalid range in deep link metadata: ${value}`);
+  if (!match) {
+    throw new Error(`Invalid range in deep link metadata: ${value}`);
+  }
   return { start: Number(match[1]), end: Number(match[2] ?? match[1]) };
 }
 
@@ -695,7 +825,10 @@ async function doctor({ root, mapPath, server }: DoctorOptions): Promise<DoctorR
     .map(([name]) => name);
 
   return {
-    ok: missingSetup.length === 0 && checks.map.validJson !== false && checks.config.validJson !== false,
+    ok:
+      missingSetup.length === 0 &&
+      checks.map.validJson !== false &&
+      checks.config.validJson !== false,
     command: "codecharter",
     version: packageJson.version,
     auth: { required: false, source: "none" },
@@ -704,7 +837,10 @@ async function doctor({ root, mapPath, server }: DoctorOptions): Promise<DoctorR
     setup: {
       ready: missingSetup.length === 0,
       missing: missingSetup,
-      ...optionalProperty("nextStep", missingSetup.length ? "Run `codecharter init` from the target repo." : undefined),
+      ...optionalProperty(
+        "nextStep",
+        missingSetup.length ? "Run `codecharter init` from the target repo." : undefined,
+      ),
     },
     checks,
   };
@@ -725,13 +861,23 @@ async function cliStatus(root: string, currentVersion: string) {
   };
 }
 
-function packageDependencyStatus(packageJson: PackageJsonWithDependencies | undefined, packagePath: string, expectedSpec: string) {
+function packageDependencyStatus(
+  packageJson: PackageJsonWithDependencies | undefined,
+  packagePath: string,
+  expectedSpec: string,
+) {
   if (!packageJson) {
     return { path: packagePath, packageJson: false, expected: expectedSpec, ok: true };
   }
 
   if (packageJson.name === "codecharter") {
-    return { path: packagePath, packageJson: true, skipped: "self-package", expected: expectedSpec, ok: true };
+    return {
+      path: packagePath,
+      packageJson: true,
+      skipped: "self-package",
+      expected: expectedSpec,
+      ok: true,
+    };
   }
 
   const section = PACKAGE_DEPENDENCY_SECTIONS.find((name) => packageJson[name]?.codecharter);
@@ -751,7 +897,13 @@ function packageDependencyStatus(packageJson: PackageJsonWithDependencies | unde
   };
 }
 
-async function setupCodecharter({ root, out, fresh, installCodex, installGitHooks }: CliSetupOptions) {
+async function setupCodecharter({
+  root,
+  out,
+  fresh,
+  installCodex,
+  installGitHooks,
+}: CliSetupOptions) {
   await ensureCodecharterGitignore(root);
   await ensureLocalGitExcludes(root);
   const result = await initializeCodecharter({
@@ -778,11 +930,23 @@ type RunDevServerOptions = {
   initialCodemap?: CodecharterCodemap;
 };
 
-async function runDevServer({ root, mapPath, port, agentId, watch, fresh, open, initialCodemap }: RunDevServerOptions) {
+async function runDevServer({
+  root,
+  mapPath,
+  port,
+  agentId,
+  watch,
+  fresh,
+  open,
+  initialCodemap,
+}: RunDevServerOptions) {
   await ensureCodecharterGitignore(root);
   await ensureLocalGitExcludes(root);
-  let currentCodemap: CodecharterCodemap = initialCodemap ?? await writeCodemap({ root, out: mapPath, fresh, quiet: true });
-  if (!initialCodemap) printMapResult(root, mapPath, currentCodemap);
+  let currentCodemap: CodecharterCodemap =
+    initialCodemap ?? (await writeCodemap({ root, out: mapPath, fresh, quiet: true }));
+  if (!initialCodemap) {
+    printMapResult(root, mapPath, currentCodemap);
+  }
   await ensureActivityStream(root);
   const server = await startServer({ root, mapPath, port });
   const actualPort = serverPort(server.address());
@@ -798,9 +962,11 @@ async function runDevServer({ root, mapPath, port, agentId, watch, fresh, open, 
       prepareChanges: async (changes) => {
         const signature = changes
           .map((change) => `${change.path}:${change.signature}`)
-          .sort()
+          .toSorted()
           .join("\0");
-        if (!signature || signature === lastRefreshSignature) return;
+        if (!signature || signature === lastRefreshSignature) {
+          return;
+        }
         lastRefreshSignature = signature;
         currentCodemap = await writeCodemap({ root, out: mapPath, quiet: true });
       },
@@ -820,18 +986,26 @@ async function runDevServer({ root, mapPath, port, agentId, watch, fresh, open, 
   return server;
 }
 
-async function printViewerReady(server: ReturnType<typeof startServer> extends Promise<infer T> ? T : never, { open }: { open: boolean }): Promise<void> {
+async function printViewerReady(
+  server: ReturnType<typeof startServer> extends Promise<infer T> ? T : never,
+  { open }: { open: boolean },
+): Promise<void> {
   const url = viewerUrl(server);
   console.log(`viewer: ${url}`);
-  if (open) await openBrowser(url);
+  if (open) {
+    await openBrowser(url);
+  }
 }
 
-function viewerUrl(server: ReturnType<typeof startServer> extends Promise<infer T> ? T : never): string {
+function viewerUrl(
+  server: ReturnType<typeof startServer> extends Promise<infer T> ? T : never,
+): string {
   return `http://127.0.0.1:${serverPort(server.address())}`;
 }
 
 async function openBrowser(url: string): Promise<void> {
-  const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
+  const command =
+    process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
   const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
   await new Promise<void>((resolve) => {
     const child = spawn(command, args, { detached: true, stdio: "ignore" });
@@ -849,14 +1023,16 @@ async function openBrowser(url: string): Promise<void> {
 }
 
 function stripArgumentSeparator(args: string[]): void {
-  if (args[0] === "--") args.shift();
+  if (args[0] === "--") {
+    args.shift();
+  }
 }
 
 function optionalProperty<K extends string, T>(
   key: K,
   value: T,
 ): Partial<Record<K, Exclude<T, undefined>>> {
-  return value === undefined ? {} : { [key]: value } as Partial<Record<K, Exclude<T, undefined>>>;
+  return value === undefined ? {} : ({ [key]: value } as Partial<Record<K, Exclude<T, undefined>>>);
 }
 
 function cliAddressRequest(
@@ -874,7 +1050,12 @@ function cliAddressRequest(
 
 function addressRequest(
   path: string,
-  { lineStart, lineEnd, columnStart, columnEnd }: {
+  {
+    lineStart,
+    lineEnd,
+    columnStart,
+    columnEnd,
+  }: {
     lineStart: AddressRequest["lineStart"] | undefined;
     lineEnd: AddressRequest["lineEnd"] | undefined;
     columnStart: AddressRequest["columnStart"] | undefined;
@@ -894,12 +1075,19 @@ async function readOptionalJson(path: string): Promise<unknown | undefined> {
   try {
     return JSON.parse(await readFile(path, "utf8"));
   } catch (error) {
-    if (isErrnoException(error) && error.code === "ENOENT") return undefined;
+    if (isErrnoException(error) && error.code === "ENOENT") {
+      return undefined;
+    }
     throw error;
   }
 }
 
-async function writeCodemap({ root, out, fresh = false, quiet = false }: WriteCodemapOptions): Promise<GeneratedCodemap> {
+async function writeCodemap({
+  root,
+  out,
+  fresh = false,
+  quiet = false,
+}: WriteCodemapOptions): Promise<GeneratedCodemap> {
   const previousCodemap = fresh ? undefined : await readPreviousCodemap(root, out);
   const codemap = await generateCodemap({
     root,
@@ -913,14 +1101,25 @@ async function writeCodemap({ root, out, fresh = false, quiet = false }: WriteCo
   return codemap;
 }
 
-function printSetupResult(root: string, result: Awaited<ReturnType<typeof initializeCodecharter>>, { installCodex, installGitHooks }: { installCodex: boolean; installGitHooks: boolean }): void {
+function printSetupResult(
+  root: string,
+  result: Awaited<ReturnType<typeof initializeCodecharter>>,
+  { installCodex, installGitHooks }: { installCodex: boolean; installGitHooks: boolean },
+): void {
   console.log("init: ok");
   const codemap = isCodecharterCodemap(result.codemap) ? result.codemap : undefined;
-  if (codemap) printMapResult(root, result.mapPath, codemap);
-  else console.log(`map: ${displayPath(root, result.mapPath)}`);
+  if (codemap) {
+    printMapResult(root, result.mapPath, codemap);
+  } else {
+    console.log(`map: ${displayPath(root, result.mapPath)}`);
+  }
   console.log(`config: ${displayPath(root, result.configPath)}`);
-  console.log(`skill: ${installCodex && result.codexSkillPath ? displayPath(root, result.codexSkillPath) : "skipped"}`);
-  console.log(`hooks: ${[installCodex && "codex", installGitHooks && "git"].filter(Boolean).join(",") || "skipped"}`);
+  console.log(
+    `skill: ${installCodex && result.codexSkillPath ? displayPath(root, result.codexSkillPath) : "skipped"}`,
+  );
+  console.log(
+    `hooks: ${[installCodex && "codex", installGitHooks && "git"].filter(Boolean).join(",") || "skipped"}`,
+  );
   console.log(`activity: ${DEFAULT_ACTIVITY_ARCHIVE}`);
 }
 
@@ -931,7 +1130,9 @@ function printMapResult(root: string, mapPath: string, codemap: CodecharterCodem
 }
 
 function serverPort(address: string | AddressInfo | null): number {
-  if (!address || typeof address === "string") throw new Error("Server did not expose a TCP port");
+  if (!address || typeof address === "string") {
+    throw new Error("Server did not expose a TCP port");
+  }
   return address.port;
 }
 
@@ -939,12 +1140,20 @@ async function ensureActivityStream(root: string): Promise<void> {
   await ensureActivityArchive(join(root, DEFAULT_ACTIVITY_ARCHIVE));
 }
 
-async function listAnnotations({ root, mapPath, server, limit }: ListAnnotationsOptions): Promise<ListedAnnotations> {
+async function listAnnotations({
+  root,
+  mapPath,
+  server,
+  limit,
+}: ListAnnotationsOptions): Promise<ListedAnnotations> {
   const origin = normalizeOrigin(server);
   const annotations = origin
     ? await listAnnotationsFromServer(origin)
     : await listAnnotationsFromStorage({ root, mapPath });
-  const bounded = limit !== undefined && Number.isInteger(limit) && limit >= 0 ? annotations.slice(0, limit) : annotations;
+  const bounded =
+    limit !== undefined && Number.isInteger(limit) && limit >= 0
+      ? annotations.slice(0, limit)
+      : annotations;
   return {
     source: origin ? "server" : "storage",
     ...(origin ? { origin } : {}),
@@ -956,25 +1165,42 @@ async function listAnnotations({ root, mapPath, server, limit }: ListAnnotations
 
 async function listAnnotationsFromServer(origin: string): Promise<MapAnnotation[]> {
   const response = await fetch(`${origin}/api/annotations`);
-  if (!response.ok) throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`);
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`);
+  }
   const body = (objectRecord(await response.json()) ?? {}) as { annotations?: MapAnnotation[] };
   return Array.isArray(body.annotations) ? body.annotations : [];
 }
 
-async function listAnnotationsFromStorage({ root, mapPath }: { root: string; mapPath: string }): Promise<MapAnnotation[]> {
+async function listAnnotationsFromStorage({
+  root,
+  mapPath,
+}: {
+  root: string;
+  mapPath: string;
+}): Promise<MapAnnotation[]> {
   const storePath = join(root, ".codecharter", "named-places.json");
   const store = namedPlacesFileFromValue(await readOptionalJson(storePath));
   const codemap = codemapFromValue(await readOptionalJson(mapPath));
-  return store.places.map((annotation) => codemap ? refreshPlaceResolution(codemap, annotation) : annotation);
+  return store.places.map((annotation) =>
+    codemap ? refreshPlaceResolution(codemap, annotation) : annotation,
+  );
 }
 
-async function readAnnotation({ root, mapPath, reference, server }: AnnotationReferenceOptions): Promise<AnnotationEnvelope> {
+async function readAnnotation({
+  root,
+  mapPath,
+  reference,
+  server,
+}: AnnotationReferenceOptions): Promise<AnnotationEnvelope> {
   const parsed = parseAnnotationReference(reference);
   const origin = normalizeOrigin(parsed.origin ?? server);
   if (origin) {
     try {
       const response = await fetch(`${origin}/api/annotations/${encodeURIComponent(parsed.id)}`);
-      if (!response.ok) throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`);
+      if (!response.ok) {
+        throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`);
+      }
       const body = (objectRecord(await response.json()) ?? {}) as { annotation: MapAnnotation };
       return annotationEnvelope(body.annotation, { source: "server", origin });
     } catch {}
@@ -984,17 +1210,26 @@ async function readAnnotation({ root, mapPath, reference, server }: AnnotationRe
   return annotationEnvelope(annotation, { source: "storage" });
 }
 
-async function readAnnotationFromStorage({ root, mapPath, id }: AnnotationStorageOptions): Promise<MapAnnotation> {
+async function readAnnotationFromStorage({
+  root,
+  mapPath,
+  id,
+}: AnnotationStorageOptions): Promise<MapAnnotation> {
   const storePath = join(root, ".codecharter", "named-places.json");
   const store = namedPlacesFileFromValue(await readOptionalJson(storePath));
   const annotation = store.places.find((place) => place.id === id);
-  if (!annotation) throw new Error(`No annotation found for id: ${id}`);
+  if (!annotation) {
+    throw new Error(`No annotation found for id: ${id}`);
+  }
 
   const codemap = codemapFromValue(await readOptionalJson(mapPath));
   return codemap ? refreshPlaceResolution(codemap, annotation) : annotation;
 }
 
-function annotationEnvelope(annotation: MapAnnotation, metadata: AnnotationEnvelopeMetadata): AnnotationEnvelope {
+function annotationEnvelope(
+  annotation: MapAnnotation,
+  metadata: AnnotationEnvelopeMetadata,
+): AnnotationEnvelope {
   return {
     ...metadata,
     annotation,
@@ -1005,7 +1240,11 @@ function annotationEnvelope(annotation: MapAnnotation, metadata: AnnotationEnvel
 
 async function readApi({ reference, server }: ApiReadOptions): Promise<ApiReadResult> {
   const url = apiUrl(reference, server);
-  if (new URL(url).pathname === "/api/source") throw new Error("api does not expose /api/source; use Codex file-reading tools for source files");
+  if (new URL(url).pathname === "/api/source") {
+    throw new Error(
+      "api does not expose /api/source; use Codex file-reading tools for source files",
+    );
+  }
   const response = await fetch(url);
   const text = await response.text();
   let body;
@@ -1014,7 +1253,11 @@ async function readApi({ reference, server }: ApiReadOptions): Promise<ApiReadRe
   } catch {
     body = text;
   }
-  if (!response.ok) throw new Error(`${response.status} ${response.statusText}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
+  if (!response.ok) {
+    throw new Error(
+      `${response.status} ${response.statusText}: ${typeof body === "string" ? body : JSON.stringify(body)}`,
+    );
+  }
   return {
     source: "server",
     method: "GET",
@@ -1027,35 +1270,51 @@ async function readApi({ reference, server }: ApiReadOptions): Promise<ApiReadRe
 function apiUrl(reference: string, server?: string): string {
   if (/^https?:\/\//.test(reference)) {
     const url = new URL(reference);
-    if (!url.pathname.startsWith("/api/")) throw new Error("api only supports CodeCharter /api URLs");
+    if (!url.pathname.startsWith("/api/")) {
+      throw new Error("api only supports CodeCharter /api URLs");
+    }
     return url.toString();
   }
   const origin = normalizeOrigin(server);
-  if (!origin) throw new Error("api requires --server when the reference is a path");
-  if (!reference.startsWith("/api/")) throw new Error("api path must start with /api/");
+  if (!origin) {
+    throw new Error("api requires --server when the reference is a path");
+  }
+  if (!reference.startsWith("/api/")) {
+    throw new Error("api path must start with /api/");
+  }
   return `${origin}${reference}`;
 }
 
 function parseAnnotationReference(reference: string): ParsedAnnotationReference {
-  if (!reference) throw new Error("Annotation reference is required");
+  if (!reference) {
+    throw new Error("Annotation reference is required");
+  }
   if (reference.startsWith("codecharter://") || reference.startsWith("codemap://")) {
     const parsed = parseCodemapDeepLink(reference);
-    if (parsed.kind !== "annotation") throw new Error(`Expected an annotation link, received: ${parsed.kind}`);
+    if (parsed.kind !== "annotation") {
+      throw new Error(`Expected an annotation link, received: ${parsed.kind}`);
+    }
     return { id: parsed.locator };
   }
 
   if (reference.startsWith("#/annotation/")) {
     const id = reference.slice("#/annotation/".length).split(/[?#]/)[0];
-    if (!id) throw new Error("Annotation hash route must include an id");
+    if (!id) {
+      throw new Error("Annotation hash route must include an id");
+    }
     return { id: decodeURIComponent(id) };
   }
 
   if (/^https?:\/\//.test(reference)) {
     const url = new URL(reference);
     const hashMatch = url.hash.match(/^#\/annotation\/([^?]+)/);
-    if (hashMatch?.[1]) return { id: decodeURIComponent(hashMatch[1]), origin: url.origin };
+    if (hashMatch?.[1]) {
+      return { id: decodeURIComponent(hashMatch[1]), origin: url.origin };
+    }
     const apiMatch = url.pathname.match(/\/api\/annotations\/([^/]+)/);
-    if (apiMatch?.[1]) return { id: decodeURIComponent(apiMatch[1]), origin: url.origin };
+    if (apiMatch?.[1]) {
+      return { id: decodeURIComponent(apiMatch[1]), origin: url.origin };
+    }
     throw new Error("CodeCharter URL must contain #/annotation/<id> or /api/annotations/<id>");
   }
 
@@ -1063,7 +1322,9 @@ function parseAnnotationReference(reference: string): ParsedAnnotationReference 
 }
 
 function normalizeOrigin(value: string | undefined): string | undefined {
-  if (!value) return undefined;
+  if (!value) {
+    return undefined;
+  }
   const url = new URL(value);
   return url.origin;
 }
@@ -1080,10 +1341,17 @@ async function pathStatus(path: string, expectedType: PathKind): Promise<PathSta
       path,
       exists: true,
       type: stats.isDirectory() ? "directory" : stats.isFile() ? "file" : "other",
-      ok: expectedType === "directory" ? stats.isDirectory() : expectedType === "file" ? stats.isFile() : true,
+      ok:
+        expectedType === "directory"
+          ? stats.isDirectory()
+          : expectedType === "file"
+            ? stats.isFile()
+            : true,
     };
   } catch (error) {
-    if (isErrnoException(error) && error.code === "ENOENT") return { path, exists: false, ok: false };
+    if (isErrnoException(error) && error.code === "ENOENT") {
+      return { path, exists: false, ok: false };
+    }
     throw error;
   }
 }
@@ -1096,10 +1364,17 @@ async function jsonFileStatus(path: string): Promise<JsonFileStatus> {
       exists: true,
       ok: true,
       validJson: true,
-      ...optionalProperty("keys", value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value).sort() : undefined),
+      ...optionalProperty(
+        "keys",
+        value && typeof value === "object" && !Array.isArray(value)
+          ? Object.keys(value).toSorted()
+          : undefined,
+      ),
     };
   } catch (error) {
-    if (isErrnoException(error) && error.code === "ENOENT") return { path, exists: false, ok: false };
+    if (isErrnoException(error) && error.code === "ENOENT") {
+      return { path, exists: false, ok: false };
+    }
     return {
       path,
       exists: true,
@@ -1113,8 +1388,16 @@ async function jsonFileStatus(path: string): Promise<JsonFileStatus> {
 async function probeServer(origin: string) {
   try {
     const response = await fetch(`${origin}/api/map-version`);
-    if (!response.ok) return { configured: true, origin, ok: false, status: response.status };
-    return { configured: true, origin, ok: true, status: response.status, mapVersion: await response.json() };
+    if (!response.ok) {
+      return { configured: true, origin, ok: false, status: response.status };
+    }
+    return {
+      configured: true,
+      origin,
+      ok: true,
+      status: response.status,
+      mapVersion: await response.json(),
+    };
   } catch (error) {
     return { configured: true, origin, ok: false, error: errorMessage(error) };
   }
@@ -1125,55 +1408,88 @@ function printDoctor(result: DoctorResult): void {
   console.log(`root: ${result.root}`);
   console.log(`map: ${displayPath(result.root, result.mapPath)}`);
   console.log(`setup: ${result.setup.ready ? "ready" : "missing"}`);
-  if (result.setup.missing.length) console.log(`missing: ${result.setup.missing.join(",")}`);
+  if (result.setup.missing.length) {
+    console.log(`missing: ${result.setup.missing.join(",")}`);
+  }
   console.log(`fallback: ${result.checks.cli.recommendedCommand}`);
-  if (result.setup.nextStep) console.log(`next: ${result.setup.nextStep.replace(/^Run `(.+)` from the target repo\.$/, "$1")}`);
+  if (result.setup.nextStep) {
+    console.log(
+      `next: ${result.setup.nextStep.replace(/^Run `(.+)` from the target repo\.$/, "$1")}`,
+    );
+  }
 }
 
 function printResult<T>(value: T, jsonOutput: boolean, printPlain: (value: T) => void): void {
-  if (jsonOutput) printJson(value);
-  else printPlain(value);
+  if (jsonOutput) {
+    printJson(value);
+  } else {
+    printPlain(value);
+  }
 }
 
 function printResolvedAddress(address: ResolvedAddress): void {
   console.log(`target: ${address.targetType}`);
   console.log(`path: ${address.path}`);
-  if (address.lineRange) console.log(`lines: ${address.lineRange.start}-${address.lineRange.end}`);
-  if (address.tokenRange) console.log(`columns: ${address.tokenRange.start}-${address.tokenRange.end}`);
+  if (address.lineRange) {
+    console.log(`lines: ${address.lineRange.start}-${address.lineRange.end}`);
+  }
+  if (address.tokenRange) {
+    console.log(`columns: ${address.tokenRange.start}-${address.tokenRange.end}`);
+  }
   console.log(`geohash: ${address.geohash}`);
   console.log(`link: ${address.deepLink}`);
 }
 
-function printResolvedDeepLink(result: { kind: string; reference: string; address?: ResolvedAddress } | ({ kind: "annotation"; reference: string } & AnnotationEnvelope)): void {
+function printResolvedDeepLink(
+  result:
+    | { kind: string; reference: string; address?: ResolvedAddress }
+    | ({ kind: "annotation"; reference: string } & AnnotationEnvelope),
+): void {
   if ("annotation" in result) {
     printAnnotation(result);
     return;
   }
   console.log(`kind: ${result.kind}`);
   console.log(`reference: ${result.reference}`);
-  if ("address" in result && result.address) printResolvedAddress(result.address);
+  if ("address" in result && result.address) {
+    printResolvedAddress(result.address);
+  }
 }
 
 function printAnnotation(result: AnnotationEnvelope): void {
   console.log(`annotation: ${result.annotation.id}`);
   console.log(`source: ${result.source}`);
-  if (result.origin) console.log(`origin: ${result.origin}`);
-  console.log(`targets: ${result.targetCount}`);
-  if (result.annotation.comment) console.log(`note: ${singleLine(result.annotation.comment)}`);
-  for (const target of result.resolvedTargets.slice(0, 12)) {
-    console.log(`target: ${target.path}${target.lineRange ? `:${target.lineRange.start}-${target.lineRange.end}` : ""}`);
+  if (result.origin) {
+    console.log(`origin: ${result.origin}`);
   }
-  if (result.targetCount > 12) console.log(`more: ${result.targetCount - 12}`);
+  console.log(`targets: ${result.targetCount}`);
+  if (result.annotation.comment) {
+    console.log(`note: ${singleLine(result.annotation.comment)}`);
+  }
+  for (const target of result.resolvedTargets.slice(0, 12)) {
+    console.log(
+      `target: ${target.path}${target.lineRange ? `:${target.lineRange.start}-${target.lineRange.end}` : ""}`,
+    );
+  }
+  if (result.targetCount > 12) {
+    console.log(`more: ${result.targetCount - 12}`);
+  }
   console.log(`json: codecharter --json resolve "${result.annotation.deepLink}"`);
 }
 
 function printAnnotations(result: ListedAnnotations): void {
   console.log(`source: ${result.source}`);
-  if (result.origin) console.log(`origin: ${result.origin}`);
+  if (result.origin) {
+    console.log(`origin: ${result.origin}`);
+  }
   console.log(`annotations: ${result.count}`);
-  if (result.totalCount !== result.count) console.log(`total: ${result.totalCount}`);
+  if (result.totalCount !== result.count) {
+    console.log(`total: ${result.totalCount}`);
+  }
   for (const annotation of result.annotations) {
-    console.log(`annotation: ${annotation.id} targets=${annotation.resolvedTargets?.length ?? 0} note=${singleLine(annotation.comment ?? annotation.name ?? "")}`);
+    console.log(
+      `annotation: ${annotation.id} targets=${annotation.resolvedTargets?.length ?? 0} note=${singleLine(annotation.comment ?? annotation.name ?? "")}`,
+    );
   }
 }
 
@@ -1182,28 +1498,46 @@ function printApi(result: ApiReadResult): void {
   console.log(`status: ${result.status}`);
   console.log(`url: ${result.url}`);
   if (result.body && typeof result.body === "object" && !Array.isArray(result.body)) {
-    console.log(`keys: ${Object.keys(result.body).sort().join(",")}`);
+    console.log(`keys: ${Object.keys(result.body).toSorted().join(",")}`);
   } else if (result.body !== null && result.body !== undefined) {
     console.log(`body: ${singleLine(String(result.body))}`);
   }
 }
 
-function printActivityResult(result: { accepted: boolean; event?: ReturnType<typeof createActivityEvent>; error?: string }): void {
+function printActivityResult(result: {
+  accepted: boolean;
+  event?: ReturnType<typeof createActivityEvent>;
+  error?: string;
+}): void {
   console.log(`accepted: ${result.accepted ? "true" : "false"}`);
   if (result.event) {
     console.log(`event: ${result.event.id}`);
     console.log(`state: ${result.event.activityState}`);
     console.log(`path: ${result.event.address?.path}`);
   }
-  if (result.error) console.log(`error: ${result.error}`);
+  if (result.error) {
+    console.log(`error: ${result.error}`);
+  }
 }
 
-function printActivityClearResult(result: { cleared?: boolean; source: string; origin?: string; path?: string; events?: number }): void {
+function printActivityClearResult(result: {
+  cleared?: boolean;
+  source: string;
+  origin?: string;
+  path?: string;
+  events?: number;
+}): void {
   console.log(`cleared: ${result.cleared ? "true" : "false"}`);
   console.log(`source: ${result.source}`);
-  if (result.origin) console.log(`origin: ${result.origin}`);
-  if (result.path) console.log(`path: ${result.path}`);
-  if (Number.isInteger(result.events)) console.log(`events: ${result.events}`);
+  if (result.origin) {
+    console.log(`origin: ${result.origin}`);
+  }
+  if (result.path) {
+    console.log(`path: ${result.path}`);
+  }
+  if (Number.isInteger(result.events)) {
+    console.log(`events: ${result.events}`);
+  }
 }
 
 function printJson(value: unknown): void {
@@ -1216,7 +1550,9 @@ function singleLine(value: unknown): string {
 
 function displayPath(root: string, path: string): string {
   const relativePath = relative(root, path);
-  return relativePath && !relativePath.startsWith("..") && !isAbsolute(relativePath) ? relativePath : path;
+  return relativePath && !relativePath.startsWith("..") && !isAbsolute(relativePath)
+    ? relativePath
+    : path;
 }
 
 function resolveMapPath(root: string, path: string): string {
@@ -1238,52 +1574,73 @@ function codemapFromValue(value: unknown): CodecharterCodemap | undefined {
 
 function isCodecharterCodemap(value: unknown): value is CodecharterCodemap {
   const record = objectRecord(value);
-  return Boolean(record)
-    && typeof record?.files === "object"
-    && record.files !== null
-    && typeof record.folders === "object"
-    && record.folders !== null;
+  return (
+    Boolean(record) &&
+    typeof record?.files === "object" &&
+    record.files !== null &&
+    typeof record.folders === "object" &&
+    record.folders !== null
+  );
 }
 
 function isMapAnnotation(value: unknown): value is MapAnnotation {
   const record = objectRecord(value);
-  return record?.kind === "mapAnnotation"
-    && MAP_ANNOTATION_STRING_FIELDS.every((key) => typeof record[key] === "string")
-    && isMapLevel(record.level)
-    && objectRecord(record.geometry) !== null;
+  return (
+    record?.kind === "mapAnnotation" &&
+    MAP_ANNOTATION_STRING_FIELDS.every((key) => typeof record[key] === "string") &&
+    isMapLevel(record.level) &&
+    objectRecord(record.geometry) !== null
+  );
 }
 
 function isMapLevel(value: unknown): value is MapAnnotation["level"] {
   return typeof value === "string" && Object.hasOwn(MAP_LEVELS, value);
 }
 
-async function readPreviousCodemap(root: string, out: string): Promise<CodecharterCodemap | undefined> {
+async function readPreviousCodemap(
+  root: string,
+  out: string,
+): Promise<CodecharterCodemap | undefined> {
   const current = codemapFromValue(await readOptionalJson(out));
-  if (current) return current;
+  if (current) {
+    return current;
+  }
   if (relative(root, out) === DEFAULT_MAP_FILE) {
-    return codemapFromValue(await readOptionalJson(join(root, ROOT_MAP_FILE)))
-      ?? codemapFromValue(await readOptionalJson(join(root, LEGACY_MAP_FILE)));
+    return (
+      codemapFromValue(await readOptionalJson(join(root, ROOT_MAP_FILE))) ??
+      codemapFromValue(await readOptionalJson(join(root, LEGACY_MAP_FILE)))
+    );
   }
   return undefined;
 }
 
 async function resolveCliMapPath(option: string | undefined, root = "."): Promise<string> {
   const resolvedRoot = resolvePath(root);
-  if (option) return resolveMapPath(resolvedRoot, option);
+  if (option) {
+    return resolveMapPath(resolvedRoot, option);
+  }
   const defaultMapPath = resolvePath(resolvedRoot, DEFAULT_MAP_FILE);
   const rootMapPath = resolvePath(resolvedRoot, ROOT_MAP_FILE);
-  if (await readOptionalJson(defaultMapPath)) return defaultMapPath;
-  if (await readOptionalJson(rootMapPath)) return rootMapPath;
+  if (await readOptionalJson(defaultMapPath)) {
+    return defaultMapPath;
+  }
+  if (await readOptionalJson(rootMapPath)) {
+    return rootMapPath;
+  }
   return resolvePath(resolvedRoot, LEGACY_MAP_FILE);
 }
 
 async function confirm(question: string, fallback: boolean): Promise<boolean> {
-  if (!process.stdin.isTTY || !process.stdout.isTTY) return fallback;
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    return fallback;
+  }
   const rl = createInterface({ input, output });
   try {
     const suffix = fallback ? " [Y/n] " : " [y/N] ";
     const answer = (await rl.question(`${question}${suffix}`)).trim().toLowerCase();
-    if (!answer) return fallback;
+    if (!answer) {
+      return fallback;
+    }
     return answer === "y" || answer === "yes";
   } finally {
     rl.close();
@@ -1292,7 +1649,9 @@ async function confirm(question: string, fallback: boolean): Promise<boolean> {
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
-  for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk));
+  for await (const chunk of process.stdin) {
+    chunks.push(Buffer.from(chunk));
+  }
   return Buffer.concat(chunks).toString("utf8");
 }
 

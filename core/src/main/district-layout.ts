@@ -78,18 +78,26 @@ type LayoutRectangle = {
 
 /** Round bounds, then assign the target's geohash address from its center (BR-001). */
 export function assignAddress(target: LayoutTarget): void {
-  if (!target.bounds) throw new Error(`Cannot assign address without bounds: ${target.path}`);
+  if (!target.bounds) {
+    throw new Error(`Cannot assign address without bounds: ${target.path}`);
+  }
   target.bounds = roundBounds(target.bounds);
   target.geo = geohashForBoundsCenter(target.bounds, FULL_GEOHASH_PRECISION);
 }
 
 /** Lay children into a rectangle, reserving growth space; mutates each child's bounds. */
-export function layoutChildren(children: LayoutTarget[], bounds: Bounds, { reserveGrowth = true, root = false }: LayoutOptions = {}): GrowthLayoutResult {
+export function layoutChildren(
+  children: LayoutTarget[],
+  bounds: Bounds,
+  { reserveGrowth = true, root = false }: LayoutOptions = {},
+): GrowthLayoutResult {
   if (children.length === 0) {
     return { growthArea: roundBounds(bounds) };
   }
 
-  const baseBounds = root ? insetBounds(bounds, ROOT_MARGIN) : insetByRatio(bounds, INNER_PADDING_RATIO, INNER_PADDING_MAX);
+  const baseBounds = root
+    ? insetBounds(bounds, ROOT_MARGIN)
+    : insetByRatio(bounds, INNER_PADDING_RATIO, INNER_PADDING_MAX);
   const { childBounds, growthArea } = reserveGrowth
     ? reserveGrowthArea(baseBounds, GROWTH_FRACTION)
     : { childBounds: baseBounds, growthArea: baseBounds };
@@ -98,8 +106,13 @@ export function layoutChildren(children: LayoutTarget[], bounds: Bounds, { reser
 }
 
 /** Place newly-added children into a folder's reserved growth area. */
-export function placeChildrenInGrowth(children: LayoutTarget[], bounds: Bounds): GrowthLayoutResult {
-  if (children.length === 0) return { growthArea: roundBounds(bounds) };
+export function placeChildrenInGrowth(
+  children: LayoutTarget[],
+  bounds: Bounds,
+): GrowthLayoutResult {
+  if (children.length === 0) {
+    return { growthArea: roundBounds(bounds) };
+  }
   const { childBounds, growthArea } = reserveGrowthArea(bounds, NEXT_GROWTH_FRACTION);
   layoutInto(children, childBounds, growthArea);
   return { growthArea: roundBounds(growthArea) };
@@ -110,10 +123,20 @@ export function nextGrowthArea(bounds: Bounds): Bounds {
   const horizontal = bounds.width >= bounds.height;
   if (horizontal) {
     const width = bounds.width * NEXT_GROWTH_FRACTION;
-    return roundBounds({ x: bounds.x + bounds.width - width, y: bounds.y, width, height: bounds.height });
+    return roundBounds({
+      x: bounds.x + bounds.width - width,
+      y: bounds.y,
+      width,
+      height: bounds.height,
+    });
   }
   const height = bounds.height * NEXT_GROWTH_FRACTION;
-  return roundBounds({ x: bounds.x, y: bounds.y + bounds.height - height, width: bounds.width, height });
+  return roundBounds({
+    x: bounds.x,
+    y: bounds.y + bounds.height - height,
+    width: bounds.width,
+    height,
+  });
 }
 
 /** Round bounds, flooring width/height at 0 (BR-004; floors, unlike geometry.roundBounds). */
@@ -148,7 +171,8 @@ function orderedForLayout(children: LayoutTarget[]): LayoutTarget[] {
 
 function layoutWeight(child: LayoutTarget): number {
   const size = Math.sqrt(Math.max(1, child.weight || child.lineCount || 1));
-  const childCount = child.type === "folder" ? (child.folders?.size ?? 0) + (child.files?.size ?? 0) : 0;
+  const childCount =
+    child.type === "folder" ? (child.folders?.size ?? 0) + (child.files?.size ?? 0) : 0;
   const structure = child.type === "folder" ? Math.log2(childCount + 2) : 0;
   return Math.max(MIN_LAYOUT_WEIGHT, size + structure);
 }
@@ -157,7 +181,11 @@ function typeRank(child: LayoutTarget): number {
   return child.type === "folder" ? 0 : 1;
 }
 
-function layoutRectangles(children: LayoutTarget[], preferredBounds: Bounds, fallbackBounds: Bounds): LayoutRectangle[] {
+function layoutRectangles(
+  children: LayoutTarget[],
+  preferredBounds: Bounds,
+  fallbackBounds: Bounds,
+): LayoutRectangle[] {
   const bounds = hasUsableArea(preferredBounds) ? preferredBounds : fallbackBounds;
   if (!hasUsableArea(bounds)) {
     return children.map((item) => ({ item, bounds }));
@@ -168,8 +196,19 @@ function layoutRectangles(children: LayoutTarget[], preferredBounds: Bounds, fal
   return rectangles.length === children.length ? rectangles : stripLayout(children, bounds);
 }
 
-function binaryPartition(entries: WeightedEntry[], bounds: Bounds, rectangles: LayoutRectangle[] = []): LayoutRectangle[] {
-  return binaryPartitionRange(entries, 0, entries.length, bounds, prefixWeights(entries), rectangles);
+function binaryPartition(
+  entries: WeightedEntry[],
+  bounds: Bounds,
+  rectangles: LayoutRectangle[] = [],
+): LayoutRectangle[] {
+  return binaryPartitionRange(
+    entries,
+    0,
+    entries.length,
+    bounds,
+    prefixWeights(entries),
+    rectangles,
+  );
 }
 
 function binaryPartitionRange(
@@ -181,10 +220,14 @@ function binaryPartitionRange(
   rectangles: LayoutRectangle[],
 ): LayoutRectangle[] {
   const count = end - start;
-  if (count === 0) return rectangles;
+  if (count === 0) {
+    return rectangles;
+  }
   if (count === 1) {
     const entry = entries[start];
-    if (!entry) return rectangles;
+    if (!entry) {
+      return rectangles;
+    }
     rectangles.push({ item: entry.item, bounds });
     return rectangles;
   }
@@ -196,13 +239,51 @@ function binaryPartitionRange(
 
   if (bounds.width >= bounds.height) {
     const firstWidth = bounds.width * ratio;
-    binaryPartitionRange(entries, start, split, { x: bounds.x, y: bounds.y, width: firstWidth, height: bounds.height }, prefixes, rectangles);
-    return binaryPartitionRange(entries, split, end, { x: bounds.x + firstWidth, y: bounds.y, width: bounds.width - firstWidth, height: bounds.height }, prefixes, rectangles);
+    binaryPartitionRange(
+      entries,
+      start,
+      split,
+      { x: bounds.x, y: bounds.y, width: firstWidth, height: bounds.height },
+      prefixes,
+      rectangles,
+    );
+    return binaryPartitionRange(
+      entries,
+      split,
+      end,
+      {
+        x: bounds.x + firstWidth,
+        y: bounds.y,
+        width: bounds.width - firstWidth,
+        height: bounds.height,
+      },
+      prefixes,
+      rectangles,
+    );
   }
 
   const firstHeight = bounds.height * ratio;
-  binaryPartitionRange(entries, start, split, { x: bounds.x, y: bounds.y, width: bounds.width, height: firstHeight }, prefixes, rectangles);
-  return binaryPartitionRange(entries, split, end, { x: bounds.x, y: bounds.y + firstHeight, width: bounds.width, height: bounds.height - firstHeight }, prefixes, rectangles);
+  binaryPartitionRange(
+    entries,
+    start,
+    split,
+    { x: bounds.x, y: bounds.y, width: bounds.width, height: firstHeight },
+    prefixes,
+    rectangles,
+  );
+  return binaryPartitionRange(
+    entries,
+    split,
+    end,
+    {
+      x: bounds.x,
+      y: bounds.y + firstHeight,
+      width: bounds.width,
+      height: bounds.height - firstHeight,
+    },
+    prefixes,
+    rectangles,
+  );
 }
 
 function splitEntryRange(start: number, end: number, prefixes: number[]): number {
@@ -215,7 +296,12 @@ function splitEntryRange(start: number, end: number, prefixes: number[]): number
   return previousDelta <= candidateDelta ? previous : candidate;
 }
 
-function firstSplitAtOrAfterWeight(prefixes: number[], low: number, high: number, targetWeight: number): number {
+function firstSplitAtOrAfterWeight(
+  prefixes: number[],
+  low: number,
+  high: number,
+  targetWeight: number,
+): number {
   while (low < high) {
     const mid = Math.floor((low + high) / 2);
     if (prefixes[mid]! < targetWeight) {
@@ -229,7 +315,9 @@ function firstSplitAtOrAfterWeight(prefixes: number[], low: number, high: number
 
 function prefixWeights(entries: { weight: number }[]): number[] {
   const prefixes = [0];
-  for (const entry of entries) prefixes.push(prefixes[prefixes.length - 1]! + entry.weight);
+  for (const entry of entries) {
+    prefixes.push(prefixes[prefixes.length - 1]! + entry.weight);
+  }
   return prefixes;
 }
 
@@ -265,23 +353,47 @@ function reserveGrowthArea(bounds: Bounds, fraction: number): ReservedGrowthArea
   if (horizontal) {
     const growthWidth = bounds.width * fraction;
     return {
-      childBounds: { x: bounds.x, y: bounds.y, width: Math.max(0, bounds.width - growthWidth), height: bounds.height },
-      growthArea: { x: bounds.x + bounds.width - growthWidth, y: bounds.y, width: growthWidth, height: bounds.height },
+      childBounds: {
+        x: bounds.x,
+        y: bounds.y,
+        width: Math.max(0, bounds.width - growthWidth),
+        height: bounds.height,
+      },
+      growthArea: {
+        x: bounds.x + bounds.width - growthWidth,
+        y: bounds.y,
+        width: growthWidth,
+        height: bounds.height,
+      },
     };
   }
 
   const growthHeight = bounds.height * fraction;
   return {
-    childBounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: Math.max(0, bounds.height - growthHeight) },
-    growthArea: { x: bounds.x, y: bounds.y + bounds.height - growthHeight, width: bounds.width, height: growthHeight },
+    childBounds: {
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: Math.max(0, bounds.height - growthHeight),
+    },
+    growthArea: {
+      x: bounds.x,
+      y: bounds.y + bounds.height - growthHeight,
+      width: bounds.width,
+      height: growthHeight,
+    },
   };
 }
 
 function compareLayoutEntries(a: LayoutEntry, b: LayoutEntry): number {
   const typeDelta = a.typeRank - b.typeRank;
-  if (typeDelta !== 0) return typeDelta;
+  if (typeDelta !== 0) {
+    return typeDelta;
+  }
   const weightDelta = b.layoutWeight - a.layoutWeight;
-  if (Math.abs(weightDelta) > 1e-9) return weightDelta;
+  if (Math.abs(weightDelta) > 1e-9) {
+    return weightDelta;
+  }
   return a.child.path.localeCompare(b.child.path);
 }
 
@@ -300,7 +412,9 @@ function insetBounds(bounds: Bounds, inset: number): Bounds {
 }
 
 function gutterFor(bounds: Bounds, childCount: number): number {
-  if (childCount <= 1) return 0;
+  if (childCount <= 1) {
+    return 0;
+  }
   return Math.min(GUTTER_MAX, Math.min(bounds.width, bounds.height) * GUTTER_RATIO);
 }
 

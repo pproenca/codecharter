@@ -11,27 +11,36 @@ import type { ResolvedAddress, ResolvedAddressFragment } from "./resolver.ts";
 
 const ACTIVITY_STATES = ["reading", "editing", "testing", "reviewing"] as const;
 const ACTIVITY_STATE_SET: ReadonlySet<string> = new Set(ACTIVITY_STATES);
-const OPTIONAL_ACTIVITY_EVENT_FIELDS = ["hookEventName", "sessionId", "threadId", "threadUri", "turnId", "model"] as const;
+const OPTIONAL_ACTIVITY_EVENT_FIELDS = [
+  "hookEventName",
+  "sessionId",
+  "threadId",
+  "threadUri",
+  "turnId",
+  "model",
+] as const;
 
-export type ActivityState = typeof ACTIVITY_STATES[number];
+export type ActivityState = (typeof ACTIVITY_STATES)[number];
 export type ActivityStateInput = string | undefined;
 export type ActivityAddressFragment = Partial<ResolvedAddressFragment> & {
   [key: string]: unknown;
 };
-export type ActivityAddress = Partial<Pick<
-  ResolvedAddress,
-  | "level"
-  | "targetType"
-  | "path"
-  | "geohash"
-  | "deepLink"
-  | "breadcrumb"
-  | "bounds"
-  | "geo"
-  | "lineRange"
-  | "tokenRange"
-  | "coveringSet"
->> & {
+export type ActivityAddress = Partial<
+  Pick<
+    ResolvedAddress,
+    | "level"
+    | "targetType"
+    | "path"
+    | "geohash"
+    | "deepLink"
+    | "breadcrumb"
+    | "bounds"
+    | "geo"
+    | "lineRange"
+    | "tokenRange"
+    | "coveringSet"
+  >
+> & {
   fragments?: ActivityAddressFragment[];
   [key: string]: unknown;
 };
@@ -67,7 +76,10 @@ export type ActivityEvent = {
 };
 
 /** Build a normalized activity event, defaulting id/agent/timestamp/note. */
-export function createActivityEvent(address: ActivityAddress, input: ActivityEventInput): ActivityEvent {
+export function createActivityEvent(
+  address: ActivityAddress,
+  input: ActivityEventInput,
+): ActivityEvent {
   const event: ActivityEvent = {
     id: input.id ?? randomUUID(),
     agentId: input.agentId ?? "agent",
@@ -78,15 +90,21 @@ export function createActivityEvent(address: ActivityAddress, input: ActivityEve
   };
   for (const key of OPTIONAL_ACTIVITY_EVENT_FIELDS) {
     const value = input[key];
-    if (value) event[key] = value;
+    if (value) {
+      event[key] = value;
+    }
   }
   return event;
 }
 
 /** Normalize a raw state string (BR-044): `blocked`→`reviewing`, unknown→`reading`. */
 export function normalizeActivityState(activityState: ActivityStateInput): ActivityState {
-  if (activityState === "blocked") return "reviewing";
-  if (isActivityState(activityState)) return activityState;
+  if (activityState === "blocked") {
+    return "reviewing";
+  }
+  if (isActivityState(activityState)) {
+    return activityState;
+  }
   return "reading";
 }
 

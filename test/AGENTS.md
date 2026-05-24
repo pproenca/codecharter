@@ -21,6 +21,6 @@ This directory holds root-level smoke and package-output tests.
 
 ## Validation
 
-- Use `npm test` for the full current test contract.
+- Use `pnpm test` for the full current test contract.
 - For one root smoke file, use `node --test test/<file>.mjs` when a narrower
   loop is useful.

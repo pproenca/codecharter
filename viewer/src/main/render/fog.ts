@@ -19,7 +19,11 @@ import { normalizeMapPath, pathFromDeepLink } from "./primitives.ts";
 import { canRenderSourceText, landmarkScore, shouldLabelFile } from "./lod.ts";
 import { isLiveActivityEvent } from "./activity.ts";
 
-export function buildActivityFogState(codemap: CodecharterCodemap | null | undefined, events: ActivityEvent[] | null | undefined, options: ActivityFogOptions = {}): ActivityFogState {
+export function buildActivityFogState(
+  codemap: CodecharterCodemap | null | undefined,
+  events: ActivityEvent[] | null | undefined,
+  options: ActivityFogOptions = {},
+): ActivityFogState {
   const files = codemap?.files ?? {};
   const folders = codemap?.folders ?? {};
   const fileStates = new Map<string, FogState>();
@@ -29,15 +33,21 @@ export function buildActivityFogState(codemap: CodecharterCodemap | null | undef
 
   for (const event of events ?? []) {
     const path = activityEventFilePath(event, files);
-    if (!path) continue;
+    if (!path) {
+      continue;
+    }
     const markerFogState = event.viewerFogState;
     if (markerFogState) {
       visitedFiles.add(path);
-      if (markerFogState === "visible") visibleFiles.add(path);
+      if (markerFogState === "visible") {
+        visibleFiles.add(path);
+      }
       continue;
     }
     visitedFiles.add(path);
-    if (isLiveActivityEvent(event, options)) visibleFiles.add(path);
+    if (isLiveActivityEvent(event, options)) {
+      visibleFiles.add(path);
+    }
   }
 
   for (const path of visitedFiles) {
@@ -58,17 +68,35 @@ export function buildActivityFogState(codemap: CodecharterCodemap | null | undef
   };
 }
 
-export function fogStateForFile(fog: ActivityFogState | null | undefined, fileOrPath: MapFile | string | null | undefined, { selected = false } = {}): FogState {
-  if (!fog) return "visible";
-  if (selected) return "visible";
+export function fogStateForFile(
+  fog: ActivityFogState | null | undefined,
+  fileOrPath: MapFile | string | null | undefined,
+  { selected = false } = {},
+): FogState {
+  if (!fog) {
+    return "visible";
+  }
+  if (selected) {
+    return "visible";
+  }
   const path = normalizeMapPath(typeof fileOrPath === "string" ? fileOrPath : fileOrPath?.path);
   return fog.files.get(path) ?? "unexplored";
 }
 
-export function fogStateForFolder(fog: ActivityFogState | null | undefined, folderOrPath: MapFolder | string | null | undefined, { selected = false } = {}): FogState {
-  if (!fog) return "visible";
-  if (selected) return "visible";
-  const path = normalizeMapPath(typeof folderOrPath === "string" ? folderOrPath : folderOrPath?.path);
+export function fogStateForFolder(
+  fog: ActivityFogState | null | undefined,
+  folderOrPath: MapFolder | string | null | undefined,
+  { selected = false } = {},
+): FogState {
+  if (!fog) {
+    return "visible";
+  }
+  if (selected) {
+    return "visible";
+  }
+  const path = normalizeMapPath(
+    typeof folderOrPath === "string" ? folderOrPath : folderOrPath?.path,
+  );
   return fog.folders.get(path) ?? "unexplored";
 }
 
@@ -80,10 +108,26 @@ export function shouldShowFogSourceText(fogState: FogState, { selected = false }
   return shouldShowFogLabel(fogState, { selected });
 }
 
-export function shouldLabelFoggedFile({ file, box, scale, selected, fogState }: { file: MapFile; box: BoxSize; scale: number; selected?: boolean; fogState: FogState }) {
-  if (!shouldShowFogLabel(fogState, { selected })) return false;
+export function shouldLabelFoggedFile({
+  file,
+  box,
+  scale,
+  selected,
+  fogState,
+}: {
+  file: MapFile;
+  box: BoxSize;
+  scale: number;
+  selected?: boolean;
+  fogState: FogState;
+}) {
+  if (!shouldShowFogLabel(fogState, { selected })) {
+    return false;
+  }
   if (fogState === "explored" && canRenderSourceText(file, box)) {
-    if (landmarkScore(file) > 0 && box.width > 76 && box.height > 26) return true;
+    if (landmarkScore(file) > 0 && box.width > 76 && box.height > 26) {
+      return true;
+    }
     return scale > 2.2 && box.width > 78 && box.height > 24;
   }
   return shouldLabelFile({
@@ -103,7 +147,10 @@ export function discoveryFogVeilStyle() {
   };
 }
 
-export function discoveryFogRevealStyle({ visibleFile = false, readable = false }: { visibleFile?: boolean; readable?: boolean } = {}) {
+export function discoveryFogRevealStyle({
+  visibleFile = false,
+  readable = false,
+}: { visibleFile?: boolean; readable?: boolean } = {}) {
   if (readable) {
     return {
       alpha: visibleFile ? 1 : 0.88,
@@ -133,34 +180,56 @@ export function discoveryFogRevealStyle({ visibleFile = false, readable = false 
   };
 }
 
-function activityEventFilePath(event: ActivityEvent, files: MapTargetRecord<MapFile>): string | null {
+function activityEventFilePath(
+  event: ActivityEvent,
+  files: MapTargetRecord<MapFile>,
+): string | null {
   for (const candidate of [
     event.address?.path,
     event.path,
     pathFromDeepLink(event.address?.deepLink),
   ]) {
     const path = normalizeMapPath(candidate);
-    if (path && files[path]) return path;
+    if (path && files[path]) {
+      return path;
+    }
   }
   return null;
 }
 
-function markAncestorFolderFog(folderStates: Map<string, FogState>, folders: MapTargetRecord<MapFolder>, filePath: string, fogState: FogState): void {
-  if (Object.hasOwn(folders, "")) mergeFolderFogState(folderStates, "", fogState);
+function markAncestorFolderFog(
+  folderStates: Map<string, FogState>,
+  folders: MapTargetRecord<MapFolder>,
+  filePath: string,
+  fogState: FogState,
+): void {
+  if (Object.hasOwn(folders, "")) {
+    mergeFolderFogState(folderStates, "", fogState);
+  }
   for (let index = filePath.indexOf("/"); index !== -1; index = filePath.indexOf("/", index + 1)) {
     const folderPath = filePath.slice(0, index);
-    if (Object.hasOwn(folders, folderPath)) mergeFolderFogState(folderStates, folderPath, fogState);
+    if (Object.hasOwn(folders, folderPath)) {
+      mergeFolderFogState(folderStates, folderPath, fogState);
+    }
   }
 }
 
-function mergeFolderFogState(folderStates: Map<string, FogState>, folderPath: string, fogState: FogState): void {
+function mergeFolderFogState(
+  folderStates: Map<string, FogState>,
+  folderPath: string,
+  fogState: FogState,
+): void {
   if (fogStateRank(fogState) > fogStateRank(folderStates.get(folderPath))) {
     folderStates.set(folderPath, fogState);
   }
 }
 
 function fogStateRank(fogState: FogState | undefined): number {
-  if (fogState === "visible") return 2;
-  if (fogState === "explored") return 1;
+  if (fogState === "visible") {
+    return 2;
+  }
+  if (fogState === "explored") {
+    return 1;
+  }
   return 0;
 }

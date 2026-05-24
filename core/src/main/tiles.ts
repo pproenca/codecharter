@@ -54,7 +54,10 @@ export function buildTileIndex(codemap: TileCodemap, level: MapLevel = "file"): 
 }
 
 /** Fetch the single tile for an exact prefix. */
-export function getTile(codemap: TileCodemap, { level = "file", prefix }: { level?: MapLevel; prefix: string }): Tile {
+export function getTile(
+  codemap: TileCodemap,
+  { level = "file", prefix }: { level?: MapLevel; prefix: string },
+): Tile {
   const targets: TileSerializedTarget[] = [];
   appendMatchingTargets(targets, codemap.folders, "folder", level, prefix);
   appendMatchingTargets(targets, codemap.files, "file", level, prefix);
@@ -64,18 +67,30 @@ export function getTile(codemap: TileCodemap, { level = "file", prefix }: { leve
 /** The sorted, unique set of tile prefixes present at a level. */
 export function visiblePrefixes(codemap: TileCodemap, level: MapLevel = "file"): string[] {
   return sortedUniqueStrings(
-    [...objectValues(codemap.folders), ...objectValues(codemap.files)].map((target) => tilePrefixForTarget(target, level)),
+    [...objectValues(codemap.folders), ...objectValues(codemap.files)].map((target) =>
+      tilePrefixForTarget(target, level),
+    ),
   );
 }
 
-function addTarget(tiles: Map<string, TileSerializedTarget[]>, prefix: string, target: TileSerializedTarget): void {
-  if (!tiles.has(prefix)) tiles.set(prefix, []);
+function addTarget(
+  tiles: Map<string, TileSerializedTarget[]>,
+  prefix: string,
+  target: TileSerializedTarget,
+): void {
+  if (!tiles.has(prefix)) {
+    tiles.set(prefix, []);
+  }
   tiles.get(prefix)?.push(target);
 }
 
 function* mapTargets(codemap: TileCodemap): Generator<TileSerializedTarget> {
-  for (const folder of sortedTargets(codemap.folders)) yield serializeTarget(folder, "folder");
-  for (const file of sortedTargets(codemap.files)) yield serializeTarget(file, "file");
+  for (const folder of sortedTargets(codemap.folders)) {
+    yield serializeTarget(folder, "folder");
+  }
+  for (const file of sortedTargets(codemap.files)) {
+    yield serializeTarget(file, "file");
+  }
 }
 
 function sortedTargets(targets: Record<string, TileMapTarget>): TileMapTarget[] {
@@ -89,12 +104,19 @@ function appendMatchingTargets(
   level: MapLevel,
   prefix: string,
 ): void {
-  const matches = [...objectValues(targets)].filter((target) => tilePrefixForTarget(target, level) === prefix);
+  const matches = [...objectValues(targets)].filter(
+    (target) => tilePrefixForTarget(target, level) === prefix,
+  );
   sortIfNeeded(matches, compareTargetPaths);
-  for (const target of matches) serialized.push(serializeTarget(target, targetType));
+  for (const target of matches) {
+    serialized.push(serializeTarget(target, targetType));
+  }
 }
 
-function compareTileEntries([left]: [string, TileSerializedTarget[]], [right]: [string, TileSerializedTarget[]]): number {
+function compareTileEntries(
+  [left]: [string, TileSerializedTarget[]],
+  [right]: [string, TileSerializedTarget[]],
+): number {
   return left.localeCompare(right);
 }
 

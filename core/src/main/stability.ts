@@ -7,7 +7,13 @@
  * treated as delete + add — a documented limitation, brief Open Question Q3).
  */
 
-import { assignAddress, layoutChildren, nextGrowthArea, placeChildrenInGrowth, roundBounds } from "./district-layout.ts";
+import {
+  assignAddress,
+  layoutChildren,
+  nextGrowthArea,
+  placeChildrenInGrowth,
+  roundBounds,
+} from "./district-layout.ts";
 import { sortedChildren, sortedFiles, sortedFolders } from "./tree.ts";
 import type { Bounds } from "./geometry.ts";
 import type { GeohashedCoordinate } from "./geo-types.ts";
@@ -39,22 +45,37 @@ type StableFolderNode = FolderNode & LayoutTarget & { growthArea?: Bounds };
 type StableMapNode = MapNode & LayoutTarget;
 
 /** Reconcile a freshly-built tree against a previous layout to keep addresses stable. */
-export function stabilizeTreeLayout(root: StableFolderNode, previous: PreviousCodemapLayout | null | undefined): StableFolderNode {
-  if (!previous) return root;
+export function stabilizeTreeLayout(
+  root: StableFolderNode,
+  previous: PreviousCodemapLayout | null | undefined,
+): StableFolderNode {
+  if (!previous) {
+    return root;
+  }
   stabilizeFolder(root, previous, root.bounds);
   return root;
 }
 
-function stabilizeFolder(folder: StableFolderNode, previous: PreviousCodemapLayout, fallbackBounds: Bounds | undefined): void {
+function stabilizeFolder(
+  folder: StableFolderNode,
+  previous: PreviousCodemapLayout,
+  fallbackBounds: Bounds | undefined,
+): void {
   const previousFolder = previous.folders?.[folder.path];
   if (previousFolder) {
     folder.bounds = previousFolder.bounds;
-    if (previousFolder.geo) folder.geo = previousFolder.geo;
+    if (previousFolder.geo) {
+      folder.geo = previousFolder.geo;
+    }
     folder.growthArea = previousFolder.growthArea ?? previousFolder.bounds;
   } else {
-    if (!folder.bounds && fallbackBounds) folder.bounds = fallbackBounds;
+    if (!folder.bounds && fallbackBounds) {
+      folder.bounds = fallbackBounds;
+    }
     assignAddress(folder);
-    if (!folder.growthArea && folder.bounds) folder.growthArea = folder.bounds;
+    if (!folder.growthArea && folder.bounds) {
+      folder.growthArea = folder.bounds;
+    }
   }
 
   const newChildren: StableMapNode[] = [];
@@ -71,7 +92,9 @@ function stabilizeFolder(folder: StableFolderNode, previous: PreviousCodemapLayo
     const previousFile = previous.files?.[child.path];
     if (previousFile) {
       child.bounds = previousFile.bounds;
-      if (previousFile.geo) child.geo = previousFile.geo;
+      if (previousFile.geo) {
+        child.geo = previousFile.geo;
+      }
     } else {
       newChildren.push(child);
     }
@@ -79,22 +102,33 @@ function stabilizeFolder(folder: StableFolderNode, previous: PreviousCodemapLayo
 
   if (newChildren.length > 0) {
     const growthBounds = folder.growthArea ?? folder.bounds;
-    if (!growthBounds) throw new Error(`Cannot place new children without bounds: ${folder.path}`);
+    if (!growthBounds) {
+      throw new Error(`Cannot place new children without bounds: ${folder.path}`);
+    }
     placeChildrenInGrowth(newChildren, growthBounds);
     folder.growthArea = nextGrowthArea(growthBounds);
     const newFiles: StableFileNode[] = [];
     const newFolders: StableFolderNode[] = [];
     for (const child of newChildren) {
-      if (child.type === "file") newFiles.push(child);
-      else if (child.type === "folder") newFolders.push(child);
+      if (child.type === "file") {
+        newFiles.push(child);
+      } else if (child.type === "folder") {
+        newFolders.push(child);
+      }
     }
-    for (const child of newFiles) assignAddress(child);
-    for (const child of newFolders) layoutNewFolder(child, child.bounds);
+    for (const child of newFiles) {
+      assignAddress(child);
+    }
+    for (const child of newFolders) {
+      layoutNewFolder(child, child.bounds);
+    }
   }
 }
 
 function layoutNewFolder(folder: StableFolderNode, bounds: Bounds | undefined): void {
-  if (!bounds) throw new Error(`Cannot layout folder without bounds: ${folder.path}`);
+  if (!bounds) {
+    throw new Error(`Cannot layout folder without bounds: ${folder.path}`);
+  }
   folder.bounds = roundBounds(bounds);
   assignAddress(folder);
 
@@ -107,7 +141,9 @@ function layoutNewFolder(folder: StableFolderNode, bounds: Bounds | undefined): 
   const { growthArea } = layoutChildren(children, folder.bounds);
   folder.growthArea = growthArea;
 
-  for (const child of sortedFolders(folder)) layoutNewFolder(child, child.bounds);
+  for (const child of sortedFolders(folder)) {
+    layoutNewFolder(child, child.bounds);
+  }
   for (const child of sortedFiles(folder)) {
     assignAddress(child);
   }

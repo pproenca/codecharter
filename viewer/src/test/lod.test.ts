@@ -18,7 +18,11 @@ test("source text is readable at the zoom level where source lines visibly fit",
     lineCount: 660,
     bounds,
   };
-  const box = screenBoundsForView(bounds, { x: 0, y: 0, scale: 179.48 }, { width: 2142, height: 1324 });
+  const box = screenBoundsForView(
+    bounds,
+    { x: 0, y: 0, scale: 179.48 },
+    { width: 2142, height: 1324 },
+  );
 
   assert.equal(canRenderSourceText(file, box), true);
 });

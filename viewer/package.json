@@ -6,16 +6,16 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsgo --noEmit",
     "test": "tsx --test src/test/*.test.ts"
-  },
-  "engines": {
-    "node": ">=22"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
     "esbuild": "^0.24.2",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

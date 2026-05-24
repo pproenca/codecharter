@@ -40,7 +40,7 @@ This package owns the browser Code Map experience. Read `../CONTEXT-MAP.md`,
 - Viewer behavior tests belong in `viewer/src/test/`.
 - Prefer tests around render-model helpers for LOD, target reconciliation,
   source-panel formatting, activity, fog, and route parsing.
-- Use `./node_modules/.bin/tsx --test viewer/src/test/<file>.test.ts` for
-  focused viewer proof.
-- Run `npm run build` after frontend or bundle changes.
+- Use `pnpm exec tsx --test viewer/src/test/<file>.test.ts` for focused viewer
+  proof.
+- Run `pnpm build` after frontend or bundle changes.
 - Inspect the viewer in a browser when a change is visual or interactive.

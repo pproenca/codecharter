@@ -6,12 +6,12 @@ you are changing.
 
 ## Contexts
 
-| Area | Paths | Context | ADRs |
-| --- | --- | --- | --- |
-| Product and shared map language | `README.md`, `AGENTS.md`, `docs/`, root config | `CONTEXT.md` | `docs/adr/` |
-| Core engine, CLI, server, and data model | `core/` | `core/CONTEXT.md` | `docs/adr/` |
-| Browser viewer and render model | `viewer/` | `viewer/CONTEXT.md` | `docs/adr/` |
-| Local issue and scratch workspace | `.scratch/`, `docs/agents/` | `CONTEXT.md` | `docs/adr/` |
+| Area                                     | Paths                                          | Context             | ADRs        |
+| ---------------------------------------- | ---------------------------------------------- | ------------------- | ----------- |
+| Product and shared map language          | `README.md`, `AGENTS.md`, `docs/`, root config | `CONTEXT.md`        | `docs/adr/` |
+| Core engine, CLI, server, and data model | `core/`                                        | `core/CONTEXT.md`   | `docs/adr/` |
+| Browser viewer and render model          | `viewer/`                                      | `viewer/CONTEXT.md` | `docs/adr/` |
+| Local issue and scratch workspace        | `.scratch/`, `docs/agents/`                    | `CONTEXT.md`        | `docs/adr/` |
 
 ## Reading Rules
 

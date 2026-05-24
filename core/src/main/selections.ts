@@ -104,9 +104,11 @@ export type NamedAddress = {
   address: NamedAddressAddress;
 };
 
-export type NamedAddressAddress = ResolvedAddress | (Partial<ResolvedAddress> & {
-  [key: string]: unknown;
-});
+export type NamedAddressAddress =
+  | ResolvedAddress
+  | (Partial<ResolvedAddress> & {
+      [key: string]: unknown;
+    });
 
 type ResolvablePlace = NamedSelection | MapAnnotation;
 type CornerName = "northWest" | "northEast" | "southWest" | "southEast";
@@ -114,17 +116,30 @@ const CORNER_NAMES: readonly CornerName[] = ["northWest", "northEast", "southWes
 
 // Level → resolver dispatch table (variable-target dispatch, resolved here).
 const SELECTION_RESOLVERS: Map<MapLevel, SelectionResolver> = new Map([
-  ["world", (codemap, geometry, level) => resolveFolderTargets(codemap, geometry, level, { includeRoot: true, rootOnly: true })],
+  [
+    "world",
+    (codemap, geometry, level) =>
+      resolveFolderTargets(codemap, geometry, level, { includeRoot: true, rootOnly: true }),
+  ],
   ["region", resolveFolderTargets],
   ["folder", resolveFolderTargets],
   ["file", resolveFileTargets],
   ["code", (codemap, geometry, level) => resolveCodeTargets(codemap, geometry, level, "lineRange")],
-  ["lineRange", (codemap, geometry, level) => resolveCodeTargets(codemap, geometry, level, "lineRange")],
-  ["tokenRange", (codemap, geometry, level) => resolveCodeTargets(codemap, geometry, level, "tokenRange")],
+  [
+    "lineRange",
+    (codemap, geometry, level) => resolveCodeTargets(codemap, geometry, level, "lineRange"),
+  ],
+  [
+    "tokenRange",
+    (codemap, geometry, level) => resolveCodeTargets(codemap, geometry, level, "tokenRange"),
+  ],
 ]);
 
 /** Resolve a selection's geometry to its covered targets + spatial frame (deterministic). */
-export function resolveSelection(codemap: CodecharterCodemap, selection: SelectionInput): ResolvedSelection {
+export function resolveSelection(
+  codemap: CodecharterCodemap,
+  selection: SelectionInput,
+): ResolvedSelection {
   const level = selection.level ?? "file";
   const geometry = normalizeSelectionGeometry(selection.geometry);
   const targets = selectionResolverForLevel(level)(codemap, geometry, level);
@@ -137,7 +152,10 @@ export function resolveSelection(codemap: CodecharterCodemap, selection: Selecti
   };
 }
 
-export function createNamedSelection(codemap: CodecharterCodemap, input: SelectionInput): NamedSelection {
+export function createNamedSelection(
+  codemap: CodecharterCodemap,
+  input: SelectionInput,
+): NamedSelection {
   const resolved = resolveSelection(codemap, input);
   const now = new Date().toISOString();
   return {
@@ -151,7 +169,10 @@ export function createNamedSelection(codemap: CodecharterCodemap, input: Selecti
   };
 }
 
-export function createMapAnnotation(codemap: CodecharterCodemap, input: SelectionInput): MapAnnotation {
+export function createMapAnnotation(
+  codemap: CodecharterCodemap,
+  input: SelectionInput,
+): MapAnnotation {
   const resolved = resolveSelection(codemap, input);
   const now = new Date().toISOString();
   return withAnnotationPrompt({
@@ -166,7 +187,11 @@ export function createMapAnnotation(codemap: CodecharterCodemap, input: Selectio
   });
 }
 
-export function createNamedAddress(input: { id?: string; name?: string; address: NamedAddressAddress }): NamedAddress {
+export function createNamedAddress(input: {
+  id?: string;
+  name?: string;
+  address: NamedAddressAddress;
+}): NamedAddress {
   const now = new Date().toISOString();
   return {
     id: input.id ?? randomUUID(),
@@ -178,11 +203,25 @@ export function createNamedAddress(input: { id?: string; name?: string; address:
   };
 }
 
-export function refreshPlaceResolution(codemap: CodecharterCodemap, place: MapAnnotation): MapAnnotation;
-export function refreshPlaceResolution(codemap: CodecharterCodemap, place: NamedSelection): NamedSelection;
-export function refreshPlaceResolution<T>(codemap: CodecharterCodemap, place: T): T | NamedSelection | MapAnnotation;
-export function refreshPlaceResolution<T>(codemap: CodecharterCodemap, place: T): T | NamedSelection | MapAnnotation {
-  if (!isResolvablePlace(place)) return place;
+export function refreshPlaceResolution(
+  codemap: CodecharterCodemap,
+  place: MapAnnotation,
+): MapAnnotation;
+export function refreshPlaceResolution(
+  codemap: CodecharterCodemap,
+  place: NamedSelection,
+): NamedSelection;
+export function refreshPlaceResolution<T>(
+  codemap: CodecharterCodemap,
+  place: T,
+): T | NamedSelection | MapAnnotation;
+export function refreshPlaceResolution<T>(
+  codemap: CodecharterCodemap,
+  place: T,
+): T | NamedSelection | MapAnnotation {
+  if (!isResolvablePlace(place)) {
+    return place;
+  }
   const refreshed = {
     ...place,
     ...resolveSelection(codemap, {
@@ -195,10 +234,14 @@ export function refreshPlaceResolution<T>(codemap: CodecharterCodemap, place: T)
 
 function isResolvablePlace(place: unknown): place is ResolvablePlace {
   const record = objectRecord(place);
-  if (!record) return false;
-  return (record.kind === "drawnSelection" || record.kind === "mapAnnotation")
-    && "level" in record
-    && "geometry" in record;
+  if (!record) {
+    return false;
+  }
+  return (
+    (record.kind === "drawnSelection" || record.kind === "mapAnnotation") &&
+    "level" in record &&
+    "geometry" in record
+  );
 }
 
 function normalizeSelectionGeometry(geometry: SelectionGeometry): SelectionGeometry {
@@ -212,7 +255,11 @@ function normalizeSelectionGeometry(geometry: SelectionGeometry): SelectionGeome
   return { type: "rect", bounds };
 }
 
-function resolvedTarget(target: MapFolderTarget | MapFileTarget, targetType: "folder" | "file", level: MapLevel): ResolvedSelectionTarget {
+function resolvedTarget(
+  target: MapFolderTarget | MapFileTarget,
+  targetType: "folder" | "file",
+  level: MapLevel,
+): ResolvedSelectionTarget {
   const precision = precisionForLevel(level);
   return {
     targetType,
@@ -247,7 +294,9 @@ function resolvedCodeTarget(
 
 function selectionResolverForLevel(level: MapLevel): SelectionResolver {
   const resolver = SELECTION_RESOLVERS.get(level);
-  if (!resolver) throw new Error(`Unknown map level: ${level}`);
+  if (!resolver) {
+    throw new Error(`Unknown map level: ${level}`);
+  }
   return resolver;
 }
 
@@ -258,14 +307,24 @@ function resolveFolderTargets(
   { includeRoot = false, rootOnly = false }: { includeRoot?: boolean; rootOnly?: boolean } = {},
 ): ResolvedSelectionTarget[] {
   return intersectingTargets(codemap.folders, geometry.bounds, (folder) => {
-    if (!includeRoot && folder.path === "") return null;
-    if (rootOnly && folder.path !== "") return null;
+    if (!includeRoot && folder.path === "") {
+      return null;
+    }
+    if (rootOnly && folder.path !== "") {
+      return null;
+    }
     return resolvedTarget(folder, "folder", level);
   });
 }
 
-function resolveFileTargets(codemap: CodecharterCodemap, geometry: SelectionGeometry, level: MapLevel): ResolvedSelectionTarget[] {
-  return intersectingTargets(codemap.files, geometry.bounds, (file) => resolvedTarget(file, "file", level));
+function resolveFileTargets(
+  codemap: CodecharterCodemap,
+  geometry: SelectionGeometry,
+  level: MapLevel,
+): ResolvedSelectionTarget[] {
+  return intersectingTargets(codemap.files, geometry.bounds, (file) =>
+    resolvedTarget(file, "file", level),
+  );
 }
 
 function resolveCodeTargets(
@@ -274,7 +333,9 @@ function resolveCodeTargets(
   level: MapLevel,
   targetMode: "lineRange" | "tokenRange",
 ): ResolvedSelectionTarget[] {
-  return intersectingTargets(codemap.files, geometry.bounds, (file) => resolvedCodeTarget(codemap, file, geometry.bounds, level, targetMode));
+  return intersectingTargets(codemap.files, geometry.bounds, (file) =>
+    resolvedCodeTarget(codemap, file, geometry.bounds, level, targetMode),
+  );
 }
 
 function intersectingTargets<T extends MapFolderTarget | MapFileTarget>(
@@ -284,14 +345,21 @@ function intersectingTargets<T extends MapFolderTarget | MapFileTarget>(
 ): ResolvedSelectionTarget[] {
   const resolved: ResolvedSelectionTarget[] = [];
   for (const target of objectValues(targets)) {
-    if (!intersects(bounds, target.bounds)) continue;
+    if (!intersects(bounds, target.bounds)) {
+      continue;
+    }
     const item = resolve(target);
-    if (item) resolved.push(item);
+    if (item) {
+      resolved.push(item);
+    }
   }
   return resolved;
 }
 
-function compareSelectionTargetPaths(a: ResolvedSelectionTarget, b: ResolvedSelectionTarget): number {
+function compareSelectionTargetPaths(
+  a: ResolvedSelectionTarget,
+  b: ResolvedSelectionTarget,
+): number {
   return a.path.localeCompare(b.path);
 }
 
@@ -312,7 +380,10 @@ function spatialFrameForGeometry(geometry: SelectionGeometry, level: MapLevel): 
   };
 }
 
-function cornerGeohashes(points: Record<CornerName, Point>, precision: number): Record<CornerName, string> {
+function cornerGeohashes(
+  points: Record<CornerName, Point>,
+  precision: number,
+): Record<CornerName, string> {
   const corners: Record<CornerName, string> = {
     northWest: "",
     northEast: "",
@@ -326,7 +397,9 @@ function cornerGeohashes(points: Record<CornerName, Point>, precision: number): 
   return corners;
 }
 
-function withAnnotationPrompt(annotation: Omit<MapAnnotation, "deepLink" | "browserHash" | "codexPrompt">): MapAnnotation {
+function withAnnotationPrompt(
+  annotation: Omit<MapAnnotation, "deepLink" | "browserHash" | "codexPrompt">,
+): MapAnnotation {
   const linked = {
     ...annotation,
     deepLink: createCodemapDeepLink("annotation", annotation.id),
@@ -341,9 +414,11 @@ function withAnnotationPrompt(annotation: Omit<MapAnnotation, "deepLink" | "brow
 function codexPromptForAnnotation(annotation: Omit<MapAnnotation, "codexPrompt">): string {
   const comment = annotation.comment?.trim() || "<empty>";
   const reference = doubleQuote(annotation.deepLink);
-  return `CodeCharter annotation: ${annotation.deepLink}\n`
-    + `Note: ${comment}\n`
-    + `Resolve: codecharter --json resolve ${reference}`;
+  return (
+    `CodeCharter annotation: ${annotation.deepLink}\n` +
+    `Note: ${comment}\n` +
+    `Resolve: codecharter --json resolve ${reference}`
+  );
 }
 
 function doubleQuote(value: unknown): string {
@@ -352,16 +427,27 @@ function doubleQuote(value: unknown): string {
 
 function annotationName(input: SelectionInput): string {
   const explicit = input.name?.trim();
-  if (explicit) return explicit;
+  if (explicit) {
+    return explicit;
+  }
   const comment = input.comment?.trim();
-  if (!comment) return DEFAULT_ANNOTATION_NAME;
+  if (!comment) {
+    return DEFAULT_ANNOTATION_NAME;
+  }
   const firstLine = firstNonblankLine(comment);
-  if (!firstLine) return DEFAULT_ANNOTATION_NAME;
+  if (!firstLine) {
+    return DEFAULT_ANNOTATION_NAME;
+  }
   return firstLine.length > ANNOTATION_NAME_MAX_LENGTH
     ? `${firstLine.slice(0, ANNOTATION_NAME_MAX_LENGTH - 3)}...`
     : firstLine;
 }
 
 function firstNonblankLine(value: string): string {
-  return value.split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? "";
+  return (
+    value
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(Boolean) ?? ""
+  );
 }

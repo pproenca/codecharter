@@ -35,21 +35,35 @@ export async function ensureLocalGitExcludes(
   patterns: readonly string[] = LOCAL_CODECHARTER_EXCLUDES,
 ): Promise<IgnoreFileResult> {
   const excludePath = await localGitExcludePath(root);
-  if (!excludePath) return { skipped: true, patternsAdded: [] };
+  if (!excludePath) {
+    return { skipped: true, patternsAdded: [] };
+  }
   return ensureIgnoreFile(excludePath, patterns);
 }
 
-async function ensureIgnoreFile(path: string, patterns: readonly string[]): Promise<IgnoreFileResult> {
+async function ensureIgnoreFile(
+  path: string,
+  patterns: readonly string[],
+): Promise<IgnoreFileResult> {
   let current = "";
   try {
     current = await readFile(path, "utf8");
   } catch (error) {
-    if (!isErrnoException(error) || error.code !== "ENOENT") throw error;
+    if (!isErrnoException(error) || error.code !== "ENOENT") {
+      throw error;
+    }
   }
 
-  const existing = new Set(current.split(/\r?\n/).map((line) => line.trim()).filter(Boolean));
+  const existing = new Set(
+    current
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean),
+  );
   const missing = patterns.filter((pattern) => !existing.has(pattern));
-  if (missing.length === 0) return { skipped: false, patternsAdded: [] };
+  if (missing.length === 0) {
+    return { skipped: false, patternsAdded: [] };
+  }
 
   await mkdir(dirname(path), { recursive: true });
   const separator = current.length === 0 || current.endsWith("\n") ? "" : "\n";
@@ -59,9 +73,13 @@ async function ensureIgnoreFile(path: string, patterns: readonly string[]): Prom
 
 async function localGitExcludePath(root: string): Promise<string | null> {
   try {
-    const { stdout } = await execFileText("git", ["rev-parse", "--git-path", "info/exclude"], { cwd: root });
+    const { stdout } = await execFileText("git", ["rev-parse", "--git-path", "info/exclude"], {
+      cwd: root,
+    });
     const path = stdout.trim();
-    if (!path) return null;
+    if (!path) {
+      return null;
+    }
     return isAbsolute(path) ? path : join(root, path);
   } catch {
     return null;

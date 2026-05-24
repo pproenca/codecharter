@@ -15,7 +15,11 @@ import { objectRecord, sortedUniqueStrings } from "./collections.ts";
 import type { Bounds } from "./geometry.ts";
 import type { GeohashedCoordinate } from "./geo-types.ts";
 import type { MapLevel } from "./levels.ts";
-import type { CodeRangeFragmentGeometry, CodeRangeRequest, NormalizedRange } from "./line-coordinate.ts";
+import type {
+  CodeRangeFragmentGeometry,
+  CodeRangeRequest,
+  NormalizedRange,
+} from "./line-coordinate.ts";
 
 export type MapFolderTarget = {
   path: string;
@@ -70,13 +74,20 @@ type FragmentCoverage = {
 };
 
 /** Resolve a path (+ optional code range) to its address. @throws if the path is not on the map. */
-export function resolveAddress(codemap: CodecharterCodemap, request: AddressRequest): ResolvedAddress {
+export function resolveAddress(
+  codemap: CodecharterCodemap,
+  request: AddressRequest,
+): ResolvedAddress {
   const path = normalizePathForMap(request.path);
   const file = codemap.files[path];
   const folder = codemap.folders[path];
 
-  if (file) return resolveFileAddress(file, request);
-  if (folder) return resolveFolderAddress(folder);
+  if (file) {
+    return resolveFileAddress(file, request);
+  }
+  if (folder) {
+    return resolveFolderAddress(folder);
+  }
   throw new Error(`No map target found for path: ${request.path}`);
 }
 
@@ -86,7 +97,9 @@ export function resolveAddress(codemap: CodecharterCodemap, request: AddressRequ
  */
 export function isCodecharterCodemap(value: unknown): value is CodecharterCodemap {
   const record = objectRecord(value);
-  if (!record) return false;
+  if (!record) {
+    return false;
+  }
   return objectRecord(record.files) !== null && objectRecord(record.folders) !== null;
 }
 
@@ -112,7 +125,9 @@ function resolveFolderAddress(folder: MapFolderTarget): ResolvedAddress {
 }
 
 function resolveFileAddress(file: MapFileTarget, request: CodeRangeRequest): ResolvedAddress {
-  if (hasCodeRangeRequest(request)) return resolveCodeRangeAddress(file, request);
+  if (hasCodeRangeRequest(request)) {
+    return resolveCodeRangeAddress(file, request);
+  }
 
   const level = "file";
   const geohash = file.geo.geohash.slice(0, precisionForLevel(level));
@@ -133,7 +148,9 @@ function resolveCodeRangeAddress(file: MapFileTarget, request: CodeRangeRequest)
   const level = geometry.tokenRange || geometry.hasTokenFragments ? "tokenRange" : "lineRange";
   const geo = geoForBounds(geometry.anchorBounds, level);
   const lines = `${geometry.lineRange.start}-${geometry.lineRange.end}`;
-  const fragmentCoverage = geometry.fragments ? geohashedFragmentsWithCoverage(geometry.fragments) : null;
+  const fragmentCoverage = geometry.fragments
+    ? geohashedFragmentsWithCoverage(geometry.fragments)
+    : null;
 
   return {
     level,
@@ -143,7 +160,9 @@ function resolveCodeRangeAddress(file: MapFileTarget, request: CodeRangeRequest)
     deepLink: deepLink(level, geo.geohash, {
       path: file.path,
       lines,
-      columns: geometry.tokenRange ? `${geometry.tokenRange.start}-${geometry.tokenRange.end}` : undefined,
+      columns: geometry.tokenRange
+        ? `${geometry.tokenRange.start}-${geometry.tokenRange.end}`
+        : undefined,
     }),
     breadcrumb: `${breadcrumbForPath(file.path)}:${lines}${geometry.tokenRange ? `@${geometry.tokenRange.start}-${geometry.tokenRange.end}` : ""}`,
     bounds: geometry.bounds,
@@ -160,10 +179,12 @@ function geoForBounds(bounds: Bounds, level: MapLevel): GeohashedCoordinate {
 }
 
 function hasCodeRangeRequest(request: CodeRangeRequest): boolean {
-  return request.lineStart !== undefined
-    || request.lineEnd !== undefined
-    || request.columnStart !== undefined
-    || request.columnEnd !== undefined;
+  return (
+    request.lineStart !== undefined ||
+    request.lineEnd !== undefined ||
+    request.columnStart !== undefined ||
+    request.columnEnd !== undefined
+  );
 }
 
 function geohashedFragmentsWithCoverage(fragments: CodeRangeFragmentGeometry[]): FragmentCoverage {
@@ -192,6 +213,10 @@ function breadcrumbForPath(path: string): string {
   return path.split("/").filter(Boolean).join(" > ") || ".";
 }
 
-function deepLink(level: MapLevel, geohash: string, metadata: Record<string, string | undefined>): string {
+function deepLink(
+  level: MapLevel,
+  geohash: string,
+  metadata: Record<string, string | undefined>,
+): string {
   return createCodemapDeepLink(level, geohash, metadata);
 }

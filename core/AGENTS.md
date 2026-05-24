@@ -45,7 +45,6 @@ Read `../CONTEXT-MAP.md`, `../CONTEXT.md`, and `CONTEXT.md` before core work.
 - Add focused tests for generation stability, geohash levels, resolver output,
   selection resolution, server safety, and activity normalization when those
   contracts change.
-- Use `./node_modules/.bin/tsx --test core/src/test/<file>.test.ts` for
-  focused core proof, then broaden to
-  `npm test --workspace @codecharter/core` or `npm test` when the touched
-  contract is shared.
+- Use `pnpm exec tsx --test core/src/test/<file>.test.ts` for focused core
+  proof, then broaden to `pnpm --filter @codecharter/core test` or `pnpm test`
+  when the touched contract is shared.

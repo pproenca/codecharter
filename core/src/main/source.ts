@@ -58,8 +58,12 @@ async function readLines(path: string, low: number, high: number): Promise<Sourc
   try {
     for await (const text of reader) {
       number += 1;
-      if (number < low) continue;
-      if (number > high) break;
+      if (number < low) {
+        continue;
+      }
+      if (number > high) {
+        break;
+      }
       lines.push({ number, text });
     }
   } finally {
@@ -71,6 +75,8 @@ async function readLines(path: string, low: number, high: number): Promise<Sourc
 }
 
 function normalizeLine(value: number, lineCount: number): number {
-  if (!Number.isInteger(value)) throw new Error(`Line must be an integer: ${value}`);
+  if (!Number.isInteger(value)) {
+    throw new Error(`Line must be an integer: ${value}`);
+  }
   return Math.min(lineCount, Math.max(1, value));
 }

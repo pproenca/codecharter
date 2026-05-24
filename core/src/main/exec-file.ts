@@ -19,12 +19,17 @@ export function execFileText(
   options: ExecFileTextOptions = {},
 ): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    execFile(file, [...args], { ...options, encoding: options.encoding ?? "utf8" }, (error, stdout, stderr) => {
-      if (error) {
-        reject(Object.assign(error, { stdout, stderr }));
-        return;
-      }
-      resolve({ stdout, stderr });
-    });
+    execFile(
+      file,
+      [...args],
+      { ...options, encoding: options.encoding ?? "utf8" },
+      (error, stdout, stderr) => {
+        if (error) {
+          reject(Object.assign(error, { stdout, stderr }));
+          return;
+        }
+        resolve({ stdout, stderr });
+      },
+    );
   });
 }

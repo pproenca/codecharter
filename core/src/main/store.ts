@@ -15,7 +15,9 @@ export async function readJson(path: string, fallback?: unknown): Promise<unknow
   try {
     return JSON.parse(await readFile(path, "utf8"));
   } catch (error) {
-    if (isErrnoException(error) && error.code === "ENOENT") return fallback;
+    if (isErrnoException(error) && error.code === "ENOENT") {
+      return fallback;
+    }
     throw error;
   }
 }

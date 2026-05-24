@@ -17,7 +17,9 @@ export function sortIfNeeded<T>(values: T[], compare: (left: T, right: T) => num
 
 export function valuesAreSorted<T>(values: T[], compare: (left: T, right: T) => number): boolean {
   for (let index = 1; index < values.length; index += 1) {
-    if (compare(values[index - 1]!, values[index]!) > 0) return false;
+    if (compare(values[index - 1]!, values[index]!) > 0) {
+      return false;
+    }
   }
   return true;
 }
@@ -38,7 +40,9 @@ export function hashUnit(value: string): number {
 export function* objectValues<T>(values: Record<string, T>): Generator<T> {
   for (const key in values) {
     const value = values[key];
-    if (Object.hasOwn(values, key) && value !== undefined) yield value;
+    if (Object.hasOwn(values, key) && value !== undefined) {
+      yield value;
+    }
   }
 }
 
@@ -51,19 +55,26 @@ export function boundsCenter(bounds: Bounds): Point {
 }
 
 export function containsBoundsPoint(bounds: Bounds, point: Point): boolean {
-  return point.x >= bounds.x
-    && point.x <= bounds.x + bounds.width
-    && point.y >= bounds.y
-    && point.y <= bounds.y + bounds.height;
+  return (
+    point.x >= bounds.x &&
+    point.x <= bounds.x + bounds.width &&
+    point.y >= bounds.y &&
+    point.y <= bounds.y + bounds.height
+  );
 }
 
 export function normalizeMapPath(path: string | null | undefined): string {
-  const normalized = String(path ?? "").replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+$/, "");
+  const normalized = String(path ?? "")
+    .replaceAll("\\", "/")
+    .replace(/^\.\//, "")
+    .replace(/\/+$/, "");
   return normalized === "." ? "" : normalized;
 }
 
 export function pathFromDeepLink(deepLink: string | null | undefined): string {
-  if (!deepLink) return "";
+  if (!deepLink) {
+    return "";
+  }
   try {
     return new URL(deepLink).searchParams.get("path") ?? "";
   } catch {
@@ -86,14 +97,21 @@ export function lastPathSegment(path: string): string {
 }
 
 export function paletteForPath(path: string): PaletteColor {
-  return DISTRICT_PALETTE[hashString(firstPathSegment(path)) % DISTRICT_PALETTE.length]
-    ?? { fill: [126, 176, 156], stroke: [41, 98, 73], label: "#24513d" };
+  return (
+    DISTRICT_PALETTE[hashString(firstPathSegment(path)) % DISTRICT_PALETTE.length] ?? {
+      fill: [126, 176, 156],
+      stroke: [41, 98, 73],
+      label: "#24513d",
+    }
+  );
 }
 
 export function compareTargetAreaThenPath(a: MapTarget, b: MapTarget): number {
   const aBounds = a.bounds ?? { width: 0, height: 0 };
   const bBounds = b.bounds ?? { width: 0, height: 0 };
   const areaDelta = aBounds.width * aBounds.height - bBounds.width * bBounds.height;
-  if (Math.abs(areaDelta) > 1e-12) return areaDelta;
+  if (Math.abs(areaDelta) > 1e-12) {
+    return areaDelta;
+  }
   return a.path.localeCompare(b.path);
 }

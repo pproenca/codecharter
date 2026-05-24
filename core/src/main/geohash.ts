@@ -133,18 +133,26 @@ export function decodeGeohashBounds(geohash: string): GeohashBounds {
 
   for (const char of geohash) {
     const index = DECODE.get(char);
-    if (index === undefined) throw new Error(`Invalid geohash character: ${char}`);
+    if (index === undefined) {
+      throw new Error(`Invalid geohash character: ${char}`);
+    }
 
     for (let mask = 1 << (BITS_PER_CHAR - 1); mask > 0; mask >>= 1) {
       const upperHalf = (index & mask) !== 0;
       if (decodeLongitude) {
         const mid = (lonMin + lonMax) / 2;
-        if (upperHalf) lonMin = mid;
-        else lonMax = mid;
+        if (upperHalf) {
+          lonMin = mid;
+        } else {
+          lonMax = mid;
+        }
       } else {
         const mid = (latMin + latMax) / 2;
-        if (upperHalf) latMin = mid;
-        else latMax = mid;
+        if (upperHalf) {
+          latMin = mid;
+        } else {
+          latMax = mid;
+        }
       }
       decodeLongitude = !decodeLongitude;
     }
@@ -181,7 +189,10 @@ export function codePointToGeo(point: Point): GeoCoordinate {
  * The canonical address of a code-plane rectangle: encode the geohash of its
  * center (`x + width/2`, `y + height/2`). **BR-001.**
  */
-export function geohashForBoundsCenter(bounds: Bounds, precision = DEFAULT_PRECISION): GeohashedCoordinate {
+export function geohashForBoundsCenter(
+  bounds: Bounds,
+  precision = DEFAULT_PRECISION,
+): GeohashedCoordinate {
   const center: Point = {
     x: bounds.x + bounds.width / 2,
     y: bounds.y + bounds.height / 2,
@@ -214,6 +225,8 @@ export function codePlaneDescriptor(): CodePlaneDescriptor {
 
 /** Wrap a longitude into the half-open interval `[-180, 180)`. **BR-001.** */
 function wrapLongitude(lon: number): number {
-  if (lon >= LON_BOUNDS.min && lon < LON_BOUNDS.max) return lon;
+  if (lon >= LON_BOUNDS.min && lon < LON_BOUNDS.max) {
+    return lon;
+  }
   return ((((lon + 180) % 360) + 360) % 360) - 180;
 }

@@ -8,7 +8,7 @@ The local dogfood path is `codecharter dev`: it regenerates the Map Sidecar from
 
 ## Considered Options
 
-- Require explicit `codemap activity ...` calls from every agent action.
+- Require explicit `codecharter activity ...` calls from every agent action.
 - Stream filesystem/git activity through a best-effort dev watcher.
 - Make `/api/activity` synchronously rewrite a JSON file or fail the caller when persistence fails.
 

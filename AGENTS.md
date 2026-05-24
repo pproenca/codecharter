@@ -1,47 +1,153 @@
-# CodeCharter
+# AGENTS.md
+
+Telegraph style. Root rules only. Read the nearest scoped `AGENTS.md` before
+subtree work.
 
 CodeCharter turns a codebase into a deterministic, geohash-addressed 2D map.
+Treat code structure as geography.
 
-The current codebase is a Node >=22 npm-workspaces monorepo:
+## Start
 
-- `@codecharter/core` in `core/`: codemap generation, geohash addressing, address resolution, selections, activity telemetry, CLI setup, and the hardened localhost server.
-- `@codecharter/viewer` in `viewer/`: canvas SPA, render model, hash routes, activity trails, discovery fog, and source inspection.
+- Runtime: Node >=22, ESM, npm workspaces.
+- Product language: read `CONTEXT-MAP.md`, then `CONTEXT.md`.
+- Package language: read `core/CONTEXT.md` before core work and
+  `viewer/CONTEXT.md` before viewer work.
+- ADRs: read `docs/adr/` when touching stable addresses, sidecar storage,
+  geohash levels, Deep Links, activity telemetry, or discovery fog.
+- Prefer exploring local source before asking questions local context can
+  answer.
+- If design decisions are unclear, use the `grill-me` skill: ask one question at
+  a time and include a recommended answer.
+- For spatial indexing, geohashing, map navigation, or codebase-as-map work, use
+  the `geohash-spatial-code-maps` skill when available.
+- For test selection and verification, use the `codecharter-testing` skill when
+  available.
+- For documentation work, use the `codecharter-docs` skill when available.
+- For bug diagnosis, use `codecharter-debugging` for CodeCharter-specific
+  boundaries or the generic `diagnose` skill for a full reproduce-minimize loop.
+- New docs, tests, prompts, and generated messages use `codecharter://`.
+  Legacy `codemap://` remains parseable input only.
 
-## Working Direction
+## Map
 
-- Treat code structure as geography.
-- Use deterministic projection and persisted Map Sidecars so existing places keep stable coordinates.
-- Use geohash prefixes as the common spine for map levels, tiles, addresses, selections, named places, and activity.
-- Make package, domain, feature, and activity boundaries visible, searchable, and linkable.
-- Preserve enough source context that navigation can move from map region to concrete code.
-- Keep activity telemetry best-effort and separate from stable map geography.
+- Product/shared docs: `README.md`, `VISION.md`, `CONTEXT.md`, `docs/`.
+- Context routing: `CONTEXT-MAP.md`.
+- Core package: `core/`.
+- Viewer package: `viewer/`.
+- Core CLI: `core/bin/codemap.mts`.
+- Core public barrel: `core/src/main/index.ts`.
+- Viewer app shell: `viewer/src/main/app.ts`.
+- Viewer render model: `viewer/src/main/render/`.
+- Viewer static source: `viewer/web/`.
+- Generated viewer bundle: `viewer/dist/`.
+- Root package output: `dist/`.
+- Stable Map Sidecar: `.codecharter/codecharter.json`.
+- Named Places Store: `.codecharter/named-places.json`.
+- Local issues, PRDs, screenshots, scratch codemaps, and local activity
+  artifacts: `.scratch/`.
 
-## Agent Rules
-
-- When design decisions are unclear, use the `grill-me` skill: ask one question at a time and include a recommended answer.
-- For spatial indexing, geohashing, map navigation, or codebase-as-map work, use the `geohash-spatial-code-maps` skill.
-- Prefer exploring the codebase before asking questions that local context can answer.
-- Read `CONTEXT-MAP.md` before larger changes, then read the relevant package context.
-- Keep implementation aligned with the modernized `core` and `viewer` package boundaries.
-
-## Current Design Baseline
+## Architecture
 
 - The first stable map unit is still **File**.
-- The canonical new Deep Link scheme is `codecharter://`; legacy `codemap://` remains parseable input.
-- The generated Map Sidecar lives at `.codecharter/codecharter.json` by default.
-- Named Places live at `.codecharter/named-places.json`.
-- Local issue markdown and scratch artifacts live under gitignored `.scratch/`.
+- The Map Sidecar is canonical base geography. Tiles, source panels, discovery
+  fog, activity trails, and named-place overlaps are derived.
+- Preserve stable coordinates across regeneration when the Projection Contract
+  still matches. Repacking is explicit, not background cleanup.
+- Use geohash prefixes as the common spine for Map Levels, tiles, addresses,
+  selections, Named Places, and activity.
+- Keep `codecharter://` as the cross-tool Deep Link contract. Browser hash
+  routes are viewer-local UI state.
+- Keep activity telemetry best-effort and separate from stable map geography.
+  Dropping malformed or unmapped activity is better than blocking code work.
+- Core owns generation, address resolution, selections, Named Places, activity
+  ingestion, setup helpers, the CLI, and the hardened localhost API.
+- Viewer owns canvas interaction, hash routes, render-model derivations, source
+  inspection, activity visuals, and discovery fog.
+- Viewer state should derive from Map Sidecar and core API responses; do not
+  create a second semantic identity model in the browser.
+- Server changes must keep localhost hardening, body limits, codemap validation,
+  and path containment explicit.
+- Generated artifacts are contracts when published, but do not hand-edit them
+  when source generation is available.
 
-## Agent skills
+## Commands
 
-### Issue tracker
+- Install: `npm install`.
+- Build: `npm run build`.
+- Typecheck: `npm run typecheck`.
+- Test: `npm test`.
+- Generate map: `npm run generate`.
+- Serve viewer/API: `npm run serve`.
+- CLI: `npm run codecharter -- <command>`.
+- Common CLI commands: `generate`, `resolve`, `serve`, `dev`, `doctor`, `init`.
+- Do not swap package managers or lockfile strategy without explicit approval.
 
-Issues and PRDs are tracked as gitignored local markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
+## Validation
 
-### Triage labels
+- Docs-only changes: `git diff --check`.
+- Core behavior changes: run focused core tests, then `npm test` when feasible.
+- Viewer behavior changes: `npm run build`; inspect in a browser when the
+  changed surface is visual or interactive.
+- Published surfaces, CLI wiring, package output, or dynamic import boundaries:
+  run `npm run build` before handoff.
+- If proof is blocked, report the exact missing command, dependency, or runtime
+  condition.
 
-Use the default mattpocock/skills triage label vocabulary. See `docs/agents/triage-labels.md`.
+## Code
 
-### Domain docs
+- TypeScript ESM, strict. Avoid `any`; prefer real types, `unknown`, and narrow
+  adapters.
+- External JSON/input boundaries should use existing validation helpers or
+  explicit narrowing.
+- Keep geohash math deterministic: longitude encodes first, the base32 alphabet
+  is fixed, and edge handling is contract behavior.
+- Keep map generation deterministic: no filesystem-order, map/set, or glob
+  nondeterminism in serialized geography.
+- Prefer closed codes and discriminated unions over freeform strings.
+- Prefer early returns over nested condition pyramids.
+- Split gather -> normalize -> decide -> act.
+- Use named intermediates for domain meaning, not temporary-variable noise.
+- Comments should explain tricky map, security, or stability constraints; avoid
+  narration of obvious code.
+- Do not edit `node_modules`.
 
-This repo uses a multi-context domain docs layout rooted at `CONTEXT-MAP.md`. See `docs/agents/domain.md`.
+## Tests
+
+- Root tests include Node test files under `test/` plus workspace tests.
+- Prefer focused behavior tests over snapshot churn or docs string greps.
+- Core tests for generation, stability, geohash levels, resolver behavior,
+  selections, server safety, and activity normalization belong in `core/src/test/`.
+- Viewer tests should target render-model helpers where possible instead of
+  only browser wiring.
+- Do not update fixtures, baselines, or generated expected files just to silence
+  failures without understanding the changed contract.
+
+## Docs And Issues
+
+- Use glossary terms from `CONTEXT.md`, `core/CONTEXT.md`, and
+  `viewer/CONTEXT.md`. Avoid synonyms those files explicitly reject.
+- If a proposed change contradicts an ADR, call that out directly.
+- Issues and PRDs live under gitignored `.scratch/`; see
+  `docs/agents/issue-tracker.md`.
+- Triage labels use `docs/agents/triage-labels.md`.
+- New user-visible behavior should update README or docs when the current docs
+  would become misleading.
+
+## Git
+
+- You may be in a dirty worktree. Never revert changes you did not make unless
+  explicitly requested.
+- Stage intended files only.
+- No manual stash, autostash, branch switches, or destructive git operations
+  unless explicitly requested.
+- Commit messages should be concise and grouped by coherent topic.
+
+## Security
+
+- Never commit credentials, real tokens, private machine paths that are not part
+  of a local-only instruction, or live user activity archives.
+- Treat localhost server routes and source-file reads as security-sensitive.
+- Keep generated-map ignores and local-only scratch artifacts out of published
+  package surfaces unless intentionally designed.
+- Dependency changes, package output changes, and release/version bumps need
+  explicit approval.

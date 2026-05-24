@@ -164,11 +164,17 @@ async function codexHookEvents({ root, mapPath, payload }: CodexHookEventsOption
     : readCommandActivity(root, codemap, payload);
   const readChanges = readActivity.changes;
   let writeChanges = activityState === "testing" ? [] : await toolInputChanges(root, payload);
+  const shellEditFallback = activityState === "editing"
+    && writeChanges.length === 0
+    && readChanges.length === 0
+    && !readActivity.matchedReadCommand
+    && hasUnmatchedShellCommandSegment(payload);
   if (writeChanges.length === 0 && readChanges.length === 0 && !readActivity.matchedReadCommand) {
     writeChanges = await changedCodeChanges(root);
   }
   const previousCodemap = codemap;
-  if (writeChanges.length > 0) {
+  const refreshForShellEditFallback = shellEditFallback && writeChanges.length === 0;
+  if (writeChanges.length > 0 || refreshForShellEditFallback) {
     codemap = await refreshCodemap(root, mapPath, previousCodemap);
   }
   const changes: CodexChange[] = [...readChanges, ...writeChanges];
@@ -188,6 +194,9 @@ async function codexHookEvents({ root, mapPath, payload }: CodexHookEventsOption
   }
   if (events.length === 0 && activityState === "testing") {
     events.push(heartbeatEvent({ ...base, activityState, note: "Codex ran tests" }));
+  }
+  if (events.length === 0 && refreshForShellEditFallback) {
+    events.push(heartbeatEvent({ ...base, activityState, note: "Codex shell edit activity" }));
   }
   return events;
 }
@@ -314,6 +323,18 @@ function shellCommands(payload: HookPayload): string[] {
     if (command) commands.push(command);
   }
   return commands;
+}
+
+function hasUnmatchedShellCommandSegment(payload: HookPayload): boolean {
+  for (const command of shellCommands(payload)) {
+    for (const segment of commandSegments(command)) {
+      const tokens = shellWords(segment);
+      const commandToken = tokens[0];
+      if (!commandToken) continue;
+      if (!READ_COMMAND_STRATEGIES.has(basename(commandToken))) return true;
+    }
+  }
+  return false;
 }
 
 function isShellToolName(toolName: string): boolean {

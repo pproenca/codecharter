@@ -43,9 +43,42 @@ test("Codex hook records nested parallel shell read activity", async () => {
   }
 });
 
+test("Codex hook records shell edit heartbeat when no dirty paths remain", async () => {
+  const root = await fixtureRoot();
+  try {
+    initCleanGitFixture(root);
+
+    await runCodexHook({
+      cwd: root,
+      input: JSON.stringify({
+        hook_event_name: "PostToolUse",
+        tool_name: "Bash",
+        tool_input: {
+          command: "node -e \"require('fs').writeFileSync('README.md', 'one\\ntwo\\nthree\\n')\"",
+        },
+        session_id: "session-1",
+        turn_id: "turn-1",
+        model: "test-model",
+      }),
+    });
+
+    const events = await readActivityArchive(root);
+    assert.equal(events.length, 1);
+    assert.equal(events[0]?.activityState, "editing");
+    assert.equal(events[0]?.note, "Codex shell edit activity");
+    assert.equal(events[0]?.address, undefined);
+
+    const refreshedMap = JSON.parse(await readFile(join(root, ".codecharter", "codecharter.json"), "utf8")) as { version?: unknown };
+    assert.equal(refreshedMap.version, 1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("Codex adapter records through a source checkout hook without a package bin", async () => {
   const root = await mkdtemp(join(tmpdir(), "codecharter-codex-adapter-"));
   try {
+    initGitRepository(root);
     await installFakeSourceCheckout(root);
     const { hookPath, hooksJsonPath } = await ensureCodexAdapter(root);
     const payload = JSON.stringify({ hook_event_name: "Stop", session_id: "session-1" });
@@ -87,6 +120,7 @@ function escapeRegExp(value: string): string {
 
 async function fixtureRoot(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "codecharter-codex-hook-"));
+  initGitRepository(root);
   await mkdir(join(root, ".codecharter"), { recursive: true });
   await writeFile(join(root, "README.md"), "one\ntwo\nthree\n");
   await writeFile(join(root, ".codecharter", "config.json"), JSON.stringify({
@@ -107,6 +141,18 @@ async function fixtureRoot(): Promise<string> {
     },
   }));
   return root;
+}
+
+function initGitRepository(root: string): void {
+  execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+}
+
+function initCleanGitFixture(root: string): void {
+  execFileSync("git", ["config", "user.email", "codecharter@example.test"], { cwd: root, stdio: "ignore" });
+  execFileSync("git", ["config", "user.name", "CodeCharter Test"], { cwd: root, stdio: "ignore" });
+  execFileSync("git", ["config", "commit.gpgsign", "false"], { cwd: root, stdio: "ignore" });
+  execFileSync("git", ["add", "README.md", ".codecharter/config.json", ".codecharter/codecharter.json"], { cwd: root, stdio: "ignore" });
+  execFileSync("git", ["commit", "-m", "fixture"], { cwd: root, stdio: "ignore" });
 }
 
 async function readActivityArchive(root: string): Promise<StoredActivityEvent[]> {

@@ -22,6 +22,12 @@
  *                                  toolbar UI sync (extracted; DI over the
  *                                  interaction flags in `state` + the toolbar/
  *                                  canvas DOM singletons + app-owned callbacks).
+ *   - `controllers/selection-overlay.ts` — selection popover visibility,
+ *                                  annotation-actions positioning, overlay reset,
+ *                                  draft clearance, and named-places sync
+ *                                  (extracted; DI over the draft/resolved/editing
+ *                                  state + overlay DOM + app-owned callbacks). It
+ *                                  reads the same `state`; it owns no identity.
  */
 
 import { createActivityGestureController } from "./controllers/activity-gesture.ts";
@@ -30,6 +36,7 @@ import { createEditingController } from "./controllers/editing.ts";
 import { createInteractionController } from "./controllers/interaction.ts";
 import { activitySignature, createPollingController } from "./controllers/polling.ts";
 import { createSelectionController } from "./controllers/selection.ts";
+import { createSelectionOverlayController } from "./controllers/selection-overlay.ts";
 import {
   boundsFromRouteParams,
   createAnnotationHashRoute,
@@ -441,6 +448,26 @@ const selection = createSelectionController<ResolvedSelection>({
     render();
   },
 });
+const selectionOverlay = createSelectionOverlayController({
+  state,
+  controls,
+  defaultMapLevel: DEFAULT_MAP_LEVEL,
+  saveAndCopyLabel: SAVE_AND_COPY_LABEL,
+  copyPromptLabel: COPY_PROMPT_LABEL,
+  getAnnotationTitle: (annotation) => editing.annotationTitle(annotation),
+  getSelectedAnnotation: () => editing.selectedAnnotation(),
+  clearEditingPendingDelete: () => editing.clearPendingDelete(),
+  updateInteractionModeUi: () => interaction.updateInteractionModeUi(),
+  setSaveButtonLabel,
+  setSelectionStatus,
+  screenBounds,
+  canvasSize: () => ({ clientWidth: canvas.clientWidth, clientHeight: canvas.clientHeight }),
+});
+const updateSelectionPopover = selectionOverlay.updateSelectionPopover;
+const positionAnnotationActions = selectionOverlay.positionAnnotationActions;
+const resetSelectionOverlay = selectionOverlay.resetSelectionOverlay;
+const clearDraftSelection = selectionOverlay.clearDraftSelection;
+const setNamedPlaces = selectionOverlay.setNamedPlaces;
 const interaction = createInteractionController({
   getDrawing: () => state.drawing,
   setDrawing: (value) => {
@@ -833,128 +860,6 @@ function syncHashRoute(hash: string) {
 
 function isCurrentRoute(routeToken: RouteToken) {
   return routeToken === routeSequence;
-}
-
-function clearDraftSelection() {
-  editing.clearPendingDelete();
-  state.dragging = null;
-  state.draftSelection = null;
-  state.resolvedSelection = null;
-  state.editingAnnotation = null;
-  if (controls.saveSelection) {
-    controls.saveSelection.disabled = true;
-  }
-  setSaveButtonLabel();
-  updateSelectionPopover();
-}
-
-function resetSelectionOverlay() {
-  editing.clearPendingDelete();
-  state.dragging = null;
-  state.drawing = false;
-  state.panning = true;
-  state.draftSelection = null;
-  state.resolvedSelection = null;
-  state.editingAnnotation = null;
-  if (controls.selectionComment) {
-    controls.selectionComment.value = "";
-  }
-  if (controls.saveSelection) {
-    controls.saveSelection.disabled = true;
-  }
-  if (controls.deleteAnnotation) {
-    controls.deleteAnnotation.hidden = true;
-  }
-  setSaveButtonLabel();
-  setSelectionStatus("");
-  interaction.updateInteractionModeUi();
-  updateSelectionPopover();
-}
-
-function setNamedPlaces(places: NamedPlace[]) {
-  state.namedPlaces = places;
-  state.namedPlacesById = new Map();
-  state.namedPlaceIndexesById = new Map();
-  for (let index = 0; index < places.length; index += 1) {
-    const place = places[index];
-    if (!place?.id) {
-      continue;
-    }
-    state.namedPlacesById.set(place.id, place);
-    state.namedPlaceIndexesById.set(place.id, index);
-  }
-}
-
-function updateSelectionPopover() {
-  const annotation = editing.selectedAnnotation();
-  const isEditing = state.editingAnnotation !== null;
-  const hasDraft = state.draftSelection !== null || state.resolvedSelection !== null;
-  const selectionReady = state.resolvedSelection !== null;
-  if (controls.selectionPopover) {
-    controls.selectionPopover.hidden = !(hasDraft || isEditing);
-  }
-  if (controls.annotationActions) {
-    controls.annotationActions.hidden = annotation === null || hasDraft || isEditing;
-  }
-  if (controls.deleteAnnotation) {
-    controls.deleteAnnotation.hidden = !isEditing;
-  }
-  setText(
-    controls.selectionContext,
-    selectionContextLabel(state.resolvedSelection ?? state.editingAnnotation),
-  );
-  setText(controls.annotationTitle, editing.annotationTitle(annotation));
-  setText(controls.annotationMeta, selectionContextLabel(annotation));
-  positionAnnotationActions(annotation, {
-    visible: annotation !== null && !hasDraft && !isEditing,
-  });
-  if (controls.saveSelection) {
-    controls.saveSelection.disabled = !(selectionReady || isEditing);
-    setSaveButtonLabel(
-      isEditing
-        ? COPY_PROMPT_LABEL
-        : selectionReady
-          ? SAVE_AND_COPY_LABEL
-          : "Resolving selection...",
-    );
-  }
-}
-
-function positionAnnotationActions(annotation: MapAnnotationPlace | null, { visible = true } = {}) {
-  const panel = controls.annotationActions;
-  if (!panel || !visible || !annotation?.geometry?.bounds) {
-    panel?.style.removeProperty("left");
-    panel?.style.removeProperty("top");
-    panel?.style.removeProperty("bottom");
-    panel?.style.removeProperty("--annotation-pointer-x");
-    panel?.removeAttribute("data-placement");
-    return;
-  }
-
-  const margin = 16;
-  const gap = 12;
-  const statusReserve = 56;
-  const target = screenBounds(annotation.geometry.bounds);
-  const panelWidth = Math.min(360, Math.max(260, canvas.clientWidth - margin * 2));
-  panel.style.width = `${panelWidth}px`;
-  panel.style.bottom = "auto";
-
-  const panelHeight = panel.offsetHeight || 98;
-  const centerX = target.x + target.width / 2;
-  const left = clamp(
-    centerX - panelWidth / 2,
-    margin,
-    Math.max(margin, canvas.clientWidth - panelWidth - margin),
-  );
-  const belowTop = target.y + target.height + gap;
-  const aboveTop = target.y - panelHeight - gap;
-  const fitsBelow = belowTop + panelHeight <= canvas.clientHeight - statusReserve;
-  const top = fitsBelow ? belowTop : Math.max(margin, aboveTop);
-
-  panel.style.left = `${left}px`;
-  panel.style.top = `${top}px`;
-  panel.style.setProperty("--annotation-pointer-x", `${centerX - left}px`);
-  panel.setAttribute("data-placement", fitsBelow ? "below" : "above");
 }
 
 function resize() {
@@ -2960,18 +2865,6 @@ function hasGeometryBounds<T extends { geometry?: { bounds?: Bounds } }>(
   target: T | null | undefined,
 ): target is T & { geometry: { bounds: Bounds } } {
   return target?.geometry?.bounds !== undefined;
-}
-
-function selectionContextLabel(selection: ResolvedSelection | MapAnnotationPlace | null) {
-  if (!selection) {
-    return "";
-  }
-  const targets = selection.resolvedTargets ?? [];
-  const targetCount = targets.length;
-  const targetLabel = targetCount === 1 ? "1 file" : `${targetCount} files`;
-  const level = selection.level ?? selection.spatialFrame?.level ?? DEFAULT_MAP_LEVEL;
-  const prefix = selection.coveringSet?.[0] ?? selection.spatialFrame?.corners?.northWest ?? "";
-  return [targetLabel, `${level} level`, prefix].filter(Boolean).join(" · ");
 }
 
 function applySourcePanel(panel: SourcePanel) {

@@ -49,10 +49,15 @@ import {
   requiredRestParam,
   sendJson,
 } from "./api/http.ts";
+import {
+  assertWithinRoot,
+  isMapLevel,
+  mapLevelParam,
+  numberFromValue,
+  stringFields,
+} from "./api/parse.ts";
 import { limitToRecent, objectRecord, sortIfNeeded } from "./collections.ts";
 import { errorMessage, isErrnoException } from "./errors.ts";
-import { MAP_LEVELS } from "./levels.ts";
-import type { MapLevel } from "./levels.ts";
 import { findNamedPlaceOverlaps } from "./overlaps.ts";
 import { resolveRealPathWithinRoot } from "./path-containment.ts";
 import { ACTIVITY_ARCHIVE_FILE, CONFIG_FILE, NAMED_PLACES_FILE } from "./paths.ts";
@@ -1113,23 +1118,9 @@ function serverPort(address: string | AddressInfo | null): number {
   return address.port;
 }
 
-function assertWithinRoot(root: string, candidate: string): void {
-  const full = resolve(root, candidate);
-  if (full !== root && !full.startsWith(root + sep)) {
-    throw httpError(400, "Path escapes repository root");
-  }
-}
-
 function normalizeNamedPlacesStore(store: unknown): NamedPlacesStore {
   const record = objectRecord(store);
   return { places: Array.isArray(record?.places) ? record.places.filter(isNamedPlace) : [] };
-}
-
-function mapLevelParam(value: string): MapLevel {
-  if (isMapLevel(value)) {
-    return value;
-  }
-  throw httpError(400, `Unknown map level: ${value}`);
 }
 
 function serverConfigFromValue(value: unknown): ServerConfig {
@@ -1216,19 +1207,6 @@ function addressRequestFromBody(body: JsonObject): AddressRequest {
   return request;
 }
 
-function stringFields<T extends string>(
-  body: JsonObject,
-  fields: readonly T[],
-): Partial<Record<T, string>> {
-  const result: Partial<Record<T, string>> = {};
-  for (const key of fields) {
-    if (typeof body[key] === "string") {
-      result[key] = body[key];
-    }
-  }
-  return result;
-}
-
 function isNamedPlace(value: unknown): value is NamedPlace {
   const record = objectRecord(value);
   return (
@@ -1236,16 +1214,4 @@ function isNamedPlace(value: unknown): value is NamedPlace {
     record?.kind === "mapAnnotation" ||
     record?.kind === "mapAddress"
   );
-}
-
-function numberFromValue(value: unknown): number {
-  const number = Number(value);
-  if (!Number.isFinite(number)) {
-    throw new Error(`Expected finite number, received: ${String(value)}`);
-  }
-  return number;
-}
-
-function isMapLevel(value: string): value is MapLevel {
-  return Object.hasOwn(MAP_LEVELS, value);
 }

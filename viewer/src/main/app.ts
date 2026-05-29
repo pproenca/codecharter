@@ -44,6 +44,16 @@
  *                                  the fog-veil cache key and hands them to
  *                                  `createFogDrawer`; `render()` calls
  *                                  `fogDrawer.drawDiscoveryFogOverlay`.
+ *   - `render/activity.ts`       — activity drawing: membranes/cells/trails/
+ *                                  tissue markers + the activity feed, plus the
+ *                                  pure colour/age helpers (`activityFillColor`,
+ *                                  `hexToRgba`, …). The shell injects `ctx`, the
+ *                                  projection accessors, `drawLabel`, and the
+ *                                  feed-click → `selectActivityEvent` bridge into
+ *                                  `createActivityDrawer`; the hex-RGB cache and
+ *                                  feed dedup key are private to that factory.
+ *                                  `render()` calls `activityDrawer.drawActivity`
+ *                                  and `activityDrawer.renderActivityFeed`.
  */
 
 import { createActivityGestureController } from "./controllers/activity-gesture.ts";
@@ -62,25 +72,16 @@ import {
 } from "./deep-links.ts";
 // Edit this source, then run `pnpm build:public` to regenerate public/app.js.
 import {
-  activityFragmentBounds,
-  activityFeedEvents,
-  activityPrimaryBounds,
-  activityStateStyle,
-  activityTrailGroups,
-  activityTrailPointGroups,
-  activityTissueBox,
-  activityVisualEncoding,
-  activityActorKey,
   activityActorLabel,
   buildActivityFogState,
   boundsCenter as modelBoundsCenter,
   canvasKeyboardAction,
   canRenderSourceText,
+  createActivityDrawer,
   createDrawController,
   createFogDrawer,
   documentKeyboardAction,
   doubleClickMapAction,
-  drawMyceliumPathForContext,
   folderDisplayName,
   hashString,
   hitTestActivityEvents,
@@ -91,7 +92,6 @@ import {
   KEYBOARD_ZOOM_FACTOR,
   labelBoxesOverlap,
   lineAtWorldPoint,
-  latestActivityByAgent,
   mapHoverLabel,
   mapSearchAction,
   mapSearchMatch,
@@ -108,7 +108,6 @@ import {
   sourceContextRequest,
   sourcePanelLineRangeForBox,
   sourcePanelState,
-  sortedActivityEvents,
   viewForBounds,
   viewForReadableFile,
   worldToScreenPoint,
@@ -231,24 +230,11 @@ type MapDrag =
   | { type: "pan"; start: Point; view: View; transient?: boolean }
   | { type: "select"; start: Point; world: Point };
 type PointerDownState = { screen: Point; world: Point };
-type ActivityEncoding = ReturnType<typeof activityVisualEncoding>;
-type ActivityStyle = ReturnType<typeof activityStateStyle>;
-type StrokeStyle = { color: string; lineWidth: number };
 type ActivityDetail = "summary" | "full";
 type MapVersionResponse = { version?: string };
 type NamedPlacesResponse = { places: NamedPlace[]; overlaps?: Array<{ bounds: Bounds }> };
 type ActivityResponse = { events?: ActivityEvent[]; version?: string; unchanged?: true };
 type ResolvedAddressResponse = { targetType: MapRouteKind; geohash: string; deepLink: string };
-type ActivityRenderItem = {
-  event: ActivityEvent;
-  key: string;
-  latest: boolean;
-  selected: boolean;
-  encoding: ActivityEncoding;
-  style: ActivityStyle;
-  fillColor: string;
-  primaryBounds: Bounds | null;
-};
 type MapApplicationState = {
   map: CodecharterCodemap | null;
   mapFolders: MapFolder[];
@@ -364,12 +350,10 @@ function createMapControls(root: Document = document): BrowserControls {
 
 let frameLabels: PlacedFrameLabel[] = [];
 let frameViewport: Viewport | null = null;
-let activityFeedRenderKey = "";
 let fogVeilCacheKey = "";
 let pendingRenderFrame = 0;
 let pendingTouchSpacePan: TimerHandle = null;
 let copyPromptLabelTimer: TimerHandle = null;
-const hexRgbCache = new Map<string, readonly [number, number, number]>();
 const hashUnitCache = new Map<string, number>();
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -613,6 +597,23 @@ const draw = createDrawController({
   render,
   fetchJson,
 });
+const activityDrawer = createActivityDrawer({
+  ctx,
+  getActivity: () => state.activity,
+  getSelectedTarget: () => state.selectedTarget,
+  getViewScale: () => state.view.scale,
+  getActivitySignature: () => state.activitySignature,
+  activityFeedEl: controls.activityFeed,
+  worldToScreen,
+  screenBounds,
+  hashUnit,
+  isDiscoveryEnabled: activityDiscoveryEnabled,
+  drawLabel,
+  onActivityFeedItemClick: (event) => {
+    void selectActivityEvent(event);
+  },
+  activityPathLabel,
+});
 
 async function boot() {
   const [map, mapVersion, names, activity] = await Promise.all([
@@ -808,9 +809,9 @@ function render() {
       fogDrawer.drawDiscoveryFogOverlay(rect);
     }
     if (activityDiscoveryEnabled()) {
-      drawActivity();
+      activityDrawer.drawActivity();
     }
-    renderActivityFeed();
+    activityDrawer.renderActivityFeed();
     const annotation = editing.selectedAnnotation();
     const annotationActionsVisible =
       annotation !== null &&
@@ -863,267 +864,10 @@ function drawOverlaps() {
   }
 }
 
-function drawActivity() {
-  const events = sortedActivityEvents(state.activity);
-  const latestByAgent = latestActivityByAgent(events);
-  const discoveryMode = activityDiscoveryEnabled();
-  const items = activityRenderItems(events, latestByAgent);
-  drawActivityMembranes(items, { discoveryMode });
-  drawActivityTrails(events, latestByAgent, { discoveryMode });
-
-  for (const item of items) {
-    const { event, latest, selected, encoding, style, fillColor, primaryBounds } = item;
-    if (!primaryBounds) {
-      continue;
-    }
-    const center = boundsCenter(primaryBounds);
-    const p = worldToScreen(center);
-    const haloColor = activityHaloColor(style, encoding);
-    ctx.save();
-    ctx.globalAlpha = encoding.alpha;
-    ctx.fillStyle = haloColor;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, encoding.haloRadius * 0.46, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = fillColor;
-    ctx.strokeStyle = selected ? "#111827" : haloColor;
-    ctx.lineWidth = selected ? 3 : latest ? 2.5 : 1.5;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, encoding.coreRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    if (latest && (encoding.active || selected)) {
-      ctx.globalAlpha = encoding.membraneAlpha * 1.25;
-      ctx.beginPath();
-      drawActivityCell(p, encoding.haloRadius, event.id ?? event.agentId);
-      ctx.strokeStyle = fillColor;
-      ctx.lineWidth = 1.4;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-      const label = encoding.active
-        ? `${activityActorLabel(event)}: ${encoding.activityState}`
-        : `${activityActorLabel(event)}: last seen ${formatActivityAge(encoding.ageMinutes)}`;
-      if (!discoveryMode || latest || selected) {
-        drawLabel(label, p.x + 10, p.y - 8, encoding.active ? style.label : "#475569", 12, "700");
-      }
-    }
-    ctx.restore();
-  }
-}
-
-function activityRenderItems(
-  events: ActivityEvent[],
-  latestByAgent: Map<string, ActivityEvent>,
-): ActivityRenderItem[] {
-  const now = Date.now();
-  const items: ActivityRenderItem[] = [];
-  for (const event of events) {
-    const key = activityActorKey(event);
-    const latest = latestByAgent.get(key) === event;
-    const selected =
-      state.selectedTarget?.targetType === "activity" && state.selectedTarget.id === event.id;
-    const encoding = activityVisualEncoding(event, { latest, selected, now });
-    const style = activityStateStyle(encoding.activityState);
-    items.push({
-      event,
-      key,
-      latest,
-      selected,
-      encoding,
-      style,
-      fillColor: activityFillColor(style, encoding),
-      primaryBounds: activityPrimaryBounds(event),
-    });
-  }
-  return items;
-}
-
-function drawActivityMembranes(items: ActivityRenderItem[], { discoveryMode = false } = {}) {
-  for (const { event, latest, selected, encoding, fillColor } of items) {
-    if (discoveryMode && state.view.scale > 6 && !selected) {
-      continue;
-    }
-    if (discoveryMode && !latest && !selected) {
-      continue;
-    }
-    if (encoding.membraneAlpha <= 0.08 && !selected) {
-      continue;
-    }
-
-    for (const bounds of activityFragmentBounds(event)) {
-      const tissueBox = activityTissueBox(screenBounds(bounds), encoding);
-      const p = {
-        x: tissueBox.x + tissueBox.width / 2,
-        y: tissueBox.y + tissueBox.height / 2,
-      };
-      const radius = Math.max(tissueBox.width, tissueBox.height) * 0.82;
-      const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
-      const membraneAlpha =
-        discoveryMode && !selected ? encoding.membraneAlpha * 0.45 : encoding.membraneAlpha;
-      gradient.addColorStop(0, hexToRgba(fillColor, membraneAlpha));
-      gradient.addColorStop(0.58, hexToRgba(fillColor, membraneAlpha * 0.45));
-      gradient.addColorStop(1, hexToRgba(fillColor, 0));
-
-      ctx.save();
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      drawActivityTissue(tissueBox, `${event.id ?? event.agentId}:${bounds.x}:${bounds.y}`);
-      ctx.fill();
-      ctx.restore();
-    }
-  }
-}
-
-function drawActivityTrails(
-  events: ActivityEvent[],
-  latestByAgent: Map<string, ActivityEvent>,
-  { discoveryMode = false } = {},
-) {
-  for (const agentEvents of activityTrailGroups(events, { presorted: true })) {
-    const trailLatest = agentEvents.at(-1);
-    if (!trailLatest) {
-      continue;
-    }
-    const latest = latestByAgent.get(activityActorKey(trailLatest)) === trailLatest;
-    const selected = activityTrailSelected(agentEvents);
-    const encoding = activityVisualEncoding(trailLatest, { latest, selected });
-    const style = activityStateStyle(encoding.activityState);
-    const fillColor = activityFillColor(style, encoding);
-    const pointGroups = activityTrailPointGroups(activityTrailPoints(agentEvents));
-    if (pointGroups.length === 0) {
-      continue;
-    }
-
-    ctx.save();
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.setLineDash([]);
-    ctx.shadowColor = hexToRgba(fillColor, encoding.trailAlpha * 0.3);
-    ctx.shadowBlur = encoding.dormant ? 0 : selected ? 12 : 7;
-
-    for (const points of pointGroups) {
-      strokeOrganicTrail(points, {
-        color: hexToRgba(fillColor, encoding.trailAlpha * (discoveryMode ? 0.045 : 0.16)),
-        lineWidth: encoding.lineWidth * (discoveryMode ? 3.2 : 5.4),
-      });
-    }
-    ctx.shadowBlur = 0;
-    for (const points of pointGroups) {
-      strokeOrganicTrail(points, {
-        color: hexToRgba(fillColor, encoding.trailAlpha * (discoveryMode ? 0.12 : 0.38)),
-        lineWidth: encoding.lineWidth * (discoveryMode ? 1.4 : 2.25),
-      });
-      if (!discoveryMode || selected || latest) {
-        strokeOrganicTrail(points, {
-          color: hexToRgba(
-            fillColor,
-            Math.min(
-              discoveryMode ? 0.42 : 0.9,
-              encoding.trailAlpha * (discoveryMode ? 0.46 : 0.95),
-            ),
-          ),
-          lineWidth: encoding.lineWidth * (discoveryMode ? 0.82 : 1),
-        });
-      }
-    }
-    ctx.restore();
-  }
-}
-
-function activityTrailSelected(events: ActivityEvent[]) {
-  if (state.selectedTarget?.targetType !== "activity") {
-    return false;
-  }
-  const selectedId = state.selectedTarget.id;
-  return events.some((event) => event.id === selectedId);
-}
-
-function activityTrailPoints(events: ActivityEvent[]): Point[] {
-  const points: Point[] = [];
-  for (const event of events) {
-    const bounds = activityPrimaryBounds(event);
-    if (bounds) {
-      points.push(worldToScreen(boundsCenter(bounds)));
-    }
-  }
-  return points;
-}
-
-function strokeOrganicTrail(points: Point[], { color, lineWidth }: StrokeStyle) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = lineWidth;
-  ctx.beginPath();
-  if (drawMyceliumPathForContext(ctx, points, state.view.scale)) {
-    ctx.stroke();
-  }
-}
-
-function drawActivityCell(center: Point, radius: number, key: string | undefined) {
-  const points = 10;
-  ctx.moveTo(center.x + radius, center.y);
-  for (let index = 1; index <= points; index += 1) {
-    const angle = (index / points) * Math.PI * 2;
-    const wobble = 0.82 + hashUnit(`${key}:cell:${index}`) * 0.26;
-    const r = radius * wobble;
-    ctx.lineTo(center.x + Math.cos(angle) * r, center.y + Math.sin(angle) * r);
-  }
-  ctx.closePath();
-}
-
-function drawActivityTissue(box: Bounds, key: string) {
-  const center = {
-    x: box.x + box.width / 2,
-    y: box.y + box.height / 2,
-  };
-  const radiusX = box.width / 2;
-  const radiusY = box.height / 2;
-  const points = 14;
-  ctx.moveTo(center.x + radiusX, center.y);
-  for (let index = 1; index <= points; index += 1) {
-    const angle = (index / points) * Math.PI * 2;
-    const wobble = 0.86 + hashUnit(`${key}:tissue:${index}`) * 0.22;
-    ctx.lineTo(
-      center.x + Math.cos(angle) * radiusX * wobble,
-      center.y + Math.sin(angle) * radiusY * wobble,
-    );
-  }
-  ctx.closePath();
-}
-
-function activityFillColor(style: ActivityStyle, encoding: ActivityEncoding) {
-  return encoding.active || encoding.selected ? style.fill : "#64748b";
-}
-
-function activityHaloColor(style: ActivityStyle, encoding: ActivityEncoding) {
-  return encoding.active || encoding.selected ? style.stroke : "#cbd5e1";
-}
-
-function formatActivityAge(ageMinutes: number) {
-  if (ageMinutes < 60) {
-    return `${Math.max(1, Math.round(ageMinutes))}m ago`;
-  }
-  return `${Math.round(ageMinutes / 60)}h ago`;
-}
-
-function hexToRgba(hex: string, alpha: number) {
-  const rgb = hexRgb(hex);
-  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
-}
-
-function hexRgb(hex: string): readonly [number, number, number] {
-  const cached = hexRgbCache.get(hex);
-  if (cached) {
-    return cached;
-  }
-  const value = hex.replace("#", "");
-  const rgb = [
-    Number.parseInt(value.slice(0, 2), 16),
-    Number.parseInt(value.slice(2, 4), 16),
-    Number.parseInt(value.slice(4, 6), 16),
-  ] as const;
-  hexRgbCache.set(hex, rgb);
-  return rgb;
-}
+// Activity drawing (membranes/cells/trails/tissue markers) + the activity feed
+// live in `render/activity.ts`; the render loop calls into `activityDrawer`
+// (wired below). The pure colour/age helpers (`activityFillColor`,
+// `hexToRgba`, …) are exported from that module and unit-tested there.
 
 function hashUnit(value: string) {
   const cached = hashUnitCache.get(value);
@@ -1139,41 +883,6 @@ function integerNoise(x: number, y: number) {
   let value = Math.imul(x, 374761393) ^ Math.imul(y, 668265263);
   value = Math.imul(value ^ (value >>> 13), 1274126177);
   return ((value ^ (value >>> 16)) >>> 0) / 0xffffffff;
-}
-
-function renderActivityFeed() {
-  if (!controls.activityFeed) {
-    return;
-  }
-  const feedKey = `${state.activitySignature}:${Math.floor(Date.now() / 60000)}`;
-  if (feedKey === activityFeedRenderKey) {
-    return;
-  }
-  activityFeedRenderKey = feedKey;
-  const latest = activityFeedEvents(state.activity);
-
-  controls.activityFeed.replaceChildren();
-  if (latest.length === 0) {
-    controls.activityFeed.textContent = "No activity yet.";
-    return;
-  }
-
-  for (const event of latest) {
-    const item = document.createElement("button");
-    item.className = "activity-item";
-    item.type = "button";
-    item.addEventListener("click", () => selectActivityEvent(event));
-    const encoding = activityVisualEncoding(event, { latest: true });
-
-    const title = document.createElement("strong");
-    title.textContent = encoding.active
-      ? `${activityActorLabel(event)}: ${normalizeActivityState(event.activityState)}`
-      : `${activityActorLabel(event)}: last seen ${formatActivityAge(encoding.ageMinutes)}`;
-    const detail = document.createElement("span");
-    detail.textContent = activityPathLabel(event);
-    item.append(title, detail);
-    controls.activityFeed.append(item);
-  }
 }
 
 function drawSelection(bounds: Bounds, fill: string, stroke: string, dash: number[]) {

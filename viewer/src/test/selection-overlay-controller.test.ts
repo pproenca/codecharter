@@ -155,11 +155,7 @@ test("createSelectionOverlayController exposes the wiring surface app.ts consume
 test("setNamedPlaces rebuilds the by-id and index-by-id maps and skips id-less places", () => {
   const h = harness();
   const controller = createSelectionOverlayController(h.deps);
-  const places: NamedPlace[] = [
-    { id: "a", name: "A" },
-    { name: "no-id" },
-    { id: "b", name: "B" },
-  ];
+  const places: NamedPlace[] = [{ id: "a", name: "A" }, { name: "no-id" }, { id: "b", name: "B" }];
   controller.setNamedPlaces(places);
   assert.equal(h.state.namedPlaces, places);
   assert.deepEqual([...h.state.namedPlacesById.keys()], ["a", "b"]);

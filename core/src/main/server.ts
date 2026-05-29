@@ -26,7 +26,7 @@ import { createActivityStore } from "./activity-store.ts";
 import type { StoredActivityEvent, ViewerFogState } from "./activity-store.ts";
 import { createActivityEvent } from "./activity.ts";
 import type { ActivityAddress, ActivityEventInput } from "./activity.ts";
-import { loadCodemap, loadMapVersion } from "./api/codemap-cache.ts";
+import { loadCodemap } from "./api/codemap-cache.ts";
 import type {
   ActivitySnapshot,
   ApiHandler,
@@ -40,26 +40,20 @@ import type {
   ViewerActivityArchiveCache,
   ViewerActivityDetail,
 } from "./api/context.ts";
+import {
+  getMapApi,
+  getMapVersionApi,
+  getPrefixesApi,
+  getResolveApi,
+  getSourceApi,
+  getTilesApi,
+} from "./api/handlers/map.ts";
 import { assertLocalHost, assertSafeMutationRequest } from "./api/hardening.ts";
-import {
-  httpError,
-  optionalNumber,
-  readBody,
-  requiredParam,
-  requiredRestParam,
-  sendJson,
-} from "./api/http.ts";
-import {
-  assertWithinRoot,
-  isMapLevel,
-  mapLevelParam,
-  numberFromValue,
-  stringFields,
-} from "./api/parse.ts";
+import { httpError, readBody, requiredRestParam, sendJson } from "./api/http.ts";
+import { isMapLevel, numberFromValue, stringFields } from "./api/parse.ts";
 import { limitToRecent, objectRecord, sortIfNeeded } from "./collections.ts";
 import { errorMessage, isErrnoException } from "./errors.ts";
 import { findNamedPlaceOverlaps } from "./overlaps.ts";
-import { resolveRealPathWithinRoot } from "./path-containment.ts";
 import { ACTIVITY_ARCHIVE_FILE, CONFIG_FILE, NAMED_PLACES_FILE } from "./paths.ts";
 import { normalizePathForMap, resolveAddress } from "./resolver.ts";
 import type { AddressRequest, CodecharterCodemap } from "./resolver.ts";
@@ -70,9 +64,7 @@ import {
   refreshPlaceResolution,
 } from "./selections.ts";
 import type { MapAnnotation, SelectionGeometry, SelectionInput } from "./selections.ts";
-import { readSourceRange } from "./source.ts";
 import { readJson, writeJson } from "./store.ts";
-import { buildTileIndex, getTile, visiblePrefixes } from "./tiles.ts";
 
 const MIME_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -372,109 +364,6 @@ function matchApiPath(route: ApiRoute, pathname: string): ApiRouteMatch | null {
     return null;
   }
   return { params: { rest: pathname.slice(route.pattern.length) } };
-}
-
-async function getMapApi(
-  state: ServerState,
-  _request: IncomingMessage,
-  response: ServerResponse,
-): Promise<void> {
-  sendJson(response, 200, await loadCodemap(state));
-}
-
-async function getMapVersionApi(
-  state: ServerState,
-  _request: IncomingMessage,
-  response: ServerResponse,
-): Promise<void> {
-  sendJson(response, 200, await loadMapVersion(state));
-}
-
-async function getTilesApi(
-  state: ServerState,
-  _request: IncomingMessage,
-  response: ServerResponse,
-  url: URL,
-): Promise<void> {
-  const codemap = await loadCodemap(state);
-  const level = mapLevelParam(url.searchParams.get("level") ?? "file");
-  const prefix = url.searchParams.get("prefix");
-  sendJson(
-    response,
-    200,
-    prefix ? getTile(codemap, { level, prefix }) : buildTileIndex(codemap, level),
-  );
-}
-
-async function getPrefixesApi(
-  state: ServerState,
-  _request: IncomingMessage,
-  response: ServerResponse,
-  url: URL,
-): Promise<void> {
-  const codemap = await loadCodemap(state);
-  const level = mapLevelParam(url.searchParams.get("level") ?? "file");
-  sendJson(response, 200, { level, prefixes: visiblePrefixes(codemap, level) });
-}
-
-async function getResolveApi(
-  state: ServerState,
-  _request: IncomingMessage,
-  response: ServerResponse,
-  url: URL,
-): Promise<void> {
-  const codemap = await loadCodemap(state);
-  const path = requiredParam(url, "path");
-  const lineStart = optionalNumber(url.searchParams.get("lineStart"));
-  const lineEnd = optionalNumber(url.searchParams.get("lineEnd"));
-  const columnStart = optionalNumber(url.searchParams.get("columnStart"));
-  const columnEnd = optionalNumber(url.searchParams.get("columnEnd"));
-  sendJson(
-    response,
-    200,
-    resolveAddress(codemap, {
-      path,
-      ...(lineStart === undefined ? {} : { lineStart }),
-      ...(lineEnd === undefined ? {} : { lineEnd }),
-      ...(columnStart === undefined ? {} : { columnStart }),
-      ...(columnEnd === undefined ? {} : { columnEnd }),
-    }),
-  );
-}
-
-async function getSourceApi(
-  state: ServerState,
-  _request: IncomingMessage,
-  response: ServerResponse,
-  url: URL,
-): Promise<void> {
-  const codemap = await loadCodemap(state);
-  const path = requiredParam(url, "path");
-  const key = normalizePathForMap(path);
-  // HARDENING (CWE-1321): an untrusted codemap key like "__proto__" must not
-  // reach the object prototype; require an own property before indexing.
-  const file = Object.hasOwn(codemap.files, key) ? codemap.files[key] : undefined;
-  if (!file) {
-    throw httpError(404, `No source file found for path: ${path}`);
-  }
-  // HARDENING (CWE-22): with an untrusted codemap (Q4), a poisoned key like
-  // "../../etc/passwd" must not escape root. Confine the resolved path.
-  assertWithinRoot(state.root, file.path);
-  // HARDENING (CWE-367): resolve the real path ONCE and read from that exact
-  // path, so the containment check and the read observe the same inode.
-  const realPath = await resolveRealPathWithinRoot(state.root, file.path);
-  if (!realPath) {
-    throw httpError(400, "Source path escapes repository root");
-  }
-  const lineEnd = optionalNumber(url.searchParams.get("lineEnd"));
-  sendJson(
-    response,
-    200,
-    await readSourceRange(realPath, file, {
-      lineStart: optionalNumber(url.searchParams.get("lineStart")) ?? 1,
-      ...(lineEnd === undefined ? {} : { lineEnd }),
-    }),
-  );
 }
 
 async function getNamedPlacesApi(

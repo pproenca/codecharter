@@ -62,8 +62,6 @@ import {
 } from "./deep-links.ts";
 // Edit this source, then run `pnpm build:public` to regenerate public/app.js.
 import {
-  SOURCE_TEXT_MAX_LINES_PER_FRAME,
-  SOURCE_TEXT_PREFETCH_LINES,
   activityFragmentBounds,
   activityFeedEvents,
   activityPrimaryBounds,
@@ -76,23 +74,14 @@ import {
   activityActorLabel,
   buildActivityFogState,
   boundsCenter as modelBoundsCenter,
-  cachedSourceRange,
   canvasKeyboardAction,
   canRenderSourceText,
+  createDrawController,
   createFogDrawer,
   documentKeyboardAction,
   doubleClickMapAction,
   drawMyceliumPathForContext,
-  fileFogStyle,
-  fileLabelPriority,
-  fileVisualState,
-  fogStateForFile,
-  fogStateForFolder,
-  folderFogStyle,
-  folderDepth,
   folderDisplayName,
-  folderLabelPriority,
-  folderStyle,
   hashString,
   hitTestActivityEvents,
   hitTestAnnotations,
@@ -101,7 +90,6 @@ import {
   isScreenBoxVisible,
   KEYBOARD_ZOOM_FACTOR,
   labelBoxesOverlap,
-  lineHeightForFile,
   lineAtWorldPoint,
   latestActivityByAgent,
   mapHoverLabel,
@@ -110,32 +98,19 @@ import {
   mapSelectionPanel,
   mapTargetSelectionAction,
   normalizeActivityState,
-  organicRegionFogStyle,
   organicRegionFolders,
-  organicRegionPoints,
-  organicRegionStyle,
   pathFromDeepLink,
   panViewForDrag,
   panViewByScreenDelta,
   reconciledSelectedTarget,
   screenBoundsForView,
   screenToWorldPoint,
-  shouldDrawFolder,
-  shouldDrawOrganicRegion,
-  shouldLabelFoggedFile,
-  shouldLabelFolder,
-  shouldShowFogLabel,
-  shouldShowFogSourceText,
-  rememberSourceRange,
   sourceContextRequest,
   sourcePanelLineRangeForBox,
   sourcePanelState,
-  sourceRangeCacheKey,
-  sourceTextLayoutForBox,
   sortedActivityEvents,
   viewForBounds,
   viewForReadableFile,
-  visibleLineRangeForBox,
   worldToScreenPoint,
 } from "./render/index.ts";
 import type {
@@ -143,7 +118,6 @@ import type {
   ActivityFogState,
   Bounds,
   CodecharterCodemap,
-  MapAnnotationPlace,
   MapFile,
   MapFolder,
   MapActionOf,
@@ -395,10 +369,8 @@ let fogVeilCacheKey = "";
 let pendingRenderFrame = 0;
 let pendingTouchSpacePan: TimerHandle = null;
 let copyPromptLabelTimer: TimerHandle = null;
-const sourceLinesByNumberCache = new WeakMap<SourceRange, Map<number | string, string>>();
 const hexRgbCache = new Map<string, readonly [number, number, number]>();
 const hashUnitCache = new Map<string, number>();
-const organicRegionPointsCache = new Map<string, Point[]>();
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 const state: MapApplicationState = createMapApplicationState();
@@ -620,6 +592,27 @@ const fogDrawer = createFogDrawer({
   integerNoise,
   fogMaskScale: FOG_MASK_SCALE,
 });
+const draw = createDrawController({
+  ctx,
+  canvasSize: () => ({ width: canvas.clientWidth, height: canvas.clientHeight }),
+  viewportSize,
+  getView: () => state.view,
+  getMapFolders: () => state.mapFolders,
+  getMapFiles: () => state.mapFiles,
+  getOrganicRegionFolders: () => state.organicRegionFolders,
+  getActivityFog: () => state.activityFog,
+  getNamedPlaces: () => state.namedPlaces,
+  getSelectedTarget: () => state.selectedTarget,
+  getSourceCache: () => state.sourceCache,
+  getPendingSourceRequests: () => state.pendingSourceRequests,
+  isDiscoveryEnabled: activityDiscoveryEnabled,
+  drawRect,
+  drawLabel,
+  queueLabelInBox,
+  drawSelection,
+  render,
+  fetchJson,
+});
 
 async function boot() {
   const [map, mapVersion, names, activity] = await Promise.all([
@@ -652,7 +645,7 @@ function applyMap(map: CodecharterCodemap, version: string | undefined) {
   state.mapFolders = Object.values(map.folders ?? {});
   state.mapFiles = Object.values(map.files ?? {});
   state.organicRegionFolders = organicRegionFolders(map);
-  organicRegionPointsCache.clear();
+  draw.clearCaches();
   state.mapVersion = version ?? state.mapVersion;
   state.clearSourceState();
   rebuildActivityFog();
@@ -788,22 +781,22 @@ function render() {
     ctx.clearRect(0, 0, rect.width, rect.height);
     setText(controls.viewport, `scale ${state.view.scale.toFixed(2)} | level ${DEFAULT_MAP_LEVEL}`);
 
-    drawCompassRose();
+    draw.drawCompassRose();
     if (layerEnabled("showGrid", false)) {
-      drawGrid();
+      draw.drawGrid();
     }
     if (layerEnabled("showFolders")) {
-      drawFolders();
+      draw.drawFolders();
     }
     if (layerEnabled("showOrganicRegions")) {
-      drawOrganicRegions();
+      draw.drawOrganicRegions();
     }
     if (layerEnabled("showFiles")) {
-      drawFiles();
+      draw.drawFiles();
     }
     drawQueuedLabels();
     if (layerEnabled("showNames")) {
-      drawNamedPlaces();
+      draw.drawNamedPlaces();
     }
     if (layerEnabled("showNames")) {
       drawOverlaps();
@@ -850,435 +843,6 @@ function activityDiscoveryEnabled() {
 
 // Discovery-fog drawing (veil/mask/reveal/mycelium orchestration) lives in
 // `render/fog.ts`; the render loop calls into `fogDrawer` (wired below).
-
-function drawGrid() {
-  const step = 0.1;
-  ctx.save();
-  ctx.strokeStyle = "rgba(15, 23, 42, 0.12)";
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= 10; i += 1) {
-    const p = worldToScreen({ x: i * step, y: i * step });
-    ctx.beginPath();
-    ctx.moveTo(p.x, 0);
-    ctx.lineTo(p.x, canvas.clientHeight);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(0, p.y);
-    ctx.lineTo(canvas.clientWidth, p.y);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-function drawCompassRose() {
-  ctx.save();
-  ctx.fillStyle = "rgba(18, 61, 53, 0.08)";
-  ctx.strokeStyle = "rgba(18, 61, 53, 0.16)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.arc(canvas.clientWidth - 44, canvas.clientHeight - 44, 22, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.font = "11px Inter, system-ui, sans-serif";
-  ctx.fillText("N", canvas.clientWidth - 48, canvas.clientHeight - 50);
-  ctx.fillText("Code Plane", canvas.clientWidth - 96, canvas.clientHeight - 16);
-  ctx.restore();
-}
-
-function drawFolders() {
-  const fogEnabled = activityDiscoveryEnabled();
-  for (const folder of state.mapFolders) {
-    if (!folder.path || !folder.bounds) {
-      continue;
-    }
-    const box = screenBounds(folder.bounds);
-    if (!visible(box)) {
-      continue;
-    }
-    const depth = folderDepth(folder.path);
-    if (!shouldDrawFolder(state.view.scale, depth, box)) {
-      continue;
-    }
-    const selected =
-      state.selectedTarget?.targetType === "folder" && state.selectedTarget.path === folder.path;
-    const fogState = fogEnabled
-      ? fogStateForFolder(state.activityFog, folder, { selected })
-      : "visible";
-    const style = folderStyle(folder.path, depth);
-    const fogStyle = folderFogStyle(style, fogState, depth, selected, fogEnabled);
-    ctx.fillStyle = fogStyle.fill;
-    ctx.strokeStyle = fogStyle.stroke;
-    ctx.lineWidth = selected ? 2.6 : fogStyle.lineWidth;
-    drawRect(box);
-    if (
-      shouldShowFogLabel(fogState, { selected }) &&
-      shouldLabelFolder(state.view.scale, depth, box)
-    ) {
-      queueLabelInBox({
-        text: folderDisplayName(folder),
-        box,
-        color: fogStyle.label,
-        size: 13,
-        weight: "600",
-        priority: folderLabelPriority(depth, box),
-      });
-    }
-  }
-}
-
-function drawOrganicRegions() {
-  const fogEnabled = activityDiscoveryEnabled();
-  for (const { folder, depth } of state.organicRegionFolders) {
-    if (!folder.bounds) {
-      continue;
-    }
-    const box = screenBounds(folder.bounds);
-    if (!visible(box)) {
-      continue;
-    }
-    if (!shouldDrawOrganicRegion(state.view.scale, depth, box)) {
-      continue;
-    }
-    const points = cachedOrganicRegionPoints(folder.bounds, folder.path, depth);
-    if (points.length < 3) {
-      continue;
-    }
-    const style = organicRegionStyle(folder.path, depth);
-    const selected =
-      state.selectedTarget?.targetType === "folder" && state.selectedTarget.path === folder.path;
-    const fogState = fogEnabled
-      ? fogStateForFolder(state.activityFog, folder, { selected })
-      : "visible";
-    const fogStyle = organicRegionFogStyle(style, fogState, depth, selected, fogEnabled);
-
-    ctx.save();
-    drawOrganicPath(points);
-    ctx.fillStyle = fogStyle.fill;
-    ctx.strokeStyle = fogStyle.stroke;
-    ctx.lineWidth = fogStyle.lineWidth;
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-  }
-}
-
-function drawFiles() {
-  const fogEnabled = activityDiscoveryEnabled();
-  let renderedSourceLines = 0;
-  for (const file of state.mapFiles) {
-    if (!file.bounds) {
-      continue;
-    }
-    const box = screenBounds(file.bounds);
-    if (!visible(box)) {
-      continue;
-    }
-    const selected =
-      state.selectedTarget?.targetType === "file" && state.selectedTarget.path === file.path;
-    const fogState = fogEnabled
-      ? fogStateForFile(state.activityFog, file, { selected })
-      : "visible";
-    const visualState = fileVisualState({ file, box, scale: state.view.scale, selected });
-    if (visualState === "hidden") {
-      continue;
-    }
-
-    const style = fileFogStyle(
-      { fogState, selected, visualState, discoveryMode: fogEnabled },
-      state.view.scale,
-    );
-    ctx.fillStyle = style.fill;
-    ctx.strokeStyle = style.stroke;
-    ctx.lineWidth = style.lineWidth;
-    drawRect(box);
-    if (shouldLabelFoggedFile({ file, box, scale: state.view.scale, selected, fogState })) {
-      queueLabelInBox({
-        text: file.name ?? file.path,
-        box,
-        color: style.label,
-        size: 12,
-        weight: "500",
-        priority: fileLabelPriority({ file, selected }),
-      });
-    }
-    if (
-      shouldShowFogSourceText(fogState, { selected }) &&
-      canRenderSourceText(file, box) &&
-      renderedSourceLines < SOURCE_TEXT_MAX_LINES_PER_FRAME
-    ) {
-      renderedSourceLines += drawSourceText(
-        file,
-        box,
-        SOURCE_TEXT_MAX_LINES_PER_FRAME - renderedSourceLines,
-      );
-    } else if (
-      shouldShowFogSourceText(fogState, { selected }) &&
-      state.view.scale > 6 &&
-      box.height > 34
-    ) {
-      drawLineBands(file, box);
-    }
-  }
-}
-
-// fog colouring helpers (`folderFogStyle`, `organicRegionFogStyle`,
-// `fileFogStyle`) live in `render/fog.ts`; `fileFogStyle` takes the view scale.
-
-function drawOrganicPath(points: Point[]) {
-  const firstPoint = points[0];
-  const secondPoint = points[1];
-  if (!firstPoint || !secondPoint) {
-    return;
-  }
-  const first = worldToScreen(firstPoint);
-  const second = worldToScreen(secondPoint);
-  ctx.beginPath();
-  ctx.moveTo((first.x + second.x) / 2, (first.y + second.y) / 2);
-
-  for (let index = 1; index <= points.length; index += 1) {
-    const controlPoint = points[index % points.length];
-    const nextPoint = points[(index + 1) % points.length];
-    if (!controlPoint || !nextPoint) {
-      continue;
-    }
-    const control = worldToScreen(controlPoint);
-    const next = worldToScreen(nextPoint);
-    ctx.quadraticCurveTo(control.x, control.y, (control.x + next.x) / 2, (control.y + next.y) / 2);
-  }
-
-  ctx.closePath();
-}
-
-function drawSourceText(file: MapFile, box: Bounds, remainingBudget: number): number {
-  const visibleRange = visibleLineRange(file, box);
-  const lineCount = file.lineCount ?? 0;
-  if (!visibleRange) {
-    return 0;
-  }
-  const clipBox = screenIntersection(box);
-  if (!clipBox) {
-    return 0;
-  }
-
-  const budgetedEnd = Math.min(visibleRange.end, visibleRange.start + remainingBudget - 1);
-  const fetchStart = Math.max(1, visibleRange.start - SOURCE_TEXT_PREFETCH_LINES);
-  const fetchEnd = Math.min(lineCount, budgetedEnd + SOURCE_TEXT_PREFETCH_LINES);
-  const cacheKey = sourceRangeCacheKey(file.path, fetchStart, fetchEnd);
-  const cached = cachedSourceRange(state.sourceCache, file.path, fetchStart, fetchEnd);
-
-  if (!cached) {
-    requestSourceRange(file.path, fetchStart, fetchEnd, cacheKey);
-    drawSourcePlaceholder(box);
-    return 0;
-  }
-
-  const linesByNumber = sourceLinesByNumber(cached);
-  const lineHeight = lineHeightForFile(file, box);
-  const firstBaseline =
-    box.y + (visibleRange.start - 1) * lineHeight + Math.min(13, lineHeight * 0.78);
-  const sourceTextLayout = sourceTextLayoutForBox(box, canvas.clientWidth);
-  let drawn = 0;
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(clipBox.x, clipBox.y, clipBox.width, clipBox.height);
-  ctx.clip();
-  ctx.font = "12px SFMono-Regular, Consolas, Liberation Mono, monospace";
-  ctx.textBaseline = "alphabetic";
-
-  for (let lineNumber = visibleRange.start; lineNumber <= budgetedEnd; lineNumber += 1) {
-    const y = firstBaseline + drawn * lineHeight;
-    if (y > box.y + box.height) {
-      break;
-    }
-    const text = linesByNumber.get(lineNumber) ?? "";
-    ctx.fillStyle = "rgba(63, 83, 97, 0.58)";
-    ctx.fillText(String(lineNumber).padStart(4, " "), sourceTextLayout.lineNumberX, y);
-    ctx.fillStyle = "rgba(12, 34, 48, 0.86)";
-    ctx.fillText(truncateLine(text, sourceTextLayout.maxChars), sourceTextLayout.textX, y);
-    drawn += 1;
-  }
-
-  ctx.restore();
-  return drawn;
-}
-
-function sourceLinesByNumber(source: SourceRange): Map<number | string, string> {
-  const cached = sourceLinesByNumberCache.get(source);
-  if (cached) {
-    return cached;
-  }
-  const linesByNumber = new Map<number | string, string>();
-  for (const line of source.lines ?? []) {
-    linesByNumber.set(line.number, line.text);
-  }
-  sourceLinesByNumberCache.set(source, linesByNumber);
-  return linesByNumber;
-}
-
-function drawSourcePlaceholder(box: Bounds) {
-  ctx.save();
-  ctx.fillStyle = "rgba(255, 255, 255, 0.36)";
-  ctx.fillRect(
-    box.x + 4,
-    box.y + 4,
-    Math.max(0, box.width - 8),
-    Math.min(24, Math.max(0, box.height - 8)),
-  );
-  ctx.restore();
-}
-
-function visibleLineRange(file: MapFile, box: Bounds) {
-  return visibleLineRangeForBox(file, box, canvas.clientHeight);
-}
-
-function requestSourceRange(path: string, lineStart: number, lineEnd: number, cacheKey: string) {
-  if (state.pendingSourceRequests.has(cacheKey)) {
-    return;
-  }
-  state.pendingSourceRequests.add(cacheKey);
-  fetchJson<SourceRange>(sourceContextRequest(path, { start: lineStart, end: lineEnd }).sourceUrl)
-    .then((source) => {
-      rememberSourceRange(state.sourceCache, cacheKey, source);
-      render();
-    })
-    .catch((error) => {
-      console.error(error);
-    })
-    .finally(() => {
-      state.pendingSourceRequests.delete(cacheKey);
-    });
-}
-
-function truncateLine(text: string, maxChars: number) {
-  return text.length > maxChars ? `${text.slice(0, Math.max(0, maxChars - 3))}...` : text;
-}
-
-function drawLineBands(file: MapFile, box: Bounds) {
-  const lines = Math.min(file.lineCount ?? 0, 80);
-  const clipBox = screenIntersection(box);
-  if (!clipBox) {
-    return;
-  }
-  ctx.strokeStyle = "rgba(4, 120, 87, 0.18)";
-  ctx.lineWidth = 1;
-  for (let i = 1; i < lines; i += 1) {
-    const y = box.y + (box.height * i) / lines;
-    if (y < clipBox.y || y > clipBox.y + clipBox.height) {
-      continue;
-    }
-    ctx.beginPath();
-    ctx.moveTo(clipBox.x, y);
-    ctx.lineTo(clipBox.x + clipBox.width, y);
-    ctx.stroke();
-  }
-}
-
-function drawNamedPlaces() {
-  const annotations: MapAnnotationPlace[] = [];
-  for (const place of state.namedPlaces) {
-    if (place.kind === "mapAnnotation") {
-      annotations.push(place);
-      continue;
-    }
-    if (place.kind !== "drawnSelection") {
-      continue;
-    }
-    if (!hasGeometryBounds(place)) {
-      continue;
-    }
-    drawSelection(place.geometry.bounds, "rgba(245, 158, 11, 0.08)", "#f59e0b", []);
-    const box = screenBounds(place.geometry.bounds);
-    drawLabel(place.name ?? "", box.x + 6, box.y + 16, "#92400e");
-  }
-
-  annotations.forEach((annotation, index) => {
-    const selected =
-      state.selectedTarget?.targetType === "annotation" &&
-      state.selectedTarget.id === annotation.id;
-    drawAnnotation(annotation, index + 1, selected);
-  });
-}
-
-function drawAnnotation(annotation: MapAnnotationPlace, markerNumber: number, selected: boolean) {
-  if (!hasGeometryBounds(annotation)) {
-    return;
-  }
-  drawAnnotationMembrane(
-    annotation.geometry.bounds,
-    selected ? "rgba(37, 99, 235, 0.13)" : "rgba(37, 99, 235, 0.07)",
-    selected ? "#1d4ed8" : "rgba(37, 99, 235, 0.8)",
-    selected,
-    annotation.id ?? annotation.name ?? "annotation",
-  );
-
-  const box = screenBounds(annotation.geometry.bounds);
-  if (box.width > 68 && box.height > 22) {
-    drawLabel(annotation.name ?? "Annotation", box.x + 8, box.y + 18, "#1e3a8a", 12, "700");
-  }
-  drawAnnotationMarker(annotation, markerNumber, selected);
-}
-
-function drawAnnotationMembrane(
-  bounds: Bounds,
-  fill: string,
-  stroke: string,
-  selected: boolean,
-  key: string,
-) {
-  const points = cachedOrganicRegionPoints(bounds, `annotation:${key}`, 0);
-  if (points.length < 3) {
-    return;
-  }
-
-  ctx.save();
-  ctx.fillStyle = fill;
-  ctx.strokeStyle = stroke;
-  ctx.lineWidth = selected ? 2.5 : 1.6;
-  if (!selected) {
-    ctx.setLineDash([6, 5]);
-  }
-  drawOrganicPath(points);
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
-}
-
-function cachedOrganicRegionPoints(bounds: Bounds, key: string, depth: number): Point[] {
-  const cacheKey = `${key}:${depth}:${bounds.x}:${bounds.y}:${bounds.width}:${bounds.height}`;
-  const cached = organicRegionPointsCache.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
-  const points = organicRegionPoints(bounds, key, depth);
-  organicRegionPointsCache.set(cacheKey, points);
-  return points;
-}
-
-function drawAnnotationMarker(
-  annotation: MapAnnotationPlace,
-  markerNumber: number,
-  selected: boolean,
-) {
-  if (!hasGeometryBounds(annotation)) {
-    return;
-  }
-  const center = worldToScreen(boundsCenter(annotation.geometry.bounds));
-  const radius = selected ? 13 : 11;
-  ctx.save();
-  ctx.fillStyle = selected ? "#1d4ed8" : "#2563eb";
-  ctx.strokeStyle = "#eff6ff";
-  ctx.lineWidth = selected ? 3 : 2.4;
-  ctx.beginPath();
-  ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = "#fff";
-  ctx.font = "700 11px Inter, system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(String(markerNumber), center.x, center.y + 0.5);
-  ctx.restore();
-}
 
 function drawOverlaps() {
   for (const overlap of state.overlaps) {

@@ -12,6 +12,7 @@ export * from "./fog.ts";
 export * from "./activity.ts";
 export * from "./source-panel.ts";
 export * from "./targets.ts";
+export * from "./draw.ts";
 export {
   boundsCenter,
   containsBoundsPoint,

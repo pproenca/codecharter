@@ -35,6 +35,32 @@ test("activity command can post a reading event to the running viewer server", a
   assert.equal(event?.activityState, "reading");
 });
 
+// CWE-918 (SSRF) — an agent-supplied full URL reference must stay on loopback;
+// the CLI refuses to fetch an attacker-controlled origin and exits non-zero.
+test("api command rejects a non-loopback URL reference", async () => {
+  const { stdout, stderr, code } = await execCliRaw([
+    "api",
+    "http://attacker.example/api/map-version",
+  ]);
+  assert.equal(code, 1);
+  assert.match(stdout + stderr, /non-loopback origin/);
+});
+
+// CWE-918 (SSRF) — a non-loopback --server is rejected before any request; the
+// activity command surfaces the refusal in its result rather than fetching.
+test("activity command rejects a non-loopback --server origin", async () => {
+  const { stdout, stderr } = await execCliRaw([
+    "--json",
+    "activity",
+    "scripts/build.mjs",
+    "--state",
+    "reading",
+    "--server",
+    "http://attacker.example",
+  ]);
+  assert.match(stdout + stderr, /non-loopback origin/);
+});
+
 async function startActivityFixtureServer(t: TestContext): Promise<Server> {
   const root = await mkdtemp(join(tmpdir(), "codecharter-activity-cli-"));
   let server: Server | null = null;
@@ -98,6 +124,22 @@ async function execCli(args: string[]): Promise<Record<string, any>> {
     );
   });
   return JSON.parse(stdout);
+}
+
+// Capture raw stdout/stderr/exit code without throwing — needed to assert error
+// output for commands that exit non-zero or report failure in their JSON result.
+function execCliRaw(args: string[]): Promise<{ stdout: string; stderr: string; code: number }> {
+  return new Promise((resolve) => {
+    execFile(
+      process.execPath,
+      ["--import", "tsx", cliPath, ...args],
+      { cwd: repoRoot, encoding: "utf8" },
+      (error, stdout, stderr) => {
+        const code = error && typeof error.code === "number" ? error.code : 0;
+        resolve({ stdout, stderr, code });
+      },
+    );
+  });
 }
 
 async function waitForActivity(

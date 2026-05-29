@@ -21,6 +21,20 @@ export type {
   CodePlaneDescriptor,
 } from "./geohash.ts";
 
+export {
+  CODECHARTER_DIR,
+  CODEX_DIR,
+  MAP_FILE,
+  ROOT_MAP_FILE,
+  LEGACY_MAP_FILE,
+  ACTIVITY_ARCHIVE_FILE,
+  CONFIG_FILE,
+  NAMED_PLACES_FILE,
+  HOOKS_JSON_FILE,
+  HOOK_SHIM_FILE,
+  RECOGNIZED_MAP_FILES,
+} from "./paths.ts";
+
 export { clamp, round } from "./math.ts";
 export {
   compareStrings,

@@ -19,6 +19,14 @@ import {
   generateCodemap,
   initializeCodecharter,
   MAP_LEVELS,
+  MAP_FILE,
+  ROOT_MAP_FILE,
+  LEGACY_MAP_FILE,
+  ACTIVITY_ARCHIVE_FILE,
+  CONFIG_FILE,
+  NAMED_PLACES_FILE,
+  HOOKS_JSON_FILE,
+  HOOK_SHIM_FILE,
   ensureCodecharterGitignore,
   ensureLocalGitExcludes,
   resolveAddress,
@@ -197,17 +205,15 @@ type DoctorResult = {
   [key: string]: unknown;
 };
 
-const DEFAULT_MAP_FILE = ".codecharter/codecharter.json";
-const ROOT_MAP_FILE = "codecharter.json";
-const LEGACY_MAP_FILE = "codemap.json";
-const DEFAULT_ACTIVITY_ARCHIVE = ".codecharter/activity.jsonl";
+const DEFAULT_MAP_FILE = MAP_FILE;
+const DEFAULT_ACTIVITY_ARCHIVE = ACTIVITY_ARCHIVE_FILE;
 const METADATA_EXCLUDE_PATHS = [
   DEFAULT_MAP_FILE,
   ROOT_MAP_FILE,
   LEGACY_MAP_FILE,
-  ".codecharter/config.json",
-  ".codex/hooks.json",
-  ".codex/hooks/codecharter-codex-hook.mjs",
+  CONFIG_FILE,
+  HOOKS_JSON_FILE,
+  HOOK_SHIM_FILE,
   ".agents/skills/codecharter/SKILL.md",
   ".agents/skills/codecharter/agents/openai.yaml",
 ];
@@ -676,7 +682,7 @@ async function runClearActivityCommand(args: string[], jsonOutput: boolean): Pro
 async function clearActivity({ outPath, server }: ClearActivityOptions) {
   const origin = normalizeOrigin(server);
   if (origin) {
-    const response = await fetch(`${origin}/api/activity`, { method: "DELETE" });
+    const response = await fetchLocal(`${origin}/api/activity`, { method: "DELETE" });
     const body = (objectRecord(await response.json().catch(() => ({}))) ?? {}) as {
       error?: string;
     };
@@ -695,7 +701,7 @@ async function postActivityToServer(server: string, body: Record<string, unknown
   if (!origin) {
     throw new Error("Activity server must be a valid URL");
   }
-  const response = await fetch(`${origin}/api/activity`, {
+  const response = await fetchLocal(`${origin}/api/activity`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -791,10 +797,10 @@ function parseRange(value: string | undefined): Range | undefined {
 }
 
 async function doctor({ root, mapPath, server }: DoctorOptions): Promise<DoctorResult> {
-  const configPath = join(root, ".codecharter", "config.json");
-  const namedPlacesPath = join(root, ".codecharter", "named-places.json");
-  const hooksJsonPath = join(root, ".codex", "hooks.json");
-  const hookShimPath = join(root, ".codex", "hooks", "codecharter-codex-hook.mjs");
+  const configPath = join(root, CONFIG_FILE);
+  const namedPlacesPath = join(root, NAMED_PLACES_FILE);
+  const hooksJsonPath = join(root, HOOKS_JSON_FILE);
+  const hookShimPath = join(root, HOOK_SHIM_FILE);
   const skillPath = join(root, ".agents", "skills", "codecharter", "SKILL.md");
   const skillUiPath = join(root, ".agents", "skills", "codecharter", "agents", "openai.yaml");
   const packageJson = await packageMetadata();
@@ -1164,7 +1170,7 @@ async function listAnnotations({
 }
 
 async function listAnnotationsFromServer(origin: string): Promise<MapAnnotation[]> {
-  const response = await fetch(`${origin}/api/annotations`);
+  const response = await fetchLocal(`${origin}/api/annotations`);
   if (!response.ok) {
     throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`);
   }
@@ -1179,7 +1185,7 @@ async function listAnnotationsFromStorage({
   root: string;
   mapPath: string;
 }): Promise<MapAnnotation[]> {
-  const storePath = join(root, ".codecharter", "named-places.json");
+  const storePath = join(root, NAMED_PLACES_FILE);
   const store = namedPlacesFileFromValue(await readOptionalJson(storePath));
   const codemap = codemapFromValue(await readOptionalJson(mapPath));
   return store.places.map((annotation) =>
@@ -1197,7 +1203,9 @@ async function readAnnotation({
   const origin = normalizeOrigin(parsed.origin ?? server);
   if (origin) {
     try {
-      const response = await fetch(`${origin}/api/annotations/${encodeURIComponent(parsed.id)}`);
+      const response = await fetchLocal(
+        `${origin}/api/annotations/${encodeURIComponent(parsed.id)}`,
+      );
       if (!response.ok) {
         throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`);
       }
@@ -1215,7 +1223,7 @@ async function readAnnotationFromStorage({
   mapPath,
   id,
 }: AnnotationStorageOptions): Promise<MapAnnotation> {
-  const storePath = join(root, ".codecharter", "named-places.json");
+  const storePath = join(root, NAMED_PLACES_FILE);
   const store = namedPlacesFileFromValue(await readOptionalJson(storePath));
   const annotation = store.places.find((place) => place.id === id);
   if (!annotation) {
@@ -1245,7 +1253,7 @@ async function readApi({ reference, server }: ApiReadOptions): Promise<ApiReadRe
       "api does not expose /api/source; use Codex file-reading tools for source files",
     );
   }
-  const response = await fetch(url);
+  const response = await fetchLocal(url);
   const text = await response.text();
   let body;
   try {
@@ -1270,6 +1278,7 @@ async function readApi({ reference, server }: ApiReadOptions): Promise<ApiReadRe
 function apiUrl(reference: string, server?: string): string {
   if (/^https?:\/\//.test(reference)) {
     const url = new URL(reference);
+    assertLoopbackOrigin(url);
     if (!url.pathname.startsWith("/api/")) {
       throw new Error("api only supports CodeCharter /api URLs");
     }
@@ -1321,11 +1330,32 @@ function parseAnnotationReference(reference: string): ParsedAnnotationReference 
   return { id: reference };
 }
 
+// HARDENING (CWE-918): the CLI must only ever contact the local viewer server.
+// Agent-supplied references (`codecharter://`, full URLs) and `--server` values
+// are confined to loopback so a malicious reference cannot turn the CLI into an
+// SSRF client fetching an attacker-controlled origin.
+const LOOPBACK_HOSTNAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+
+// HARDENING (CWE-400): bound every outbound request so a hung or slow-loris
+// endpoint cannot stall the agent indefinitely.
+const OUTBOUND_FETCH_TIMEOUT_MS = 10_000;
+
+function assertLoopbackOrigin(url: URL): void {
+  if (!LOOPBACK_HOSTNAMES.has(url.hostname.toLowerCase())) {
+    throw new Error(`Refusing to contact non-loopback origin: ${url.origin}`);
+  }
+}
+
+function fetchLocal(url: string | URL, init?: RequestInit): Promise<Response> {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS) });
+}
+
 function normalizeOrigin(value: string | undefined): string | undefined {
   if (!value) {
     return undefined;
   }
   const url = new URL(value);
+  assertLoopbackOrigin(url);
   return url.origin;
 }
 
@@ -1387,7 +1417,7 @@ async function jsonFileStatus(path: string): Promise<JsonFileStatus> {
 
 async function probeServer(origin: string) {
   try {
-    const response = await fetch(`${origin}/api/map-version`);
+    const response = await fetchLocal(`${origin}/api/map-version`);
     if (!response.ok) {
       return { configured: true, origin, ok: false, status: response.status };
     }

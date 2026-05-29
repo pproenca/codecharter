@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, rm, symlink } from "node:fs/promises";
+import { request as httpRequest } from "node:http";
 import type { Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -134,6 +135,67 @@ test("source reads reject symlink-backed mapped files outside the repo", async (
   assert.equal(JSON.stringify(body).includes("outside secret"), false);
 });
 
+// CWE-367 (positive case): a source read follows an in-root symlink to its
+// resolved target and returns that target's content — proving the read uses the
+// exact resolved path the containment check approved (no check/use divergence).
+test("source reads follow an in-root symlink to the resolved target", async (t) => {
+  const root = await sourceFixtureRoot();
+  let server: Server | null = null;
+  t.after(async () => {
+    if (server) {
+      await closeServer(server);
+    }
+    await rm(root, { recursive: true, force: true });
+  });
+
+  await writeFile(join(root, "scripts", "real.mjs"), "const x = 1;\nexport default x;\n");
+  await symlink(join(root, "scripts", "real.mjs"), join(root, "scripts", "alias.mjs"));
+  await writeFile(
+    join(root, ".codecharter", "codecharter.json"),
+    JSON.stringify({
+      folders: {},
+      files: {
+        "scripts/alias.mjs": {
+          path: "scripts/alias.mjs",
+          bounds: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
+          geo: { lat: 0, lon: 0, geohash: "s00000000000" },
+          lineCount: 2,
+          maxLineLength: 18,
+        },
+      },
+    }),
+  );
+  server = await startServer({
+    root,
+    mapPath: join(root, ".codecharter", "codecharter.json"),
+    port: 0,
+    activityFlushIntervalMs: 0,
+  });
+
+  const response = await fetch(`${serverUrl(server)}/api/source?path=scripts/alias.mjs`);
+  const body = (await response.json()) as SourceJsonResponse & { path?: string };
+  assert.equal(response.status, 200);
+  assert.equal(body.lines?.[0]?.text, "const x = 1;");
+  assert.equal(body.path, "scripts/alias.mjs");
+});
+
+// CWE-1321: an untrusted codemap key colliding with an Object prototype property
+// must resolve to a clean not-found, never reaching the prototype object (which
+// previously crashed with an opaque 500).
+test("source/resolve treat prototype-polluting path keys as not found", async (t) => {
+  const server = await startSourceServer(t);
+  const url = serverUrl(server);
+  for (const key of ["__proto__", "constructor", "prototype"]) {
+    const source = await fetch(`${url}/api/source?path=${encodeURIComponent(key)}`);
+    assert.equal(source.status, 404, `source path=${key} should be 404`);
+
+    const resolved = await fetch(`${url}/api/resolve?path=${encodeURIComponent(key)}`);
+    const body = (await resolved.json()) as SourceJsonResponse;
+    assert.equal(resolved.status, 500, `resolve path=${key} should be a plain not-found`);
+    assert.match(body.error ?? "", /No map target found/);
+  }
+});
+
 test("API mutations reject cross-site non-JSON requests", async (t) => {
   const server = await startSourceServer(t);
   const response = await fetch(`${serverUrl(server)}/api/annotations`, {
@@ -168,6 +230,107 @@ test("API mutations accept same-origin JSON requests", async (t) => {
 
   assert.equal(response.status, 201);
   assert.equal(body.annotation?.comment, "trusted");
+});
+
+// BR-SERVER-001 — localhost bind + Host allowlist (anti DNS-rebinding)
+test("BR-SERVER-001 rejects a non-localhost Host header", async (t) => {
+  const server = await startSourceServer(t);
+  const forbidden = await rawGet(server, "/api/source?path=scripts/build.mjs", {
+    host: "attacker.example",
+  });
+  assert.equal(forbidden.status, 403);
+
+  // A loopback Host is allowed (sanity that the allowlist is not blanket-deny).
+  const allowed = await rawGet(server, "/api/source?path=scripts/build.mjs", {
+    host: "127.0.0.1",
+  });
+  assert.equal(allowed.status, 200);
+});
+
+// BR-SERVER-001 (OQ-4 / CWE-350): fail CLOSED — a request whose Host reaches the
+// handler empty must not bypass the loopback allowlist. (A truly absent Host on
+// HTTP/1.1 is already rejected by Node's parser before our handler runs.)
+test("BR-SERVER-001 rejects a request with an empty Host header (fail closed)", async (t) => {
+  const server = await startSourceServer(t);
+  const response = await rawGet(
+    server,
+    "/api/source?path=scripts/build.mjs",
+    { host: "" },
+    { setHost: false },
+  );
+  assert.equal(response.status, 403);
+});
+
+// CWE-697: bare and bracketed loopback IPv6 Host headers are both accepted (a
+// bare `::1` was previously over-rejected by a naive port strip).
+test("BR-SERVER-001 accepts bare and bracketed loopback IPv6 Host headers", async (t) => {
+  const server = await startSourceServer(t);
+  for (const host of ["::1", "[::1]", "[::1]:8080"]) {
+    const response = await rawGet(server, "/api/source?path=scripts/build.mjs", { host });
+    assert.equal(response.status, 200, `Host ${host} should be allowed`);
+  }
+});
+
+// BR-SERVER-004 — 1 MB request body cap
+test("BR-SERVER-004 a request body over 1 MB is rejected with 413", async (t) => {
+  const server = await startSourceServer(t);
+  const url = serverUrl(server);
+  const oversized = "x".repeat(1024 * 1024 + 1024);
+  const response = await fetch(`${url}/api/annotations`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: url },
+    body: JSON.stringify({ ...annotationBody(), comment: oversized }),
+  });
+  assert.equal(response.status, 413);
+});
+
+// BR-SERVER-006 — codemap validation (corrupt / foreign maps are rejected)
+test("BR-SERVER-006 a corrupt or foreign map is rejected with a clear 500", async (t) => {
+  for (const { map, pattern } of [
+    { map: "{ not valid json", pattern: /not valid JSON/ },
+    { map: JSON.stringify({ version: 1 }), pattern: /missing files\/folders/ },
+  ]) {
+    const root = await fixtureRoot();
+    const mapPath = join(root, ".codecharter", "codecharter.json");
+    await writeFile(mapPath, map);
+    const server = await startServer({ root, mapPath, port: 0, activityFlushIntervalMs: 0 });
+    t.after(async () => {
+      await closeServer(server);
+      await rm(root, { recursive: true, force: true });
+    });
+    const response = await fetch(`${serverUrl(server)}/api/resolve?path=src/app.ts`);
+    const body = (await response.json()) as SourceJsonResponse;
+    assert.equal(response.status, 500);
+    assert.match(body.error ?? "", pattern);
+  }
+});
+
+// BR-SERVER-008 — static file MIME allowlist + 404 for missing files
+test("BR-SERVER-008 serves known MIME types, falls back to octet-stream, and 404s misses", async (t) => {
+  const root = await fixtureRoot();
+  const publicRoot = join(root, "viewer", "dist");
+  await writeFile(join(publicRoot, "style.css"), "body{}");
+  await writeFile(join(publicRoot, "data.bin"), "binary");
+  const server = await startServer({
+    root,
+    mapPath: join(root, ".codecharter", "codecharter.json"),
+    port: 0,
+    activityFlushIntervalMs: 0,
+  });
+  t.after(async () => {
+    await closeServer(server);
+    await rm(root, { recursive: true, force: true });
+  });
+  const url = serverUrl(server);
+
+  const css = await fetch(`${url}/style.css`);
+  assert.match(css.headers.get("content-type") ?? "", /^text\/css/);
+
+  const bin = await fetch(`${url}/data.bin`);
+  assert.equal(bin.headers.get("content-type"), "application/octet-stream");
+
+  const missing = await fetch(`${url}/nope.js`);
+  assert.equal(missing.status, 404);
 });
 
 test("viewer activity summary omits full geometry and supports unchanged version responses", async (t) => {
@@ -341,6 +504,33 @@ function serverUrl(server: Server): string {
   const address = server.address();
   assert.ok(address && typeof address !== "string");
   return `http://127.0.0.1:${address.port}`;
+}
+
+// Raw request so we can set the otherwise-forbidden `Host` header (fetch strips
+// it). `setHost: false` suppresses Node's automatic Host header so we can assert
+// the missing-Host (fail-closed) path.
+function rawGet(
+  server: Server,
+  path: string,
+  headers: Record<string, string>,
+  { setHost = true }: { setHost?: boolean } = {},
+): Promise<{ status: number; body: string }> {
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  return new Promise((resolve, reject) => {
+    const req = httpRequest(
+      { host: "127.0.0.1", port: address.port, path, method: "GET", headers, setHost },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => {
+          data += chunk;
+        });
+        res.on("end", () => resolve({ status: res.statusCode ?? 0, body: data }));
+      },
+    );
+    req.on("error", reject);
+    req.end();
+  });
 }
 
 async function closeServer(server: Server): Promise<void> {

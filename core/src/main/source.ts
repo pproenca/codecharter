@@ -5,7 +5,6 @@
  */
 
 import { createReadStream } from "node:fs";
-import { join } from "node:path";
 import { createInterface } from "node:readline";
 
 export type SourceFileReference = {
@@ -31,7 +30,7 @@ export type SourceRange = {
 };
 
 export async function readSourceRange(
-  root: string,
+  absolutePath: string,
   file: SourceFileReference,
   { lineStart = 1, lineEnd }: SourceRangeOptions = {},
 ): Promise<SourceRange> {
@@ -39,7 +38,10 @@ export async function readSourceRange(
   const end = normalizeLine(lineEnd ?? Math.min(file.lineCount, start + 80), file.lineCount);
   const low = Math.min(start, end);
   const high = Math.max(start, end);
-  const lines = await readLines(join(root, file.path), low, high);
+  // HARDENING (CWE-367): read the exact symlink-resolved path the caller already
+  // validated; do not re-derive it here, or a swap between check and read could
+  // escape root.
+  const lines = await readLines(absolutePath, low, high);
 
   return {
     path: file.path,

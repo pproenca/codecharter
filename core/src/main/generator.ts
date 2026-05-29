@@ -19,6 +19,16 @@ import { codePlaneDescriptor } from "./geohash.ts";
 import type { Bounds } from "./geometry.ts";
 import { MAP_LEVELS } from "./levels.ts";
 import type { MapLevel } from "./levels.ts";
+import {
+  ACTIVITY_ARCHIVE_FILE,
+  CONFIG_FILE,
+  HOOK_SHIM_FILE,
+  HOOKS_JSON_FILE,
+  LEGACY_MAP_FILE,
+  MAP_FILE,
+  NAMED_PLACES_FILE,
+  ROOT_MAP_FILE,
+} from "./paths.ts";
 import { scanCodeFiles } from "./scan.ts";
 import { stabilizeTreeLayout } from "./stability.ts";
 import type { PreviousCodemapLayout } from "./stability.ts";
@@ -27,14 +37,14 @@ import type { FileNode, FolderNode, LayoutBounds } from "./tree.ts";
 import { layoutTree } from "./treemap.ts";
 
 const DEFAULT_EXCLUDE_PATHS = [
-  ".codecharter/codecharter.json",
-  "codecharter.json",
-  "codemap.json",
-  ".codecharter/config.json",
-  ".codecharter/activity.jsonl",
-  ".codecharter/named-places.json",
-  ".codex/hooks.json",
-  ".codex/hooks/codecharter-codex-hook.mjs",
+  MAP_FILE,
+  ROOT_MAP_FILE,
+  LEGACY_MAP_FILE,
+  CONFIG_FILE,
+  ACTIVITY_ARCHIVE_FILE,
+  NAMED_PLACES_FILE,
+  HOOKS_JSON_FILE,
+  HOOK_SHIM_FILE,
   ".agents/skills/codecharter/SKILL.md",
   ".agents/skills/codecharter/agents/openai.yaml",
 ];

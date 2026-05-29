@@ -17,6 +17,7 @@ import { mapConcurrent } from "./collections.ts";
 import { errorMessage } from "./errors.ts";
 import { execFileText } from "./exec-file.ts";
 import { isCodeFile } from "./extensions.ts";
+import { CODECHARTER_DIR, CODEX_DIR, LEGACY_MAP_FILE, ROOT_MAP_FILE } from "./paths.ts";
 
 const DEFAULT_INTERVAL_MS = 1800;
 const DEFAULT_THROTTLE_MS = 5000;
@@ -305,11 +306,11 @@ async function sendActivityDatagram(
 function isActivityWatchablePath(path: string): boolean {
   return (
     path !== "" &&
-    path !== "codemap.json" &&
-    path !== "codecharter.json" &&
+    path !== LEGACY_MAP_FILE &&
+    path !== ROOT_MAP_FILE &&
     !path.startsWith(".git/") &&
-    !path.startsWith(".codex/") &&
-    !path.startsWith(".codecharter/") &&
+    !path.startsWith(`${CODEX_DIR}/`) &&
+    !path.startsWith(`${CODECHARTER_DIR}/`) &&
     !path.startsWith(".scratch/") &&
     isCodeFile(path)
   );

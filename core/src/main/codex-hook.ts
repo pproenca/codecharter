@@ -22,15 +22,22 @@ import { mapConcurrent, objectRecord } from "./collections.ts";
 import { isErrnoException } from "./errors.ts";
 import { execFileText } from "./exec-file.ts";
 import { generateCodemap } from "./generator.ts";
+import {
+  ACTIVITY_ARCHIVE_FILE,
+  CONFIG_FILE,
+  LEGACY_MAP_FILE,
+  MAP_FILE,
+  ROOT_MAP_FILE,
+} from "./paths.ts";
 import { normalizePathForMap, resolveAddress } from "./resolver.ts";
 import type { CodecharterCodemap } from "./resolver.ts";
 import { readJson, writeJson } from "./store.ts";
 
-const DEFAULT_CONFIG_PATH = ".codecharter/config.json";
-const DEFAULT_MAP_PATH = ".codecharter/codecharter.json";
-const ROOT_MAP_PATH = "codecharter.json";
-const LEGACY_MAP_PATH = "codemap.json";
-const DEFAULT_ACTIVITY_PATH = ".codecharter/activity.jsonl";
+const DEFAULT_CONFIG_PATH = CONFIG_FILE;
+const DEFAULT_MAP_PATH = MAP_FILE;
+const ROOT_MAP_PATH = ROOT_MAP_FILE;
+const LEGACY_MAP_PATH = LEGACY_MAP_FILE;
+const DEFAULT_ACTIVITY_PATH = ACTIVITY_ARCHIVE_FILE;
 const DEFAULT_CHANGE_RANGE_CONCURRENCY = 32;
 const SHELL_TOOL_NAMES = new Set([
   "Bash",

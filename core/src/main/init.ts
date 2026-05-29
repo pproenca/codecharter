@@ -16,25 +16,23 @@ import { isErrnoException } from "./errors.ts";
 import { execFileText } from "./exec-file.ts";
 import { assertNoSymlinkWritePath, assertSafeRootWritePath } from "./path-containment.ts";
 import {
-  PACKAGE_DEPENDENCY_SECTIONS,
-  packageJsonFromValue,
-  stringArrayFromValue,
-} from "./records.ts";
+  ACTIVITY_ARCHIVE_FILE,
+  CODECHARTER_DIR,
+  CODEX_DIR,
+  HOOK_SHIM_FILE,
+  MAP_FILE,
+} from "./paths.ts";
+import { PACKAGE_DEPENDENCY_SECTIONS, packageJsonFromValue } from "./records.ts";
 import { readJson, writeJson } from "./store.ts";
 
-const CODECHARTER_DIR = ".codecharter";
-const CODEX_DIR = ".codex";
 const AGENTS_SKILLS_DIR = ".agents/skills";
 const CODECHARTER_SKILL_DIR = `${AGENTS_SKILLS_DIR}/codecharter`;
-const DEFAULT_ACTIVITY_PATH = `${CODECHARTER_DIR}/activity.jsonl`;
-const DEFAULT_MAP_PATH = `${CODECHARTER_DIR}/codecharter.json`;
-const ROOT_MAP_PATH = "codecharter.json";
-const LEGACY_MAP_PATH = "codemap.json";
+const DEFAULT_ACTIVITY_PATH = ACTIVITY_ARCHIVE_FILE;
+const DEFAULT_MAP_PATH = MAP_FILE;
 const MANAGED_START = "# >>> codecharter >>>";
 const MANAGED_END = "# <<< codecharter <<<";
 const MAP_HOOKS = ["post-checkout", "post-merge", "post-rewrite"];
-const CODECHARTER_HOOK_COMMAND =
-  'node "$(git rev-parse --show-toplevel)/.codex/hooks/codecharter-codex-hook.mjs"';
+const CODECHARTER_HOOK_COMMAND = `node "$(git rev-parse --show-toplevel)/${HOOK_SHIM_FILE}"`;
 const MANAGED_POST_TOOL_MATCHERS = new Set([
   "Bash|apply_patch|Edit|Write",
   "Bash|apply_patch|Edit|Write|MultiEdit|functions.apply_patch|functions.exec_command",
@@ -44,7 +42,6 @@ const MANAGED_POST_TOOL_MATCHERS = new Set([
 
 type CodecharterConfig = {
   activityPath?: string;
-  legacyMapPaths?: string[];
   agents?: {
     codex?: {
       activityPath?: string;
@@ -280,7 +277,6 @@ export async function ensureCodecharterConfig(root: string, mapPath: string): Pr
     version: 1,
     mapPath: normalizeRelative(root, mapPath),
     activityPath: existing.activityPath ?? DEFAULT_ACTIVITY_PATH,
-    legacyMapPaths: existing.legacyMapPaths ?? [ROOT_MAP_PATH, LEGACY_MAP_PATH],
     agents: {
       ...existing.agents,
       codex: {
@@ -566,11 +562,9 @@ function codecharterConfigFromValue(value: unknown): CodecharterConfig {
   if (!record) {
     return {};
   }
-  const legacyMapPaths = stringArrayFromValue(record.legacyMapPaths);
   const agents = codecharterAgentsFromValue(record.agents);
   return {
     ...(typeof record.activityPath === "string" ? { activityPath: record.activityPath } : {}),
-    ...(legacyMapPaths ? { legacyMapPaths } : {}),
     ...(agents ? { agents } : {}),
   };
 }

@@ -79,8 +79,11 @@ export function resolveAddress(
   request: AddressRequest,
 ): ResolvedAddress {
   const path = normalizePathForMap(request.path);
-  const file = codemap.files[path];
-  const folder = codemap.folders[path];
+  // HARDENING (CWE-1321): require own properties so an untrusted key like
+  // "__proto__" or "constructor" resolves to "not found" rather than the object
+  // prototype (which would later throw an opaque 500).
+  const file = Object.hasOwn(codemap.files, path) ? codemap.files[path] : undefined;
+  const folder = Object.hasOwn(codemap.folders, path) ? codemap.folders[path] : undefined;
 
   if (file) {
     return resolveFileAddress(file, request);

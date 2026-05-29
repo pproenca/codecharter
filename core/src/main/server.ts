@@ -26,12 +26,13 @@ import { createActivityStore } from "./activity-store.ts";
 import type { StoredActivityEvent, ViewerFogState } from "./activity-store.ts";
 import { createActivityEvent } from "./activity.ts";
 import type { ActivityAddress, ActivityEventInput } from "./activity.ts";
-import { objectRecord, sortIfNeeded } from "./collections.ts";
+import { limitToRecent, objectRecord, sortIfNeeded } from "./collections.ts";
 import { errorMessage, isErrnoException } from "./errors.ts";
 import { MAP_LEVELS } from "./levels.ts";
 import type { MapLevel } from "./levels.ts";
 import { findNamedPlaceOverlaps } from "./overlaps.ts";
-import { realPathWithinRoot } from "./path-containment.ts";
+import { resolveRealPathWithinRoot } from "./path-containment.ts";
+import { ACTIVITY_ARCHIVE_FILE, CONFIG_FILE, NAMED_PLACES_FILE } from "./paths.ts";
 import { isCodecharterCodemap, normalizePathForMap, resolveAddress } from "./resolver.ts";
 import type { AddressRequest, CodecharterCodemap } from "./resolver.ts";
 import {
@@ -60,12 +61,21 @@ const MIME_TYPES: Record<string, string> = {
 
 const BUNDLED_PUBLIC_ROOT = fileURLToPath(new URL("../public", import.meta.url));
 const DEFAULT_PORT_SEARCH_LIMIT = 20;
-const DEFAULT_ACTIVITY_ARCHIVE = ".codecharter/activity.jsonl";
+const DEFAULT_ACTIVITY_ARCHIVE = ACTIVITY_ARCHIVE_FILE;
 const MAX_BODY_BYTES = 1024 * 1024; // HARDENING: cap request bodies at 1 MB (DoS)
 const LOCAL_HOSTNAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+// Activity newer than this window renders as a "live"/visible trail; older
+// activity falls back to "explored" discovery fog. 360 min = 6 hours.
+// NOTE (brief OQ-1): whether 6h is the intended horizon vs ADR-0005 is an open
+// question; this only documents the current value, it does not change it.
 const VIEWER_ACTIVITY_LIVE_WINDOW_MS = 360 * 60 * 1000;
+// Max number of recent events kept per viewer activity trail before trimming.
 const VIEWER_ACTIVITY_TRAIL_LIMIT = 80;
+// HARDENING (CWE-400): cap events retained when reading the append-ordered
+// activity archive into memory, so a pathologically large log cannot exhaust
+// it. The newest events are what every caller renders.
+const ACTIVITY_ARCHIVE_READ_LIMIT = 50_000;
 
 type ServerConfig = {
   activityPath?: string;
@@ -215,7 +225,7 @@ export async function startServer({
     root: resolvedRoot,
     mapPath: resolvedMapPath,
     publicRoot: resolvedPublicRoot,
-    namedPlacesPath: join(resolvedRoot, ".codecharter", "named-places.json"),
+    namedPlacesPath: join(resolvedRoot, NAMED_PLACES_FILE),
     namedPlacesMutation: Promise.resolve(),
     activityArchivePath: resolvedActivityArchivePath,
     activityStore: createActivityStore({
@@ -274,9 +284,7 @@ async function hasStaticShell(publicRoot: string): Promise<boolean> {
 }
 
 async function configuredActivityArchivePath(root: string): Promise<string> {
-  const config = serverConfigFromValue(
-    await readJson(join(root, ".codecharter", "config.json"), {}),
-  );
+  const config = serverConfigFromValue(await readJson(join(root, CONFIG_FILE), {}));
   const configured =
     config.agents?.codex?.activityPath ?? config.activityPath ?? DEFAULT_ACTIVITY_ARCHIVE;
   return isAbsolute(configured) ? configured : resolve(root, configured);
@@ -343,13 +351,32 @@ async function handleRequest(
 // its own hostname in the Host header; only loopback names are allowed.
 function assertLocalHost(request: IncomingMessage): void {
   const host = request.headers.host;
+  // HARDENING (CWE-350/346): fail CLOSED (OQ-4) — a request with no Host header
+  // must NOT bypass the loopback allowlist. Browsers and the CLI always send
+  // Host; an absent/empty one is anomalous and is rejected.
   if (!host) {
-    return;
-  }
-  const hostname = host.replace(/:\d+$/, "").toLowerCase();
-  if (!LOCAL_HOSTNAMES.has(hostname)) {
     throw httpError(403, "Forbidden host");
   }
+  if (!LOCAL_HOSTNAMES.has(normalizeHostname(host))) {
+    throw httpError(403, "Forbidden host");
+  }
+}
+
+// Strip an optional port and lower-case so the allowlist matches both bracketed
+// and bare loopback IPv6 forms. HARDENING (CWE-697): a naive `:\d+$` strip
+// mangled a bare `::1` into `:`, over-rejecting a legitimate loopback host.
+function normalizeHostname(host: string): string {
+  const trimmed = host.trim().toLowerCase();
+  if (trimmed.startsWith("[")) {
+    // Bracketed IPv6, optionally with a port: "[::1]" or "[::1]:8080".
+    const end = trimmed.indexOf("]");
+    return end === -1 ? trimmed : trimmed.slice(1, end);
+  }
+  if (trimmed.indexOf(":") !== trimmed.lastIndexOf(":")) {
+    // Bare IPv6 (multiple colons) carries no port suffix per RFC 3986.
+    return trimmed;
+  }
+  return trimmed.replace(/:\d+$/, "");
 }
 
 async function handleApi(
@@ -521,21 +548,27 @@ async function getSourceApi(
 ): Promise<void> {
   const codemap = await loadCodemap(state);
   const path = requiredParam(url, "path");
-  const file = codemap.files[normalizePathForMap(path)];
+  const key = normalizePathForMap(path);
+  // HARDENING (CWE-1321): an untrusted codemap key like "__proto__" must not
+  // reach the object prototype; require an own property before indexing.
+  const file = Object.hasOwn(codemap.files, key) ? codemap.files[key] : undefined;
   if (!file) {
     throw httpError(404, `No source file found for path: ${path}`);
   }
   // HARDENING (CWE-22): with an untrusted codemap (Q4), a poisoned key like
   // "../../etc/passwd" must not escape root. Confine the resolved path.
   assertWithinRoot(state.root, file.path);
-  if (!(await realPathWithinRoot(state.root, file.path))) {
+  // HARDENING (CWE-367): resolve the real path ONCE and read from that exact
+  // path, so the containment check and the read observe the same inode.
+  const realPath = await resolveRealPathWithinRoot(state.root, file.path);
+  if (!realPath) {
     throw httpError(400, "Source path escapes repository root");
   }
   const lineEnd = optionalNumber(url.searchParams.get("lineEnd"));
   sendJson(
     response,
     200,
-    await readSourceRange(state.root, file, {
+    await readSourceRange(realPath, file, {
       lineStart: optionalNumber(url.searchParams.get("lineStart")) ?? 1,
       ...(lineEnd === undefined ? {} : { lineEnd }),
     }),
@@ -1146,7 +1179,7 @@ function pathFromActivityDeepLink(deepLink: string | undefined): string {
 }
 
 async function readActivityArchive(path: string): Promise<StoredActivityEvent[]> {
-  const events: StoredActivityEvent[] = [];
+  let events: StoredActivityEvent[] = [];
   let stream;
   try {
     stream = createReadStream(path, { encoding: "utf8" });
@@ -1159,6 +1192,11 @@ async function readActivityArchive(path: string): Promise<StoredActivityEvent[]>
         const event = objectRecord(JSON.parse(line));
         if (event) {
           events.push(event);
+          // Keep memory bounded mid-stream: once we hold twice the cap, drop the
+          // oldest back to the cap so a giant archive never fully materializes.
+          if (events.length >= ACTIVITY_ARCHIVE_READ_LIMIT * 2) {
+            events = limitToRecent(events, ACTIVITY_ARCHIVE_READ_LIMIT);
+          }
         }
       } catch {
         // Ignore incomplete trailing writes or malformed external activity lines.
@@ -1172,7 +1210,7 @@ async function readActivityArchive(path: string): Promise<StoredActivityEvent[]>
   } finally {
     stream?.destroy();
   }
-  return events;
+  return limitToRecent(events, ACTIVITY_ARCHIVE_READ_LIMIT);
 }
 
 function mergeActivityEvents(...groups: StoredActivityEvent[][]): StoredActivityEvent[] {

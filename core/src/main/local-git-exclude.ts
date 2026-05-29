@@ -8,11 +8,12 @@ import { dirname, isAbsolute, join } from "node:path";
 import { isErrnoException } from "./errors.ts";
 import { execFileText } from "./exec-file.ts";
 import { assertNoSymlinkWritePath, assertSafeRootWritePath } from "./path-containment.ts";
+import { CODECHARTER_DIR, LEGACY_MAP_FILE, ROOT_MAP_FILE } from "./paths.ts";
 
 export const CODECHARTER_GITIGNORE_PATTERNS: readonly string[] = [
-  ".codecharter/",
-  "codecharter.json",
-  "codemap.json",
+  `${CODECHARTER_DIR}/`,
+  ROOT_MAP_FILE,
+  LEGACY_MAP_FILE,
 ];
 
 export const LOCAL_CODECHARTER_EXCLUDES: readonly string[] = CODECHARTER_GITIGNORE_PATTERNS;

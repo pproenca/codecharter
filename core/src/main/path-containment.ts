@@ -9,11 +9,21 @@ export function pathWithinRoot(root: string, path: string): boolean {
   return resolvedPath === resolvedRoot || resolvedPath.startsWith(rootPrefix);
 }
 
-export async function realPathWithinRoot(root: string, path: string): Promise<boolean> {
+/**
+ * Resolve the real (symlink-followed) absolute path of `path` under `root`,
+ * returning it only when it stays within root; otherwise `null` (escape or
+ * missing). HARDENING (CWE-367): callers must READ from the returned path rather
+ * than re-deriving it, so the check and the use observe the same inode and a
+ * symlink swap between them cannot escape root.
+ */
+export async function resolveRealPathWithinRoot(
+  root: string,
+  path: string,
+): Promise<string | null> {
   const resolvedRoot = resolve(root);
   const resolvedPath = resolve(root, path);
   if (!pathWithinRoot(resolvedRoot, resolvedPath)) {
-    return false;
+    return null;
   }
 
   try {
@@ -21,13 +31,17 @@ export async function realPathWithinRoot(root: string, path: string): Promise<bo
       realpath(resolvedRoot),
       realpath(resolvedPath),
     ]);
-    return pathWithinRoot(realRoot, realCandidate);
+    return pathWithinRoot(realRoot, realCandidate) ? realCandidate : null;
   } catch (error) {
     if (isErrnoException(error) && error.code === "ENOENT") {
-      return false;
+      return null;
     }
     throw error;
   }
+}
+
+export async function realPathWithinRoot(root: string, path: string): Promise<boolean> {
+  return (await resolveRealPathWithinRoot(root, path)) !== null;
 }
 
 export async function isRegularFileWithinRoot(root: string, path: string): Promise<boolean> {

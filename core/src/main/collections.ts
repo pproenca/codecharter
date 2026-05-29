@@ -33,6 +33,15 @@ export function sortedUniqueStrings(values: Iterable<string>): string[] {
   return sortIfNeeded([...(values instanceof Set ? values : new Set(values))], compareStrings);
 }
 
+/**
+ * Keep only the most recent `limit` items, preserving order; returns the input
+ * untouched when already within the limit. Used to bound how much of an
+ * append-ordered log is held in memory (CWE-400).
+ */
+export function limitToRecent<T>(values: T[], limit: number): T[] {
+  return values.length > limit ? values.slice(-limit) : values;
+}
+
 /** Coerce a value to a plain own-property record, or `null` if it isn't an object. */
 export function objectRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)

@@ -1,3 +1,25 @@
+/**
+ * Viewer application shell: DOM/canvas bootstrap, the render loop, pointer/
+ * keyboard wiring, hash-route handling, and the localhost API calls. Two
+ * module-scope singletons hold all mutable UI state: `state` (the map view,
+ * interaction mode, draft/resolved selection, selected target, editing
+ * annotation, activity + fog) and `controls` (resolved DOM elements). Pure,
+ * deterministic logic lives in `render/*` (unit-tested) and is consumed here.
+ *
+ * Decomposition status (modernization Phase 4):
+ *   - `controllers/camera.ts`    — wheel/keyboard/double-click zoom + pan +
+ *                                  viewport-center (extracted; DI over the view).
+ *   - `controllers/selection.ts` — draw → draft → resolve lifecycle (extracted).
+ *   - EDITING SURFACE — NOT yet extracted. `saveSelection`, annotation
+ *     create/edit/delete/copy, the pending-delete confirmation, clipboard, and
+ *     hash routing are one fused surface over the shared `state`/`controls`
+ *     singletons (e.g. `saveSelection` dispatches between selection-save and
+ *     annotation-copy; `clearPendingAnnotationDelete` is shared across
+ *     selection-clear/save/delete). A faithful split needs a dedicated editing
+ *     state store + browser UAT, not a mechanical extraction — tracked as a
+ *     follow-up. Pin behavior with `render/*` characterization tests first.
+ */
+
 import { clearActivityClickAction } from "./activity-clear.ts";
 import { annotationPromptCopyOutcome } from "./annotation-copy.ts";
 import { deleteAnnotationRequest } from "./annotations.ts";

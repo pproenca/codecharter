@@ -1,17 +1,13 @@
 /**
- * Local HTTP server + JSON API over a generated codemap.
+ * Local HTTP server lifecycle over a generated codemap: it resolves the
+ * configured paths, owns port search and shutdown, and wires the hardened
+ * request pipeline (Host allowlist → API dispatch → static serving).
  *
- * Behavior for legitimate requests is preserved from legacy (proven by a
- * fixture differential vs the old server). Per Open Question **Q4 = the codemap
- * may be untrusted**, this version adds DELIBERATE hardening (the brief's Phase-3
- * security work), each marked `// HARDENING`:
- *   - `Host` allowlist (DNS-rebinding source-exfiltration — High)
- *   - codemap schema validation + mtime:size cache (BR-037 + debt #4)
- *   - `/api/source` and static path containment within root (CWE-22)
- *   - request-body size cap (DoS — Medium)
- *
- * NOTE: this remains one module (the legacy god-file); splitting into
- * `routes/`/`handlers/` is a follow-up the brief tracks separately.
+ * The JSON API is decomposed under `api/`: `router` (route table + dispatch),
+ * `handlers/*` (map, named-places, activity), `codemap-cache`, `hardening`,
+ * `http`, `parse`, and the shared `context` types. Hardening controls (each
+ * marked `// HARDENING`, e.g. the Host allowlist here and CWE-22 static-path
+ * containment in `serveStatic`) live next to the code they protect.
  */
 
 import { readFile, stat } from "node:fs/promises";
@@ -21,34 +17,10 @@ import type { AddressInfo } from "node:net";
 import { extname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createActivityStore } from "./activity-store.ts";
-import type {
-  ApiHandler,
-  ApiRoute,
-  ApiRouteMatch,
-  MatchedApiRoute,
-  ServerState,
-} from "./api/context.ts";
-import { deleteActivityApi, getActivityApi, postActivityApi } from "./api/handlers/activity.ts";
-import {
-  getMapApi,
-  getMapVersionApi,
-  getPrefixesApi,
-  getResolveApi,
-  getSourceApi,
-  getTilesApi,
-} from "./api/handlers/map.ts";
-import {
-  deleteAnnotationApi,
-  getAnnotationApi,
-  getAnnotationsApi,
-  getNamedPlacesApi,
-  postAnnotationsApi,
-  postNamedPlacesApi,
-  postSelectionResolveApi,
-  putAnnotationApi,
-} from "./api/handlers/named-places.ts";
-import { assertLocalHost, assertSafeMutationRequest } from "./api/hardening.ts";
+import type { ServerState } from "./api/context.ts";
+import { assertLocalHost } from "./api/hardening.ts";
 import { httpError, sendJson } from "./api/http.ts";
+import { handleApi } from "./api/router.ts";
 import { objectRecord } from "./collections.ts";
 import { isErrnoException } from "./errors.ts";
 import { ACTIVITY_ARCHIVE_FILE, CONFIG_FILE, NAMED_PLACES_FILE } from "./paths.ts";
@@ -80,25 +52,6 @@ type ServerOptions = {
   portSearchLimit?: number;
 };
 
-const API_ROUTES = Object.freeze([
-  apiRoute("GET", "/api/map", getMapApi),
-  apiRoute("GET", "/api/map-version", getMapVersionApi),
-  apiRoute("GET", "/api/tiles", getTilesApi),
-  apiRoute("GET", "/api/prefixes", getPrefixesApi),
-  apiRoute("GET", "/api/resolve", getResolveApi),
-  apiRoute("GET", "/api/source", getSourceApi),
-  apiRoute("GET", "/api/named-places", getNamedPlacesApi),
-  apiRoute("POST", "/api/named-places", postNamedPlacesApi),
-  apiRoute("GET", "/api/annotations", getAnnotationsApi),
-  apiRoute("GET", "/api/annotations/", getAnnotationApi, { prefix: true }),
-  apiRoute("PUT", "/api/annotations/", putAnnotationApi, { prefix: true }),
-  apiRoute("DELETE", "/api/annotations/", deleteAnnotationApi, { prefix: true }),
-  apiRoute("POST", "/api/annotations", postAnnotationsApi),
-  apiRoute("POST", "/api/selections/resolve", postSelectionResolveApi),
-  apiRoute("GET", "/api/activity", getActivityApi),
-  apiRoute("DELETE", "/api/activity", deleteActivityApi),
-  apiRoute("POST", "/api/activity", postActivityApi),
-]);
 export async function startServer({
   root,
   mapPath,
@@ -246,65 +199,6 @@ async function handleRequest(
   }
 
   await serveStatic(state, response, url.pathname === "/" ? "/index.html" : url.pathname);
-}
-
-async function handleApi(
-  state: ServerState,
-  request: IncomingMessage,
-  response: ServerResponse,
-  url: URL,
-): Promise<void> {
-  const match = matchingApiRoute(request, url);
-  if (match) {
-    assertSafeMutationRequest(request);
-    await match.route.handle(state, request, response, url, match);
-    return;
-  }
-
-  if (knownApiPath(url)) {
-    throw httpError(405, "Method not allowed");
-  }
-  throw httpError(404, "Not found");
-}
-
-function matchingApiRoute(request: IncomingMessage, url: URL): MatchedApiRoute | null {
-  for (const route of API_ROUTES) {
-    const match = matchApiRoute(route, request, url);
-    if (match) {
-      return { route, ...match };
-    }
-  }
-  return null;
-}
-
-function knownApiPath(url: URL): boolean {
-  return API_ROUTES.some((route) => matchApiPath(route, url.pathname));
-}
-
-function apiRoute(
-  method: string,
-  pattern: string,
-  handle: ApiHandler,
-  { prefix = false }: { prefix?: boolean } = {},
-): ApiRoute {
-  return { method, pattern, handle, prefix };
-}
-
-function matchApiRoute(route: ApiRoute, request: IncomingMessage, url: URL): ApiRouteMatch | null {
-  if (route.method !== request.method) {
-    return null;
-  }
-  return matchApiPath(route, url.pathname);
-}
-
-function matchApiPath(route: ApiRoute, pathname: string): ApiRouteMatch | null {
-  if (!route.prefix) {
-    return pathname === route.pattern ? { params: {} } : null;
-  }
-  if (!pathname.startsWith(route.pattern) || pathname.length === route.pattern.length) {
-    return null;
-  }
-  return { params: { rest: pathname.slice(route.pattern.length) } };
 }
 
 async function serveStatic(

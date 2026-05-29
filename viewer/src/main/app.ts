@@ -37,6 +37,13 @@
  *                                  sequence token and in-apply latch are private
  *                                  to that factory; the shell still wires
  *                                  hashchange → applyHashRoute.
+ *   - `render/fog.ts`            — discovery-fog drawing: the veil/mask/reveal/
+ *                                  mycelium orchestration plus the fog colouring
+ *                                  helpers (`folderFogStyle`, `fileFogStyle`,
+ *                                  …). The shell keeps the canvas singletons and
+ *                                  the fog-veil cache key and hands them to
+ *                                  `createFogDrawer`; `render()` calls
+ *                                  `fogDrawer.drawDiscoveryFogOverlay`.
  */
 
 import { createActivityGestureController } from "./controllers/activity-gesture.ts";
@@ -72,14 +79,16 @@ import {
   cachedSourceRange,
   canvasKeyboardAction,
   canRenderSourceText,
+  createFogDrawer,
   documentKeyboardAction,
-  discoveryFogRevealStyle,
-  discoveryFogVeilStyle,
   doubleClickMapAction,
+  drawMyceliumPathForContext,
+  fileFogStyle,
   fileLabelPriority,
   fileVisualState,
   fogStateForFile,
   fogStateForFolder,
+  folderFogStyle,
   folderDepth,
   folderDisplayName,
   folderLabelPriority,
@@ -101,7 +110,7 @@ import {
   mapSelectionPanel,
   mapTargetSelectionAction,
   normalizeActivityState,
-  organicTrailSegments,
+  organicRegionFogStyle,
   organicRegionFolders,
   organicRegionPoints,
   organicRegionStyle,
@@ -134,7 +143,6 @@ import type {
   ActivityFogState,
   Bounds,
   CodecharterCodemap,
-  FogState,
   MapAnnotationPlace,
   MapFile,
   MapFolder,
@@ -249,20 +257,9 @@ type MapDrag =
   | { type: "pan"; start: Point; view: View; transient?: boolean }
   | { type: "select"; start: Point; world: Point };
 type PointerDownState = { screen: Point; world: Point };
-type FolderRenderStyle = { fill: string; stroke: string; label: string; lineWidth?: number };
-type OrganicRegionRenderStyle = { fill: string; stroke: string; lineWidth?: number };
-type FileVisualState = "source" | "selected" | "landmark" | "aggregate" | "parcel" | "hidden";
-type FileFogStyleOptions = {
-  fogState: FogState;
-  selected?: boolean;
-  visualState: FileVisualState;
-  discoveryMode?: boolean;
-};
-type RevealStyle = ReturnType<typeof discoveryFogRevealStyle>;
 type ActivityEncoding = ReturnType<typeof activityVisualEncoding>;
 type ActivityStyle = ReturnType<typeof activityStateStyle>;
 type StrokeStyle = { color: string; lineWidth: number };
-type FogTrailStyle = { alpha: number; lineWidth: number };
 type ActivityDetail = "summary" | "full";
 type MapVersionResponse = { version?: string };
 type NamedPlacesResponse = { places: NamedPlace[]; overlaps?: Array<{ bounds: Bounds }> };
@@ -599,6 +596,30 @@ const activityGesture = createActivityGestureController({
   setHoverText: (text) => setText(controls.hover, text),
   clearActivityHistory,
 });
+const fogDrawer = createFogDrawer({
+  getActivityFog: () => state.activityFog,
+  getActivity: () => state.activity,
+  getMap: () => state.map,
+  getViewScale: () => state.view.scale,
+  ctx,
+  canvas,
+  fogMaskCtx,
+  fogMaskCanvas,
+  fogLayerCtx,
+  fogLayerCanvas,
+  fogVeilCtx,
+  fogVeilCanvas,
+  getFogVeilCacheKey: () => fogVeilCacheKey,
+  setFogVeilCacheKey: (key) => {
+    fogVeilCacheKey = key;
+  },
+  screenBounds,
+  visible,
+  worldToScreen,
+  hashUnit,
+  integerNoise,
+  fogMaskScale: FOG_MASK_SCALE,
+});
 
 async function boot() {
   const [map, mapVersion, names, activity] = await Promise.all([
@@ -791,7 +812,7 @@ function render() {
       drawSelection(state.draftSelection.bounds, "rgba(245, 158, 11, 0.18)", "#f59e0b", [6, 4]);
     }
     if (activityDiscoveryEnabled()) {
-      drawDiscoveryFogOverlay(rect);
+      fogDrawer.drawDiscoveryFogOverlay(rect);
     }
     if (activityDiscoveryEnabled()) {
       drawActivity();
@@ -827,289 +848,8 @@ function activityDiscoveryEnabled() {
   return controls.showActivity?.checked === true;
 }
 
-function drawDiscoveryFogOverlay(rect: DOMRect) {
-  buildDiscoveryFogMask(rect);
-
-  fogLayerCtx.save();
-  fogLayerCtx.clearRect(0, 0, rect.width, rect.height);
-  drawCachedDiscoveryVeil(rect, fogLayerCtx);
-
-  fogLayerCtx.globalCompositeOperation = "destination-out";
-  fogLayerCtx.drawImage(fogMaskCanvas, 0, 0, rect.width, rect.height);
-  fogLayerCtx.restore();
-
-  ctx.save();
-  ctx.drawImage(fogLayerCanvas, 0, 0, rect.width, rect.height);
-  ctx.restore();
-}
-
-function drawCachedDiscoveryVeil(rect: DOMRect, targetCtx: CanvasRenderingContext2D) {
-  const dpr = window.devicePixelRatio || 1;
-  const cacheKey = `${rect.width}:${rect.height}:${dpr}`;
-  if (fogVeilCacheKey !== cacheKey) {
-    fogVeilCtx.save();
-    fogVeilCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    fogVeilCtx.clearRect(0, 0, rect.width, rect.height);
-    drawDiscoveryVeil(rect, fogVeilCtx);
-    fogVeilCtx.restore();
-    fogVeilCacheKey = cacheKey;
-  }
-  targetCtx.drawImage(fogVeilCanvas, 0, 0, rect.width, rect.height);
-}
-
-function drawDiscoveryVeil(rect: DOMRect, targetCtx: CanvasRenderingContext2D) {
-  const style = discoveryFogVeilStyle();
-  const gradient = targetCtx.createLinearGradient(0, 0, rect.width, rect.height);
-  gradient.addColorStop(0, `rgba(1, 7, 11, ${style.baseAlpha})`);
-  gradient.addColorStop(0.54, `rgba(3, 16, 14, ${style.baseAlpha * 0.96})`);
-  gradient.addColorStop(1, `rgba(8, 13, 20, ${style.horizonAlpha})`);
-  targetCtx.fillStyle = gradient;
-  targetCtx.fillRect(0, 0, rect.width, rect.height);
-
-  drawDiscoveryVeilTexture(rect, style, targetCtx);
-
-  const vignette = targetCtx.createRadialGradient(
-    rect.width * 0.48,
-    rect.height * 0.48,
-    0,
-    rect.width * 0.5,
-    rect.height * 0.5,
-    Math.max(rect.width, rect.height) * 0.72,
-  );
-  vignette.addColorStop(0, "rgba(0, 0, 0, 0)");
-  vignette.addColorStop(1, "rgba(0, 0, 0, 0.22)");
-  targetCtx.fillStyle = vignette;
-  targetCtx.fillRect(0, 0, rect.width, rect.height);
-}
-
-function drawDiscoveryVeilTexture(
-  rect: DOMRect,
-  style: ReturnType<typeof discoveryFogVeilStyle>,
-  targetCtx: CanvasRenderingContext2D = ctx,
-) {
-  const step = style.textureStep;
-  targetCtx.save();
-  targetCtx.fillStyle = `rgba(190, 244, 216, ${style.textureAlpha})`;
-  for (let y = -step; y < rect.height + step; y += step) {
-    const row = Math.floor(y / step);
-    for (let x = -step; x < rect.width + step; x += step) {
-      const column = Math.floor(x / step);
-      const unit = integerNoise(column, row);
-      if (unit < 0.52) {
-        continue;
-      }
-      const size = 1 + unit * 1.8;
-      const offsetX = (integerNoise(column + 19, row - 7) - 0.5) * step * 0.44;
-      const offsetY = (integerNoise(column - 11, row + 23) - 0.5) * step * 0.44;
-      targetCtx.globalAlpha = style.textureAlpha * (0.35 + unit * 0.75);
-      targetCtx.fillRect(x + offsetX, y + offsetY, size, size);
-    }
-  }
-  targetCtx.restore();
-}
-
-function buildDiscoveryFogMask(rect: DOMRect) {
-  fogMaskCtx.save();
-  fogMaskCtx.setTransform(
-    (window.devicePixelRatio || 1) * FOG_MASK_SCALE,
-    0,
-    0,
-    (window.devicePixelRatio || 1) * FOG_MASK_SCALE,
-    0,
-    0,
-  );
-  fogMaskCtx.clearRect(0, 0, rect.width, rect.height);
-  fogMaskCtx.globalCompositeOperation = "source-over";
-  drawDiscoveryTrailMask(fogMaskCtx);
-  drawDiscoveryFogReveals(fogMaskCtx);
-  fogMaskCtx.restore();
-}
-
-function drawDiscoveryFogReveals(targetCtx: CanvasRenderingContext2D) {
-  const fog = state.activityFog;
-  if (!fog) {
-    return;
-  }
-  for (const path of fog.visitedFiles) {
-    const file = state.map?.files?.[path];
-    if (!file?.bounds) {
-      continue;
-    }
-    const box = screenBounds(file.bounds);
-    const visibleFile = fog.visibleFiles.has(path);
-    const readable = state.view.scale > 2 && canRenderSourceText(file, box);
-    const revealStyle = discoveryFogRevealStyle({ visibleFile, readable });
-    if (!visible(expandedBox(box, revealStyle.padding + 14))) {
-      continue;
-    }
-    if (readable) {
-      drawReadableFogReveal(box, revealStyle, targetCtx);
-    } else {
-      drawFogReveal(path, box, revealStyle, targetCtx);
-    }
-  }
-}
-
-function drawDiscoveryTrailMask(targetCtx: CanvasRenderingContext2D) {
-  const events = sortedActivityEvents(state.activity);
-  if (events.length < 2) {
-    return;
-  }
-  const trailPointGroups = activityTrailGroups(events, { presorted: true }).flatMap((agentEvents) =>
-    activityTrailPointGroups(activityTrailPoints(agentEvents)),
-  );
-  targetCtx.save();
-  targetCtx.lineCap = "round";
-  targetCtx.lineJoin = "round";
-  targetCtx.filter = "blur(14px)";
-  for (const points of trailPointGroups) {
-    strokeFogTrail(targetCtx, points, { alpha: 0.12, lineWidth: 88 });
-  }
-  targetCtx.filter = "none";
-  for (const points of trailPointGroups) {
-    strokeFogTrail(targetCtx, points, { alpha: 0.1, lineWidth: 42 });
-  }
-  targetCtx.restore();
-}
-
-function strokeFogTrail(
-  targetCtx: CanvasRenderingContext2D,
-  points: Point[],
-  { alpha, lineWidth }: FogTrailStyle,
-) {
-  targetCtx.strokeStyle = `rgba(0, 0, 0, ${alpha})`;
-  targetCtx.lineWidth = lineWidth;
-  targetCtx.beginPath();
-  if (drawMyceliumPathForContext(targetCtx, points)) {
-    targetCtx.stroke();
-  }
-}
-
-function drawReadableFogReveal(
-  box: Bounds,
-  { alpha, padding }: RevealStyle,
-  targetCtx: CanvasRenderingContext2D,
-) {
-  const x = Math.max(0, box.x - padding);
-  const y = Math.max(0, box.y - padding);
-  const right = Math.min(canvas.clientWidth, box.x + box.width + padding);
-  const bottom = Math.min(canvas.clientHeight, box.y + box.height + padding);
-  if (right <= x || bottom <= y) {
-    return;
-  }
-
-  targetCtx.save();
-  targetCtx.filter = "blur(10px)";
-  targetCtx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
-  targetCtx.fillRect(x, y, right - x, bottom - y);
-  targetCtx.restore();
-}
-
-function drawFogReveal(
-  key: string,
-  box: Bounds,
-  { alpha, padding, core, mid, lobes = 3 }: RevealStyle,
-  targetCtx: CanvasRenderingContext2D,
-) {
-  const radiusX = Math.max(18, box.width / 2 + padding);
-  const radiusY = Math.max(18, box.height / 2 + padding);
-  const centerX = box.x + box.width / 2;
-  const centerY = box.y + box.height / 2;
-
-  drawFogRevealGradient({ x: centerX, y: centerY, radiusX, radiusY, alpha, core, mid }, targetCtx);
-
-  for (let index = 0; index < lobes; index += 1) {
-    const angle = hashUnit(`${key}:fog-angle:${index}`) * Math.PI * 2;
-    const distance = 0.16 + hashUnit(`${key}:fog-distance:${index}`) * 0.2;
-    const lobeRadiusX = radiusX * (0.46 + hashUnit(`${key}:fog-rx:${index}`) * 0.18);
-    const lobeRadiusY = radiusY * (0.46 + hashUnit(`${key}:fog-ry:${index}`) * 0.18);
-    drawFogRevealGradient(
-      {
-        x: centerX + Math.cos(angle) * radiusX * distance,
-        y: centerY + Math.sin(angle) * radiusY * distance,
-        radiusX: lobeRadiusX,
-        radiusY: lobeRadiusY,
-        alpha: alpha * 0.28,
-        core: 0.2,
-        mid: 0.72,
-      },
-      targetCtx,
-    );
-  }
-}
-
-function drawFogRevealGradient(
-  {
-    x,
-    y,
-    radiusX,
-    radiusY,
-    alpha,
-    core,
-    mid,
-  }: {
-    x: number;
-    y: number;
-    radiusX: number;
-    radiusY: number;
-    alpha: number;
-    core: number;
-    mid: number;
-  },
-  targetCtx: CanvasRenderingContext2D = ctx,
-) {
-  targetCtx.save();
-  targetCtx.translate(x, y);
-  targetCtx.scale(radiusX, radiusY);
-  const gradient = targetCtx.createRadialGradient(0, 0, 0, 0, 0, 1);
-  gradient.addColorStop(0, `rgba(0, 0, 0, ${alpha})`);
-  gradient.addColorStop(core, `rgba(0, 0, 0, ${alpha * 0.94})`);
-  gradient.addColorStop(mid, `rgba(0, 0, 0, ${alpha * 0.42})`);
-  gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-  targetCtx.fillStyle = gradient;
-  targetCtx.beginPath();
-  targetCtx.arc(0, 0, 1, 0, Math.PI * 2);
-  targetCtx.fill();
-  targetCtx.restore();
-}
-
-function drawMyceliumPathForContext(targetCtx: CanvasRenderingContext2D, points: Point[]) {
-  if (points.length < 2) {
-    return false;
-  }
-
-  const minDistance = Math.min(14, Math.max(6, state.view.scale * 2.2));
-  const segments = organicTrailSegments(points, { minDistance });
-  if (segments.length === 0) {
-    return false;
-  }
-
-  const first = segments[0];
-  if (!first) {
-    return false;
-  }
-  targetCtx.moveTo(first.start.x, first.start.y);
-  for (const segment of segments) {
-    targetCtx.bezierCurveTo(
-      segment.control1.x,
-      segment.control1.y,
-      segment.control2.x,
-      segment.control2.y,
-      segment.end.x,
-      segment.end.y,
-    );
-  }
-  return true;
-}
-
-function expandedBox(box: Bounds, padding: number): Bounds {
-  return {
-    x: box.x - padding,
-    y: box.y - padding,
-    width: box.width + padding * 2,
-    height: box.height + padding * 2,
-  };
-}
+// Discovery-fog drawing (veil/mask/reveal/mycelium orchestration) lives in
+// `render/fog.ts`; the render loop calls into `fogDrawer` (wired below).
 
 function drawGrid() {
   const step = 0.1;
@@ -1242,7 +982,10 @@ function drawFiles() {
       continue;
     }
 
-    const style = fileFogStyle({ fogState, selected, visualState, discoveryMode: fogEnabled });
+    const style = fileFogStyle(
+      { fogState, selected, visualState, discoveryMode: fogEnabled },
+      state.view.scale,
+    );
     ctx.fillStyle = style.fill;
     ctx.strokeStyle = style.stroke;
     ctx.lineWidth = style.lineWidth;
@@ -1277,120 +1020,8 @@ function drawFiles() {
   }
 }
 
-function folderFogStyle(
-  style: FolderRenderStyle,
-  fogState: FogState,
-  depth: number,
-  selected: boolean,
-  discoveryMode = false,
-) {
-  if (discoveryMode) {
-    return {
-      ...style,
-      lineWidth: selected ? 2.6 : depth === 1 ? 2.1 : 1,
-    };
-  }
-  if (selected || fogState === "visible") {
-    return {
-      ...style,
-      lineWidth: selected ? 2.6 : depth === 1 ? 2.1 : 1,
-    };
-  }
-  if (fogState === "explored") {
-    return {
-      fill: depth === 1 ? "rgba(32, 61, 48, 0.2)" : "rgba(32, 61, 48, 0.12)",
-      stroke: depth === 1 ? "rgba(133, 163, 142, 0.42)" : "rgba(133, 163, 142, 0.28)",
-      label: "rgba(174, 200, 183, 0.72)",
-      lineWidth: depth === 1 ? 1.8 : 1,
-    };
-  }
-  return {
-    fill: "rgba(2, 6, 10, 0.18)",
-    stroke: depth === 1 ? "rgba(90, 111, 98, 0.22)" : "rgba(90, 111, 98, 0.14)",
-    label: "rgba(115, 138, 126, 0.36)",
-    lineWidth: depth === 1 ? 1.4 : 0.8,
-  };
-}
-
-function organicRegionFogStyle(
-  style: OrganicRegionRenderStyle,
-  fogState: FogState,
-  depth: number,
-  selected: boolean,
-  discoveryMode = false,
-) {
-  if (discoveryMode) {
-    return {
-      ...style,
-      lineWidth: selected ? 2.8 : depth === 1 ? 2.4 : 1.4,
-    };
-  }
-  if (selected || fogState === "visible") {
-    return {
-      ...style,
-      lineWidth: selected ? 2.8 : depth === 1 ? 2.4 : 1.4,
-    };
-  }
-  if (fogState === "explored") {
-    return {
-      fill: depth === 1 ? "rgba(42, 75, 57, 0.16)" : "rgba(42, 75, 57, 0.09)",
-      stroke: depth === 1 ? "rgba(137, 168, 145, 0.34)" : "rgba(137, 168, 145, 0.24)",
-      lineWidth: depth === 1 ? 2 : 1.2,
-    };
-  }
-  return {
-    fill: "rgba(2, 6, 10, 0.08)",
-    stroke: depth === 1 ? "rgba(91, 112, 100, 0.16)" : "rgba(91, 112, 100, 0.1)",
-    lineWidth: depth === 1 ? 1.6 : 0.9,
-  };
-}
-
-function fileFogStyle({
-  fogState,
-  selected,
-  visualState,
-  discoveryMode = false,
-}: FileFogStyleOptions) {
-  if (selected) {
-    return {
-      fill: "rgba(255, 255, 255, 0.82)",
-      stroke: "rgba(180, 84, 24, 0.95)",
-      label: "rgba(3, 87, 67, 0.92)",
-      lineWidth: 2.6,
-    };
-  }
-  if (discoveryMode) {
-    return {
-      fill: "rgba(235, 248, 241, 0.48)",
-      stroke: visualState === "aggregate" ? "rgba(18, 128, 98, 0.16)" : "rgba(18, 128, 98, 0.34)",
-      label: "rgba(3, 87, 67, 0.84)",
-      lineWidth: visualState === "aggregate" ? 0.35 : state.view.scale > 2.2 ? 1 : 0.65,
-    };
-  }
-  if (fogState === "visible") {
-    return {
-      fill: "rgba(235, 248, 241, 0.48)",
-      stroke: visualState === "aggregate" ? "rgba(18, 128, 98, 0.16)" : "rgba(18, 128, 98, 0.34)",
-      label: "rgba(3, 87, 67, 0.84)",
-      lineWidth: visualState === "aggregate" ? 0.35 : state.view.scale > 2.2 ? 1 : 0.65,
-    };
-  }
-  if (fogState === "explored") {
-    return {
-      fill: "rgba(42, 70, 57, 0.42)",
-      stroke:
-        visualState === "aggregate" ? "rgba(126, 153, 134, 0.18)" : "rgba(126, 153, 134, 0.34)",
-      label: "rgba(177, 202, 185, 0.76)",
-      lineWidth: visualState === "aggregate" ? 0.35 : state.view.scale > 2.2 ? 0.9 : 0.55,
-    };
-  }
-  return {
-    fill: "rgba(0, 0, 0, 0.9)",
-    stroke: visualState === "aggregate" ? "rgba(54, 70, 63, 0.12)" : "rgba(69, 91, 80, 0.24)",
-    label: "rgba(106, 126, 116, 0.42)",
-    lineWidth: visualState === "aggregate" ? 0.25 : 0.5,
-  };
-}
+// fog colouring helpers (`folderFogStyle`, `organicRegionFogStyle`,
+// `fileFogStyle`) live in `render/fog.ts`; `fileFogStyle` takes the view scale.
 
 function drawOrganicPath(points: Point[]) {
   const firstPoint = points[0];
@@ -1858,7 +1489,7 @@ function strokeOrganicTrail(points: Point[], { color, lineWidth }: StrokeStyle) 
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
   ctx.beginPath();
-  if (drawMyceliumPathForContext(ctx, points)) {
+  if (drawMyceliumPathForContext(ctx, points, state.view.scale)) {
     ctx.stroke();
   }
 }

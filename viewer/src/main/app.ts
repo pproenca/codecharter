@@ -2,6 +2,7 @@ import { clearActivityClickAction } from "./activity-clear.ts";
 import { annotationPromptCopyOutcome } from "./annotation-copy.ts";
 import { deleteAnnotationRequest } from "./annotations.ts";
 import { copyTextToClipboard } from "./clipboard.ts";
+import { createCameraController } from "./controllers/camera.ts";
 import {
   boundsFromRouteParams,
   createAnnotationHashRoute,
@@ -91,7 +92,6 @@ import {
   viewForReadableFile,
   visibleLineRangeForBox,
   worldToScreenPoint,
-  zoomViewAt,
 } from "./render/index.ts";
 import type {
   ActivityEvent,
@@ -412,6 +412,16 @@ const state: MapApplicationState = createMapApplicationState();
 const controls = createMapControls();
 const activityPolling = createPollingTask();
 const mapPolling = createPollingTask();
+const camera = createCameraController({
+  getView: () => state.view,
+  setView: (view) => {
+    state.view = view;
+  },
+  setViewImmediate,
+  animateViewTo,
+  viewportSize,
+  canvasClientSize: () => ({ width: canvas.clientWidth, height: canvas.clientHeight }),
+});
 
 async function boot() {
   const [map, mapVersion, names, activity] = await Promise.all([
@@ -2486,39 +2496,11 @@ function onWheel(event: WheelEvent) {
   cancelCameraAnimation();
   const mouse = screenPoint(event);
   if (event.ctrlKey || event.metaKey) {
-    zoomAt(mouse, Math.exp(-normalizeWheelDelta(event.deltaY, event.deltaMode) * 0.0025));
+    camera.zoomAt(mouse, camera.wheelZoomFactor(event));
   } else {
-    panByWheel(event);
+    camera.panByWheel(event);
   }
   requestRender();
-}
-
-function zoomAt(screenAnchor: Point, factor: number, { animate = false } = {}) {
-  const nextView = zoomViewAt(state.view, screenAnchor, factor, viewportSize());
-  if (animate) {
-    animateViewTo(nextView);
-  } else {
-    setViewImmediate(nextView);
-  }
-}
-
-function panByWheel(event: WheelEvent) {
-  const deltaX = normalizeWheelDelta(event.deltaX, event.deltaMode);
-  const deltaY = normalizeWheelDelta(event.deltaY, event.deltaMode);
-  state.view = panViewByScreenDelta(state.view, { x: deltaX, y: deltaY }, viewportSize());
-}
-
-function normalizeWheelDelta(delta: number, deltaMode: number) {
-  if (!Number.isFinite(delta)) {
-    return 0;
-  }
-  if (deltaMode === WheelEvent.DOM_DELTA_LINE) {
-    return delta * 16;
-  }
-  if (deltaMode === WheelEvent.DOM_DELTA_PAGE) {
-    return delta * canvas.clientHeight;
-  }
-  return delta;
 }
 
 function onCanvasKeyDown(event: KeyboardEvent) {
@@ -2551,16 +2533,16 @@ async function handleCanvasKeyboardAction(action: CanvasAction): Promise<void> {
       animateViewTo(panViewByScreenDelta(state.view, action.delta, viewportSize()));
       return;
     case "zoomIn":
-      zoomAt(viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true });
+      camera.zoomAt(camera.viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true });
       return;
     case "zoomOut":
-      zoomAt(viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR, { animate: true });
+      camera.zoomAt(camera.viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR, { animate: true });
       return;
     case "fitCodebase":
       fitCodebaseView({ animate: true });
       return;
     case "selectCenter":
-      await selectMapTarget(screenToWorld(viewportCenter()));
+      await selectMapTarget(screenToWorld(camera.viewportCenter()));
   }
 }
 
@@ -2816,7 +2798,7 @@ function onCanvasDoubleClick(event: MouseEvent) {
     return;
   }
 
-  zoomAt(screen, DOUBLE_CLICK_ZOOM_FACTOR, { animate: true });
+  camera.zoomAt(screen, DOUBLE_CLICK_ZOOM_FACTOR, { animate: true });
 }
 
 function scheduleClickSelection(worldPoint: Point) {
@@ -3770,10 +3752,6 @@ function boundsCenter(bounds: Bounds) {
 
 function viewportSize() {
   return frameViewport ?? { width: canvas.clientWidth, height: canvas.clientHeight };
-}
-
-function viewportCenter() {
-  return { x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 };
 }
 
 function clamp(value: number, min: number, max: number) {

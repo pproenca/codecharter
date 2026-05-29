@@ -26,6 +26,7 @@ import { createActivityStore } from "./activity-store.ts";
 import type { StoredActivityEvent, ViewerFogState } from "./activity-store.ts";
 import { createActivityEvent } from "./activity.ts";
 import type { ActivityAddress, ActivityEventInput } from "./activity.ts";
+import { loadCodemap, loadMapVersion } from "./api/codemap-cache.ts";
 import type {
   ActivitySnapshot,
   ApiHandler,
@@ -55,7 +56,7 @@ import type { MapLevel } from "./levels.ts";
 import { findNamedPlaceOverlaps } from "./overlaps.ts";
 import { resolveRealPathWithinRoot } from "./path-containment.ts";
 import { ACTIVITY_ARCHIVE_FILE, CONFIG_FILE, NAMED_PLACES_FILE } from "./paths.ts";
-import { isCodecharterCodemap, normalizePathForMap, resolveAddress } from "./resolver.ts";
+import { normalizePathForMap, resolveAddress } from "./resolver.ts";
 import type { AddressRequest, CodecharterCodemap } from "./resolver.ts";
 import {
   createMapAnnotation,
@@ -706,34 +707,6 @@ async function serveStatic(
 // HARDENING: validate + cache the codemap (BR-037, Q4) keyed by the mtime:size
 // signature already used for /api/map-version. A corrupt/foreign map is rejected
 // with a clear, actionable error instead of an opaque downstream TypeError.
-async function loadCodemap(state: ServerState): Promise<CodecharterCodemap> {
-  const stats = await stat(state.mapPath, { bigint: true });
-  const signature = `${stats.mtimeNs}:${stats.size}`;
-  if (state.codemapCache?.signature === signature) {
-    return state.codemapCache.codemap;
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(await readFile(state.mapPath, "utf8"));
-  } catch (error) {
-    if (error instanceof SyntaxError) {
-      throw httpError(500, "Map file is not valid JSON; run `codecharter generate`");
-    }
-    throw error;
-  }
-  if (!isCodecharterCodemap(parsed)) {
-    throw httpError(500, "Map file is missing files/folders; run `codecharter generate`");
-  }
-  state.codemapCache = { signature, codemap: parsed };
-  return parsed;
-}
-
-async function loadMapVersion(state: ServerState): Promise<{ version: string }> {
-  const stats = await stat(state.mapPath, { bigint: true });
-  return { version: `${stats.mtimeNs}:${stats.size}` };
-}
-
 function acceptActivityRequest(state: ServerState, request: IncomingMessage): void {
   readBody(request)
     .then(async (body) => {

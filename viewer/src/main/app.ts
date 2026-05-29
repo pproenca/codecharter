@@ -18,11 +18,16 @@
  *                                  annotation, draft/resolved selection) stays
  *                                  here in `state` and is read by the render loop
  *                                  and `updateSelectionPopover`.
+ *   - `controllers/interaction.ts` — draw/select/pan/space-pan mode transitions +
+ *                                  toolbar UI sync (extracted; DI over the
+ *                                  interaction flags in `state` + the toolbar/
+ *                                  canvas DOM singletons + app-owned callbacks).
  */
 
 import { createActivityGestureController } from "./controllers/activity-gesture.ts";
 import { createCameraController } from "./controllers/camera.ts";
 import { createEditingController } from "./controllers/editing.ts";
+import { createInteractionController } from "./controllers/interaction.ts";
 import { activitySignature, createPollingController } from "./controllers/polling.ts";
 import { createSelectionController } from "./controllers/selection.ts";
 import {
@@ -68,7 +73,6 @@ import {
   hitTestActivityEvents,
   hitTestAnnotations,
   hitTestTargetLists,
-  interactionModeUiState,
   isSpaceKeyEvent,
   isScreenBoxVisible,
   KEYBOARD_ZOOM_FACTOR,
@@ -437,6 +441,34 @@ const selection = createSelectionController<ResolvedSelection>({
     render();
   },
 });
+const interaction = createInteractionController({
+  getDrawing: () => state.drawing,
+  setDrawing: (value) => {
+    state.drawing = value;
+  },
+  getPanning: () => state.panning,
+  setPanning: (value) => {
+    state.panning = value;
+  },
+  getSpacePanning: () => state.spacePanning,
+  setSpacePanning: (value) => {
+    state.spacePanning = value;
+  },
+  setSelectedTarget: (target) => {
+    state.selectedTarget = target;
+  },
+  setEditingAnnotation: (annotation) => {
+    state.editingAnnotation = annotation;
+  },
+  getDragging: () => state.dragging,
+  canvas,
+  selectToolEl: controls.selectTool,
+  panToolEl: controls.panTool,
+  drawToolEl: controls.drawTool,
+  clearDraftSelection,
+  setSelectionStatus,
+  updateSelectionPopover,
+});
 const editing = createEditingController({
   controls,
   defaultMapLevel: DEFAULT_MAP_LEVEL,
@@ -468,7 +500,7 @@ const editing = createEditingController({
   updateSelectionPopover,
   positionAnnotationActions,
   focusSelectionComment,
-  updateInteractionModeUi,
+  updateInteractionModeUi: interaction.updateInteractionModeUi,
   render,
   postJson,
   syncHashRoute,
@@ -525,7 +557,7 @@ async function boot() {
   state.activityDetail = "summary";
   rebuildActivityFog();
   bindEvents();
-  updateInteractionModeUi();
+  interaction.updateInteractionModeUi();
   polling.startMapPolling();
   polling.startActivityPolling();
   resize();
@@ -585,7 +617,7 @@ function bindEvents() {
   });
   document.addEventListener("keydown", onDocumentKeyDown);
   document.addEventListener("keyup", onDocumentKeyUp);
-  window.addEventListener("blur", () => setSpacePanMode(false));
+  window.addEventListener("blur", () => interaction.setSpacePanMode(false));
 
   for (const control of controls.layerToggles()) {
     if (control === controls.showActivity) {
@@ -598,15 +630,15 @@ function bindEvents() {
   }
 
   controls.selectTool?.addEventListener("click", () => {
-    setSelectMode();
+    interaction.setSelectMode();
     render();
   });
   controls.drawTool?.addEventListener("click", () => {
-    setDrawMode(!state.drawing);
+    interaction.setDrawMode(!state.drawing);
     render();
   });
   controls.panTool?.addEventListener("click", () => {
-    setPanMode();
+    interaction.setPanMode();
     render();
   });
   controls.resetViewTool?.addEventListener("click", () => fitCodebaseView({ animate: true }));
@@ -640,7 +672,7 @@ function bindEvents() {
     "CodeCharter map canvas. Use the pointer tool to select items, the hand tool or Space drag to pan, arrow keys to pan, plus and minus to zoom, double click to zoom in, 0 to fit the codebase, Enter to select the center, and Escape to cancel the current action.",
   );
   canvas.addEventListener("keydown", onCanvasKeyDown);
-  updateInteractionModeUi();
+  interaction.updateInteractionModeUi();
 }
 
 await boot();
@@ -712,7 +744,7 @@ async function focusSelectionRoute(params: URLSearchParams, routeToken: RouteTok
   }
   resetSelectionOverlay();
   state.drawing = true;
-  updateInteractionModeUi();
+  interaction.updateInteractionModeUi();
   state.selectedTarget = null;
   setText(controls.sourceTitle, "");
   setText(controls.sourceOutput, "");
@@ -803,61 +835,6 @@ function isCurrentRoute(routeToken: RouteToken) {
   return routeToken === routeSequence;
 }
 
-function setDrawMode(enabled: boolean) {
-  state.drawing = enabled;
-  state.panning = false;
-  if (enabled) {
-    state.selectedTarget = null;
-    state.editingAnnotation = null;
-  }
-  if (!enabled) {
-    clearDraftSelection();
-  }
-  updateInteractionModeUi();
-  setSelectionStatus(enabled ? "Drag an area. Esc cancels." : "Draw mode off.");
-  updateSelectionPopover();
-}
-
-function setSelectMode() {
-  state.panning = false;
-  state.drawing = false;
-  clearDraftSelection();
-  updateInteractionModeUi();
-  setSelectionStatus("");
-  updateSelectionPopover();
-}
-
-function setPanMode() {
-  state.panning = true;
-  state.drawing = false;
-  clearDraftSelection();
-  updateInteractionModeUi();
-  setSelectionStatus("Pan mode on.");
-  updateSelectionPopover();
-}
-
-function setSpacePanMode(enabled: boolean) {
-  if (state.spacePanning === enabled) {
-    return;
-  }
-  state.spacePanning = enabled;
-  updateInteractionModeUi();
-}
-
-function updateInteractionModeUi() {
-  const mode = interactionModeUiState(state);
-  controls.selectTool?.classList.toggle("active", mode.selectActive);
-  controls.selectTool?.setAttribute("aria-pressed", String(mode.selectActive));
-  controls.panTool?.classList.toggle("active", mode.panActive);
-  controls.panTool?.setAttribute("aria-pressed", String(mode.panActive));
-  controls.drawTool?.classList.toggle("active", mode.drawActive);
-  controls.drawTool?.setAttribute("aria-pressed", String(mode.drawActive));
-  canvas.classList.toggle("is-panning-mode", mode.panningMode);
-  canvas.classList.toggle("is-drawing", mode.drawingMode);
-  canvas.classList.toggle("is-space-panning", mode.spacePanningMode);
-  canvas.classList.toggle("is-panning", mode.panning);
-}
-
 function clearDraftSelection() {
   editing.clearPendingDelete();
   state.dragging = null;
@@ -890,7 +867,7 @@ function resetSelectionOverlay() {
   }
   setSaveButtonLabel();
   setSelectionStatus("");
-  updateInteractionModeUi();
+  interaction.updateInteractionModeUi();
   updateSelectionPopover();
 }
 
@@ -2427,7 +2404,7 @@ async function handleCanvasKeyboardAction(action: CanvasAction): Promise<void> {
 async function handleDocumentKeyboardAction(action: DocumentAction): Promise<void> {
   switch (action.type) {
     case "startSpacePan":
-      setSpacePanMode(true);
+      interaction.setSpacePanMode(true);
       return;
     case "cancelInteraction":
       cancelCurrentInteraction();
@@ -2446,7 +2423,7 @@ async function handleDocumentKeyboardAction(action: DocumentAction): Promise<voi
 function onDocumentKeyUp(event: KeyboardEvent) {
   if (isSpaceKeyEvent(event) && state.spacePanning) {
     event.preventDefault();
-    setSpacePanMode(false);
+    interaction.setSpacePanMode(false);
   }
 }
 
@@ -2546,7 +2523,7 @@ function onPointerDown(event: PointerEvent) {
     state.dragging = { type: "select", start: screen, world: point };
     scheduleTouchSpacePan(event);
   }
-  updateInteractionModeUi();
+  interaction.updateInteractionModeUi();
 }
 
 function isSpacePanPointerEvent(event: PointerEvent) {
@@ -2562,14 +2539,14 @@ function scheduleTouchSpacePan(event: PointerEvent) {
     if (state.dragging?.type !== "select" || !state.lastPointerDown) {
       return;
     }
-    setSpacePanMode(true);
+    interaction.setSpacePanMode(true);
     state.dragging = {
       type: "pan",
       start: state.lastPointerDown.screen,
       view: { ...state.view },
       transient: true,
     };
-    updateInteractionModeUi();
+    interaction.updateInteractionModeUi();
   }, TOUCH_SPACE_PAN_HOLD_MS);
 }
 
@@ -2627,7 +2604,7 @@ async function onPointerUp(event: PointerEvent) {
       return;
     }
     state.dragging = null;
-    updateInteractionModeUi();
+    interaction.updateInteractionModeUi();
     await selection.preview();
     return;
   }
@@ -2644,9 +2621,9 @@ async function onPointerUp(event: PointerEvent) {
   }
   state.dragging = null;
   if (endTouchSpacePan) {
-    setSpacePanMode(false);
+    interaction.setSpacePanMode(false);
   }
-  updateInteractionModeUi();
+  interaction.updateInteractionModeUi();
 }
 
 function onPointerCancel(event?: PointerEvent) {
@@ -2655,9 +2632,9 @@ function onPointerCancel(event?: PointerEvent) {
     state.dragging?.type === "pan" && state.dragging.transient && event?.pointerType === "touch";
   state.dragging = null;
   if (endTouchSpacePan) {
-    setSpacePanMode(false);
+    interaction.setSpacePanMode(false);
   }
-  updateInteractionModeUi();
+  interaction.updateInteractionModeUi();
 }
 
 function onCanvasDoubleClick(event: MouseEvent) {

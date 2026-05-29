@@ -12,6 +12,9 @@ Treat code structure as geography.
 - Product language: read `CONTEXT-MAP.md`, then `CONTEXT.md`.
 - Package language: read `core/CONTEXT.md` before core work and
   `viewer/CONTEXT.md` before viewer work.
+- Principles: read `docs/PRINCIPLES.md` — the invariants that guard durable,
+  shared map identity. The one test for any design or review: does this protect
+  or fracture that identity?
 - ADRs: read `docs/adr/` when touching stable addresses, sidecar storage,
   geohash levels, Deep Links, activity telemetry, or discovery fog.
 - Prefer exploring local source before asking questions local context can
@@ -20,6 +23,9 @@ Treat code structure as geography.
   current behavior, and ADR or dependency contract proof where applicable.
 - If design decisions are unclear, use the `grill-me` skill: ask one question at
   a time and include a recommended answer.
+- For architecture decisions and drift checks (does this protect or fracture map
+  identity?), use the `codecharter-architecture` skill when available; it carries
+  the `docs/PRINCIPLES.md` guardrails.
 - For spatial indexing, geohashing, map navigation, or codebase-as-map work, use
   the `geohash-spatial-code-maps` skill when available.
 - For test selection and verification, use the `codecharter-testing` skill when

@@ -6,6 +6,7 @@ be searched, linked, annotated, regenerated, and watched while agents work.
 
 Project overview and developer commands: [`README.md`](README.md)
 Domain language and architectural vocabulary: [`CONTEXT.md`](CONTEXT.md)
+Architectural principles (the invariants behind every decision): [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md)
 Design decisions: [`docs/adr/`](docs/adr/)
 
 The premise is simple: large codebases are places.

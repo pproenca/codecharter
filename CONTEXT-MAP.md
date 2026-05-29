@@ -21,6 +21,9 @@ you are changing.
   `core/bin/codemap.mts`, or core tests.
 - Read `viewer/CONTEXT.md` before changing `viewer/src/main/**`,
   `viewer/web/**`, or viewer build output.
+- Read `docs/PRINCIPLES.md` before any design, review, or refactor decision —
+  the invariants that guard durable, shared map identity. The ADRs instantiate
+  them; the one test is whether a change protects or fractures that identity.
 - Read ADRs in `docs/adr/` when a change affects stable addresses, sidecar
   storage, geohash map levels, deep links, activity telemetry, or discovery fog.
 - If a change spans `core` and `viewer`, use root language for cross-package

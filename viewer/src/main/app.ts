@@ -20,7 +20,7 @@
  *                                  and `updateSelectionPopover`.
  */
 
-import { clearActivityClickAction } from "./activity-clear.ts";
+import { createActivityGestureController } from "./controllers/activity-gesture.ts";
 import { createCameraController } from "./controllers/camera.ts";
 import { createEditingController } from "./controllers/editing.ts";
 import { activitySignature, createPollingController } from "./controllers/polling.ts";
@@ -323,7 +323,6 @@ const CAMERA_ANIMATION_MS = 280;
 const DOUBLE_CLICK_ZOOM_FACTOR = 2;
 const CLICK_SELECT_DELAY_MS = 220;
 const TOUCH_SPACE_PAN_HOLD_MS = 220;
-const CLEAR_ACTIVITY_HOLD_MS = 1600;
 const DELETE_ANNOTATION_CONFIRM_MS = 4000;
 const FOG_MASK_SCALE = 0.5;
 
@@ -390,8 +389,6 @@ let fogVeilCacheKey = "";
 let pendingRenderFrame = 0;
 let applyingRoute = false;
 let routeSequence = 0;
-let clearActivityHold: TimerHandle = null;
-let clearActivityCompletedHold = false;
 let pendingTouchSpacePan: TimerHandle = null;
 let copyPromptLabelTimer: TimerHandle = null;
 const sourceLinesByNumberCache = new WeakMap<SourceRange, Map<number | string, string>>();
@@ -504,6 +501,11 @@ const polling = createPollingController({
   rebuildActivityFog,
   render,
   setHoverText: (message) => setText(controls.hover, message),
+});
+const activityGesture = createActivityGestureController({
+  clearActivityTool: controls.clearActivityTool,
+  setHoverText: (text) => setText(controls.hover, text),
+  clearActivityHistory,
 });
 
 async function boot() {
@@ -620,7 +622,7 @@ function bindEvents() {
     editing.deleteSelectedAnnotation(),
   );
   controls.activityForm?.addEventListener("submit", addActivity);
-  bindClearActivityHold();
+  activityGesture.bindClearActivityHold();
 
   mapArea.addEventListener("wheel", onWheel, { passive: false });
   canvas.addEventListener("pointerdown", onPointerDown);
@@ -1058,90 +1060,6 @@ function requestRender() {
     pendingRenderFrame = 0;
     render();
   });
-}
-
-function bindClearActivityHold() {
-  const control = controls.clearActivityTool;
-  if (!control) {
-    return;
-  }
-  control.addEventListener("pointerdown", onClearActivityPointerDown);
-  control.addEventListener("pointerup", cancelClearActivityHold);
-  control.addEventListener("pointerleave", cancelClearActivityHold);
-  control.addEventListener("pointercancel", cancelClearActivityHold);
-  control.addEventListener("lostpointercapture", cancelClearActivityHold);
-  control.addEventListener("keydown", onClearActivityKeyDown);
-  control.addEventListener("keyup", onClearActivityKeyUp);
-  control.addEventListener("click", onClearActivityClick);
-}
-
-function onClearActivityPointerDown(event: PointerEvent) {
-  if (event.button !== 0 || controls.clearActivityTool?.disabled) {
-    return;
-  }
-  event.preventDefault();
-  controls.clearActivityTool?.setPointerCapture?.(event.pointerId);
-  startClearActivityHold();
-}
-
-function onClearActivityKeyDown(event: KeyboardEvent) {
-  if (event.repeat || controls.clearActivityTool?.disabled) {
-    return;
-  }
-  if (event.key !== " " && event.key !== "Enter") {
-    return;
-  }
-  event.preventDefault();
-  startClearActivityHold();
-}
-
-function onClearActivityKeyUp(event: KeyboardEvent) {
-  if (event.key !== " " && event.key !== "Enter") {
-    return;
-  }
-  cancelClearActivityHold();
-}
-
-function startClearActivityHold() {
-  cancelClearActivityHold();
-  controls.clearActivityTool?.classList.add("is-holding");
-  controls.clearActivityTool?.setAttribute(
-    "aria-description",
-    "Hold until the progress fill completes to clear activity history.",
-  );
-  setText(controls.hover, "Hold to clear activity");
-  clearActivityHold = setTimeout(() => {
-    clearActivityHold = null;
-    clearActivityCompletedHold = true;
-    controls.clearActivityTool?.classList.remove("is-holding");
-    controls.clearActivityTool?.removeAttribute("aria-description");
-    void clearActivityHistory();
-  }, CLEAR_ACTIVITY_HOLD_MS);
-}
-
-function onClearActivityClick(event: MouseEvent) {
-  event.preventDefault();
-  const action = clearActivityClickAction({
-    clearedByCompletedHold: clearActivityCompletedHold,
-    disabled: controls.clearActivityTool?.disabled === true,
-  });
-  clearActivityCompletedHold = false;
-  if (action !== "clear") {
-    return;
-  }
-  cancelClearActivityHold();
-  void clearActivityHistory();
-}
-
-function cancelClearActivityHold() {
-  if (!clearActivityHold) {
-    return;
-  }
-  clearTimeout(clearActivityHold);
-  clearActivityHold = null;
-  controls.clearActivityTool?.classList.remove("is-holding");
-  controls.clearActivityTool?.removeAttribute("aria-description");
-  setText(controls.hover, "Clear cancelled");
 }
 
 function layerEnabled(name: BrowserControlName, fallback = true) {

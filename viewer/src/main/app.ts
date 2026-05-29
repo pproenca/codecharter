@@ -10,21 +10,19 @@
  *   - `controllers/camera.ts`    — wheel/keyboard/double-click zoom + pan +
  *                                  viewport-center (extracted; DI over the view).
  *   - `controllers/selection.ts` — draw → draft → resolve lifecycle (extracted).
- *   - EDITING SURFACE — NOT yet extracted. `saveSelection`, annotation
- *     create/edit/delete/copy, the pending-delete confirmation, clipboard, and
- *     hash routing are one fused surface over the shared `state`/`controls`
- *     singletons (e.g. `saveSelection` dispatches between selection-save and
- *     annotation-copy; `clearPendingAnnotationDelete` is shared across
- *     selection-clear/save/delete). A faithful split needs a dedicated editing
- *     state store + browser UAT, not a mechanical extraction — tracked as a
- *     follow-up. Pin behavior with `render/*` characterization tests first.
+ *   - `controllers/editing.ts`   — saveSelection, annotation create/edit/delete/
+ *                                  copy, the pending-delete confirmation, and
+ *                                  clipboard (extracted; DI over the shared
+ *                                  selection/editing state + app-owned UI). The
+ *                                  semantic state (selected target, editing
+ *                                  annotation, draft/resolved selection) stays
+ *                                  here in `state` and is read by the render loop
+ *                                  and `updateSelectionPopover`.
  */
 
 import { clearActivityClickAction } from "./activity-clear.ts";
-import { annotationPromptCopyOutcome } from "./annotation-copy.ts";
-import { deleteAnnotationRequest } from "./annotations.ts";
-import { copyTextToClipboard } from "./clipboard.ts";
 import { createCameraController } from "./controllers/camera.ts";
+import { createEditingController } from "./controllers/editing.ts";
 import { createSelectionController } from "./controllers/selection.ts";
 import {
   boundsFromRouteParams,
@@ -47,7 +45,6 @@ import {
   activityVisualEncoding,
   activityActorKey,
   activityActorLabel,
-  annotationClipboardText,
   buildActivityFogState,
   boundsCenter as modelBoundsCenter,
   cachedSourceRange,
@@ -245,7 +242,6 @@ type MapDrag =
   | { type: "pan"; start: Point; view: View; transient?: boolean }
   | { type: "select"; start: Point; world: Point };
 type PointerDownState = { screen: Point; world: Point };
-type PendingAnnotationDelete = { id: string; timer: number | ReturnType<typeof setTimeout> };
 type PollingFailure = { count: number; lastLoggedAt: number };
 type FolderRenderStyle = { fill: string; stroke: string; label: string; lineWidth?: number };
 type OrganicRegionRenderStyle = { fill: string; stroke: string; lineWidth?: number };
@@ -267,7 +263,6 @@ type NamedPlacesResponse = { places: NamedPlace[]; overlaps?: Array<{ bounds: Bo
 type ActivityResponse = { events?: ActivityEvent[]; version?: string; unchanged?: true };
 type AnnotationResponse = { annotation: MapAnnotationPlace };
 type ResolvedAddressResponse = { targetType: MapRouteKind; geohash: string; deepLink: string };
-type AnnotationSaveResponse = { annotation: MapAnnotationPlace & { id: string } };
 type ActivityRenderItem = {
   event: ActivityEvent;
   key: string;
@@ -420,7 +415,6 @@ let routeSequence = 0;
 let clearActivityHold: TimerHandle = null;
 let clearActivityCompletedHold = false;
 let pendingTouchSpacePan: TimerHandle = null;
-let pendingAnnotationDelete: PendingAnnotationDelete | null = null;
 let copyPromptLabelTimer: TimerHandle = null;
 const pollingErrors = new Map<string, PollingFailure>();
 const sourceLinesByNumberCache = new WeakMap<SourceRange, Map<number | string, string>>();
@@ -470,6 +464,43 @@ const selection = createSelectionController<ResolvedSelection>({
     );
     render();
   },
+});
+const editing = createEditingController({
+  controls,
+  defaultMapLevel: DEFAULT_MAP_LEVEL,
+  saveAndCopyLabel: SAVE_AND_COPY_LABEL,
+  copyPromptLabel: COPY_PROMPT_LABEL,
+  deleteAnnotationLabel: DELETE_ANNOTATION_LABEL,
+  confirmDeleteAnnotationLabel: CONFIRM_DELETE_ANNOTATION_LABEL,
+  deleteAnnotationConfirmMs: DELETE_ANNOTATION_CONFIRM_MS,
+  state,
+  getEditingAnnotation: () => state.editingAnnotation,
+  setEditingAnnotation: (annotation) => {
+    state.editingAnnotation = annotation;
+  },
+  getSelectedTarget: () => state.selectedTarget,
+  setSelectedTarget: (target) => {
+    state.selectedTarget = target as HitTarget | null;
+  },
+  getDraftSelection: () => state.draftSelection,
+  setDraftSelection: (draft) => {
+    state.draftSelection = draft;
+  },
+  getResolvedSelection: () => state.resolvedSelection,
+  setResolvedSelection: (resolved) => {
+    state.resolvedSelection = resolved;
+  },
+  setSaveButtonLabel,
+  setCopyButtonLabel,
+  setSelectionStatus,
+  updateSelectionPopover,
+  positionAnnotationActions,
+  focusSelectionComment,
+  updateInteractionModeUi,
+  render,
+  postJson,
+  syncHashRoute,
+  createAnnotationHashRoute,
 });
 
 async function boot() {
@@ -576,11 +607,15 @@ function bindEvents() {
   controls.resetViewTool?.addEventListener("click", () => fitCodebaseView({ animate: true }));
 
   controls.searchForm?.addEventListener("submit", searchMap);
-  controls.saveSelection?.addEventListener("click", saveSelection);
-  controls.deleteAnnotation?.addEventListener("click", deleteSelectedAnnotation);
-  controls.copyAnnotationPrompt?.addEventListener("click", copySelectedAnnotationPrompt);
-  controls.editAnnotation?.addEventListener("click", editSelectedAnnotation);
-  controls.deleteAnnotationAction?.addEventListener("click", deleteSelectedAnnotation);
+  controls.saveSelection?.addEventListener("click", () => editing.saveSelection());
+  controls.deleteAnnotation?.addEventListener("click", () => editing.deleteSelectedAnnotation());
+  controls.copyAnnotationPrompt?.addEventListener("click", () =>
+    editing.copySelectedAnnotationPrompt(),
+  );
+  controls.editAnnotation?.addEventListener("click", () => editing.editSelectedAnnotation());
+  controls.deleteAnnotationAction?.addEventListener("click", () =>
+    editing.deleteSelectedAnnotation(),
+  );
   controls.activityForm?.addEventListener("submit", addActivity);
   bindClearActivityHold();
 
@@ -768,10 +803,10 @@ async function focusAnnotationRoute(id: string, routeToken: RouteToken) {
   if (!annotation.geometry?.bounds) {
     return;
   }
-  upsertNamedPlace(annotation);
+  editing.upsertNamedPlace(annotation);
   resetSelectionOverlay();
   zoomToBounds(annotation.geometry.bounds, 1.35);
-  selectAnnotation(annotation);
+  editing.selectAnnotation(annotation);
 }
 
 async function focusSelectionRoute(params: URLSearchParams, routeToken: RouteToken) {
@@ -830,7 +865,7 @@ async function handleMapRouteFocusAction(
       if (target.targetType !== "folder") {
         return;
       }
-      clearAnnotationForm();
+      editing.clearAnnotationForm();
       setText(controls.inspectorTitle, folderDisplayName(target));
       setText(
         controls.inspectorSubtitle,
@@ -841,7 +876,7 @@ async function handleMapRouteFocusAction(
 }
 
 async function showFileForRoute(file: MapFile, params: URLSearchParams, routeToken: RouteToken) {
-  clearAnnotationForm();
+  editing.clearAnnotationForm();
   setText(controls.inspectorTitle, file.name ?? file.path);
   setText(controls.inspectorSubtitle, `file: ${file.path} | ${file.geo?.geohash ?? "unresolved"}`);
 
@@ -928,7 +963,7 @@ function updateInteractionModeUi() {
 }
 
 function clearDraftSelection() {
-  clearPendingAnnotationDelete();
+  editing.clearPendingDelete();
   state.dragging = null;
   state.draftSelection = null;
   state.resolvedSelection = null;
@@ -941,7 +976,7 @@ function clearDraftSelection() {
 }
 
 function resetSelectionOverlay() {
-  clearPendingAnnotationDelete();
+  editing.clearPendingDelete();
   state.dragging = null;
   state.drawing = false;
   state.panning = true;
@@ -977,26 +1012,8 @@ function setNamedPlaces(places: NamedPlace[]) {
   }
 }
 
-function upsertNamedPlace(place: NamedPlace) {
-  if (!place.id) {
-    return;
-  }
-  const index = state.namedPlaceIndexesById.get(place.id);
-  if (index === undefined) {
-    state.namedPlaces.push(place);
-    state.namedPlaceIndexesById.set(place.id, state.namedPlaces.length - 1);
-  } else {
-    state.namedPlaces[index] = place;
-  }
-  state.namedPlacesById.set(place.id, place);
-}
-
-function selectedAnnotation(): AnnotationHit | null {
-  return state.selectedTarget?.targetType === "annotation" ? state.selectedTarget : null;
-}
-
 function updateSelectionPopover() {
-  const annotation = selectedAnnotation();
+  const annotation = editing.selectedAnnotation();
   const isEditing = state.editingAnnotation !== null;
   const hasDraft = state.draftSelection !== null || state.resolvedSelection !== null;
   const selectionReady = state.resolvedSelection !== null;
@@ -1013,7 +1030,7 @@ function updateSelectionPopover() {
     controls.selectionContext,
     selectionContextLabel(state.resolvedSelection ?? state.editingAnnotation),
   );
-  setText(controls.annotationTitle, annotationTitle(annotation));
+  setText(controls.annotationTitle, editing.annotationTitle(annotation));
   setText(controls.annotationMeta, selectionContextLabel(annotation));
   positionAnnotationActions(annotation, {
     visible: annotation !== null && !hasDraft && !isEditing,
@@ -1127,7 +1144,7 @@ function render() {
       drawActivity();
     }
     renderActivityFeed();
-    const annotation = selectedAnnotation();
+    const annotation = editing.selectedAnnotation();
     const annotationActionsVisible =
       annotation !== null &&
       state.draftSelection === null &&
@@ -2604,13 +2621,13 @@ async function handleDocumentKeyboardAction(action: DocumentAction): Promise<voi
       cancelCurrentInteraction();
       return;
     case "saveSelection":
-      await saveSelection();
+      await editing.saveSelection();
       return;
     case "copyAnnotationPrompt":
-      await copySelectedAnnotationPrompt();
+      await editing.copySelectedAnnotationPrompt();
       return;
     case "deleteAnnotation":
-      await deleteSelectedAnnotation();
+      await editing.deleteSelectedAnnotation();
   }
 }
 
@@ -2883,7 +2900,7 @@ async function handleDoubleClickAction(action: DoubleClickAction, hit: HitTarget
         return;
       }
       zoomToBounds(hit.geometry.bounds, 1.28);
-      selectAnnotation(hit);
+      editing.selectAnnotation(hit);
       return;
     case "selectFolder":
       void selectMapTarget(world);
@@ -2918,7 +2935,7 @@ async function handleMapTargetSelectionAction(
         return;
       }
       zoomToBounds(hit.geometry.bounds, 1.35);
-      selectAnnotation(hit);
+      editing.selectAnnotation(hit);
       return;
     case "selectActivity":
       if (hit?.targetType === "activity") {
@@ -2938,7 +2955,7 @@ async function handleMapTargetSelectionAction(
 }
 
 function clearMapSelection() {
-  clearPendingAnnotationDelete();
+  editing.clearPendingDelete();
   const panel = mapSelectionPanel(null);
   state.selectedTarget = null;
   setText(controls.inspectorTitle, panel.inspectorTitle ?? "");
@@ -2950,8 +2967,8 @@ function clearMapSelection() {
 }
 
 function inspectMapTarget(hit: TargetHit) {
-  clearPendingAnnotationDelete();
-  clearAnnotationForm();
+  editing.clearPendingDelete();
+  editing.clearAnnotationForm();
   state.selectedTarget = hit;
 
   const panel = mapSelectionPanel(hit);
@@ -3000,7 +3017,7 @@ async function inspectFileTarget(
 
 async function selectActivityEvent(event: ActivityEvent, { zoomReadable = false } = {}) {
   state.selectedTarget = { ...event, targetType: "activity" };
-  clearAnnotationForm();
+  editing.clearAnnotationForm();
   setText(
     controls.inspectorTitle,
     `${activityActorLabel(event)}: ${normalizeActivityState(event.activityState)}`,
@@ -3045,44 +3062,6 @@ function fetchSourceContext(
     fetchJson<ResolvedAddressResponse>(sourceContext.resolveUrl),
     fetchJson<SourceRange>(sourceContext.sourceUrl),
   ]);
-}
-
-function selectAnnotation(annotation: MapAnnotationPlace) {
-  clearPendingAnnotationDelete();
-  state.selectedTarget = { ...annotation, targetType: "annotation" };
-  state.draftSelection = null;
-  state.resolvedSelection = null;
-  state.editingAnnotation = null;
-  syncHashRoute(createAnnotationHashRoute(annotation.id ?? ""));
-  if (controls.selectionComment) {
-    controls.selectionComment.value = "";
-  }
-  if (controls.saveSelection) {
-    controls.saveSelection.disabled = true;
-  }
-  setSaveButtonLabel();
-  setCopyButtonLabel();
-  setAnnotationFeedback("");
-  updateSelectionPopover();
-  render();
-}
-
-function editSelectedAnnotation() {
-  const annotation = selectedAnnotation();
-  if (!annotation) {
-    return;
-  }
-  clearPendingAnnotationDelete();
-  state.editingAnnotation = annotation;
-  state.draftSelection = null;
-  state.resolvedSelection = null;
-  if (controls.selectionComment) {
-    controls.selectionComment.value = annotation.comment ?? "";
-  }
-  updateSelectionPopover();
-  focusSelectionComment();
-  setSelectionStatus("Adjust the prompt text, then copy or press Escape.");
-  render();
 }
 
 function lineAtPoint(file: MapFile, worldPoint: Point) {
@@ -3139,9 +3118,9 @@ function focusPlaceSearchMatch(match: PlaceSearchMatch) {
   zoomToBounds(match.place.geometry.bounds, 1.35);
   setSearchResult(match.label ?? "");
   state.selectedTarget = match.target;
-  const annotation = selectedAnnotation();
+  const annotation = editing.selectedAnnotation();
   if (annotation) {
-    selectAnnotation(annotation);
+    editing.selectAnnotation(annotation);
   }
   render();
 }
@@ -3206,12 +3185,6 @@ function selectionContextLabel(selection: ResolvedSelection | MapAnnotationPlace
   return [targetLabel, `${level} level`, prefix].filter(Boolean).join(" · ");
 }
 
-function annotationTitle(annotation: MapAnnotationPlace | null) {
-  const title =
-    annotation?.comment?.trim().split(/\r?\n/).find(Boolean) ?? annotation?.name?.trim() ?? "";
-  return title || "Map annotation";
-}
-
 function applySourcePanel(panel: SourcePanel) {
   setText(controls.sourceTitle, panel.sourceTitle);
   setText(controls.sourceOutput, panel.sourceOutput);
@@ -3234,239 +3207,6 @@ function parseLineRange(value: string | null | undefined): ParsedLineRange | nul
   };
 }
 
-async function saveSelection() {
-  clearPendingAnnotationDelete();
-  const annotation = selectedAnnotation();
-  if (annotation && state.resolvedSelection === null && state.editingAnnotation === null) {
-    await copySelectedAnnotationPrompt();
-    return;
-  }
-  const editingAnnotation = state.editingAnnotation;
-  if (editingAnnotation) {
-    await copyEditedAnnotationPrompt(editingAnnotation);
-    return;
-  }
-  const selection = state.resolvedSelection;
-  if (!selection) {
-    return;
-  }
-  const comment = controls.selectionComment?.value?.trim() ?? "";
-  if (controls.saveSelection) {
-    controls.saveSelection.disabled = true;
-  }
-  setSaveButtonLabel("Saving...");
-  setSelectionStatus("Saving annotation...");
-  const payload = {
-    comment,
-    level: selection.level ?? DEFAULT_MAP_LEVEL,
-    geometry: selection.geometry,
-  };
-  const savedPromise = postJson<AnnotationSaveResponse>("/api/annotations", payload);
-  const copiedPromise = copyDeferredToClipboard(
-    savedPromise.then((saved) =>
-      annotationClipboardText(saved.annotation, {
-        origin: window.location.origin,
-        href: window.location.href,
-      }),
-    ),
-  );
-  const saved = await savedPromise;
-  upsertNamedPlace(saved.annotation);
-  const copied = await copiedPromise;
-  const copyOutcome = annotationPromptCopyOutcome(copied);
-  state.selectedTarget = copyOutcome.closeActions
-    ? null
-    : { ...saved.annotation, targetType: "annotation" };
-  syncHashRoute(createAnnotationHashRoute(saved.annotation.id));
-  state.drawing = false;
-  state.panning = true;
-  state.draftSelection = null;
-  state.resolvedSelection = null;
-  state.editingAnnotation = null;
-  updateInteractionModeUi();
-  updateSelectionPopover();
-  setCopyButtonLabel();
-  setSaveButtonLabel(copied ? "Copied" : "Saved. Copy failed");
-  if (!copyOutcome.copied) {
-    setAnnotationFeedback("Saved, but clipboard copy failed.", "error");
-  }
-  setSelectionStatus(copied ? "Copied." : "Saved. Copy failed.");
-  render();
-}
-
-async function copyEditedAnnotationPrompt(annotation: MapAnnotationPlace) {
-  const comment = controls.selectionComment?.value?.trim() ?? "";
-  const copied = await copyToClipboard(
-    annotationClipboardText(
-      { ...annotation, comment },
-      {
-        origin: window.location.origin,
-        href: window.location.href,
-      },
-    ),
-  );
-  const copyOutcome = annotationPromptCopyOutcome(copied);
-  state.editingAnnotation = null;
-  if (copyOutcome.closeActions) {
-    state.selectedTarget = null;
-  }
-  if (controls.selectionComment) {
-    controls.selectionComment.value = "";
-  }
-  updateSelectionPopover();
-  setCopyButtonLabel(copyOutcome.buttonLabel, { reset: true });
-  if ("feedback" in copyOutcome) {
-    setAnnotationFeedback(copyOutcome.feedback.message, copyOutcome.feedback.tone);
-  }
-  setSelectionStatus(copyOutcome.selectionStatus);
-  render();
-  return copied;
-}
-
-function clearAnnotationForm() {
-  clearPendingAnnotationDelete();
-  if (state.draftSelection || state.resolvedSelection) {
-    return;
-  }
-  state.editingAnnotation = null;
-  if (controls.selectionComment) {
-    controls.selectionComment.value = "";
-  }
-  if (controls.saveSelection) {
-    controls.saveSelection.disabled = true;
-  }
-  if (controls.deleteAnnotation) {
-    controls.deleteAnnotation.hidden = true;
-  }
-  setSaveButtonLabel();
-  updateSelectionPopover();
-}
-
-async function deleteSelectedAnnotation() {
-  const annotation = selectedAnnotation();
-  if (!annotation?.id) {
-    return;
-  }
-  if (!isPendingAnnotationDelete(annotation)) {
-    armAnnotationDelete(annotation);
-    return;
-  }
-  clearPendingAnnotationDelete();
-  setDeleteButtonsDisabled(true);
-  setSelectionStatus("Deleting annotation…");
-  await deleteAnnotationRequest(annotation.id);
-  removeNamedPlace(annotation.id);
-  state.selectedTarget = null;
-  state.draftSelection = null;
-  state.resolvedSelection = null;
-  state.editingAnnotation = null;
-  if (controls.selectionComment) {
-    controls.selectionComment.value = "";
-  }
-  if (window.location.hash === createAnnotationHashRoute(annotation.id)) {
-    window.history.replaceState(null, "", "#");
-  }
-  setDeleteButtonsDisabled(false);
-  if (controls.deleteAnnotation) {
-    controls.deleteAnnotation.hidden = true;
-  }
-  setSaveButtonLabel();
-  setCopyButtonLabel();
-  setDeleteButtonLabel();
-  setSelectionStatus("Annotation deleted.");
-  updateSelectionPopover();
-  render();
-}
-
-function armAnnotationDelete(annotation: MapAnnotationPlace) {
-  if (!annotation.id) {
-    return;
-  }
-  clearPendingAnnotationDelete();
-  setDeleteButtonLabel(CONFIRM_DELETE_ANNOTATION_LABEL);
-  setSelectionStatus("Press Delete again to delete this annotation.");
-  pendingAnnotationDelete = {
-    id: annotation.id,
-    timer: window.setTimeout(() => {
-      pendingAnnotationDelete = null;
-      setDeleteButtonLabel();
-      setSelectionStatus("Delete confirmation expired.");
-    }, DELETE_ANNOTATION_CONFIRM_MS),
-  };
-}
-
-function isPendingAnnotationDelete(annotation: MapAnnotationPlace) {
-  return pendingAnnotationDelete?.id === annotation.id;
-}
-
-function clearPendingAnnotationDelete() {
-  if (!pendingAnnotationDelete) {
-    return;
-  }
-  window.clearTimeout(pendingAnnotationDelete.timer);
-  pendingAnnotationDelete = null;
-  setDeleteButtonLabel();
-}
-
-function setDeleteButtonLabel(label = DELETE_ANNOTATION_LABEL) {
-  if (controls.deleteAnnotation) {
-    controls.deleteAnnotation.textContent = label;
-  }
-  if (controls.deleteAnnotationAction) {
-    controls.deleteAnnotationAction.textContent = label;
-  }
-}
-
-function setDeleteButtonsDisabled(disabled: boolean) {
-  if (controls.deleteAnnotation) {
-    controls.deleteAnnotation.disabled = disabled;
-  }
-  if (controls.deleteAnnotationAction) {
-    controls.deleteAnnotationAction.disabled = disabled;
-  }
-}
-
-function removeNamedPlace(id: string) {
-  const index = state.namedPlaceIndexesById.get(id);
-  if (index === undefined) {
-    return;
-  }
-  state.namedPlaces.splice(index, 1);
-  state.namedPlacesById.delete(id);
-  state.namedPlaceIndexesById.delete(id);
-  for (let nextIndex = index; nextIndex < state.namedPlaces.length; nextIndex += 1) {
-    const place = state.namedPlaces[nextIndex];
-    if (place?.id) {
-      state.namedPlaceIndexesById.set(place.id, nextIndex);
-    }
-  }
-}
-
-async function copySelectedAnnotationPrompt() {
-  const annotation = selectedAnnotation();
-  if (!annotation) {
-    return false;
-  }
-  const copied = await copyToClipboard(
-    annotationClipboardText(annotation, {
-      origin: window.location.origin,
-      href: window.location.href,
-    }),
-  );
-  const copyOutcome = annotationPromptCopyOutcome(copied);
-  if (copyOutcome.closeActions) {
-    state.selectedTarget = null;
-  }
-  setCopyButtonLabel(copyOutcome.buttonLabel, { reset: true });
-  if ("feedback" in copyOutcome) {
-    setAnnotationFeedback(copyOutcome.feedback.message, copyOutcome.feedback.tone);
-  }
-  setSelectionStatus(copyOutcome.selectionStatus);
-  updateSelectionPopover();
-  render();
-  return copied;
-}
-
 function focusSelectionComment() {
   if (!controls.selectionComment || state.lastPointerType === "touch") {
     return;
@@ -3477,46 +3217,6 @@ function focusSelectionComment() {
 function setSelectionStatus(message: string) {
   if (controls.selectionStatus) {
     controls.selectionStatus.textContent = message;
-  }
-}
-
-function setAnnotationFeedback(message: string, tone = "neutral") {
-  if (!controls.annotationFeedback) {
-    return;
-  }
-  controls.annotationFeedback.textContent = message;
-  controls.annotationFeedback.hidden = !message;
-  controls.annotationFeedback.dataset.tone = tone;
-  const annotation = selectedAnnotation();
-  const annotationActionsVisible =
-    annotation !== null &&
-    state.draftSelection === null &&
-    state.resolvedSelection === null &&
-    state.editingAnnotation === null;
-  positionAnnotationActions(annotation, { visible: annotationActionsVisible });
-}
-
-async function copyToClipboard(text: string) {
-  return copyTextToClipboard(text);
-}
-
-async function copyDeferredToClipboard(textPromise: Promise<string>) {
-  if (navigator.clipboard?.write && window.ClipboardItem && window.Blob) {
-    try {
-      const item = new ClipboardItem({
-        "text/plain": textPromise.then((text) => new Blob([text], { type: "text/plain" })),
-      });
-      await navigator.clipboard.write([item]);
-      return true;
-    } catch {
-      // Fall through to the legacy path below.
-    }
-  }
-
-  try {
-    return await copyToClipboard(await textPromise);
-  } catch {
-    return false;
   }
 }
 

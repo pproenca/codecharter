@@ -23,6 +23,7 @@
 import { clearActivityClickAction } from "./activity-clear.ts";
 import { createCameraController } from "./controllers/camera.ts";
 import { createEditingController } from "./controllers/editing.ts";
+import { activitySignature, createPollingController } from "./controllers/polling.ts";
 import { createSelectionController } from "./controllers/selection.ts";
 import {
   boundsFromRouteParams,
@@ -196,10 +197,6 @@ type HashRouteIntent =
 type CanvasAction = NonNullable<ReturnType<typeof canvasKeyboardAction>>;
 type DocumentAction = NonNullable<ReturnType<typeof documentKeyboardAction>>;
 type TimerHandle = number | ReturnType<typeof setTimeout> | null;
-type PollingTask = {
-  start(callback: () => void | Promise<void>, intervalMs: number): void;
-  stop(): void;
-};
 type AnnotationHit = NamedPlace & { targetType: "annotation" };
 type ActivityHit = ActivityEvent & { targetType: "activity" };
 type HitTarget = TargetHit | AnnotationHit | ActivityHit;
@@ -242,7 +239,6 @@ type MapDrag =
   | { type: "pan"; start: Point; view: View; transient?: boolean }
   | { type: "select"; start: Point; world: Point };
 type PointerDownState = { screen: Point; world: Point };
-type PollingFailure = { count: number; lastLoggedAt: number };
 type FolderRenderStyle = { fill: string; stroke: string; label: string; lineWidth?: number };
 type OrganicRegionRenderStyle = { fill: string; stroke: string; lineWidth?: number };
 type FileVisualState = "source" | "selected" | "landmark" | "aggregate" | "parcel" | "hidden";
@@ -330,24 +326,6 @@ const TOUCH_SPACE_PAN_HOLD_MS = 220;
 const CLEAR_ACTIVITY_HOLD_MS = 1600;
 const DELETE_ANNOTATION_CONFIRM_MS = 4000;
 const FOG_MASK_SCALE = 0.5;
-const POLLING_ERROR_NOTICE_THRESHOLD = 2;
-
-function createPollingTask(): PollingTask {
-  let timer: TimerHandle = null;
-  const stop = () => {
-    if (timer) {
-      clearInterval(timer);
-    }
-    timer = null;
-  };
-  return {
-    start(callback: () => void | Promise<void>, intervalMs: number) {
-      stop();
-      timer = setInterval(callback, intervalMs);
-    },
-    stop,
-  };
-}
 
 function createMapApplicationState(): MapApplicationState {
   const sourceCache = new Map<string, SourceRange>();
@@ -416,7 +394,6 @@ let clearActivityHold: TimerHandle = null;
 let clearActivityCompletedHold = false;
 let pendingTouchSpacePan: TimerHandle = null;
 let copyPromptLabelTimer: TimerHandle = null;
-const pollingErrors = new Map<string, PollingFailure>();
 const sourceLinesByNumberCache = new WeakMap<SourceRange, Map<number | string, string>>();
 const hexRgbCache = new Map<string, readonly [number, number, number]>();
 const hashUnitCache = new Map<string, number>();
@@ -425,8 +402,6 @@ const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 const state: MapApplicationState = createMapApplicationState();
 const controls = createMapControls();
-const activityPolling = createPollingTask();
-const mapPolling = createPollingTask();
 const camera = createCameraController({
   getView: () => state.view,
   setView: (view) => {
@@ -502,13 +477,41 @@ const editing = createEditingController({
   syncHashRoute,
   createAnnotationHashRoute,
 });
+const polling = createPollingController({
+  getActivityDetail: () => state.activityDetail,
+  setActivityDetail: (detail) => {
+    state.activityDetail = detail;
+  },
+  getActivityVersion: () => state.activityVersion,
+  setActivityVersion: (version) => {
+    state.activityVersion = version;
+  },
+  getActivitySignature: () => state.activitySignature,
+  setActivitySignature: (sig) => {
+    state.activitySignature = sig;
+  },
+  setActivity: (events) => {
+    state.activity = events;
+  },
+  getMapVersion: () => state.mapVersion,
+  setOverlaps: (overlaps) => {
+    state.overlaps = overlaps;
+  },
+  activityDiscoveryEnabled,
+  fetchJson,
+  applyMap,
+  setNamedPlaces,
+  rebuildActivityFog,
+  render,
+  setHoverText: (message) => setText(controls.hover, message),
+});
 
 async function boot() {
   const [map, mapVersion, names, activity] = await Promise.all([
     fetchJson<CodecharterCodemap>("/api/map"),
     fetchJson<MapVersionResponse>("/api/map-version"),
     fetchJson<NamedPlacesResponse>("/api/named-places"),
-    fetchJson<ActivityResponse>(activityRequestUrl("summary")),
+    fetchJson<ActivityResponse>(polling.activityRequestUrl("summary")),
   ]);
   applyMap(map, mapVersion.version);
   setNamedPlaces(names.places);
@@ -521,8 +524,8 @@ async function boot() {
   rebuildActivityFog();
   bindEvents();
   updateInteractionModeUi();
-  startMapPolling();
-  startActivityPolling();
+  polling.startMapPolling();
+  polling.startActivityPolling();
   resize();
   await applyHashRoute();
   render();
@@ -585,7 +588,7 @@ function bindEvents() {
   for (const control of controls.layerToggles()) {
     if (control === controls.showActivity) {
       control.addEventListener("change", () => {
-        void handleActivityToggle();
+        void polling.handleActivityToggle();
       });
     } else {
       control.addEventListener("change", render);
@@ -636,115 +639,6 @@ function bindEvents() {
   );
   canvas.addEventListener("keydown", onCanvasKeyDown);
   updateInteractionModeUi();
-}
-
-function startActivityPolling() {
-  activityPolling.start(refreshActivity, 1800);
-}
-
-function startMapPolling() {
-  mapPolling.start(refreshMap, 1800);
-}
-
-async function refreshMap() {
-  try {
-    const mapVersion = await fetchJson<MapVersionResponse>("/api/map-version");
-    clearPollingError("map");
-    if (!mapVersion.version || mapVersion.version === state.mapVersion) {
-      return;
-    }
-    const [map, names] = await Promise.all([
-      fetchJson<CodecharterCodemap>("/api/map"),
-      fetchJson<NamedPlacesResponse>("/api/named-places"),
-    ]);
-    applyMap(map, mapVersion.version);
-    setNamedPlaces(names.places);
-    state.overlaps = names.overlaps ?? [];
-    render();
-  } catch (error) {
-    reportPollingError("map", error);
-  }
-}
-
-async function refreshActivity() {
-  try {
-    const changed = await loadActivity(activityDiscoveryEnabled() ? "full" : "summary");
-    if (changed) {
-      render();
-    }
-  } catch (error) {
-    reportPollingError("activity", error);
-  }
-}
-
-async function handleActivityToggle() {
-  if (activityDiscoveryEnabled()) {
-    await loadActivity("full", { force: state.activityDetail !== "full" });
-  } else if (state.activityDetail !== "summary") {
-    await loadActivity("summary", { force: true });
-  }
-  render();
-}
-
-async function loadActivity(detail: ActivityDetail, { force = false } = {}) {
-  const activity = await fetchJson<ActivityResponse>(activityRequestUrl(detail, { force }));
-  clearPollingError("activity");
-  if (activity.unchanged === true) {
-    return false;
-  }
-  const events = activity.events ?? [];
-  const nextSignature = activitySignature(events);
-  const nextVersion = typeof activity.version === "string" ? activity.version : nextSignature;
-  const replacingDetail = force || state.activityDetail !== detail;
-  state.activityVersion = nextVersion;
-  state.activityDetail = detail;
-  if (!replacingDetail && nextSignature === state.activitySignature) {
-    if (events.length) {
-      rebuildActivityFog();
-    }
-    return events.length > 0;
-  }
-  state.activity = events;
-  state.activitySignature = nextSignature;
-  rebuildActivityFog();
-  return true;
-}
-
-function activityRequestUrl(detail: ActivityDetail, { force = false } = {}) {
-  const params = new URLSearchParams({ view: "viewer", detail });
-  if (!force && state.activityVersion && state.activityDetail === detail) {
-    params.set("version", state.activityVersion);
-  }
-  return `/api/activity?${params.toString()}`;
-}
-
-function reportPollingError(key: string, error: unknown) {
-  const failure = pollingErrors.get(key) ?? { count: 0, lastLoggedAt: 0 };
-  failure.count += 1;
-  const now = Date.now();
-  if (failure.count === POLLING_ERROR_NOTICE_THRESHOLD) {
-    setText(controls.hover, "Reconnecting...");
-  }
-  if (failure.count === 1 || now - failure.lastLoggedAt > 15000) {
-    console.warn(error);
-    failure.lastLoggedAt = now;
-  }
-  pollingErrors.set(key, failure);
-}
-
-function clearPollingError(key: string) {
-  if (!pollingErrors.has(key)) {
-    return;
-  }
-  pollingErrors.delete(key);
-  if (pollingErrors.size === 0) {
-    setText(controls.hover, "Reconnected");
-  }
-}
-
-function activitySignature(events: ActivityEvent[]): string {
-  const latest = events.at(-1);
-  return `${events.length}:${latest?.id ?? ""}:${latest?.timestamp ?? ""}`;
 }
 
 await boot();
@@ -3256,7 +3150,7 @@ async function addActivity(event: SubmitEvent) {
     lineStart: Number(data.lineStart),
     lineEnd: Number(data.lineEnd),
   });
-  setTimeout(refreshActivity, 250);
+  setTimeout(polling.refreshActivity, 250);
 }
 
 function formDataObject(formData: FormData): Record<string, FormDataEntryValue> {

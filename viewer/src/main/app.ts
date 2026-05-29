@@ -3,6 +3,7 @@ import { annotationPromptCopyOutcome } from "./annotation-copy.ts";
 import { deleteAnnotationRequest } from "./annotations.ts";
 import { copyTextToClipboard } from "./clipboard.ts";
 import { createCameraController } from "./controllers/camera.ts";
+import { createSelectionController } from "./controllers/selection.ts";
 import {
   boundsFromRouteParams,
   createAnnotationHashRoute,
@@ -34,7 +35,6 @@ import {
   discoveryFogRevealStyle,
   discoveryFogVeilStyle,
   doubleClickMapAction,
-  draftSelectionFromDrag,
   fileLabelPriority,
   fileVisualState,
   fogStateForFile,
@@ -50,7 +50,6 @@ import {
   hitTestTargetLists,
   interactionModeUiState,
   isSpaceKeyEvent,
-  isUsableDraftSelection,
   isScreenBoxVisible,
   KEYBOARD_ZOOM_FACTOR,
   labelBoxesOverlap,
@@ -422,6 +421,34 @@ const camera = createCameraController({
   viewportSize,
   canvasClientSize: () => ({ width: canvas.clientWidth, height: canvas.clientHeight }),
 });
+const selection = createSelectionController<ResolvedSelection>({
+  level: DEFAULT_MAP_LEVEL,
+  getDrawDrag: () => (state.dragging?.type === "draw" ? state.dragging : null),
+  getDraft: () => state.draftSelection,
+  setDraft: (draft) => {
+    state.draftSelection = draft;
+  },
+  setResolved: (resolved) => {
+    state.resolvedSelection = resolved;
+  },
+  getView: () => state.view,
+  viewportSize,
+  resolveSelection: (body) => postJson<ResolvedSelection>("/api/selections/resolve", body),
+  isCurrentRoute,
+  syncSelectionRoute: (bounds, level) => syncHashRoute(createSelectionHashRoute({ level, bounds })),
+  onResolved: () => {
+    if (controls.saveSelection) {
+      controls.saveSelection.disabled = false;
+    }
+    setSaveButtonLabel();
+    updateSelectionPopover();
+    focusSelectionComment();
+    setSelectionStatus(
+      "Selection ready. Add a comment, then save or press Command Enter on macOS or Control Enter elsewhere.",
+    );
+    render();
+  },
+});
 
 async function boot() {
   const [map, mapVersion, names, activity] = await Promise.all([
@@ -740,7 +767,7 @@ async function focusSelectionRoute(params: URLSearchParams, routeToken: RouteTok
   updateSelectionPopover();
   setSelectionStatus("Resolving selection...");
   zoomToBounds(bounds, 1.35);
-  await previewSelection({ routeToken });
+  await selection.preview({ routeToken });
 }
 
 async function focusMapRoute(route: MapHashRoute, routeToken: RouteToken) {
@@ -2730,7 +2757,7 @@ function onPointerMove(event: PointerEvent) {
   if (state.dragging.type === "pan") {
     state.view = panViewForDrag(state.dragging, screen, viewportSize());
   } else {
-    updateDraftSelection(world);
+    selection.updateDraft(world);
   }
   requestRender();
 }
@@ -2741,16 +2768,16 @@ async function onPointerUp(event: PointerEvent) {
     state.dragging?.type === "pan" && state.dragging.transient && event.pointerType === "touch";
   if (state.dragging?.type === "draw" && state.draftSelection) {
     if (event.type !== "lostpointercapture") {
-      updateDraftSelection(screenToWorld(screenPoint(event)));
+      selection.updateDraft(screenToWorld(screenPoint(event)));
     }
-    if (!hasUsableDraftSelection()) {
+    if (!selection.hasUsableDraft()) {
       clearDraftSelection();
       render();
       return;
     }
     state.dragging = null;
     updateInteractionModeUi();
-    await previewSelection();
+    await selection.preview();
     return;
   }
 
@@ -2819,21 +2846,6 @@ function cancelPendingClickSelection() {
 
 function hitTestDrillTarget(world: Point) {
   return hitTestActivity(world) ?? hitTestMapTargets(world);
-}
-
-function updateDraftSelection(world: Point) {
-  if (state.dragging?.type !== "draw") {
-    return;
-  }
-  state.dragging.current = world;
-  state.draftSelection = draftSelectionFromDrag(state.dragging.start, world);
-}
-
-function hasUsableDraftSelection() {
-  return isUsableDraftSelection(state.draftSelection, {
-    viewport: viewportSize(),
-    scale: state.view.scale,
-  });
 }
 
 async function selectMapTarget(worldPoint: Point) {
@@ -3198,41 +3210,6 @@ function parseLineRange(value: string | null | undefined): ParsedLineRange | nul
     start: Number(match[1]),
     end: Number(match[2] ?? match[1]),
   };
-}
-
-async function previewSelection({ routeToken = null }: { routeToken?: RouteToken | null } = {}) {
-  const draftSelection = state.draftSelection;
-  if (!draftSelection) {
-    return;
-  }
-  const body = {
-    level: DEFAULT_MAP_LEVEL,
-    geometry: draftSelection,
-  };
-  const resolvedSelection = await postJson<ResolvedSelection>("/api/selections/resolve", body);
-  if (routeToken && !isCurrentRoute(routeToken)) {
-    return;
-  }
-  if (state.draftSelection !== draftSelection) {
-    return;
-  }
-  state.resolvedSelection = resolvedSelection;
-  syncHashRoute(
-    createSelectionHashRoute({
-      level: DEFAULT_MAP_LEVEL,
-      bounds: resolvedSelection.geometry.bounds,
-    }),
-  );
-  if (controls.saveSelection) {
-    controls.saveSelection.disabled = false;
-  }
-  setSaveButtonLabel();
-  updateSelectionPopover();
-  focusSelectionComment();
-  setSelectionStatus(
-    "Selection ready. Add a comment, then save or press Command Enter on macOS or Control Enter elsewhere.",
-  );
-  render();
 }
 
 async function saveSelection() {

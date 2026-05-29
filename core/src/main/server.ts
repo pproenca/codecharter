@@ -26,6 +26,28 @@ import { createActivityStore } from "./activity-store.ts";
 import type { StoredActivityEvent, ViewerFogState } from "./activity-store.ts";
 import { createActivityEvent } from "./activity.ts";
 import type { ActivityAddress, ActivityEventInput } from "./activity.ts";
+import type {
+  ActivitySnapshot,
+  ApiHandler,
+  ApiRoute,
+  ApiRouteMatch,
+  JsonObject,
+  MatchedApiRoute,
+  NamedPlace,
+  NamedPlacesStore,
+  ServerState,
+  ViewerActivityArchiveCache,
+  ViewerActivityDetail,
+} from "./api/context.ts";
+import { assertLocalHost, assertSafeMutationRequest } from "./api/hardening.ts";
+import {
+  httpError,
+  optionalNumber,
+  readBody,
+  requiredParam,
+  requiredRestParam,
+  sendJson,
+} from "./api/http.ts";
 import { limitToRecent, objectRecord, sortIfNeeded } from "./collections.ts";
 import { errorMessage, isErrnoException } from "./errors.ts";
 import { MAP_LEVELS } from "./levels.ts";
@@ -41,13 +63,7 @@ import {
   createNamedSelection,
   refreshPlaceResolution,
 } from "./selections.ts";
-import type {
-  MapAnnotation,
-  NamedAddress,
-  NamedSelection,
-  SelectionGeometry,
-  SelectionInput,
-} from "./selections.ts";
+import type { MapAnnotation, SelectionGeometry, SelectionInput } from "./selections.ts";
 import { readSourceRange } from "./source.ts";
 import { readJson, writeJson } from "./store.ts";
 import { buildTileIndex, getTile, visiblePrefixes } from "./tiles.ts";
@@ -62,9 +78,6 @@ const MIME_TYPES: Record<string, string> = {
 const BUNDLED_PUBLIC_ROOT = fileURLToPath(new URL("../public", import.meta.url));
 const DEFAULT_PORT_SEARCH_LIMIT = 20;
 const DEFAULT_ACTIVITY_ARCHIVE = ACTIVITY_ARCHIVE_FILE;
-const MAX_BODY_BYTES = 1024 * 1024; // HARDENING: cap request bodies at 1 MB (DoS)
-const LOCAL_HOSTNAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
-const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 // Activity newer than this window renders as a "live"/visible trail; older
 // activity falls back to "explored" discovery fog. 360 min = 6 hours.
 // NOTE (brief OQ-1): whether 6h is the intended horizon vs ADR-0005 is an open
@@ -91,57 +104,6 @@ type ServerOptions = {
   publicRoot?: string;
   portSearchLimit?: number;
 };
-
-type CodemapCache = {
-  signature: string;
-  codemap: CodecharterCodemap;
-};
-
-type ViewerActivityArchiveCache = {
-  size: bigint;
-  recent: StoredActivityEvent[];
-  explored: StoredActivityEvent[];
-};
-
-type ServerState = {
-  root: string;
-  mapPath: string;
-  publicRoot: string;
-  namedPlacesPath: string;
-  namedPlacesMutation: Promise<unknown>;
-  activityArchivePath: string;
-  activityStore: ReturnType<typeof createActivityStore>;
-  codemapCache?: CodemapCache; // HARDENING/perf: mtime:size-keyed parsed-map cache
-  viewerActivityArchiveCache?: ViewerActivityArchiveCache;
-};
-
-type HttpError = Error & { statusCode: number };
-
-type NamedPlace = NamedSelection | MapAnnotation | NamedAddress;
-type NamedPlacesStore = { places: NamedPlace[] };
-type JsonObject = Record<string, unknown>;
-type ApiRouteParams = { rest?: string };
-type ApiRouteMatch = { params: ApiRouteParams };
-type MatchedApiRoute = ApiRouteMatch & { route: ApiRoute };
-type ApiHandler = (
-  state: ServerState,
-  request: IncomingMessage,
-  response: ServerResponse,
-  url: URL,
-  match: ApiRouteMatch,
-) => void | Promise<void>;
-type ApiRoute = {
-  method: string;
-  pattern: string;
-  handle: ApiHandler;
-  prefix: boolean;
-};
-type ActivitySnapshot = {
-  events: StoredActivityEvent[];
-  version?: string;
-  unchanged?: true;
-};
-type ViewerActivityDetail = "summary" | "full";
 
 const API_ROUTES = Object.freeze([
   apiRoute("GET", "/api/map", getMapApi),
@@ -347,38 +309,6 @@ async function handleRequest(
   await serveStatic(state, response, url.pathname === "/" ? "/index.html" : url.pathname);
 }
 
-// HARDENING (CWE-350/346): a rebound DNS name (attacker.com → 127.0.0.1) carries
-// its own hostname in the Host header; only loopback names are allowed.
-function assertLocalHost(request: IncomingMessage): void {
-  const host = request.headers.host;
-  // HARDENING (CWE-350/346): fail CLOSED (OQ-4) — a request with no Host header
-  // must NOT bypass the loopback allowlist. Browsers and the CLI always send
-  // Host; an absent/empty one is anomalous and is rejected.
-  if (!host) {
-    throw httpError(403, "Forbidden host");
-  }
-  if (!LOCAL_HOSTNAMES.has(normalizeHostname(host))) {
-    throw httpError(403, "Forbidden host");
-  }
-}
-
-// Strip an optional port and lower-case so the allowlist matches both bracketed
-// and bare loopback IPv6 forms. HARDENING (CWE-697): a naive `:\d+$` strip
-// mangled a bare `::1` into `:`, over-rejecting a legitimate loopback host.
-function normalizeHostname(host: string): string {
-  const trimmed = host.trim().toLowerCase();
-  if (trimmed.startsWith("[")) {
-    // Bracketed IPv6, optionally with a port: "[::1]" or "[::1]:8080".
-    const end = trimmed.indexOf("]");
-    return end === -1 ? trimmed : trimmed.slice(1, end);
-  }
-  if (trimmed.indexOf(":") !== trimmed.lastIndexOf(":")) {
-    // Bare IPv6 (multiple colons) carries no port suffix per RFC 3986.
-    return trimmed;
-  }
-  return trimmed.replace(/:\d+$/, "");
-}
-
 async function handleApi(
   state: ServerState,
   request: IncomingMessage,
@@ -410,40 +340,6 @@ function matchingApiRoute(request: IncomingMessage, url: URL): MatchedApiRoute |
 
 function knownApiPath(url: URL): boolean {
   return API_ROUTES.some((route) => matchApiPath(route, url.pathname));
-}
-
-function assertSafeMutationRequest(request: IncomingMessage): void {
-  if (!MUTATING_METHODS.has(request.method ?? "")) {
-    return;
-  }
-
-  const fetchSite = String(request.headers["sec-fetch-site"] ?? "").toLowerCase();
-  if (fetchSite === "cross-site") {
-    throw httpError(403, "Cross-site API mutations are not allowed");
-  }
-
-  const origin = request.headers.origin;
-  if (typeof origin === "string" && !isLoopbackOrigin(origin)) {
-    throw httpError(403, "Cross-origin API mutations are not allowed");
-  }
-
-  if (request.method !== "DELETE" && !isJsonContentType(request.headers["content-type"])) {
-    throw httpError(415, "API mutations require application/json");
-  }
-}
-
-function isLoopbackOrigin(origin: string): boolean {
-  try {
-    const { hostname, protocol } = new URL(origin);
-    return protocol === "http:" && LOCAL_HOSTNAMES.has(hostname.toLowerCase());
-  } catch {
-    return false;
-  }
-}
-
-function isJsonContentType(value: string | string[] | undefined): boolean {
-  const contentType = Array.isArray(value) ? value[0] : value;
-  return contentType?.split(";", 1)[0]?.trim().toLowerCase() === "application/json";
 }
 
 function apiRoute(
@@ -1229,79 +1125,12 @@ function compareActivityEvents(left: StoredActivityEvent, right: StoredActivityE
   return byTime || String(left.id ?? "").localeCompare(String(right.id ?? ""));
 }
 
-async function readBody(request: IncomingMessage): Promise<JsonObject> {
-  const chunks: Buffer[] = [];
-  let total = 0;
-  for await (const chunk of request) {
-    total += chunk.length;
-    if (total > MAX_BODY_BYTES) {
-      throw httpError(413, "Request body too large");
-    } // HARDENING (DoS)
-    chunks.push(Buffer.from(chunk));
-  }
-  const raw = Buffer.concat(chunks).toString("utf8");
-  try {
-    if (!raw) {
-      return {};
-    }
-    const value = objectRecord(JSON.parse(raw));
-    if (value) {
-      return value;
-    }
-    throw httpError(400, "JSON body must be an object");
-  } catch (error) {
-    if (error instanceof SyntaxError) {
-      throw httpError(400, "Invalid JSON body");
-    }
-    throw error;
-  }
-}
-
-function sendJson(response: ServerResponse, statusCode: number, value: unknown): void {
-  response.writeHead(statusCode, { "content-type": "application/json; charset=utf-8" });
-  response.end(JSON.stringify(value, null, 2));
-}
-
 function refreshNamedPlaces(codemap: CodecharterCodemap, store: unknown): NamedPlacesStore {
   const normalizedStore = normalizeNamedPlacesStore(store);
   return {
     ...normalizedStore,
     places: normalizedStore.places.map((place) => refreshPlaceResolution(codemap, place)),
   };
-}
-
-function requiredParam(url: URL, name: string): string {
-  const value = url.searchParams.get(name);
-  if (!value) {
-    throw httpError(400, `Missing query parameter: ${name}`);
-  }
-  return value;
-}
-
-function requiredRestParam(match: ApiRouteMatch): string {
-  if (!match.params.rest) {
-    throw httpError(404, "Not found");
-  }
-  return match.params.rest;
-}
-
-function optionalNumber(value: string | null): number | undefined {
-  if (value === null) {
-    return undefined;
-  }
-  const trimmed = value.trim();
-  if (!/^[+-]?\d+$/.test(trimmed)) {
-    throw httpError(400, `Query parameter must be an integer: ${value}`);
-  }
-  const number = Number(trimmed);
-  if (!Number.isSafeInteger(number)) {
-    throw httpError(400, `Query parameter must be a safe integer: ${value}`);
-  }
-  return number;
-}
-
-function httpError(statusCode: number, message: string): HttpError {
-  return Object.assign(new Error(message), { statusCode });
 }
 
 function serverPort(address: string | AddressInfo | null): number {

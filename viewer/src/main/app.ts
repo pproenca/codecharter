@@ -28,6 +28,15 @@
  *                                  (extracted; DI over the draft/resolved/editing
  *                                  state + overlay DOM + app-owned callbacks). It
  *                                  reads the same `state`; it owns no identity.
+ *   - `controllers/routing.ts`   — browser hash-route apply/focus/sync: parse the
+ *                                  `#…` route, focus the matching annotation/
+ *                                  selection/map target, and write stable routes
+ *                                  back (extracted; DI over the shared map/named-
+ *                                  places state + app-owned callbacks + the
+ *                                  editing/selection controllers). The route-
+ *                                  sequence token and in-apply latch are private
+ *                                  to that factory; the shell still wires
+ *                                  hashchange → applyHashRoute.
  */
 
 import { createActivityGestureController } from "./controllers/activity-gesture.ts";
@@ -35,10 +44,10 @@ import { createCameraController } from "./controllers/camera.ts";
 import { createEditingController } from "./controllers/editing.ts";
 import { createInteractionController } from "./controllers/interaction.ts";
 import { activitySignature, createPollingController } from "./controllers/polling.ts";
-import { createSelectionController } from "./controllers/selection.ts";
+import { createRoutingController } from "./controllers/routing.ts";
 import { createSelectionOverlayController } from "./controllers/selection-overlay.ts";
+import { createSelectionController } from "./controllers/selection.ts";
 import {
-  boundsFromRouteParams,
   createAnnotationHashRoute,
   createMapHashRoute,
   createSelectionHashRoute,
@@ -76,7 +85,6 @@ import {
   folderLabelPriority,
   folderStyle,
   hashString,
-  hashRouteFocusIntent,
   hitTestActivityEvents,
   hitTestAnnotations,
   hitTestTargetLists,
@@ -88,8 +96,6 @@ import {
   lineAtWorldPoint,
   latestActivityByAgent,
   mapHoverLabel,
-  mapRouteFocusAction,
-  mapRouteTarget,
   mapSearchAction,
   mapSearchMatch,
   mapSelectionPanel,
@@ -132,7 +138,6 @@ import type {
   MapAnnotationPlace,
   MapFile,
   MapFolder,
-  MapHashRoute,
   MapActionOf,
   MapRouteKind,
   NamedPlace,
@@ -201,10 +206,6 @@ const LAYER_TOGGLE_CONTROLS = [
 type BrowserControls = Record<BrowserControlName, BrowserControl | null> & {
   layerToggles: () => BrowserControl[];
 };
-type HashRouteIntent =
-  | { type: "annotation"; id: string }
-  | { type: "selection"; params: URLSearchParams }
-  | { type: "map"; route: MapHashRoute };
 type CanvasAction = NonNullable<ReturnType<typeof canvasKeyboardAction>>;
 type DocumentAction = NonNullable<ReturnType<typeof documentKeyboardAction>>;
 type TimerHandle = number | ReturnType<typeof setTimeout> | null;
@@ -214,7 +215,6 @@ type HitTarget = TargetHit | AnnotationHit | ActivityHit;
 type PlaceSearchMatch = Extract<SearchMatch, { type: "annotation" | "namedPlace" }>;
 type FileSearchMatch = Extract<SearchMatch, { type: "file" }>;
 type FolderSearchMatch = Extract<SearchMatch, { type: "folder" }>;
-type MapRouteFocusAction = MapActionOf<"focusFile" | "focusFolder">;
 type DoubleClickAction = MapActionOf<
   "focusAnnotation" | "selectFolder" | "selectFile" | "selectActivity"
 >;
@@ -222,7 +222,6 @@ type TargetSelectionAction = MapActionOf<
   "clearSelection" | "focusAnnotation" | "selectActivity" | "inspectFolder" | "inspectFile"
 >;
 type SearchAction = MapActionOf<"noMatch" | "focusPlace" | "focusFile" | "focusFolder">;
-type RouteToken = number;
 type ParsedLineRange = { start: number; end: number };
 type ResolvedSelection = {
   level?: string;
@@ -268,7 +267,6 @@ type ActivityDetail = "summary" | "full";
 type MapVersionResponse = { version?: string };
 type NamedPlacesResponse = { places: NamedPlace[]; overlaps?: Array<{ bounds: Bounds }> };
 type ActivityResponse = { events?: ActivityEvent[]; version?: string; unchanged?: true };
-type AnnotationResponse = { annotation: MapAnnotationPlace };
 type ResolvedAddressResponse = { targetType: MapRouteKind; geohash: string; deepLink: string };
 type ActivityRenderItem = {
   event: ActivityEvent;
@@ -398,8 +396,6 @@ let frameViewport: Viewport | null = null;
 let activityFeedRenderKey = "";
 let fogVeilCacheKey = "";
 let pendingRenderFrame = 0;
-let applyingRoute = false;
-let routeSequence = 0;
 let pendingTouchSpacePan: TimerHandle = null;
 let copyPromptLabelTimer: TimerHandle = null;
 const sourceLinesByNumberCache = new WeakMap<SourceRange, Map<number | string, string>>();
@@ -433,8 +429,9 @@ const selection = createSelectionController<ResolvedSelection>({
   getView: () => state.view,
   viewportSize,
   resolveSelection: (body) => postJson<ResolvedSelection>("/api/selections/resolve", body),
-  isCurrentRoute,
-  syncSelectionRoute: (bounds, level) => syncHashRoute(createSelectionHashRoute({ level, bounds })),
+  isCurrentRoute: (token) => routing.isCurrentRoute(token),
+  syncSelectionRoute: (bounds, level) =>
+    routing.syncHashRoute(createSelectionHashRoute({ level, bounds })),
   onResolved: () => {
     if (controls.saveSelection) {
       controls.saveSelection.disabled = false;
@@ -530,9 +527,45 @@ const editing = createEditingController({
   updateInteractionModeUi: interaction.updateInteractionModeUi,
   render,
   postJson,
-  syncHashRoute,
+  syncHashRoute: (hash) => routing.syncHashRoute(hash),
   createAnnotationHashRoute,
 });
+const routing = createRoutingController({
+  getMap: () => state.map,
+  getNamedPlacesById: () => state.namedPlacesById,
+  setDrawing: (value) => {
+    state.drawing = value;
+  },
+  setSelectedTarget: (target) => {
+    state.selectedTarget = target;
+  },
+  setDraftSelection: (draft) => {
+    state.draftSelection = draft;
+  },
+  controls,
+  resetSelectionOverlay,
+  updateInteractionModeUi: () => interaction.updateInteractionModeUi(),
+  updateSelectionPopover,
+  setSelectionStatus,
+  zoomToBounds,
+  zoomToReadableFile,
+  lineRatioForLine,
+  parseLineRange,
+  applySourcePanel,
+  fetchSourceContext,
+  fetchJson,
+  setText,
+  render,
+  editing: {
+    upsertNamedPlace: (place) => editing.upsertNamedPlace(place),
+    selectAnnotation: (annotation) => editing.selectAnnotation(annotation),
+    clearAnnotationForm: () => editing.clearAnnotationForm(),
+  },
+  selection: {
+    preview: (options) => selection.preview(options),
+  },
+});
+const applyHashRoute = routing.applyHashRoute;
 const polling = createPollingController({
   getActivityDetail: () => state.activityDetail,
   setActivityDetail: (detail) => {
@@ -703,164 +736,6 @@ function bindEvents() {
 }
 
 await boot();
-
-async function applyHashRoute() {
-  const routeToken = ++routeSequence;
-  const route = parseHashRoute(window.location.hash);
-  const intent = hashRouteFocusIntent(route, { hasMap: state.map !== null });
-  if (!intent) {
-    return;
-  }
-
-  applyingRoute = true;
-  try {
-    await focusHashRouteIntent(intent, routeToken);
-  } finally {
-    if (routeToken === routeSequence) {
-      applyingRoute = false;
-    }
-  }
-}
-
-async function focusHashRouteIntent(
-  intent: HashRouteIntent,
-  routeToken: RouteToken,
-): Promise<void> {
-  switch (intent.type) {
-    case "annotation":
-      await focusAnnotationRoute(intent.id, routeToken);
-      return;
-    case "selection":
-      await focusSelectionRoute(intent.params, routeToken);
-      return;
-    case "map":
-      await focusMapRoute(intent.route, routeToken);
-  }
-}
-
-async function focusAnnotationRoute(id: string, routeToken: RouteToken) {
-  let annotation: NamedPlace | null | undefined = state.namedPlacesById.get(id);
-  if (annotation?.kind !== "mapAnnotation") {
-    annotation = null;
-  }
-  if (!annotation) {
-    try {
-      annotation = (
-        await fetchJson<AnnotationResponse>(`/api/annotations/${encodeURIComponent(id)}`)
-      ).annotation;
-    } catch {
-      return;
-    }
-  }
-  if (!isCurrentRoute(routeToken)) {
-    return;
-  }
-  if (!annotation.geometry?.bounds) {
-    return;
-  }
-  editing.upsertNamedPlace(annotation);
-  resetSelectionOverlay();
-  zoomToBounds(annotation.geometry.bounds, 1.35);
-  editing.selectAnnotation(annotation);
-}
-
-async function focusSelectionRoute(params: URLSearchParams, routeToken: RouteToken) {
-  const bounds = boundsFromRouteParams(params);
-  if (!bounds) {
-    return;
-  }
-  resetSelectionOverlay();
-  state.drawing = true;
-  interaction.updateInteractionModeUi();
-  state.selectedTarget = null;
-  setText(controls.sourceTitle, "");
-  setText(controls.sourceOutput, "");
-  state.draftSelection = { type: "rect", bounds };
-  updateSelectionPopover();
-  setSelectionStatus("Resolving selection...");
-  zoomToBounds(bounds, 1.35);
-  await selection.preview({ routeToken });
-}
-
-async function focusMapRoute(route: MapHashRoute, routeToken: RouteToken) {
-  if (!state.map) {
-    return;
-  }
-  const target = mapRouteTarget(state.map, route);
-  const action = mapRouteFocusAction(target);
-  if (!target || !action || !hasBounds(target)) {
-    return;
-  }
-
-  resetSelectionOverlay();
-  const routeLineRange =
-    target.targetType === "file" ? parseLineRange(route.params.get("lines")) : null;
-  if (target.targetType === "file" && routeLineRange) {
-    zoomToReadableFile(target, lineRatioForLine(target, routeLineRange.start));
-  } else {
-    zoomToBounds(target.bounds, action.zoomPadding);
-  }
-  state.selectedTarget = target;
-  await handleMapRouteFocusAction(action, target, route, routeToken);
-}
-
-async function handleMapRouteFocusAction(
-  action: MapRouteFocusAction,
-  target: TargetHit,
-  route: MapHashRoute,
-  routeToken: RouteToken,
-) {
-  switch (action.type) {
-    case "focusFile":
-      if (target.targetType === "file") {
-        await showFileForRoute(target, route.params, routeToken);
-      }
-      return;
-    case "focusFolder":
-      if (target.targetType !== "folder") {
-        return;
-      }
-      editing.clearAnnotationForm();
-      setText(controls.inspectorTitle, folderDisplayName(target));
-      setText(
-        controls.inspectorSubtitle,
-        `folder: ${target.path || "."} | ${target.geo?.geohash ?? "unresolved"}`,
-      );
-      render();
-  }
-}
-
-async function showFileForRoute(file: MapFile, params: URLSearchParams, routeToken: RouteToken) {
-  editing.clearAnnotationForm();
-  setText(controls.inspectorTitle, file.name ?? file.path);
-  setText(controls.inspectorSubtitle, `file: ${file.path} | ${file.geo?.geohash ?? "unresolved"}`);
-
-  const lineRange = parseLineRange(params.get("lines"));
-  if (!lineRange) {
-    applySourcePanel(sourcePanelState({ path: file.path }));
-    render();
-    return;
-  }
-
-  const sourceContext = sourceContextRequest(file.path, lineRange);
-  const [address, source] = await fetchSourceContext(sourceContext);
-  if (!isCurrentRoute(routeToken)) {
-    return;
-  }
-  applySourcePanel(sourcePanelState({ path: file.path, deepLink: address.deepLink, source }));
-  render();
-}
-
-function syncHashRoute(hash: string) {
-  if (applyingRoute || !hash || window.location.hash === hash) {
-    return;
-  }
-  window.history.replaceState(null, "", hash);
-}
-
-function isCurrentRoute(routeToken: RouteToken) {
-  return routeToken === routeSequence;
-}
 
 function resize() {
   const rect = canvas.getBoundingClientRect();
@@ -2668,7 +2543,9 @@ function inspectMapTarget(hit: TargetHit) {
   const panel = mapSelectionPanel(hit);
   setText(controls.inspectorTitle, panel.inspectorTitle ?? "");
   setText(controls.inspectorSubtitle, panel.inspectorSubtitle ?? "");
-  syncHashRoute(createMapHashRoute(hit.targetType, hit.geo?.geohash ?? "", { path: hit.path }));
+  routing.syncHashRoute(
+    createMapHashRoute(hit.targetType, hit.geo?.geohash ?? "", { path: hit.path }),
+  );
   return panel;
 }
 
@@ -2698,7 +2575,7 @@ async function inspectFileTarget(
   const lineRange = sourcePanelLineRange(hit, line, box);
   const sourceContext = sourceContextRequest(hit.path, lineRange);
   const [address, source] = await fetchSourceContext(sourceContext);
-  syncHashRoute(
+  routing.syncHashRoute(
     createMapHashRoute(address.targetType, address.geohash, {
       path: hit.path,
       lines: sourceContext.lines,
@@ -2742,7 +2619,7 @@ async function selectActivityEvent(event: ActivityEvent, { zoomReadable = false 
   }
   const sourceContext = sourceContextRequest(path, lineRange);
   const [address, source] = await fetchSourceContext(sourceContext);
-  syncHashRoute(
+  routing.syncHashRoute(
     createMapHashRoute(address.targetType, address.geohash, { path, lines: sourceContext.lines }),
   );
   applySourcePanel(sourcePanelState({ path, deepLink: address.deepLink, source }));

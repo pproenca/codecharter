@@ -25,3 +25,7 @@ Activity also drives the integrated discovery rendering. When Activity & Discove
 - `visible`: live/recent activity resolved to the File, or the File is temporarily selected for inspection.
 
 Discovery is derived state, not persisted in the Map Sidecar. File state is primary because File is the first stable map unit; Folder and Region state rolls up from child File activity. The browser precomputes Sets and Maps for visited Files, visible Files, and Folder rollups when activity or the map changes, so the Canvas render path performs constant-time fog lookups per drawn item instead of scanning activity for every File.
+
+## Live window (OQ-1, decided 2026-05-30)
+
+The Activity live window — the boundary between `visible` (live/recent) and `explored` (resolved in the past, no live event) — is **6 minutes** (`VIEWER_ACTIVITY_LIVE_WINDOW_MS` in `core/src/main/api/handlers/activity.ts`). This keeps `visible` meaning genuinely recent activity: a touched File glows, then decays to `explored` as attention moves on. An earlier `360 * 60 * 1000` (6 hours) was a seconds→minutes unit slip that kept most of a day's activity permanently `visible`, defeating the fog's purpose of showing where attention currently is. The window is a rendering parameter only — derived state, never persisted in the Map Sidecar — so it can be retuned without touching stable geography.

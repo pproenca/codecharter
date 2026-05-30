@@ -30,10 +30,12 @@ import { readBody, sendJson } from "../http.ts";
 import { stringFields } from "../parse.ts";
 
 // Activity newer than this window renders as a "live"/visible trail; older
-// activity falls back to "explored" discovery fog. 360 min = 6 hours.
-// NOTE (brief OQ-1): whether 6h is the intended horizon vs ADR-0005 is an open
-// question; this only documents the current value, it does not change it.
-const VIEWER_ACTIVITY_LIVE_WINDOW_MS = 360 * 60 * 1000;
+// activity falls back to "explored" discovery fog (ADR-0005). 6 minutes keeps
+// "visible" meaning recent: a touched file glows briefly, then decays as
+// attention moves on. (OQ-1 settled 2026-05-30: the prior `360 * 60 * 1000`
+// = 6h was a seconds->minutes unit slip that kept most of a day's activity
+// permanently "visible", defeating the fog. "live/recent" wants minutes.)
+const VIEWER_ACTIVITY_LIVE_WINDOW_MS = 6 * 60 * 1000;
 // Max number of recent events kept per viewer activity trail before trimming.
 const VIEWER_ACTIVITY_TRAIL_LIMIT = 80;
 // HARDENING (CWE-400): cap events retained when reading the append-ordered

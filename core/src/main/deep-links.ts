@@ -1,13 +1,6 @@
 /**
  * `codecharter://` deep-link codec and browser `#/...` hash-route construction
  * (**BR-029** deep-link scheme/structure validation).
- *
- * Idiomatic note: the legacy `CodemapDeepLinkCodec` wrapper class was test-only
- * scaffolding (no production caller — see ASSESSMENT dangling refs) and is
- * dropped; only the free functions ship. The browser twin in
- * `public-src/deep-links.ts` must import this canonical version once the viewer
- * is transformed (resolves the client/server `formatRouteNumber` NaN divergence,
- * tech-debt #3).
  */
 
 import type { Bounds } from "./geometry.ts";

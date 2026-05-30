@@ -15,7 +15,7 @@ const WHEEL_ZOOM_SENSITIVITY = 0.0025;
 
 export type CameraControllerDeps = {
   getView: () => View;
-  /** Assign the view without scheduling a render (matches legacy wheel-pan). */
+  /** Assign the view without scheduling a render (used by the wheel-pan path). */
   setView: (view: View) => void;
   /** Cancel any running camera animation, assign, and render immediately. */
   setViewImmediate: (view: View) => void;

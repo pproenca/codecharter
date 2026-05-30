@@ -1,6 +1,6 @@
 /**
- * Untyped-value → typed-record coercion helpers (the remaining pure parts of
- * legacy `util.ts`). Used to validate `package.json` and config shapes.
+ * Untyped-value → typed-record coercion helpers. Used to validate
+ * `package.json` and config shapes.
  */
 
 import { objectRecord } from "./collections.ts";

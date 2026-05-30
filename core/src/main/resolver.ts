@@ -3,8 +3,7 @@
  * deep link, breadcrumb, and bounds.
  *
  * The address is the system's primary key, so output is byte-stable (BR-001
- * via geohash/geometry). The legacy `AddressResolver` wrapper class was test-only
- * scaffolding and is dropped; `resolveAddress` is the entry point.
+ * via geohash/geometry). `resolveAddress` is the entry point.
  */
 
 import { objectRecord, sortedUniqueStrings } from "./collections.ts";

@@ -3,9 +3,8 @@
  * lay out → stabilize against the previous map → serialize.
  *
  * Implements **BR-050** (fresh vs incremental regeneration) and **BR-014** (the
- * sparse-root reuse heuristic: 0.65 / 0.8 / 0.18). Output is the `codecharter.json`
- * codemap; equivalence is proven by a fixture-repo byte-identical diff against
- * legacy (the brief's Phase-2 gate).
+ * sparse-root reuse heuristic: 0.65 / 0.8 / 0.18). Output is the
+ * `codecharter.json` codemap, byte-deterministic for identical input.
  */
 
 import {

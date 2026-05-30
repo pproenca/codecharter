@@ -3,9 +3,8 @@
  * the Codex hook adapter + skill, git map hooks, and pin the dev dependency —
  * all idempotent (install-once via identity keys + managed-block markers).
  *
- * The dead `CodecharterInitializer` wrapper (Q7) is removed; the `CodexHooksMerger`
- * merge logic is kept but no longer exported (its only public surface is
- * `mergeCodexHooks`).
+ * Codex-hook merge logic is internal; the only exported surface is
+ * `mergeCodexHooks`.
  */
 
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";

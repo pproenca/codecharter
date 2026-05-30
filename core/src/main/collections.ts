@@ -1,10 +1,8 @@
 /**
  * Ordering & record helpers for `@codecharter/core`.
  *
- * Pure subset of the legacy `src/util.ts` grab-bag — the sort/compare helpers
- * the deterministic layout (BR-009) and resolution rely on. The I/O-oriented
- * helpers (`packageJsonFromValue`, `mapConcurrent`, error guards) stay in legacy
- * until their consuming modules are transformed.
+ * Pure sort/compare and object helpers that the deterministic layout (BR-009)
+ * and address resolution rely on.
  */
 
 /** Locale-aware string comparison — the deterministic tiebreak for layout order (BR-009). */
@@ -14,7 +12,7 @@ export function compareStrings(left: string, right: string): number {
 
 /**
  * Sort `values` in place only when not already ordered. `toSorted` satisfies
- * the lint rule while the splice preserves the legacy mutation contract.
+ * the lint rule while the splice keeps the in-place mutation callers expect.
  */
 export function sortIfNeeded<T>(values: T[], compare: (left: T, right: T) => number): T[] {
   if (valuesAreSorted(values, compare)) {

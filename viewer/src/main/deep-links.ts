@@ -2,16 +2,11 @@
  * Browser hash-route codec for the viewer (`#/map`, `#/annotation`, `#/selection`).
  * Implements **BR-030** (selection bounds validity: finite, in `[0,1]`, x+w≤1).
  *
- * Two deliberate changes from legacy `public-src/deep-links.ts`:
- *  1. The test-only `BrowserHashRouteCodec` wrapper class is dropped (Q7).
- *  2. `formatRouteNumber` now coerces with `Number(value)` to match
- *     `@codecharter/core`'s server-side codec — closing the client/server NaN
- *     divergence (tech-debt #3). For valid numeric bounds the output is identical.
- *
- * The `createMapHashRoute`/`createAnnotationHashRoute`/`createSelectionHashRoute`
- * helpers mirror core's `createBrowserHashRoute`/`createAnnotationHashRoute`/
- * `createSelectionHashRoute`; once the viewer build can import across packages
- * they should re-export the core versions directly (tracked follow-up).
+ * `formatRouteNumber` coerces with `Number(value)` to match
+ * `@codecharter/core`'s server-side codec, so client and server produce
+ * identical routes for valid numeric bounds. The `createMapHashRoute`/
+ * `createAnnotationHashRoute`/`createSelectionHashRoute` helpers mirror core's
+ * hash-route constructors.
  */
 
 import type { MapRoute, MapRouteKind } from "./render/types.ts";
@@ -95,7 +90,7 @@ function searchParams(metadata: RouteMetadata): URLSearchParams {
   );
 }
 
-// Unified with @codecharter/core's formatRouteNumber (debt #3): coerce via Number.
+// Matches @codecharter/core's formatRouteNumber: coerce via Number.
 function formatRouteNumber(value: number): string {
   return Number(value)
     .toFixed(12)

@@ -14,7 +14,7 @@ const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 // its own hostname in the Host header; only loopback names are allowed.
 export function assertLocalHost(request: IncomingMessage): void {
   const host = request.headers.host;
-  // HARDENING (CWE-350/346): fail CLOSED (OQ-4) — a request with no Host header
+  // HARDENING (CWE-350/346): fail CLOSED — a request with no Host header
   // must NOT bypass the loopback allowlist. Browsers and the CLI always send
   // Host; an absent/empty one is anomalous and is rejected.
   if (!host) {

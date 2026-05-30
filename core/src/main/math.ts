@@ -1,10 +1,8 @@
 /**
  * Numeric helpers for `@codecharter/core`.
  *
- * Seeded by the geohash slice (the eventual home of the shared math utilities).
- * `clamp` preserves the legacy `src/util.ts` implementation exactly — the order
- * of `Math.min`/`Math.max` is load-bearing for the P0 determinism contract
- * (BR-001), so it must not be "simplified".
+ * `clamp`'s order of `Math.min`/`Math.max` is load-bearing for the BR-001
+ * determinism contract, so it must not be "simplified".
  */
 
 /** Constrain `value` to the inclusive `[min, max]` interval. */

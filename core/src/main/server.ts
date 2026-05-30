@@ -3,7 +3,7 @@
  * configured paths, owns port search and shutdown, and wires the hardened
  * request pipeline (Host allowlist → API dispatch → static serving).
  *
- * The JSON API is decomposed under `api/`: `router` (route table + dispatch),
+ * The JSON API is organized under `api/`: `router` (route table + dispatch),
  * `handlers/*` (map, named-places, activity), `codemap-cache`, `hardening`,
  * `http`, `parse`, and the shared `context` types. Hardening controls (each
  * marked `// HARDENING`, e.g. the Host allowlist here and CWE-22 static-path

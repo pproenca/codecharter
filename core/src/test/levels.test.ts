@@ -1,18 +1,14 @@
 import assert from "node:assert/strict";
 /**
- * P0 Behavior Contract — Map Levels (BR-LEVELS-001..003).
+ * Behavior contract — Map Levels (BR-LEVELS-001..003).
  *
  * Pins the canonical level -> geohash-precision table and the precision
- * resolver so a refactor cannot silently shift a zoom level's address
- * granularity. Values characterize the current implementation in
- * `../main/levels.ts`.
+ * resolver in `../main/levels.ts` so a change cannot silently shift a zoom
+ * level's address granularity.
  *
- * Note on BR-LEVELS-003 (Open Question OQ-2): `precisionForLevel` currently
- * rejects an unknown level via a falsy `!precision` guard rather than a
- * membership check. These tests assert only the *observable* contract
- * (a genuinely unknown level throws with a stable message); they intentionally
- * do not freeze the falsy-vs-membership internal mechanism, which is pending
- * SME confirmation before Phase 1 ships.
+ * BR-LEVELS-003: `precisionForLevel` rejects an unknown level by throwing with
+ * a stable message. These tests assert that observable contract, not the
+ * internal guard mechanism.
  */
 import test from "node:test";
 import { FULL_GEOHASH_PRECISION, MAP_LEVELS, precisionForLevel } from "../main/levels.ts";

@@ -180,8 +180,7 @@ test("source reads follow an in-root symlink to the resolved target", async (t) 
 });
 
 // CWE-1321: an untrusted codemap key colliding with an Object prototype property
-// must resolve to a clean not-found, never reaching the prototype object (which
-// previously crashed with an opaque 500).
+// must resolve to a clean not-found, never reaching the prototype object.
 test("source/resolve treat prototype-polluting path keys as not found", async (t) => {
   const server = await startSourceServer(t);
   const url = serverUrl(server);
@@ -247,7 +246,7 @@ test("BR-SERVER-001 rejects a non-localhost Host header", async (t) => {
   assert.equal(allowed.status, 200);
 });
 
-// BR-SERVER-001 (OQ-4 / CWE-350): fail CLOSED — a request whose Host reaches the
+// BR-SERVER-001 (CWE-350): fail CLOSED — a request whose Host reaches the
 // handler empty must not bypass the loopback allowlist. (A truly absent Host on
 // HTTP/1.1 is already rejected by Node's parser before our handler runs.)
 test("BR-SERVER-001 rejects a request with an empty Host header (fail closed)", async (t) => {
@@ -261,8 +260,8 @@ test("BR-SERVER-001 rejects a request with an empty Host header (fail closed)", 
   assert.equal(response.status, 403);
 });
 
-// CWE-697: bare and bracketed loopback IPv6 Host headers are both accepted (a
-// bare `::1` was previously over-rejected by a naive port strip).
+// CWE-697: bare and bracketed loopback IPv6 Host headers are both accepted,
+// including a bare `::1` (no surrounding brackets).
 test("BR-SERVER-001 accepts bare and bracketed loopback IPv6 Host headers", async (t) => {
   const server = await startSourceServer(t);
   for (const host of ["::1", "[::1]", "[::1]:8080"]) {

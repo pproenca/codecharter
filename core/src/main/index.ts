@@ -204,7 +204,7 @@ export {
 } from "./local-git-exclude.ts";
 export type { IgnoreFileResult } from "./local-git-exclude.ts";
 
-// --- HTTP server (hardened per Q4) ----------------------------------------
+// --- HTTP server (hardened) -----------------------------------------------
 export { startServer } from "./server.ts";
 
 // --- Dev activity watcher --------------------------------------------------

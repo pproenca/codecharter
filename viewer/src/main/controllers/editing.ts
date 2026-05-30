@@ -422,7 +422,7 @@ export function createEditingController(deps: EditingControllerDeps) {
         await navigator.clipboard.write([item]);
         return true;
       } catch {
-        // Fall through to the legacy path below.
+        // Fall through to the execCommand fallback below.
       }
     }
 

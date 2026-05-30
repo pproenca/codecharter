@@ -4,8 +4,8 @@
  *
  * Implements **BR-025** (watchable-path eligibility), **BR-049** (poll interval
  * 1.8s, throttle 5s, dedup by change signature), and the BR-017 rolling hash.
- * `ActivityWatcher` is genuinely stateful (timers + injected collaborators), so
- * it stays a class; collaborators are injectable for testing.
+ * `ActivityWatcher` is a class because it owns mutable state (timers + injected
+ * collaborators); collaborators are injectable for testing.
  */
 
 import { readFile } from "node:fs/promises";

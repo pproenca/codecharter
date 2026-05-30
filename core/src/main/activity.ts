@@ -2,8 +2,7 @@
  * Activity event model + state normalization (**BR-044**).
  *
  * Four canonical states; `blocked` aliases to `reviewing`, unknown → `reading`.
- * The legacy `ActivityStateNormalizer`/`ActivityEventBuilder` classes were
- * test-only scaffolding and are dropped; `createActivityEvent` is the entry point.
+ * `createActivityEvent` is the entry point.
  */
 
 import { randomUUID } from "node:crypto";

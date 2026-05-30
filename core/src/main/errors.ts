@@ -1,5 +1,5 @@
 /**
- * Error guards (the remaining pure helpers from legacy `util.ts`).
+ * Error guards.
  */
 
 /** True when `error` is a Node `ErrnoException` (has a `code` property). */

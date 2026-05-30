@@ -1,6 +1,6 @@
 # TypeScript Layout
 
-CodeCharter is now a TypeScript monorepo. The core engine and browser viewer are
+CodeCharter is a TypeScript monorepo. The core engine and browser viewer are
 separate pnpm workspaces, and the root build creates the publishable CLI package.
 
 ## Workspaces

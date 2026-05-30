@@ -6,8 +6,7 @@ import { isAbsolute, join, relative, resolve as resolvePath } from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
-// Modernized CLI: a thin wiring layer over the single @codecharter/core barrel.
-// (Legacy imported each src/* module directly; the logic now lives in core.)
+// CLI: a thin wiring layer over the single @codecharter/core barrel.
 import {
   createActivityEvent,
   appendActivityEvents,

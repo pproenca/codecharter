@@ -9,8 +9,7 @@
  * NOTE: despite the "treemap" framing elsewhere, there is NO squarified
  * aspect-ratio logic — the split axis simply follows the longer side. The local
  * `roundBounds` here floors width/height at 0 (the BR-004 divergence from
- * `geometry.roundBounds`). The legacy `DistrictLayoutEngine` wrapper class was a
- * test-only surface and is dropped in favor of the free functions.
+ * `geometry.roundBounds`).
  */
 
 import { sortIfNeeded } from "./collections.ts";

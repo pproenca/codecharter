@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 /**
- * P0 Behavior Contract — Resolver (BR-RESOLVER-001..005, 007).
+ * Behavior contract — Resolver (BR-RESOLVER-001..005, 007).
  *
  * The resolved address is the system's primary key, so these pin the
  * observable resolution contract: path normalization, dispatch by range

@@ -3,9 +3,8 @@
  * and the inverse (a drawn selection → line/column indices).
  *
  * Implements **BR-011** (line/column range → bounds) and **BR-012** (selection
- * ratio → 1-based index with the `1e-12` edge epsilon). Arithmetic preserved
- * byte-for-byte. The legacy `CodeRangeGeometryMapper` wrapper class was test-only
- * scaffolding and is dropped.
+ * ratio → 1-based index with the `1e-12` edge epsilon). The arithmetic is
+ * deterministic and load-bearing.
  */
 
 import type { Bounds } from "./geometry.ts";

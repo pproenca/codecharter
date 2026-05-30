@@ -11,10 +11,9 @@
  * The unit-square code plane maps to lat/lon as `lon = x*360 - 180`,
  * `lat = 90 - y*180` (the Y axis is inverted: the top of the map is north).
  * Output must be byte-for-byte reproducible across runs, so every arithmetic
- * step here is intentionally preserved from the legacy `src/geohash.ts`:
- * the `>=` midpoint tie (ties resolve to the upper half), the `1e-12` east-edge
- * epsilon, and the half-open `[-180, 180)` longitude wrap are all behavioral
- * contract, not incidental detail.
+ * step here is load-bearing: the `>=` midpoint tie (ties resolve to the upper
+ * half), the `1e-12` east-edge epsilon, and the half-open `[-180, 180)`
+ * longitude wrap are all behavioral contract, not incidental detail.
  */
 
 import type {

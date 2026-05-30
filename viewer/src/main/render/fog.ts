@@ -18,7 +18,7 @@ import { boundsCenter, normalizeMapPath, pathFromDeepLink } from "./primitives.t
  * reveal / mycelium drawing primitives all live here. The veil/mask/reveal
  * *orchestration* is the {@link createFogDrawer} factory: it closes over the
  * canvas singletons and the projection/state accessors that `app.ts` owns, so
- * the shell stays wiring-only without this module creating a second state model.
+ * `app.ts` stays a thin shell and this module holds no state model of its own.
  */
 import type {
   ActivityEvent,

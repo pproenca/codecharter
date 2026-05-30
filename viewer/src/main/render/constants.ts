@@ -1,7 +1,6 @@
 /**
  * Render-model tuning constants (BR-018 activity decay, BR-019 LOD scale clamp,
- * source-text legibility thresholds, keyboard step sizes, fog texture). Values
- * are preserved exactly from legacy `public-src/render-model.ts`.
+ * source-text legibility thresholds, keyboard step sizes, fog texture).
  */
 import type { PaletteColor } from "./types.ts";
 

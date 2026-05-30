@@ -19,9 +19,7 @@ await build({
   entryPoints: [join(root, "src/main/app.ts")],
   bundle: true,
   format: "esm",
-  // Behavioral equivalence: match the legacy bundle's compile target
-  // (codecharter `tsconfig.public.json` -> "target": "ES2024"). The pixel-diff
-  // harness catches rendering drift; this keeps engine-semantics emit aligned.
+  // Compile target for the browser bundle; matches the viewer tsconfig.
   target: "es2024",
   // Deterministic, reviewable emit (no minification / charset surprises).
   minify: false,

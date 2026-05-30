@@ -107,7 +107,7 @@ export type DrawControllerDeps = {
   queueLabelInBox: (label: FrameLabelShape) => void;
   /** Also called from render() for the draft selection. */
   drawSelection: (bounds: Bounds, fill: string, stroke: string, dash: number[]) => void;
-  /** Triggers a re-render after a source range fetch resolves (legacy: render(), not requestRender). */
+  /** Triggers a re-render after a source range fetch resolves (uses render(), not requestRender). */
   render: () => void;
   fetchJson: <T = unknown>(url: string) => Promise<T>;
 };

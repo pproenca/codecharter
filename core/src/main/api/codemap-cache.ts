@@ -1,7 +1,7 @@
 /**
  * Parsed-codemap cache + map version for the localhost API.
  *
- * HARDENING (BR-037 + debt #4): the map file may be untrusted (Q4), so every
+ * HARDENING (BR-037): the map file may be untrusted, so every
  * read validates the schema and is keyed by an `mtimeNs:size` signature — a
  * changed file is re-parsed, an unchanged one is served from cache.
  */

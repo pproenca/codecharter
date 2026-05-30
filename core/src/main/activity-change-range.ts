@@ -1,7 +1,5 @@
 /**
  * Parse changed line/column ranges from `git diff --unified=0` output (**BR-016**).
- * The legacy `UnifiedDiffChangeRangeParser` wrapper class was test-only and is
- * dropped; the free functions are the surface.
  */
 
 export type LineRange = {

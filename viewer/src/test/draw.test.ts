@@ -7,8 +7,8 @@ import {
 } from "../main/render/draw.ts";
 import type { Bounds, View, Viewport } from "../main/render/types.ts";
 
-// truncateLine is the only pure helper extracted alongside the draw controller;
-// the rest is canvas-bound. It clips to maxChars with a 3-char ellipsis budget.
+// truncateLine is the draw module's one pure helper (the rest is canvas-bound).
+// It clips to maxChars with a 3-char ellipsis budget.
 test("truncateLine returns the text unchanged when it fits", () => {
   assert.equal(truncateLine("const x = 1;", 80), "const x = 1;");
   assert.equal(truncateLine("abc", 3), "abc");

@@ -4,7 +4,7 @@
  * When a previous layout is reusable, every node whose path matched before keeps
  * its exact bounds + geohash; only newly-added nodes get fresh addresses placed
  * into the parent's reserved growth area. Matching is by exact path (renames are
- * treated as delete + add — a documented limitation, brief Open Question Q3).
+ * treated as delete + add — a documented limitation).
  */
 
 import {

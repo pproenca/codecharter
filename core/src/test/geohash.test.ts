@@ -1,17 +1,12 @@
 import assert from "node:assert/strict";
 /**
- * Characterization tests for the geohash / code-plane projection module.
+ * Tests for the geohash / code-plane projection module (`../main/geohash.ts`).
  *
- * Every expected value below was captured by RUNNING the legacy module at
- *   legacy/codecharter/src/geohash.ts
- * and baking the exact output as a literal. The legacy code is the oracle:
- * if a value here looks "wrong" relative to a spec, the legacy produced it,
- * and the new implementation must reproduce it byte-for-byte.
- *
- * The import below targets the NOT-YET-WRITTEN modern implementation. Until
- * `../main/geohash.ts` exists this file fails with module-not-found — that is
- * the intended state. To re-validate the golden values against the legacy
- * oracle, temporarily repoint the import at the legacy module (see README).
+ * Pin the deterministic projection contract: longitude-first interleaved
+ * bisection, the frozen base-32 alphabet, code-plane <-> lat/lon mapping,
+ * edge/wrap/clamp handling, center addressing, input rejection, and the
+ * encode/decode inverse. The literal expected values define that contract;
+ * the implementation must reproduce them exactly.
  */
 import test from "node:test";
 import {
@@ -111,7 +106,7 @@ test("BR-001 encodes San Francisco interior point", () => {
 
 test("BR-001 midpoint tie on lon=0 / lat=0 resolves to the UPPER half ('s' bucket)", () => {
   // (0,0) sits exactly on the first lon midpoint (0) and first lat midpoint (0).
-  // The legacy uses `>=`, so both go to the upper half -> first char 's'.
+  // The encoder uses `>=`, so both go to the upper half -> first char 's'.
   assert.equal(encodeGeohash(0, 0, 5), "s0000");
   assert.equal(encodeGeohash(0, 0, 1), "s");
 });

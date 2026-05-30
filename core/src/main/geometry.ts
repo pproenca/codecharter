@@ -6,7 +6,7 @@
  * `roundBounds` applies the BR-004 12-decimal rounding to every coordinate.
  *
  * Note: this `roundBounds` does NOT floor width/height at 0 — that variant lives
- * in the district-layout module (a documented legacy divergence, BR-004).
+ * in the district-layout module (a documented divergence, BR-004).
  */
 
 import { clamp, round } from "./math.ts";

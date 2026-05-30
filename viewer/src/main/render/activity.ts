@@ -25,8 +25,8 @@ import {
  * The canvas *drawing* counterpart is the {@link createActivityDrawer} factory:
  * it closes over the 2D context and the projection/state accessors that `app.ts`
  * owns and draws membranes/cells/trails/tissue markers plus the activity feed,
- * so the shell stays wiring-only without this module creating a second state
- * model. The pure colour/age helpers (`activityFillColor`, `activityHaloColor`,
+ * so `app.ts` stays a thin shell and this module holds no state model of its
+ * own. The pure colour/age helpers (`activityFillColor`, `activityHaloColor`,
  * `formatActivityAge`, `hexToRgba`, `hexRgb`) are exported at module level so
  * they are unit-testable without a deps object; the factory keeps a private
  * hex-RGB cache for the hot draw path.

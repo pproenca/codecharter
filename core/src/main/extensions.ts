@@ -2,9 +2,8 @@
  * Code-file extension allowlist (**BR-021**) — decides what is eligible to appear
  * on the map.
  *
- * Idiomatic note: the legacy `isCodeFile` also tested `lower.endsWith(extension)`
- * where `extension = extname(lower)` — a tautology that never changed the result.
- * Dropped; the set membership check is the whole rule. Behavior identical.
+ * A file is eligible iff its lower-cased extension is in the known set; that
+ * membership check is the whole rule.
  */
 
 import { extname } from "node:path";

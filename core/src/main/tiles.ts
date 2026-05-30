@@ -1,8 +1,5 @@
 /**
  * Tile indexing — bucket map targets by geohash prefix per zoom level (**BR-013**).
- *
- * Idiomatic note: the legacy `TileIndexBuilder` wrapper class was test-only
- * scaffolding and is dropped; only the free functions ship.
  */
 
 import { objectValues, sortIfNeeded, sortedUniqueStrings } from "./collections.ts";

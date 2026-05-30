@@ -97,7 +97,7 @@ export async function getSourceApi(
   if (!file) {
     throw httpError(404, `No source file found for path: ${path}`);
   }
-  // HARDENING (CWE-22): with an untrusted codemap (Q4), a poisoned key like
+  // HARDENING (CWE-22): with an untrusted codemap, a poisoned key like
   // "../../etc/passwd" must not escape root. Confine the resolved path.
   assertWithinRoot(state.root, file.path);
   // HARDENING (CWE-367): resolve the real path ONCE and read from that exact

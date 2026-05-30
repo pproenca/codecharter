@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 /**
- * P0 Behavior Contract — Stable address preservation (BR-STABILITY-001/002/005).
+ * Behavior contract — Stable address preservation (BR-STABILITY-001/002/005).
  *
  * Stable coordinates are the whole point of the Map Sidecar, so these drive the
  * REAL generator end-to-end (scan -> layout -> stabilize -> serialize) against a
@@ -11,9 +11,9 @@ import assert from "node:assert/strict";
  *   - omitting the previous layout ("--fresh") produces a fresh, deterministic
  *     layout that ignores any stored coordinates (BR-STABILITY-005).
  *
- * Note (brief OQ-3): renames are treated as delete + add (the moved path is a
- * new node, the old path's address is not carried over). That documented
- * limitation is characterized in `stability.rename` below.
+ * Renames are treated as delete + add (the moved path is a new node; the old
+ * path's address is not carried over) — a documented limitation, asserted in
+ * `stability.rename` below.
  */
 import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -148,10 +148,10 @@ test("BR-STABILITY-004 a previous root dominated by deleted children forces a fr
 });
 
 // ---------------------------------------------------------------------------
-// BR-STABILITY-003 (OQ-3) — renames are delete + add (documented limitation)
+// BR-STABILITY-003 — renames are delete + add (documented limitation)
 // ---------------------------------------------------------------------------
 
-test("stability.rename a renamed file does NOT inherit the old path's address (OQ-3)", async (t) => {
+test("stability.rename a renamed file does NOT inherit the old path's address", async (t) => {
   const root = await makeRepo(t, SAMPLE);
   const first = await generateCodemap({ root });
   const originalBounds = first.files["src/a.ts"]!.bounds;

@@ -1,8 +1,8 @@
 /**
  * Shared type vocabulary for the localhost API: the server state handlers
  * operate on, the route/handler shapes, and the small response/cache types.
- * Extracted from the former `server.ts` god-file so handlers can live in their
- * own modules without re-declaring the contract.
+ * Handlers import these so each can live in its own module without
+ * re-declaring the contract.
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";

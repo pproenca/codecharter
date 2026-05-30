@@ -1,8 +1,7 @@
 /**
- * Public render-model surface for the viewer. Mirrors the export set of legacy
- * `public-src/render-model.ts` so `app.ts` can be ported with an unchanged
- * import list. Internal helpers in `primitives.ts` stay private; only the five
- * that the legacy bundle exported are re-published here.
+ * Public render-model surface for the viewer — the barrel that `app.ts` and the
+ * controllers import from. Internal helpers in `primitives.ts` stay private;
+ * only the shared few are re-published here.
  */
 export type * from "./types.ts";
 export * from "./constants.ts";

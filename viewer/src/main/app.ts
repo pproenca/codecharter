@@ -1,106 +1,40 @@
 /**
- * Viewer application shell: DOM/canvas bootstrap, the render loop, pointer/
- * keyboard wiring, hash-route handling, and the localhost API calls. Two
- * module-scope singletons hold all mutable UI state: `state` (the map view,
- * interaction mode, draft/resolved selection, selected target, editing
- * annotation, activity + fog) and `controls` (resolved DOM elements). Pure,
- * deterministic logic lives in `render/*` (unit-tested) and is consumed here.
+ * Viewer application shell. `app.ts` bootstraps the DOM and canvas, owns the two
+ * module-scope state singletons, constructs the controllers and render drawers,
+ * and runs the render loop. It holds no domain or drawing logic of its own:
+ * stateful UI concerns live in `controllers/*` and pure, deterministic drawing/
+ * model logic lives in `render/*` (unit-tested). Both read the shared singletons
+ * through injected accessors rather than defining a second state model.
+ *   - `state`    — map view, interaction mode, draft/resolved selection,
+ *                  selected target, editing annotation, activity, and fog.
+ *   - `controls` — the resolved DOM elements.
  *
- * Decomposition status (modernization Phase 4):
- *   - `controllers/camera.ts`    — wheel/keyboard/double-click zoom + pan +
- *                                  viewport-center (extracted; DI over the view).
- *   - `controllers/selection.ts` — draw → draft → resolve lifecycle (extracted).
- *   - `controllers/editing.ts`   — saveSelection, annotation create/edit/delete/
- *                                  copy, the pending-delete confirmation, and
- *                                  clipboard (extracted; DI over the shared
- *                                  selection/editing state + app-owned UI). The
- *                                  semantic state (selected target, editing
- *                                  annotation, draft/resolved selection) stays
- *                                  here in `state` and is read by the render loop
- *                                  and `updateSelectionPopover`.
- *   - `controllers/interaction.ts` — draw/select/pan/space-pan mode transitions +
- *                                  toolbar UI sync (extracted; DI over the
- *                                  interaction flags in `state` + the toolbar/
- *                                  canvas DOM singletons + app-owned callbacks).
- *   - `controllers/selection-overlay.ts` — selection popover visibility,
- *                                  annotation-actions positioning, overlay reset,
- *                                  draft clearance, and named-places sync
- *                                  (extracted; DI over the draft/resolved/editing
- *                                  state + overlay DOM + app-owned callbacks). It
- *                                  reads the same `state`; it owns no identity.
- *   - `controllers/routing.ts`   — browser hash-route apply/focus/sync: parse the
- *                                  `#…` route, focus the matching annotation/
- *                                  selection/map target, and write stable routes
- *                                  back (extracted; DI over the shared map/named-
- *                                  places state + app-owned callbacks + the
- *                                  editing/selection controllers). The route-
- *                                  sequence token and in-apply latch are private
- *                                  to that factory; the shell still wires
- *                                  hashchange → applyHashRoute.
- *   - `controllers/search.ts`    — map search query → match → focus: feed the
- *                                  search form's query through the pure
- *                                  `mapSearchMatch`/`mapSearchAction` helpers and
- *                                  focus the matching place/file/folder (extracted;
- *                                  DI over the shared map/named-places state +
- *                                  app-owned camera/selection callbacks + the
- *                                  editing controller). It owns no identity; the
- *                                  shell wires searchForm submit → handleSubmit.
- *   - `controllers/activity-submit.ts` — activity write lifecycle: the form-submit
- *                                  path (addActivity reads #activityForm FormData,
- *                                  POSTs, then schedules refreshActivity) and the
- *                                  destructive clearActivityHistory (DELETE + reset
- *                                  of activity/signature/version/detail, fog rebuild,
- *                                  conditional selected-target null-out). The
- *                                  semantic activity state stays here in `state` and
- *                                  is reached through injected setters; activity-
- *                                  gesture's clearActivityHistory callback points at
- *                                  this controller. The shell wires activityForm
- *                                  submit → activitySubmit.addActivity.
- *   - `controllers/inspection.ts` — target inspection + source panel: selecting/
- *                                  inspecting a map target (folder/file/activity)
- *                                  and driving the inspector + source panel
- *                                  (handleMapTargetSelectionAction, clearMapSelection,
- *                                  inspectMapTarget/Folder/File, selectActivityEvent,
- *                                  fetchSourceContext, sourcePanelLineRange).
- *                                  Extracted; DI over the selected-target/map state +
- *                                  app-owned UI callbacks + the editing controller. It
- *                                  owns no identity; the selected target stays here in
- *                                  `state`. `routing` and `input` call into this
- *                                  controller (fetchSourceContext / the select-and-
- *                                  inspect dispatch) instead of app.ts shims. The pure
- *                                  `activityPathLabel` helper now lives in
- *                                  `render/activity.ts` and is imported directly by
- *                                  both this controller and the activity feed.
- *   - `render/fog.ts`            — discovery-fog drawing: the veil/mask/reveal/
- *                                  mycelium orchestration plus the fog colouring
- *                                  helpers (`folderFogStyle`, `fileFogStyle`,
- *                                  …). The shell keeps the canvas singletons and
- *                                  the fog-veil cache key and hands them to
- *                                  `createFogDrawer`; `render()` calls
- *                                  `fogDrawer.drawDiscoveryFogOverlay`.
- *   - `render/activity.ts`       — activity drawing: membranes/cells/trails/
- *                                  tissue markers + the activity feed, plus the
- *                                  pure colour/age helpers (`activityFillColor`,
- *                                  `hexToRgba`, …). The shell injects `ctx`, the
- *                                  projection accessors, `drawLabel`, and the
- *                                  feed-click → `selectActivityEvent` bridge into
- *                                  `createActivityDrawer`; the hex-RGB cache and
- *                                  feed dedup key are private to that factory.
- *                                  `render()` calls `activityDrawer.drawActivity`
- *                                  and `activityDrawer.renderActivityFeed`.
- *   - `controllers/input.ts`     — all DOM pointer + keyboard event handling plus
- *                                  the hit-test dispatch (wheel/keydown/keyup,
- *                                  pointer down/move/up/cancel, double-click, and
- *                                  hitTest → selectMapTarget). Wired LAST so it
- *                                  injects and calls the camera / interaction /
- *                                  selection / editing / inspection controllers
- *                                  rather than re-implementing them. The semantic
- *                                  drag/selection/target state stays here in
- *                                  `state`, reached through injected accessors;
- *                                  only the pending touch-space-pan timer is
- *                                  private to that factory. The shell wires
- *                                  document/canvas/mapArea events → `input.*` in
- *                                  `bindEvents`.
+ * Controllers (stateful UI; DI over `state`/`controls` + app callbacks):
+ *   - `camera`            — wheel/keyboard/double-click zoom, pan, viewport-center.
+ *   - `interaction`       — draw/select/pan/space-pan mode transitions + toolbar sync.
+ *   - `selection`         — the draw → draft → resolve selection lifecycle.
+ *   - `selection-overlay` — selection popover, annotation-action positioning,
+ *                           overlay reset, draft clearance, named-places sync.
+ *   - `editing`           — save selection; annotation create/edit/delete/copy;
+ *                           pending-delete confirmation; clipboard.
+ *   - `inspection`        — select/inspect a folder/file/activity target and drive
+ *                           the inspector + source panel.
+ *   - `search`            — map search: query → match → focus place/file/folder.
+ *   - `routing`           — browser hash routes: parse `#…`, focus the matching
+ *                           target, and write stable routes back.
+ *   - `polling`           — map + activity polling, signatures, and backoff state.
+ *   - `activity-submit`   — activity write lifecycle: form submit + clear history.
+ *   - `activity-gesture`  — the press-and-hold "clear activity" gesture.
+ *   - `input`             — all DOM pointer + keyboard handling and hit-test
+ *                           dispatch; calls the controllers above.
+ *
+ * Render drawers (canvas drawing over the pure render model; DI over `ctx` +
+ * projection accessors):
+ *   - `render/draw`     — grid, compass, folders, regions, files, source text,
+ *                         named places, annotations, and overlaps.
+ *   - `render/fog`      — discovery-fog veil/mask/reveal/mycelium + fog colouring.
+ *   - `render/activity` — activity membranes/cells/trails/tissue + the activity
+ *                         feed, plus the pure colour/age helpers.
  */
 
 import { createActivityGestureController } from "./controllers/activity-gesture.ts";

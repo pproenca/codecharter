@@ -3,9 +3,9 @@
  *
  * Live snapshot and pending-write queue are each capped at 2,000 (FIFO). The
  * archive flushes on a 5s timer; a failed write is restored to the queue (unless
- * a `clear()` intervened). `ActivityStore` is genuinely stateful, so it stays a
- * class. NOTE (preserved behavior): the archive is write-only — nothing rehydrates
- * the live store from disk, so visible activity resets on restart (ASSESSMENT).
+ * a `clear()` intervened). `ActivityStore` is a class because it owns mutable
+ * state. The archive is write-only — nothing rehydrates the live store from
+ * disk, so visible activity resets on restart.
  */
 
 import { appendFile, mkdir, writeFile } from "node:fs/promises";

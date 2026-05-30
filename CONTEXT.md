@@ -10,7 +10,7 @@ start with `CONTEXT-MAP.md`, then read `core/CONTEXT.md` or
 
 ## Current Architecture
 
-- `@codecharter/core` in `core/`: codemap generation, geohash addressing,
+- `@codecharter/core` in `core/`: map generation, geohash addressing,
   address resolution, selections, named places, activity telemetry, CLI setup,
   and the hardened localhost HTTP server.
 - `@codecharter/viewer` in `viewer/`: canvas SPA, hash routes, render model,
@@ -21,7 +21,7 @@ start with `CONTEXT-MAP.md`, then read `core/CONTEXT.md` or
   `.codecharter/activity.jsonl`; this repo's current `.codecharter/config.json`
   routes Codex activity to `.scratch/codecharter/activity.jsonl`.
 - `.scratch/`: gitignored local workspace for issue markdown, screenshots,
-  scratch codemaps, and local activity artifacts.
+  scratch maps, and local activity artifacts.
 
 ## Language
 

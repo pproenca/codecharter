@@ -28,7 +28,7 @@ reading, editing, testing, and reviewing in real time.
   Age-of-Empires-style **Discovery Fog** (`unexplored` → `explored` → `visible`).
   Telemetry never blocks code work.
 - **Hardened, local-first server.** The API binds to `127.0.0.1` with a loopback
-  Host allowlist, request body limits, codemap schema validation, and source
+  Host allowlist, request body limits, map schema validation, and source
   path containment.
 - **Hackable.** TypeScript ESM, no runtime dependencies, builds with esbuild.
 
@@ -64,7 +64,7 @@ pnpm serve            # serve the viewer + API at http://127.0.0.1:4173
 ```
 
 `pnpm codecharter -- <command>` runs the CLI from source; after `pnpm build` the
-same CLI is available as the `codecharter` (and `codemap`) binary.
+same CLI is available as the `codecharter` (and `map`) binary.
 
 ## Typical workflow
 
@@ -132,13 +132,13 @@ for the full domain vocabulary.
 
 A Node >= 22, ESM, pnpm-workspaces monorepo:
 
-| Package                   | Path                 | What it is                                                                                                                                                                                                                       |
-| ------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`@codecharter/core`**   | [`core/`](core/)     | Map Sidecar generation, deterministic geohash addressing, address resolution, tiles, selections, Named Places, activity ingestion, Codex hook support, the hardened localhost HTTP server, and the CLI (`core/bin/codemap.mts`). |
-| **`@codecharter/viewer`** | [`viewer/`](viewer/) | The browser viewer: canvas app shell, Browser Hash Routes, render model, source inspection, activity visuals, and Discovery Fog.                                                                                                 |
+| Package                   | Path                 | What it is                                                                                                                                                                                                                           |
+| ------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`@codecharter/core`**   | [`core/`](core/)     | Map Sidecar generation, deterministic geohash addressing, address resolution, tiles, selections, Named Places, activity ingestion, Codex hook support, the hardened localhost HTTP server, and the CLI (`core/bin/codecharter.mts`). |
+| **`@codecharter/viewer`** | [`viewer/`](viewer/) | The browser viewer: canvas app shell, Browser Hash Routes, render model, source inspection, activity visuals, and Discovery Fog.                                                                                                     |
 
 `pnpm build` produces the publishable `dist/` package (the `codecharter` /
-`codemap` CLI plus the bundled viewer).
+`map` CLI plus the bundled viewer).
 
 ## Development
 
@@ -165,7 +165,7 @@ Formatting is `oxfmt` (not Prettier), linting is `oxlint`, and typechecking is
 
 CodeCharter is local-first but explicit about trust boundaries: the server reads
 source files and serves map data, so it binds to `127.0.0.1`, enforces a
-loopback Host allowlist, caps request bodies, validates the codemap schema, and
+loopback Host allowlist, caps request bodies, validates the map schema, and
 contains source-file reads within the project root. Treat the localhost routes
 and file reads as security-sensitive when changing them.
 

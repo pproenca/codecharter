@@ -43,7 +43,7 @@ export function mapLevelParam(value: string): MapLevel {
   throw httpError(400, `Unknown map level: ${value}`);
 }
 
-// HARDENING (CWE-22): with an untrusted codemap a poisoned file path must not
+// HARDENING (CWE-22): with an untrusted map a poisoned file path must not
 // escape root. Lexical containment check before any filesystem access.
 export function assertWithinRoot(root: string, candidate: string): void {
   const full = resolve(root, candidate);

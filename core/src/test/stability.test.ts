@@ -20,8 +20,8 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
-import { generateCodemap } from "../main/generator.ts";
-import type { GeneratedCodemap } from "../main/generator.ts";
+import { generateMap } from "../main/generator.ts";
+import type { GeneratedMap } from "../main/generator.ts";
 
 async function makeRepo(
   t: { after: (fn: () => unknown) => void },
@@ -55,8 +55,8 @@ const SAMPLE = {
 
 test("BR-STABILITY-005 fresh generation is byte-deterministic for identical input", async (t) => {
   const root = await makeRepo(t, SAMPLE);
-  const first = await generateCodemap({ root });
-  const second = await generateCodemap({ root });
+  const first = await generateMap({ root });
+  const second = await generateMap({ root });
   assert.deepEqual(second, first);
 });
 
@@ -66,27 +66,27 @@ test("BR-STABILITY-005 fresh generation is byte-deterministic for identical inpu
 
 test("BR-STABILITY-002 reused layout preserves a matched file's pinned bounds + geohash", async (t) => {
   const root = await makeRepo(t, SAMPLE);
-  const first = await generateCodemap({ root });
+  const first = await generateMap({ root });
 
   // Pin src/a.ts to a distinct position (keep width/height so root occupancy is
   // unchanged and the sparse-root heuristic does not reject reuse).
-  const pinned = structuredClone(first) as GeneratedCodemap;
+  const pinned = structuredClone(first) as GeneratedMap;
   const pinnedBounds = { ...pinned.files["src/a.ts"]!.bounds, x: 0.123_456, y: 0.234_567 };
   pinned.files["src/a.ts"]!.bounds = pinnedBounds;
   const pinnedGeohash = "s00000000000";
   pinned.files["src/a.ts"]!.geo = { lat: 0, lon: 0, geohash: pinnedGeohash };
 
-  const reused = await generateCodemap({ root, previousCodemap: pinned });
+  const reused = await generateMap({ root, previousMap: pinned });
   assert.deepEqual(reused.files["src/a.ts"]!.bounds, pinnedBounds);
   assert.equal(reused.files["src/a.ts"]!.geo.geohash, pinnedGeohash);
 });
 
 test("BR-STABILITY-002 a newly added file appears with its own address while old ones stay put", async (t) => {
   const root = await makeRepo(t, SAMPLE);
-  const first = await generateCodemap({ root });
+  const first = await generateMap({ root });
 
   await writeFiles(root, { "src/c.ts": "export const c = 1;\n" });
-  const second = await generateCodemap({ root, previousCodemap: first });
+  const second = await generateMap({ root, previousMap: first });
 
   assert.deepEqual(second.files["src/a.ts"]!.bounds, first.files["src/a.ts"]!.bounds);
   assert.deepEqual(second.files["src/b.ts"]!.bounds, first.files["src/b.ts"]!.bounds);
@@ -99,21 +99,21 @@ test("BR-STABILITY-002 a newly added file appears with its own address while old
 
 test("BR-STABILITY-001 a mismatched projection version discards the previous coordinates", async (t) => {
   const root = await makeRepo(t, SAMPLE);
-  const first = await generateCodemap({ root });
+  const first = await generateMap({ root });
 
-  const pinned = structuredClone(first) as GeneratedCodemap;
+  const pinned = structuredClone(first) as GeneratedMap;
   const pinnedBounds = { ...pinned.files["src/a.ts"]!.bounds, x: 0.123_456, y: 0.234_567 };
   pinned.files["src/a.ts"]!.bounds = pinnedBounds;
 
   // Same projection -> coordinates honored.
-  const reused = await generateCodemap({ root, previousCodemap: pinned });
+  const reused = await generateMap({ root, previousMap: pinned });
   assert.deepEqual(reused.files["src/a.ts"]!.bounds, pinnedBounds);
 
   // Bump the layout version -> Projection Contract no longer matches -> fresh.
-  const stale = structuredClone(pinned) as GeneratedCodemap;
+  const stale = structuredClone(pinned) as GeneratedMap;
   (stale.projection as { layoutVersion: number }).layoutVersion =
     pinned.projection.layoutVersion + 1;
-  const fresh = await generateCodemap({ root, previousCodemap: stale });
+  const fresh = await generateMap({ root, previousMap: stale });
   assert.notDeepEqual(fresh.files["src/a.ts"]!.bounds, pinnedBounds);
   assert.deepEqual(fresh.files["src/a.ts"]!.bounds, first.files["src/a.ts"]!.bounds);
 });
@@ -124,9 +124,9 @@ test("BR-STABILITY-001 a mismatched projection version discards the previous coo
 
 test("BR-STABILITY-004 a previous root dominated by deleted children forces a fresh layout", async (t) => {
   const root = await makeRepo(t, SAMPLE);
-  const first = await generateCodemap({ root });
+  const first = await generateMap({ root });
 
-  const pinned = structuredClone(first) as GeneratedCodemap;
+  const pinned = structuredClone(first) as GeneratedMap;
   const pinnedBounds = { ...pinned.files["src/a.ts"]!.bounds, x: 0.1, y: 0.1 };
   pinned.files["src/a.ts"]!.bounds = pinnedBounds;
 
@@ -141,7 +141,7 @@ test("BR-STABILITY-004 a previous root dominated by deleted children forces a fr
   pinned.folders["deleted-huge"] = obsolete;
   pinned.folders[""]!.children.folders = [...pinned.folders[""]!.children.folders, "deleted-huge"];
 
-  const regen = await generateCodemap({ root, previousCodemap: pinned });
+  const regen = await generateMap({ root, previousMap: pinned });
   // reuse rejected -> a.ts is laid out fresh, NOT at the pinned slot
   assert.notDeepEqual(regen.files["src/a.ts"]!.bounds, pinnedBounds);
   assert.deepEqual(regen.files["src/a.ts"]!.bounds, first.files["src/a.ts"]!.bounds);
@@ -153,13 +153,13 @@ test("BR-STABILITY-004 a previous root dominated by deleted children forces a fr
 
 test("stability.rename a renamed file does NOT inherit the old path's address", async (t) => {
   const root = await makeRepo(t, SAMPLE);
-  const first = await generateCodemap({ root });
+  const first = await generateMap({ root });
   const originalBounds = first.files["src/a.ts"]!.bounds;
 
   // Rename src/a.ts -> src/renamed.ts, then regenerate against the old layout.
   await rm(join(root, "src/a.ts"), { force: true });
   await writeFiles(root, { "src/renamed.ts": SAMPLE["src/a.ts"] });
-  const second = await generateCodemap({ root, previousCodemap: first });
+  const second = await generateMap({ root, previousMap: first });
 
   assert.equal(second.files["src/a.ts"], undefined, "old path is gone");
   assert.ok(second.files["src/renamed.ts"], "new path exists");

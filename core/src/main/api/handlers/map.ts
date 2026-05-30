@@ -1,7 +1,7 @@
 /**
- * Map-domain API handlers: the codemap itself, its version, tile index/tiles,
+ * Map-domain API handlers: the map itself, its version, tile index/tiles,
  * visible prefixes, address resolution, and bounded source reads. Each reads the
- * validated codemap via the cache and writes a JSON response.
+ * validated map via the cache and writes a JSON response.
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -9,9 +9,9 @@ import { resolveRealPathWithinRoot } from "../../path-containment.ts";
 import { normalizePathForMap, resolveAddress } from "../../resolver.ts";
 import { readSourceRange } from "../../source.ts";
 import { buildTileIndex, getTile, visiblePrefixes } from "../../tiles.ts";
-import { loadCodemap, loadMapVersion } from "../codemap-cache.ts";
 import type { ServerState } from "../context.ts";
 import { httpError, optionalNumber, requiredParam, sendJson } from "../http.ts";
+import { loadMap, loadMapVersion } from "../map-cache.ts";
 import { assertWithinRoot, mapLevelParam } from "../parse.ts";
 
 export async function getMapApi(
@@ -19,7 +19,7 @@ export async function getMapApi(
   _request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
-  sendJson(response, 200, await loadCodemap(state));
+  sendJson(response, 200, await loadMap(state));
 }
 
 export async function getMapVersionApi(
@@ -36,14 +36,10 @@ export async function getTilesApi(
   response: ServerResponse,
   url: URL,
 ): Promise<void> {
-  const codemap = await loadCodemap(state);
+  const map = await loadMap(state);
   const level = mapLevelParam(url.searchParams.get("level") ?? "file");
   const prefix = url.searchParams.get("prefix");
-  sendJson(
-    response,
-    200,
-    prefix ? getTile(codemap, { level, prefix }) : buildTileIndex(codemap, level),
-  );
+  sendJson(response, 200, prefix ? getTile(map, { level, prefix }) : buildTileIndex(map, level));
 }
 
 export async function getPrefixesApi(
@@ -52,9 +48,9 @@ export async function getPrefixesApi(
   response: ServerResponse,
   url: URL,
 ): Promise<void> {
-  const codemap = await loadCodemap(state);
+  const map = await loadMap(state);
   const level = mapLevelParam(url.searchParams.get("level") ?? "file");
-  sendJson(response, 200, { level, prefixes: visiblePrefixes(codemap, level) });
+  sendJson(response, 200, { level, prefixes: visiblePrefixes(map, level) });
 }
 
 export async function getResolveApi(
@@ -63,7 +59,7 @@ export async function getResolveApi(
   response: ServerResponse,
   url: URL,
 ): Promise<void> {
-  const codemap = await loadCodemap(state);
+  const map = await loadMap(state);
   const path = requiredParam(url, "path");
   const lineStart = optionalNumber(url.searchParams.get("lineStart"));
   const lineEnd = optionalNumber(url.searchParams.get("lineEnd"));
@@ -72,7 +68,7 @@ export async function getResolveApi(
   sendJson(
     response,
     200,
-    resolveAddress(codemap, {
+    resolveAddress(map, {
       path,
       ...(lineStart === undefined ? {} : { lineStart }),
       ...(lineEnd === undefined ? {} : { lineEnd }),
@@ -88,16 +84,16 @@ export async function getSourceApi(
   response: ServerResponse,
   url: URL,
 ): Promise<void> {
-  const codemap = await loadCodemap(state);
+  const map = await loadMap(state);
   const path = requiredParam(url, "path");
   const key = normalizePathForMap(path);
-  // HARDENING (CWE-1321): an untrusted codemap key like "__proto__" must not
+  // HARDENING (CWE-1321): an untrusted map key like "__proto__" must not
   // reach the object prototype; require an own property before indexing.
-  const file = Object.hasOwn(codemap.files, key) ? codemap.files[key] : undefined;
+  const file = Object.hasOwn(map.files, key) ? map.files[key] : undefined;
   if (!file) {
     throw httpError(404, `No source file found for path: ${path}`);
   }
-  // HARDENING (CWE-22): with an untrusted codemap, a poisoned key like
+  // HARDENING (CWE-22): with an untrusted map, a poisoned key like
   // "../../etc/passwd" must not escape root. Confine the resolved path.
   assertWithinRoot(state.root, file.path);
   // HARDENING (CWE-367): resolve the real path ONCE and read from that exact

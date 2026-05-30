@@ -125,7 +125,7 @@ test("Codex adapter records through a source checkout hook without a package bin
       cwd: string;
       input: string;
     };
-    assert.equal(captured.argv[0]?.endsWith("/core/bin/codemap.mts"), true);
+    assert.equal(captured.argv[0]?.endsWith("/core/bin/codecharter.mts"), true);
     assert.equal(captured.argv[1], "codex-hook");
     assert.equal(captured.cwd.endsWith(root), true);
     assert.equal(captured.input, payload);
@@ -262,7 +262,7 @@ async function readActivityArchive(root: string): Promise<StoredActivityEvent[]>
 async function installFakeSourceCheckout(root: string): Promise<void> {
   await mkdir(join(root, "node_modules", ".bin"), { recursive: true });
   await mkdir(join(root, "core", "bin"), { recursive: true });
-  await writeFile(join(root, "core", "bin", "codemap.mts"), "");
+  await writeFile(join(root, "core", "bin", "codecharter.mts"), "");
   const fakeTsxPath = join(root, "node_modules", ".bin", "tsx");
   await writeFile(
     fakeTsxPath,

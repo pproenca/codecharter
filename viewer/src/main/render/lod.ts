@@ -25,7 +25,7 @@ import type {
   OrganicRegionEdge,
   Point,
   Bounds,
-  CodecharterCodemap,
+  CodecharterMap,
   DetailBand,
 } from "./types.ts";
 
@@ -92,8 +92,8 @@ export function folderDepth(path: string): number {
   return path ? path.split("/").length : 0;
 }
 
-export function organicRegionFolders(codemap: CodecharterCodemap) {
-  const folders = [...objectValues(codemap.folders ?? {})]
+export function organicRegionFolders(map: CodecharterMap) {
+  const folders = [...objectValues(map.folders ?? {})]
     .filter((folder) => folder.path)
     .map((folder) => ({ folder, depth: folderDepth(folder.path ?? "") }));
   return sortIfNeeded(folders, compareOrganicRegionFolders);

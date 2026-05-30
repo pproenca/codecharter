@@ -17,7 +17,7 @@ import {
 } from "../render/index.ts";
 import type {
   Bounds,
-  CodecharterCodemap,
+  CodecharterMap,
   MapActionOf,
   MapAnnotationPlace,
   MapFile,
@@ -54,7 +54,7 @@ type SearchControls = {
 
 export type SearchControllerDeps = {
   // State accessors (the shared semantic state stays in app.ts).
-  getMap: () => CodecharterCodemap | null;
+  getMap: () => CodecharterMap | null;
   getNamedPlaces: () => NamedPlace[];
   // A focused place is an annotation target; a focused folder is a TargetHit.
   setSelectedTarget: (target: TargetHit | AnnotationHit | null) => void;

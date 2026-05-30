@@ -1,10 +1,10 @@
 /**
- * Codemap generator — orchestrates the whole pipeline: scan → build tree →
+ * Map generator — orchestrates the whole pipeline: scan → build tree →
  * lay out → stabilize against the previous map → serialize.
  *
  * Implements **BR-050** (fresh vs incremental regeneration) and **BR-014** (the
  * sparse-root reuse heuristic: 0.65 / 0.8 / 0.18). Output is the
- * `codecharter.json` codemap, byte-deterministic for identical input.
+ * `codecharter.json` map, byte-deterministic for identical input.
  */
 
 import {
@@ -30,7 +30,7 @@ import {
 } from "./paths.ts";
 import { scanCodeFiles } from "./scan.ts";
 import { stabilizeTreeLayout } from "./stability.ts";
-import type { PreviousCodemapLayout } from "./stability.ts";
+import type { PreviousMapLayout } from "./stability.ts";
 import { buildFileTree, flattenTree, sortedChildren, sortedFiles, sortedFolders } from "./tree.ts";
 import type { FileNode, FolderNode, LayoutBounds } from "./tree.ts";
 import { layoutTree } from "./treemap.ts";
@@ -51,13 +51,13 @@ const MIN_STABLE_ROOT_OCCUPANCY = 0.65;
 const MIN_STABLE_TO_FRESH_OCCUPANCY_RATIO = 0.8;
 const MAX_OBSOLETE_ROOT_AREA = 0.18;
 
-export type GenerateCodemapOptions = {
+export type GenerateMapOptions = {
   root: string;
   excludePaths?: string[];
-  previousCodemap?: PreviousCodemap | null;
+  previousMap?: PreviousMap | null;
 };
 
-export type CodemapProjection = {
+export type MapProjection = {
   type: typeof PROJECTION_TYPE;
   layoutVersion: typeof PROJECTION_LAYOUT_VERSION;
   mapOrder: typeof PROJECTION_ORDER;
@@ -92,16 +92,16 @@ export type SerializedFile = {
   weight: number;
 };
 
-export type GeneratedCodemap = {
+export type GeneratedMap = {
   version: 1;
-  projection: CodemapProjection;
+  projection: MapProjection;
   mapLevels: Readonly<Record<MapLevel, number>>;
   codePlane: CodePlaneDescriptor;
   folders: Record<string, SerializedFolder>;
   files: Record<string, SerializedFile>;
 };
 
-type PreviousCodemap = PreviousCodemapLayout & {
+type PreviousMap = PreviousMapLayout & {
   projection?: {
     type?: string;
     layoutVersion?: number;
@@ -110,17 +110,15 @@ type PreviousCodemap = PreviousCodemapLayout & {
   };
 };
 
-/** Scan the repo at `root` and produce a fresh or stability-preserving codemap. */
-export async function generateCodemap({
+/** Scan the repo at `root` and produce a fresh or stability-preserving map. */
+export async function generateMap({
   root,
   excludePaths = DEFAULT_EXCLUDE_PATHS,
-  previousCodemap,
-}: GenerateCodemapOptions): Promise<GeneratedCodemap> {
+  previousMap,
+}: GenerateMapOptions): Promise<GeneratedMap> {
   const scannedFiles = await scanCodeFiles(root, { excludePaths });
   const freshTree = layoutTree(buildFileTree(scannedFiles));
-  const previousLayout = canReusePreviousLayout(previousCodemap, freshTree)
-    ? previousCodemap
-    : undefined;
+  const previousLayout = canReusePreviousLayout(previousMap, freshTree) ? previousMap : undefined;
   const tree = stabilizeTreeLayout(freshTree, previousLayout);
   const { folders, files } = flattenTree(tree);
 
@@ -142,26 +140,23 @@ export async function generateCodemap({
 }
 
 function canReusePreviousLayout(
-  previousCodemap: PreviousCodemap | null | undefined,
+  previousMap: PreviousMap | null | undefined,
   freshTree: FolderNode,
-): previousCodemap is PreviousCodemap {
+): previousMap is PreviousMap {
   return (
-    previousCodemap?.projection?.type === PROJECTION_TYPE &&
-    previousCodemap.projection.layoutVersion === PROJECTION_LAYOUT_VERSION &&
-    previousCodemap.projection.mapOrder === PROJECTION_ORDER &&
-    previousCodemap.projection.areaWeight === PROJECTION_AREA_WEIGHT &&
-    !previousRootLayoutIsSparse(previousCodemap, freshTree)
+    previousMap?.projection?.type === PROJECTION_TYPE &&
+    previousMap.projection.layoutVersion === PROJECTION_LAYOUT_VERSION &&
+    previousMap.projection.mapOrder === PROJECTION_ORDER &&
+    previousMap.projection.areaWeight === PROJECTION_AREA_WEIGHT &&
+    !previousRootLayoutIsSparse(previousMap, freshTree)
   );
 }
 
-function previousRootLayoutIsSparse(
-  previousCodemap: PreviousCodemap,
-  freshTree: FolderNode,
-): boolean {
-  if (obsoleteRootChildArea(previousCodemap, freshTree) > MAX_OBSOLETE_ROOT_AREA) {
+function previousRootLayoutIsSparse(previousMap: PreviousMap, freshTree: FolderNode): boolean {
+  if (obsoleteRootChildArea(previousMap, freshTree) > MAX_OBSOLETE_ROOT_AREA) {
     return true;
   }
-  const previousOccupancy = rootChildOccupancy(previousCodemap);
+  const previousOccupancy = rootChildOccupancy(previousMap);
   const freshOccupancy = rootTreeChildOccupancy(freshTree);
   if (!Number.isFinite(previousOccupancy) || !Number.isFinite(freshOccupancy)) {
     return false;
@@ -172,8 +167,8 @@ function previousRootLayoutIsSparse(
   );
 }
 
-function obsoleteRootChildArea(previousCodemap: PreviousCodemap, freshTree: FolderNode): number {
-  const rootArea = boundsArea(previousCodemap?.folders?.[""]?.bounds);
+function obsoleteRootChildArea(previousMap: PreviousMap, freshTree: FolderNode): number {
+  const rootArea = boundsArea(previousMap?.folders?.[""]?.bounds);
   if (rootArea <= 0) {
     return 0;
   }
@@ -183,21 +178,21 @@ function obsoleteRootChildArea(previousCodemap: PreviousCodemap, freshTree: Fold
   }
 
   let obsoleteArea = 0;
-  for (const path of previousCodemap?.folders?.[""]?.children?.folders ?? []) {
+  for (const path of previousMap?.folders?.[""]?.children?.folders ?? []) {
     if (!currentPaths.has(path)) {
-      obsoleteArea += boundsArea(previousCodemap.folders?.[path]?.bounds);
+      obsoleteArea += boundsArea(previousMap.folders?.[path]?.bounds);
     }
   }
-  for (const path of previousCodemap?.folders?.[""]?.children?.files ?? []) {
+  for (const path of previousMap?.folders?.[""]?.children?.files ?? []) {
     if (!currentPaths.has(path)) {
-      obsoleteArea += boundsArea(previousCodemap.files?.[path]?.bounds);
+      obsoleteArea += boundsArea(previousMap.files?.[path]?.bounds);
     }
   }
   return obsoleteArea / rootArea;
 }
 
-function rootChildOccupancy(codemap: PreviousCodemap): number {
-  const root = codemap?.folders?.[""];
+function rootChildOccupancy(map: PreviousMap): number {
+  const root = map?.folders?.[""];
   if (!root?.bounds) {
     return Number.NaN;
   }
@@ -207,10 +202,10 @@ function rootChildOccupancy(codemap: PreviousCodemap): number {
   }
   let childArea = 0;
   for (const path of root.children?.folders ?? []) {
-    childArea += boundsArea(codemap.folders?.[path]?.bounds);
+    childArea += boundsArea(map.folders?.[path]?.bounds);
   }
   for (const path of root.children?.files ?? []) {
-    childArea += boundsArea(codemap.files?.[path]?.bounds);
+    childArea += boundsArea(map.files?.[path]?.bounds);
   }
   return childArea / rootArea;
 }

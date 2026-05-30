@@ -27,7 +27,7 @@ import {
 import type {
   ActivityEvent,
   Bounds,
-  CodecharterCodemap,
+  CodecharterMap,
   MapActionOf,
   MapAnnotationPlace,
   MapFile,
@@ -74,7 +74,7 @@ function hasGeometryBounds<T extends { geometry?: { bounds?: Bounds } }>(
 
 export type InspectionControllerDeps = {
   // State accessors (the shared semantic state stays in app.ts).
-  getMap: () => CodecharterCodemap | null;
+  getMap: () => CodecharterMap | null;
   setSelectedTarget: (target: HitTarget | null) => void;
 
   // Controls (for setText calls).

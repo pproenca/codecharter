@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mapRouteTarget, mapSearchMatch } from "../main/render/targets.ts";
-import type { CodecharterCodemap, NamedPlace } from "../main/render/types.ts";
+import type { CodecharterMap, NamedPlace } from "../main/render/types.ts";
 
-const codemap: CodecharterCodemap = {
+const map: CodecharterMap = {
   files: {
     "src/app.ts": {
       path: "src/app.ts",
@@ -50,28 +50,28 @@ const namedPlaces: NamedPlace[] = [
 ];
 
 test("mapSearchMatch returns discriminated payloads with their required targets", () => {
-  const annotation = mapSearchMatch(codemap, namedPlaces, "render");
+  const annotation = mapSearchMatch(map, namedPlaces, "render");
   assert.equal(annotation?.type, "annotation");
   assert.equal(annotation.place.id, "annotation-1");
   assert.equal(annotation.target.targetType, "annotation");
 
-  const namedPlace = mapSearchMatch(codemap, namedPlaces, "saved");
+  const namedPlace = mapSearchMatch(map, namedPlaces, "saved");
   assert.equal(namedPlace?.type, "namedPlace");
   assert.equal(namedPlace.place.id, "place-1");
   assert.equal(namedPlace.target, null);
 
-  const file = mapSearchMatch(codemap, namedPlaces, "app.ts");
+  const file = mapSearchMatch(map, namedPlaces, "app.ts");
   assert.equal(file?.type, "file");
   assert.equal(file.file.path, "src/app.ts");
 
-  const folder = mapSearchMatch(codemap, namedPlaces, "docs");
+  const folder = mapSearchMatch(map, namedPlaces, "docs");
   assert.equal(folder?.type, "folder");
   assert.equal(folder.folder.path, "docs");
 });
 
 test("mapRouteTarget resolves paths and geohash prefixes without synthetic root-folder hits", () => {
   assert.equal(
-    mapRouteTarget(codemap, {
+    mapRouteTarget(map, {
       type: "map",
       kind: "file",
       locator: "s123",
@@ -81,22 +81,22 @@ test("mapRouteTarget resolves paths and geohash prefixes without synthetic root-
   );
 
   assert.deepEqual(
-    mapRouteTarget(codemap, {
+    mapRouteTarget(map, {
       type: "map",
       kind: "folder",
       locator: "s",
       params: new URLSearchParams(),
     }),
-    { ...codemap.folders?.src, targetType: "folder" },
+    { ...map.folders?.src, targetType: "folder" },
   );
 
   assert.deepEqual(
-    mapRouteTarget(codemap, {
+    mapRouteTarget(map, {
       type: "map",
       kind: "file",
       locator: "s12345",
       params: new URLSearchParams(),
     }),
-    { ...codemap.files?.["src/app.ts"], targetType: "file" },
+    { ...map.files?.["src/app.ts"], targetType: "file" },
   );
 });

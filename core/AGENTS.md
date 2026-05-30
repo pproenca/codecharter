@@ -26,7 +26,7 @@ Read `../CONTEXT-MAP.md`, `../CONTEXT.md`, and `CONTEXT.md` before core work.
 - Malformed or unmapped activity is droppable telemetry, not a fatal workflow
   failure.
 - Server route changes must preserve localhost host allowlisting, body limits,
-  codemap validation, and path containment.
+  map validation, and path containment.
 
 ## Implementation
 

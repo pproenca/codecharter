@@ -18,7 +18,6 @@ import { limitToRecent, objectRecord, sortIfNeeded } from "../../collections.ts"
 import { errorMessage, isErrnoException } from "../../errors.ts";
 import { normalizePathForMap, resolveAddress } from "../../resolver.ts";
 import type { AddressRequest } from "../../resolver.ts";
-import { loadCodemap } from "../codemap-cache.ts";
 import type {
   ActivitySnapshot,
   JsonObject,
@@ -27,6 +26,7 @@ import type {
   ViewerActivityDetail,
 } from "../context.ts";
 import { readBody, sendJson } from "../http.ts";
+import { loadMap } from "../map-cache.ts";
 import { stringFields } from "../parse.ts";
 
 // Activity newer than this window renders as a "live"/visible trail; older
@@ -119,7 +119,7 @@ function acceptActivityRequest(state: ServerState, request: IncomingMessage): vo
       const activityBody = activityEventInputFromBody(body);
       const address =
         activityAddressFromBody(body) ??
-        resolveAddress(await loadCodemap(state), addressRequestFromBody(body));
+        resolveAddress(await loadMap(state), addressRequestFromBody(body));
       state.activityStore.add(createActivityEvent(address, activityBody));
     })
     .catch((error) => {

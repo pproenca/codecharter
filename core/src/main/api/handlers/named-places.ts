@@ -8,7 +8,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { objectRecord } from "../../collections.ts";
 import { findNamedPlaceOverlaps } from "../../overlaps.ts";
-import type { CodecharterCodemap } from "../../resolver.ts";
+import type { CodecharterMap } from "../../resolver.ts";
 import {
   createMapAnnotation,
   createNamedAddress,
@@ -17,7 +17,6 @@ import {
 } from "../../selections.ts";
 import type { MapAnnotation, SelectionGeometry, SelectionInput } from "../../selections.ts";
 import { readJson, writeJson } from "../../store.ts";
-import { loadCodemap } from "../codemap-cache.ts";
 import type {
   ApiRouteMatch,
   JsonObject,
@@ -26,6 +25,7 @@ import type {
   ServerState,
 } from "../context.ts";
 import { httpError, readBody, requiredRestParam, sendJson } from "../http.ts";
+import { loadMap } from "../map-cache.ts";
 import { isMapLevel, numberFromValue, stringFields } from "../parse.ts";
 
 const SELECTION_STRING_FIELDS = ["id", "name", "comment"] as const;
@@ -35,8 +35,8 @@ export async function getNamedPlacesApi(
   _request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
-  const codemap = await loadCodemap(state);
-  const store = refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }));
+  const map = await loadMap(state);
+  const store = refreshNamedPlaces(map, await readJson(state.namedPlacesPath, { places: [] }));
   sendJson(response, 200, { ...store, overlaps: findNamedPlaceOverlaps(store.places ?? []) });
 }
 
@@ -45,23 +45,23 @@ export async function postNamedPlacesApi(
   request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
-  const codemap = await loadCodemap(state);
+  const map = await loadMap(state);
   const body = await readBody(request);
   const result = await mutateNamedPlaces(state, (store) => {
-    const place = createNamedPlace(codemap, body);
+    const place = createNamedPlace(map, body);
     store.places.push(place);
     return { place, overlaps: findNamedPlaceOverlaps(store.places) };
   });
   sendJson(response, 201, result);
 }
 
-function createNamedPlace(codemap: CodecharterCodemap, body: JsonObject): NamedPlace {
+function createNamedPlace(map: CodecharterMap, body: JsonObject): NamedPlace {
   const kind = body.kind ?? "drawnSelection";
   if (kind === "drawnSelection") {
-    return createNamedSelection(codemap, selectionInputFromBody(body));
+    return createNamedSelection(map, selectionInputFromBody(body));
   }
   if (kind === "mapAnnotation") {
-    return createMapAnnotation(codemap, selectionInputFromBody(body));
+    return createMapAnnotation(map, selectionInputFromBody(body));
   }
   if (kind === "mapAddress") {
     return createNamedAddress(namedAddressInputFromBody(body));
@@ -74,8 +74,8 @@ export async function getAnnotationsApi(
   _request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
-  const codemap = await loadCodemap(state);
-  const store = refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }));
+  const map = await loadMap(state);
+  const store = refreshNamedPlaces(map, await readJson(state.namedPlacesPath, { places: [] }));
   sendJson(response, 200, {
     annotations: store.places.filter(
       (place): place is MapAnnotation => place.kind === "mapAnnotation",
@@ -90,9 +90,9 @@ export async function getAnnotationApi(
   _url: URL,
   match: ApiRouteMatch,
 ): Promise<void> {
-  const codemap = await loadCodemap(state);
+  const map = await loadMap(state);
   const id = decodeURIComponent(requiredRestParam(match));
-  const store = refreshNamedPlaces(codemap, await readJson(state.namedPlacesPath, { places: [] }));
+  const store = refreshNamedPlaces(map, await readJson(state.namedPlacesPath, { places: [] }));
   const annotation = store.places.find(
     (place) => place.kind === "mapAnnotation" && place.id === id,
   );
@@ -130,7 +130,7 @@ export async function putAnnotationApi(
   _url: URL,
   match: ApiRouteMatch,
 ): Promise<void> {
-  const codemap = await loadCodemap(state);
+  const map = await loadMap(state);
   const id = decodeURIComponent(requiredRestParam(match));
   const body = await readBody(request);
   const result = await mutateNamedPlaces(state, (store) => {
@@ -145,7 +145,7 @@ export async function putAnnotationApi(
       throw httpError(404, `No annotation found for id: ${id}`);
     }
     const annotation = {
-      ...createMapAnnotation(codemap, selectionInputFromBody(body, { id })),
+      ...createMapAnnotation(map, selectionInputFromBody(body, { id })),
       createdAt: previous.createdAt,
     };
     store.places[index] = annotation;
@@ -159,10 +159,10 @@ export async function postAnnotationsApi(
   request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
-  const codemap = await loadCodemap(state);
+  const map = await loadMap(state);
   const body = await readBody(request);
   const result = await mutateNamedPlaces(state, (store) => {
-    const annotation = createMapAnnotation(codemap, selectionInputFromBody(body));
+    const annotation = createMapAnnotation(map, selectionInputFromBody(body));
     store.places.push(annotation);
     return { annotation };
   });
@@ -188,23 +188,23 @@ export async function postSelectionResolveApi(
   request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
-  const codemap = await loadCodemap(state);
+  const map = await loadMap(state);
   const body = await readBody(request);
   sendJson(
     response,
     200,
     createNamedSelection(
-      codemap,
+      map,
       selectionInputFromBody(body, { name: String(body.name ?? "Preview") }),
     ),
   );
 }
 
-export function refreshNamedPlaces(codemap: CodecharterCodemap, store: unknown): NamedPlacesStore {
+export function refreshNamedPlaces(map: CodecharterMap, store: unknown): NamedPlacesStore {
   const normalizedStore = normalizeNamedPlacesStore(store);
   return {
     ...normalizedStore,
-    places: normalizedStore.places.map((place) => refreshPlaceResolution(codemap, place)),
+    places: normalizedStore.places.map((place) => refreshPlaceResolution(map, place)),
   };
 }
 

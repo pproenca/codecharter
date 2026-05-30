@@ -1,6 +1,6 @@
 /**
  * Codex agent hook entry: parse a hook payload from stdin, infer activity
- * (read / edit / test) over trusted local context, refresh the codemap on edits,
+ * (read / edit / test) over trusted local context, refresh the map on edits,
  * and append activity events.
  *
  * Implements **BR-040** (event allowlist + lenient parse), **BR-041** (touched
@@ -21,7 +21,7 @@ import type { ActivityEventInput, ActivityStateInput } from "./activity.ts";
 import { mapConcurrent, objectRecord } from "./collections.ts";
 import { isErrnoException } from "./errors.ts";
 import { execFileText } from "./exec-file.ts";
-import { generateCodemap } from "./generator.ts";
+import { generateMap } from "./generator.ts";
 import {
   ACTIVITY_ARCHIVE_FILE,
   CONFIG_FILE,
@@ -30,7 +30,7 @@ import {
   ROOT_MAP_FILE,
 } from "./paths.ts";
 import { normalizePathForMap, resolveAddress } from "./resolver.ts";
-import type { CodecharterCodemap } from "./resolver.ts";
+import type { CodecharterMap } from "./resolver.ts";
 import { readJson, writeJson } from "./store.ts";
 
 const DEFAULT_CONFIG_PATH = CONFIG_FILE;
@@ -80,7 +80,7 @@ type ReadCommandContext = {
   root: string;
   commandName: string;
   tokens: string[];
-  codemap: CodecharterCodemap;
+  map: CodecharterMap;
 };
 
 type ReadCommandStrategy = {
@@ -206,11 +206,11 @@ async function codexHookEvents({
   }
 
   const activityState = inferActivityState(payload);
-  let codemap = await readCodemap(mapPath);
+  let map = await readMap(mapPath);
   const readActivity =
     activityState === "testing"
       ? { changes: [], matchedReadCommand: false }
-      : readCommandActivity(root, codemap, payload);
+      : readCommandActivity(root, map, payload);
   const readChanges = readActivity.changes;
   let writeChanges = activityState === "testing" ? [] : await toolInputChanges(root, payload);
   const shellEditFallback =
@@ -222,16 +222,16 @@ async function codexHookEvents({
   if (writeChanges.length === 0 && readChanges.length === 0 && !readActivity.matchedReadCommand) {
     writeChanges = await changedCodeChanges(root);
   }
-  const previousCodemap = codemap;
+  const previousMap = map;
   const refreshForShellEditFallback = shellEditFallback && writeChanges.length === 0;
   if (writeChanges.length > 0 || refreshForShellEditFallback) {
-    codemap = await refreshCodemap(root, mapPath, previousCodemap);
+    map = await refreshMap(root, mapPath, previousMap);
   }
   const changes: CodexChange[] = [...readChanges, ...writeChanges];
   const events: StoredActivityEvent[] = [];
   for (const change of changes) {
     try {
-      const address = resolveChangeAddress(codemap, previousCodemap, change);
+      const address = resolveChangeAddress(map, previousMap, change);
       events.push(
         createActivityEvent(address, {
           id: randomUUID(),
@@ -269,26 +269,26 @@ function hookEventBase(
   };
 }
 
-async function refreshCodemap(
+async function refreshMap(
   root: string,
   mapPath: string,
-  previousCodemap: CodecharterCodemap,
-): Promise<CodecharterCodemap> {
-  const codemap = await generateCodemap({ root, previousCodemap });
-  await writeJson(mapPath, codemap);
-  return codemap;
+  previousMap: CodecharterMap,
+): Promise<CodecharterMap> {
+  const map = await generateMap({ root, previousMap });
+  await writeJson(mapPath, map);
+  return map;
 }
 
 function resolveChangeAddress(
-  codemap: CodecharterCodemap,
-  previousCodemap: CodecharterCodemap,
+  map: CodecharterMap,
+  previousMap: CodecharterMap,
   change: CodexChange,
 ) {
   try {
-    return resolveAddress(codemap, change);
+    return resolveAddress(map, change);
   } catch (error) {
-    if (previousCodemap && previousCodemap !== codemap) {
-      return resolveAddress(previousCodemap, change);
+    if (previousMap && previousMap !== map) {
+      return resolveAddress(previousMap, change);
     }
     throw error;
   }
@@ -352,7 +352,7 @@ function inferActivityState(payload: HookPayload): ActivityStateInput {
 
 function readCommandActivity(
   root: string,
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   payload: HookPayload,
 ): { changes: CodexChange[]; matchedReadCommand: boolean } {
   const changes: CodexChange[] = [];
@@ -378,10 +378,10 @@ function readCommandActivity(
       }
       matchedReadCommand = true;
 
-      const lineRange = strategy.lineRange({ root, commandName, tokens, codemap });
-      for (const candidate of strategy.pathCandidates({ root, commandName, tokens, codemap })) {
+      const lineRange = strategy.lineRange({ root, commandName, tokens, map });
+      for (const candidate of strategy.pathCandidates({ root, commandName, tokens, map })) {
         const path = normalizeCommandPath(root, candidate);
-        if (!codemap.files?.[path] && !codemap.folders?.[path]) {
+        if (!map.files?.[path] && !map.folders?.[path]) {
           continue;
         }
         const key = `${path}:${lineRange.lineStart ?? ""}:${lineRange.lineEnd ?? ""}`;
@@ -629,11 +629,11 @@ function shellWords(segment: string): string[] {
 function readCommandPathCandidates(
   commandName: string,
   tokens: string[],
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   root = "",
 ): string[] {
   const strategy = READ_COMMAND_STRATEGIES.get(commandName);
-  return strategy ? strategy.pathCandidates({ root, commandName, tokens, codemap }) : [];
+  return strategy ? strategy.pathCandidates({ root, commandName, tokens, map }) : [];
 }
 
 function genericReadPathCandidates({ tokens }: ReadCommandContext): string[] {
@@ -679,7 +679,7 @@ function readPathCandidateTokens(
   return candidates;
 }
 
-function ripgrepPathCandidates({ tokens, codemap }: ReadCommandContext): string[] {
+function ripgrepPathCandidates({ tokens, map }: ReadCommandContext): string[] {
   const candidates: string[] = [];
   const positionals: string[] = [];
   let patternConsumed = false;
@@ -706,7 +706,7 @@ function ripgrepPathCandidates({ tokens, codemap }: ReadCommandContext): string[
 
   for (const positional of positionals) {
     const path = normalizeCommandPath("", positional);
-    if (!filesMode && !patternConsumed && !codemap.files?.[path] && !codemap.folders?.[path]) {
+    if (!filesMode && !patternConsumed && !map.files?.[path] && !map.folders?.[path]) {
       patternConsumed = true;
       continue;
     }
@@ -743,17 +743,17 @@ function headLineRange({ tokens }: ReadCommandContext): ReadLineRange {
   return {};
 }
 
-function tailLineRange({ root, tokens, codemap }: ReadCommandContext): ReadLineRange {
+function tailLineRange({ root, tokens, map }: ReadCommandContext): ReadLineRange {
   let path;
-  for (const candidate of readCommandPathCandidates("tail", tokens, codemap, root)) {
+  for (const candidate of readCommandPathCandidates("tail", tokens, map, root)) {
     const normalized = normalizeCommandPath(root, candidate);
-    if (codemap.files?.[normalized]) {
+    if (map.files?.[normalized]) {
       path = normalized;
       break;
     }
   }
   const count = numericOption(tokens, "-n");
-  const lineCount = path ? codemap.files[path]?.lineCount : undefined;
+  const lineCount = path ? map.files[path]?.lineCount : undefined;
   if (count && lineCount) {
     return { lineStart: Math.max(1, lineCount - count + 1), lineEnd: lineCount };
   }
@@ -796,7 +796,7 @@ function parseHookPayload(input: string): HookPayload {
   }
 }
 
-async function readCodemap(mapPath: string): Promise<CodecharterCodemap> {
+async function readMap(mapPath: string): Promise<CodecharterMap> {
   return JSON.parse(await readFile(mapPath, "utf8"));
 }
 

@@ -7,12 +7,12 @@ separate pnpm workspaces, and the root build creates the publishable CLI package
 
 - `core/`: `@codecharter/core`, NodeNext TypeScript for the generator,
   Address Resolver, selections, activity pipeline, localhost server, setup
-  helpers, and `core/bin/codemap.mts`.
+  helpers, and `core/bin/codecharter.mts`.
 - `viewer/`: `@codecharter/viewer`, browser TypeScript for the canvas app
   shell, Browser Hash Routes, render model, source panel, activity visuals, and
   Discovery Fog.
 - `dist/`: root publishable output from `pnpm build`, containing
-  `dist/bin/codemap.mjs`, `dist/public/`, and `dist/package.json`.
+  `dist/bin/codecharter.mjs`, `dist/public/`, and `dist/package.json`.
 - `viewer/dist/`: viewer-only bundle from `pnpm --filter @codecharter/viewer
 build`.
 
@@ -33,8 +33,8 @@ build`.
 
 ## Build Rules
 
-- Root `pnpm build` bundles `core/bin/codemap.mts` and the core engine into
-  `dist/bin/codemap.mjs`, then bundles `viewer/src/main/app.ts` into
+- Root `pnpm build` bundles `core/bin/codecharter.mts` and the core engine into
+  `dist/bin/codecharter.mjs`, then bundles `viewer/src/main/app.ts` into
   `dist/public/app.js`.
 - Viewer `pnpm --filter @codecharter/viewer build` bundles
   `viewer/src/main/app.ts` into `viewer/dist/app.js` and copies

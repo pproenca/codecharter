@@ -71,7 +71,7 @@ import type {
   ActivityEvent,
   ActivityFogState,
   Bounds,
-  CodecharterCodemap,
+  CodecharterMap,
   MapFile,
   MapFolder,
   NamedPlace,
@@ -175,7 +175,7 @@ type MapVersionResponse = { version?: string };
 type NamedPlacesResponse = { places: NamedPlace[]; overlaps?: Array<{ bounds: Bounds }> };
 type ActivityResponse = { events?: ActivityEvent[]; version?: string; unchanged?: true };
 type MapApplicationState = {
-  map: CodecharterCodemap | null;
+  map: CodecharterMap | null;
   mapFolders: MapFolder[];
   mapFiles: MapFile[];
   organicRegionFolders: Array<{ folder: MapFolder; depth: number }>;
@@ -693,7 +693,7 @@ const activityDrawer = createActivityDrawer({
 
 async function boot() {
   const [map, mapVersion, names, activity] = await Promise.all([
-    fetchJson<CodecharterCodemap>("/api/map"),
+    fetchJson<CodecharterMap>("/api/map"),
     fetchJson<MapVersionResponse>("/api/map-version"),
     fetchJson<NamedPlacesResponse>("/api/named-places"),
     fetchJson<ActivityResponse>(polling.activityRequestUrl("summary")),
@@ -716,7 +716,7 @@ async function boot() {
   render();
 }
 
-function applyMap(map: CodecharterCodemap, version: string | undefined) {
+function applyMap(map: CodecharterMap, version: string | undefined) {
   const previousSelection = state.selectedTarget;
   state.map = map;
   state.mapFolders = Object.values(map.folders ?? {});

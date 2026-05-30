@@ -12,9 +12,9 @@ import {
   organicRegionFogStyle,
   shouldShowFogLabel,
 } from "../main/render/fog.ts";
-import type { ActivityEvent, Bounds, CodecharterCodemap, Point } from "../main/render/types.ts";
+import type { ActivityEvent, Bounds, CodecharterMap, Point } from "../main/render/types.ts";
 
-const CODEMAP: CodecharterCodemap = {
+const MAP: CodecharterMap = {
   files: { "src/a.ts": { path: "src/a.ts" }, "src/b.ts": { path: "src/b.ts" } },
   folders: { "": { path: "" }, src: { path: "src" } },
 };
@@ -27,7 +27,7 @@ test("buildActivityFogState classifies files and ranks ancestor folders", () => 
     { path: "src/b.ts", viewerFogState: "visible" },
     { path: "missing.ts", viewerFogState: "visible" },
   ];
-  const fog = buildActivityFogState(CODEMAP, events);
+  const fog = buildActivityFogState(MAP, events);
 
   assert.equal(fog.files.get("src/a.ts"), "explored");
   assert.equal(fog.files.get("src/b.ts"), "visible");
@@ -41,7 +41,7 @@ test("buildActivityFogState classifies files and ranks ancestor folders", () => 
 });
 
 test("fogStateForFile resolves lookup, selected override, and defaults", () => {
-  const fog = buildActivityFogState(CODEMAP, [{ path: "src/a.ts", viewerFogState: "explored" }]);
+  const fog = buildActivityFogState(MAP, [{ path: "src/a.ts", viewerFogState: "explored" }]);
 
   assert.equal(fogStateForFile(fog, "src/a.ts"), "explored");
   // A file with no recorded activity is unexplored.
@@ -53,7 +53,7 @@ test("fogStateForFile resolves lookup, selected override, and defaults", () => {
 });
 
 test("fogStateForFolder mirrors the file resolution rules", () => {
-  const fog = buildActivityFogState(CODEMAP, [{ path: "src/a.ts", viewerFogState: "explored" }]);
+  const fog = buildActivityFogState(MAP, [{ path: "src/a.ts", viewerFogState: "explored" }]);
   assert.equal(fogStateForFolder(fog, "src"), "explored");
   assert.equal(fogStateForFolder(fog, "other"), "unexplored");
   assert.equal(fogStateForFolder(null, "other"), "visible");

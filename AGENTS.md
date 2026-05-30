@@ -42,7 +42,7 @@ Treat code structure as geography.
 - Context routing: `CONTEXT-MAP.md`.
 - Core package: `core/`.
 - Viewer package: `viewer/`.
-- Core CLI: `core/bin/codemap.mts`.
+- Core CLI: `core/bin/codecharter.mts`.
 - Core public barrel: `core/src/main/index.ts`.
 - Viewer app shell: `viewer/src/main/app.ts`.
 - Viewer render model: `viewer/src/main/render/`.
@@ -51,7 +51,7 @@ Treat code structure as geography.
 - Root package output: `dist/`.
 - Stable Map Sidecar: `.codecharter/codecharter.json`.
 - Named Places Store: `.codecharter/named-places.json`.
-- Local issues, PRDs, screenshots, scratch codemaps, and local activity
+- Local issues, PRDs, screenshots, scratch maps, and local activity
   artifacts: `.scratch/`.
 
 ## Architecture
@@ -73,7 +73,7 @@ Treat code structure as geography.
   inspection, activity visuals, and discovery fog.
 - Viewer state should derive from Map Sidecar and core API responses; do not
   create a second semantic identity model in the browser.
-- Server changes must keep localhost hardening, body limits, codemap validation,
+- Server changes must keep localhost hardening, body limits, map validation,
   and path containment explicit.
 - Generated artifacts are contracts when published, but do not hand-edit them
   when source generation is available.

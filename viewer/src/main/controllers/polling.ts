@@ -11,7 +11,7 @@
  * directly during boot/clear before the controller's other deps matter.
  */
 
-import type { ActivityEvent, Bounds, CodecharterCodemap, NamedPlace } from "../render/types.ts";
+import type { ActivityEvent, Bounds, CodecharterMap, NamedPlace } from "../render/types.ts";
 
 type TimerHandle = number | ReturnType<typeof setTimeout> | null;
 type PollingTask = {
@@ -59,7 +59,7 @@ export type PollingControllerDeps = {
   activityDiscoveryEnabled: () => boolean;
   // --- app-owned side-effects ---
   fetchJson: <T = unknown>(url: string) => Promise<T>;
-  applyMap: (map: CodecharterCodemap, version: string | undefined) => void;
+  applyMap: (map: CodecharterMap, version: string | undefined) => void;
   setNamedPlaces: (places: NamedPlace[]) => void;
   rebuildActivityFog: () => void;
   render: () => void;
@@ -90,7 +90,7 @@ export function createPollingController(deps: PollingControllerDeps) {
         return;
       }
       const [map, names] = await Promise.all([
-        deps.fetchJson<CodecharterCodemap>("/api/map"),
+        deps.fetchJson<CodecharterMap>("/api/map"),
         deps.fetchJson<NamedPlacesResponse>("/api/named-places"),
       ]);
       deps.applyMap(map, mapVersion.version);

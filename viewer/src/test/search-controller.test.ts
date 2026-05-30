@@ -3,7 +3,7 @@ import test from "node:test";
 import { type SearchControllerDeps, createSearchController } from "../main/controllers/search.ts";
 import type {
   Bounds,
-  CodecharterCodemap,
+  CodecharterMap,
   MapFile,
   MapFolder,
   TargetHit,
@@ -76,7 +76,7 @@ test("createSearchController exposes the wiring surface app.ts consumes", () => 
 test("handleSubmit no-ops on an empty query without touching the camera", async () => {
   let prevented = false;
   const { deps, recorder } = stubDeps({
-    getMap: () => ({ files: {}, folders: {} }) as CodecharterCodemap,
+    getMap: () => ({ files: {}, folders: {} }) as CodecharterMap,
     controls: {
       searchInput: { value: "   " } as HTMLElement & { value?: string },
       searchResult: null,
@@ -127,7 +127,7 @@ test("handleSubmit focuses a matching folder by name through the camera + select
   const map = {
     files: {},
     folders: { src: folder },
-  } as unknown as CodecharterCodemap;
+  } as unknown as CodecharterMap;
   const { deps, recorder } = stubDeps({
     getMap: () => map,
     controls: {

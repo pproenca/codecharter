@@ -7,12 +7,12 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { createActivityStore, StoredActivityEvent } from "../activity-store.ts";
-import type { CodecharterCodemap } from "../resolver.ts";
+import type { CodecharterMap } from "../resolver.ts";
 import type { MapAnnotation, NamedAddress, NamedSelection } from "../selections.ts";
 
-export type CodemapCache = {
+export type MapCache = {
   signature: string;
-  codemap: CodecharterCodemap;
+  map: CodecharterMap;
 };
 
 export type ViewerActivityArchiveCache = {
@@ -29,7 +29,7 @@ export type ServerState = {
   namedPlacesMutation: Promise<unknown>;
   activityArchivePath: string;
   activityStore: ReturnType<typeof createActivityStore>;
-  codemapCache?: CodemapCache; // HARDENING/perf: mtime:size-keyed parsed-map cache
+  mapCache?: MapCache; // HARDENING/perf: mtime:size-keyed parsed-map cache
   viewerActivityArchiveCache?: ViewerActivityArchiveCache;
 };
 

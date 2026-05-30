@@ -14,8 +14,8 @@ import {
   ensureActivityArchive,
   startActivityWatcher,
   runCodexHook,
-  parseCodemapDeepLink,
-  generateCodemap,
+  parseMapDeepLink,
+  generateMap,
   initializeCodecharter,
   MAP_LEVELS,
   MAP_FILE,
@@ -41,10 +41,10 @@ import {
 } from "../src/main/index.ts";
 import type {
   AddressRequest,
-  CodecharterCodemap,
+  CodecharterMap,
   PackageJsonWithDependencies,
-  ParsedCodemapDeepLink,
-  GeneratedCodemap,
+  ParsedMapDeepLink,
+  GeneratedMap,
   ResolvedAddress,
   MapAnnotation,
 } from "../src/main/index.ts";
@@ -86,7 +86,7 @@ type SetupAndRunDevOptions = {
   open: boolean;
   printHooksNext: boolean;
 };
-type WriteCodemapOptions = {
+type WriteMapOptions = {
   root: string;
   out: string;
   fresh?: boolean;
@@ -344,7 +344,7 @@ const CLI_COMMANDS: CommandHandler[] = [
       throw new Error(`Unknown arguments: ${args.join(" ")}`);
     }
 
-    await writeCodemap({ root, out, fresh, quiet });
+    await writeMap({ root, out, fresh, quiet });
   }),
   command(["init", "setup"], async ({ args, command }) => {
     const root = resolvePath(takeOption(args, "--root", "."));
@@ -354,7 +354,7 @@ const CLI_COMMANDS: CommandHandler[] = [
     const startDev = command === "setup" ? !takeFlag(args, "--no-dev") : takeFlag(args, "--dev");
     const open = takeFlag(args, "--open");
     const port = Number(takeOption(args, "--port", "4173"));
-    const agentId = takeOption(args, "--agent", process.env.CODEMAP_AGENT_ID ?? "codex");
+    const agentId = takeOption(args, "--agent", process.env.CODECHARTER_AGENT_ID ?? "codex");
     const watch = !takeFlag(args, "--no-watch");
     const noCodex = takeFlag(args, "--no-codex");
     const noGitHooks = takeFlag(args, "--no-git-hooks");
@@ -404,7 +404,7 @@ const CLI_COMMANDS: CommandHandler[] = [
     const root = resolvePath(takeOption(args, "--root", "."));
     const mapPath = resolveMapPath(root, takeOption(args, "--map", DEFAULT_MAP_FILE));
     const port = Number(takeOption(args, "--port", "4173"));
-    const agentId = takeOption(args, "--agent", process.env.CODEMAP_AGENT_ID ?? "codex");
+    const agentId = takeOption(args, "--agent", process.env.CODECHARTER_AGENT_ID ?? "codex");
     const watch = !takeFlag(args, "--no-watch");
     const fresh = takeFlag(args, "--fresh");
     const setup = takeFlag(args, "--setup");
@@ -644,9 +644,7 @@ async function setupAndRunDev({
     installCodex,
     installGitHooks,
   });
-  const initialCodemap = isCodecharterCodemap(setupResult.codemap)
-    ? setupResult.codemap
-    : undefined;
+  const initialMap = isCodecharterMap(setupResult.map) ? setupResult.map : undefined;
   await runDevServer({
     root,
     mapPath,
@@ -655,7 +653,7 @@ async function setupAndRunDev({
     watch,
     fresh: false,
     open,
-    ...optionalProperty("initialCodemap", initialCodemap),
+    ...optionalProperty("initialMap", initialMap),
   });
   if (printHooksNext) {
     console.log("next: /hooks");
@@ -721,7 +719,7 @@ async function postActivityToServer(server: string, body: Record<string, unknown
 }
 
 async function resolveDeepLink({ root, mapPath, reference, server }: DeepLinkResolveOptions) {
-  const parsed = parseCodemapDeepLink(reference);
+  const parsed = parseMapDeepLink(reference);
   if (parsed.kind === "annotation") {
     return {
       kind: "annotation",
@@ -736,8 +734,8 @@ async function resolveDeepLink({ root, mapPath, reference, server }: DeepLinkRes
   }
 
   if (parsed.metadata.path) {
-    const codemap = JSON.parse(await readFile(mapPath, "utf8"));
-    const address = resolveAddress(codemap, requestFromDeepLink(parsed));
+    const map = JSON.parse(await readFile(mapPath, "utf8"));
+    const address = resolveAddress(map, requestFromDeepLink(parsed));
     return {
       kind: address.targetType,
       reference,
@@ -756,16 +754,13 @@ async function resolveCliAddress(
 ): Promise<ResolvedAddress> {
   const columnStart = optionalNumber(columnStartRaw);
   const columnEnd = optionalNumber(columnEndRaw);
-  const codemap = JSON.parse(await readFile(mapPath, "utf8"));
+  const map = JSON.parse(await readFile(mapPath, "utf8"));
   const lineStart = optionalNumber(lineStartRaw);
   const lineEnd = lineEndRaw === undefined ? lineStart : optionalNumber(lineEndRaw);
-  return resolveAddress(
-    codemap,
-    addressRequest(path, { lineStart, lineEnd, columnStart, columnEnd }),
-  );
+  return resolveAddress(map, addressRequest(path, { lineStart, lineEnd, columnStart, columnEnd }));
 }
 
-function requestFromDeepLink(parsed: ParsedCodemapDeepLink): CliAddressRequest & {
+function requestFromDeepLink(parsed: ParsedMapDeepLink): CliAddressRequest & {
   lineStart?: number;
   lineEnd?: number;
   columnStart?: number;
@@ -917,7 +912,7 @@ async function setupCodecharter({
     fresh,
     installCodex,
     installGitHooks,
-    writeCodemap: (options) => writeCodemap({ ...options, quiet: true }),
+    writeMap: (options) => writeMap({ ...options, quiet: true }),
   });
   await ensureActivityStream(root);
   printSetupResult(root, result, { installCodex, installGitHooks });
@@ -932,7 +927,7 @@ type RunDevServerOptions = {
   watch: boolean;
   fresh: boolean;
   open: boolean;
-  initialCodemap?: CodecharterCodemap;
+  initialMap?: CodecharterMap;
 };
 
 async function runDevServer({
@@ -943,14 +938,14 @@ async function runDevServer({
   watch,
   fresh,
   open,
-  initialCodemap,
+  initialMap,
 }: RunDevServerOptions) {
   await ensureCodecharterGitignore(root);
   await ensureLocalGitExcludes(root);
-  let currentCodemap: CodecharterCodemap =
-    initialCodemap ?? (await writeCodemap({ root, out: mapPath, fresh, quiet: true }));
-  if (!initialCodemap) {
-    printMapResult(root, mapPath, currentCodemap);
+  let currentMap: CodecharterMap =
+    initialMap ?? (await writeMap({ root, out: mapPath, fresh, quiet: true }));
+  if (!initialMap) {
+    printMapResult(root, mapPath, currentMap);
   }
   await ensureActivityStream(root);
   const server = await startServer({ root, mapPath, port });
@@ -973,10 +968,10 @@ async function runDevServer({
           return;
         }
         lastRefreshSignature = signature;
-        currentCodemap = await writeCodemap({ root, out: mapPath, quiet: true });
+        currentMap = await writeMap({ root, out: mapPath, quiet: true });
       },
       createActivityPayload: (change, { agentId: eventAgentId, activityState }) => {
-        const address = resolveAddress(currentCodemap, change);
+        const address = resolveAddress(currentMap, change);
         return {
           agentId: eventAgentId,
           activityState,
@@ -1087,23 +1082,23 @@ async function readOptionalJson(path: string): Promise<unknown | undefined> {
   }
 }
 
-async function writeCodemap({
+async function writeMap({
   root,
   out,
   fresh = false,
   quiet = false,
-}: WriteCodemapOptions): Promise<GeneratedCodemap> {
-  const previousCodemap = fresh ? undefined : await readPreviousCodemap(root, out);
-  const codemap = await generateCodemap({
+}: WriteMapOptions): Promise<GeneratedMap> {
+  const previousMap = fresh ? undefined : await readPreviousMap(root, out);
+  const map = await generateMap({
     root,
     excludePaths: sortedUniqueStrings([relative(root, out), ...METADATA_EXCLUDE_PATHS]),
-    ...optionalProperty("previousCodemap", previousCodemap),
+    ...optionalProperty("previousMap", previousMap),
   });
-  await writeJson(out, codemap);
+  await writeJson(out, map);
   if (!quiet) {
-    printMapResult(root, out, codemap);
+    printMapResult(root, out, map);
   }
-  return codemap;
+  return map;
 }
 
 function printSetupResult(
@@ -1112,9 +1107,9 @@ function printSetupResult(
   { installCodex, installGitHooks }: { installCodex: boolean; installGitHooks: boolean },
 ): void {
   console.log("init: ok");
-  const codemap = isCodecharterCodemap(result.codemap) ? result.codemap : undefined;
-  if (codemap) {
-    printMapResult(root, result.mapPath, codemap);
+  const map = isCodecharterMap(result.map) ? result.map : undefined;
+  if (map) {
+    printMapResult(root, result.mapPath, map);
   } else {
     console.log(`map: ${displayPath(root, result.mapPath)}`);
   }
@@ -1128,10 +1123,10 @@ function printSetupResult(
   console.log(`activity: ${DEFAULT_ACTIVITY_ARCHIVE}`);
 }
 
-function printMapResult(root: string, mapPath: string, codemap: CodecharterCodemap): void {
+function printMapResult(root: string, mapPath: string, map: CodecharterMap): void {
   console.log(`map: ${displayPath(root, mapPath)}`);
-  console.log(`files: ${Object.keys(codemap.files).length}`);
-  console.log(`folders: ${Object.keys(codemap.folders).length}`);
+  console.log(`files: ${Object.keys(map.files).length}`);
+  console.log(`folders: ${Object.keys(map.folders).length}`);
 }
 
 function serverPort(address: string | AddressInfo | null): number {
@@ -1186,9 +1181,9 @@ async function listAnnotationsFromStorage({
 }): Promise<MapAnnotation[]> {
   const storePath = join(root, NAMED_PLACES_FILE);
   const store = namedPlacesFileFromValue(await readOptionalJson(storePath));
-  const codemap = codemapFromValue(await readOptionalJson(mapPath));
+  const map = mapFromValue(await readOptionalJson(mapPath));
   return store.places.map((annotation) =>
-    codemap ? refreshPlaceResolution(codemap, annotation) : annotation,
+    map ? refreshPlaceResolution(map, annotation) : annotation,
   );
 }
 
@@ -1229,8 +1224,8 @@ async function readAnnotationFromStorage({
     throw new Error(`No annotation found for id: ${id}`);
   }
 
-  const codemap = codemapFromValue(await readOptionalJson(mapPath));
-  return codemap ? refreshPlaceResolution(codemap, annotation) : annotation;
+  const map = mapFromValue(await readOptionalJson(mapPath));
+  return map ? refreshPlaceResolution(map, annotation) : annotation;
 }
 
 function annotationEnvelope(
@@ -1298,7 +1293,7 @@ function parseAnnotationReference(reference: string): ParsedAnnotationReference 
     throw new Error("Annotation reference is required");
   }
   if (reference.startsWith("codecharter://") || reference.startsWith("codemap://")) {
-    const parsed = parseCodemapDeepLink(reference);
+    const parsed = parseMapDeepLink(reference);
     if (parsed.kind !== "annotation") {
       throw new Error(`Expected an annotation link, received: ${parsed.kind}`);
     }
@@ -1597,11 +1592,11 @@ function namedPlacesFileFromValue(value: unknown): NamedPlacesFile {
   return { places: Array.isArray(record?.places) ? record.places.filter(isMapAnnotation) : [] };
 }
 
-function codemapFromValue(value: unknown): CodecharterCodemap | undefined {
-  return isCodecharterCodemap(value) ? value : undefined;
+function mapFromValue(value: unknown): CodecharterMap | undefined {
+  return isCodecharterMap(value) ? value : undefined;
 }
 
-function isCodecharterCodemap(value: unknown): value is CodecharterCodemap {
+function isCodecharterMap(value: unknown): value is CodecharterMap {
   const record = objectRecord(value);
   return (
     Boolean(record) &&
@@ -1626,18 +1621,15 @@ function isMapLevel(value: unknown): value is MapAnnotation["level"] {
   return typeof value === "string" && Object.hasOwn(MAP_LEVELS, value);
 }
 
-async function readPreviousCodemap(
-  root: string,
-  out: string,
-): Promise<CodecharterCodemap | undefined> {
-  const current = codemapFromValue(await readOptionalJson(out));
+async function readPreviousMap(root: string, out: string): Promise<CodecharterMap | undefined> {
+  const current = mapFromValue(await readOptionalJson(out));
   if (current) {
     return current;
   }
   if (relative(root, out) === DEFAULT_MAP_FILE) {
     return (
-      codemapFromValue(await readOptionalJson(join(root, ROOT_MAP_FILE))) ??
-      codemapFromValue(await readOptionalJson(join(root, LEGACY_MAP_FILE)))
+      mapFromValue(await readOptionalJson(join(root, ROOT_MAP_FILE))) ??
+      mapFromValue(await readOptionalJson(join(root, LEGACY_MAP_FILE)))
     );
   }
   return undefined;

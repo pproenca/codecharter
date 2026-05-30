@@ -179,7 +179,7 @@ test("source reads follow an in-root symlink to the resolved target", async (t) 
   assert.equal(body.path, "scripts/alias.mjs");
 });
 
-// CWE-1321: an untrusted codemap key colliding with an Object prototype property
+// CWE-1321: an untrusted map key colliding with an Object prototype property
 // must resolve to a clean not-found, never reaching the prototype object.
 test("source/resolve treat prototype-polluting path keys as not found", async (t) => {
   const server = await startSourceServer(t);
@@ -283,7 +283,7 @@ test("BR-SERVER-004 a request body over 1 MB is rejected with 413", async (t) =>
   assert.equal(response.status, 413);
 });
 
-// BR-SERVER-006 — codemap validation (corrupt / foreign maps are rejected)
+// BR-SERVER-006 — map validation (corrupt / foreign maps are rejected)
 test("BR-SERVER-006 a corrupt or foreign map is rejected with a clear 500", async (t) => {
   for (const { map, pattern } of [
     { map: "{ not valid json", pattern: /not valid JSON/ },

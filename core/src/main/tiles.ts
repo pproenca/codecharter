@@ -23,7 +23,7 @@ export type TileSerializedTarget = TileMapTarget & {
   targetType: TileTargetType;
 };
 
-export type TileCodemap = {
+export type TileMap = {
   folders: Record<string, TileMapTarget>;
   files: Record<string, TileMapTarget>;
 };
@@ -39,10 +39,10 @@ export function tilePrefixForTarget(target: TileMapTarget, level: MapLevel): str
   return target.geo.geohash.slice(0, precisionForLevel(level));
 }
 
-/** Build the full tile index for a codemap at a level (folders before files, path-sorted). */
-export function buildTileIndex(codemap: TileCodemap, level: MapLevel = "file"): Tile[] {
+/** Build the full tile index for a map at a level (folders before files, path-sorted). */
+export function buildTileIndex(map: TileMap, level: MapLevel = "file"): Tile[] {
   const tiles = new Map<string, TileSerializedTarget[]>();
-  for (const target of mapTargets(codemap)) {
+  for (const target of mapTargets(map)) {
     addTarget(tiles, tilePrefixForTarget(target, level), target);
   }
   const tileEntries = [...tiles.entries()];
@@ -52,19 +52,19 @@ export function buildTileIndex(codemap: TileCodemap, level: MapLevel = "file"): 
 
 /** Fetch the single tile for an exact prefix. */
 export function getTile(
-  codemap: TileCodemap,
+  map: TileMap,
   { level = "file", prefix }: { level?: MapLevel; prefix: string },
 ): Tile {
   const targets: TileSerializedTarget[] = [];
-  appendMatchingTargets(targets, codemap.folders, "folder", level, prefix);
-  appendMatchingTargets(targets, codemap.files, "file", level, prefix);
+  appendMatchingTargets(targets, map.folders, "folder", level, prefix);
+  appendMatchingTargets(targets, map.files, "file", level, prefix);
   return { prefix, level, targets };
 }
 
 /** The sorted, unique set of tile prefixes present at a level. */
-export function visiblePrefixes(codemap: TileCodemap, level: MapLevel = "file"): string[] {
+export function visiblePrefixes(map: TileMap, level: MapLevel = "file"): string[] {
   return sortedUniqueStrings(
-    [...objectValues(codemap.folders), ...objectValues(codemap.files)].map((target) =>
+    [...objectValues(map.folders), ...objectValues(map.files)].map((target) =>
       tilePrefixForTarget(target, level),
     ),
   );
@@ -81,11 +81,11 @@ function addTarget(
   tiles.get(prefix)?.push(target);
 }
 
-function* mapTargets(codemap: TileCodemap): Generator<TileSerializedTarget> {
-  for (const folder of sortedTargets(codemap.folders)) {
+function* mapTargets(map: TileMap): Generator<TileSerializedTarget> {
+  for (const folder of sortedTargets(map.folders)) {
     yield serializeTarget(folder, "folder");
   }
-  for (const file of sortedTargets(codemap.files)) {
+  for (const file of sortedTargets(map.files)) {
     yield serializeTarget(file, "file");
   }
 }

@@ -11,7 +11,7 @@ import type { StoredActivityEvent } from "../main/activity-store.ts";
 import { startServer } from "../main/server.ts";
 
 const repoRoot = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
-const cliPath = join(repoRoot, "core", "bin", "codemap.mts");
+const cliPath = join(repoRoot, "core", "bin", "codecharter.mts");
 
 test("activity command can post a reading event to the running viewer server", async (t) => {
   const server = await startActivityFixtureServer(t);

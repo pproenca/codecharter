@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
  * bundled alongside it so the server can serve it.
  *
  *   dist/
- *     bin/codemap.mjs   self-contained CLI (shebang, esm) -> the `codecharter` bin
+ *     bin/codecharter.mjs   self-contained CLI (shebang, esm) -> the `codecharter` bin
  *     public/           bundled viewer (index.html, style.css, app.js)
  *     package.json      copied root manifest (CLI reads ../package.json for --version)
  */
@@ -23,17 +23,17 @@ await mkdir(join(dist, "public"), { recursive: true });
 
 // 1. CLI — bundle core/bin + all of @codecharter/core into one runnable ESM file.
 await build({
-  entryPoints: [join(root, "core/bin/codemap.mts")],
+  entryPoints: [join(root, "core/bin/codecharter.mts")],
   bundle: true,
   platform: "node",
   format: "esm",
   target: "node22",
-  outfile: join(dist, "bin/codemap.mjs"),
+  outfile: join(dist, "bin/codecharter.mjs"),
   // esbuild preserves the entry file's existing `#!/usr/bin/env node` shebang.
   minify: false,
   legalComments: "none",
 });
-await chmod(join(dist, "bin/codemap.mjs"), 0o755);
+await chmod(join(dist, "bin/codecharter.mjs"), 0o755);
 
 // 2. Viewer SPA — served from dist/public by the CLI's server.
 await build({

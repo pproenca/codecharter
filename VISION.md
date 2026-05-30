@@ -55,7 +55,7 @@ Contribution rules:
 
 CodeCharter is local-first, but not casual about trust boundaries.
 The localhost server reads source files and serves map data, so route hardening,
-host checks, body limits, codemap validation, and path containment are core
+host checks, body limits, map validation, and path containment are core
 product requirements.
 
 The security tradeoff is deliberate: make local inspection powerful while

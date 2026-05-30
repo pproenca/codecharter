@@ -1,22 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createCodemapDeepLink, parseCodemapDeepLink } from "../main/deep-links.ts";
+import { createMapDeepLink, parseMapDeepLink } from "../main/deep-links.ts";
 import { MAP_LEVELS } from "../main/levels.ts";
 import type { MapLevel } from "../main/levels.ts";
 
-test("parseCodemapDeepLink returns a typed supported kind", () => {
-  const link = createCodemapDeepLink("lineRange", "s123", { path: "src/app.ts" });
+test("parseMapDeepLink returns a typed supported kind", () => {
+  const link = createMapDeepLink("lineRange", "s123", { path: "src/app.ts" });
 
-  assert.deepEqual(parseCodemapDeepLink(link), {
+  assert.deepEqual(parseMapDeepLink(link), {
     kind: "lineRange",
     locator: "s123",
     metadata: { path: "src/app.ts" },
   });
 });
 
-test("parseCodemapDeepLink rejects unknown kinds", () => {
+test("parseMapDeepLink rejects unknown kinds", () => {
   assert.throws(
-    () => parseCodemapDeepLink("codecharter://symbol/s123"),
+    () => parseMapDeepLink("codecharter://symbol/s123"),
     /Unsupported deep link kind: symbol/,
   );
 });
@@ -26,18 +26,18 @@ test("parseCodemapDeepLink rejects unknown kinds", () => {
 // ---------------------------------------------------------------------------
 
 test("BR-DEEPLINK-001 created links always use the codecharter:// scheme", () => {
-  const link = createCodemapDeepLink("file", "gcpvj0d", { path: "src/app.ts", lines: "1-10" });
+  const link = createMapDeepLink("file", "gcpvj0d", { path: "src/app.ts", lines: "1-10" });
   assert.ok(link.startsWith("codecharter://file/"));
-  const parsed = parseCodemapDeepLink(link);
+  const parsed = parseMapDeepLink(link);
   assert.equal(parsed.kind, "file");
   assert.equal(parsed.locator, "gcpvj0d");
   assert.deepEqual(parsed.metadata, { path: "src/app.ts", lines: "1-10" });
 });
 
 test("BR-DEEPLINK-001 kind and locator are percent-encoded in the URL", () => {
-  const link = createCodemapDeepLink("file", "a b/c", { path: "x y.ts" });
+  const link = createMapDeepLink("file", "a b/c", { path: "x y.ts" });
   assert.ok(!link.includes(" "), "spaces must be encoded");
-  assert.equal(parseCodemapDeepLink(link).locator, "a b/c");
+  assert.equal(parseMapDeepLink(link).locator, "a b/c");
 });
 
 // ---------------------------------------------------------------------------
@@ -45,7 +45,7 @@ test("BR-DEEPLINK-001 kind and locator are percent-encoded in the URL", () => {
 // ---------------------------------------------------------------------------
 
 test("BR-DEEPLINK-002 legacy codemap:// links still parse", () => {
-  assert.deepEqual(parseCodemapDeepLink("codemap://file/s123?path=src%2Fapp.ts"), {
+  assert.deepEqual(parseMapDeepLink("codemap://file/s123?path=src%2Fapp.ts"), {
     kind: "file",
     locator: "s123",
     metadata: { path: "src/app.ts" },
@@ -53,12 +53,12 @@ test("BR-DEEPLINK-002 legacy codemap:// links still parse", () => {
 });
 
 test("BR-DEEPLINK-002 the writer never emits codemap:// (only codecharter://)", () => {
-  assert.ok(createCodemapDeepLink("file", "s123").startsWith("codecharter://"));
+  assert.ok(createMapDeepLink("file", "s123").startsWith("codecharter://"));
 });
 
-test("BR-DEEPLINK-002 a non-codecharter/codemap scheme is rejected", () => {
+test("BR-DEEPLINK-002 a non-codecharter/map scheme is rejected", () => {
   assert.throws(
-    () => parseCodemapDeepLink("https://file/s123"),
+    () => parseMapDeepLink("https://file/s123"),
     /Unsupported deep link protocol: https:/,
   );
 });
@@ -69,10 +69,10 @@ test("BR-DEEPLINK-002 a non-codecharter/codemap scheme is rejected", () => {
 
 test("BR-DEEPLINK-003 every map level and 'annotation' is a valid kind", () => {
   for (const level of Object.keys(MAP_LEVELS) as MapLevel[]) {
-    const parsed = parseCodemapDeepLink(createCodemapDeepLink(level, "s1"));
+    const parsed = parseMapDeepLink(createMapDeepLink(level, "s1"));
     assert.equal(parsed.kind, level);
   }
-  assert.equal(parseCodemapDeepLink(createCodemapDeepLink("annotation", "id1")).kind, "annotation");
+  assert.equal(parseMapDeepLink(createMapDeepLink("annotation", "id1")).kind, "annotation");
 });
 
 // ---------------------------------------------------------------------------
@@ -80,22 +80,22 @@ test("BR-DEEPLINK-003 every map level and 'annotation' is a valid kind", () => {
 // ---------------------------------------------------------------------------
 
 test("BR-DEEPLINK-004 empty kind is rejected", () => {
-  assert.throws(() => createCodemapDeepLink("" as MapLevel, "s1"), {
+  assert.throws(() => createMapDeepLink("" as MapLevel, "s1"), {
     message: "Deep link kind is required",
   });
 });
 
 test("BR-DEEPLINK-004 empty locator is rejected", () => {
-  assert.throws(() => createCodemapDeepLink("file", ""), {
+  assert.throws(() => createMapDeepLink("file", ""), {
     message: "Deep link locator is required",
   });
 });
 
 test("BR-DEEPLINK-004 undefined and empty-string metadata values are dropped", () => {
-  const link = createCodemapDeepLink("file", "s1", {
+  const link = createMapDeepLink("file", "s1", {
     path: "src/app.ts",
     lines: "",
     columns: undefined,
   });
-  assert.deepEqual(parseCodemapDeepLink(link).metadata, { path: "src/app.ts" });
+  assert.deepEqual(parseMapDeepLink(link).metadata, { path: "src/app.ts" });
 });

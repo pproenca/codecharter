@@ -72,7 +72,7 @@ We pay for it by sorting and pinning instead of taking "whatever order it comes
 in."_
 
 **7. Local-first is not casual about trust.** The server reads your source and
-serves your map, so the Host allowlist, body limits, codemap validation, and
+serves your map, so the Host allowlist, body limits, map validation, and
 path containment are product requirements — explicit, bounded, testable; and the
 viewer renders core's truth, never inventing its own identity model.
 _"It's just localhost" is exactly how a source-reading tool grows an

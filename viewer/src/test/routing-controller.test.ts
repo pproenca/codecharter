@@ -4,7 +4,7 @@ import {
   type RoutingControllerDeps,
   createRoutingController,
 } from "../main/controllers/routing.ts";
-import type { Bounds, CodecharterCodemap, MapAnnotationPlace } from "../main/render/types.ts";
+import type { Bounds, CodecharterMap, MapAnnotationPlace } from "../main/render/types.ts";
 
 type WindowStub = {
   location: { hash: string };
@@ -154,7 +154,7 @@ test("syncHashRoute is suppressed while a route is being applied", async () => {
       geometry: { bounds: { x: 0, y: 0, width: 1, height: 1 } },
     };
     const { deps } = stubDeps({
-      getMap: () => ({ files: {}, folders: {} }) as CodecharterCodemap,
+      getMap: () => ({ files: {}, folders: {} }) as CodecharterMap,
       getNamedPlacesById: () => new Map<string, MapAnnotationPlace>([["x", annotation]]),
     });
     const controller = createRoutingController(deps);
@@ -197,7 +197,7 @@ test("applyHashRoute focuses a cached annotation route through the editing contr
       geometry: { bounds },
     };
     const { deps, recorder } = stubDeps({
-      getMap: () => ({ files: {}, folders: {} }) as CodecharterCodemap,
+      getMap: () => ({ files: {}, folders: {} }) as CodecharterMap,
       getNamedPlacesById: () => new Map<string, MapAnnotationPlace>([["cached", annotation]]),
     });
     const controller = createRoutingController(deps);

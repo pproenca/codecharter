@@ -26,12 +26,12 @@ activity ingestion, setup helpers, the CLI, and the localhost HTTP API.
   integration.
 - `core/src/main/init.ts`, `local-git-exclude.ts`: project provisioning,
   config, hook, skill, and git-exclude setup.
-- `core/bin/codemap.mts`: CLI wiring over the core public barrel.
+- `core/bin/codecharter.mts`: CLI wiring over the core public barrel.
 
 ## Core Language
 
-**Generated Codemap**:
-The versioned JSON object produced by `generateCodemap`. It includes projection
+**Generated Map**:
+The versioned JSON object produced by `generateMap`. It includes projection
 metadata, map levels, code-plane descriptor, folders, and files.
 _Avoid_: arbitrary JSON dump
 
@@ -51,7 +51,7 @@ The numeric weight used by layout to size map areas. Current generation uses
 source-size-derived weight with a structural floor.
 _Avoid_: visual importance
 
-**Previous Codemap Layout**:
+**Previous Map Layout**:
 The subset of a prior Map Sidecar used by `stabilizeTreeLayout` to preserve
 existing folder and file bounds.
 _Avoid_: cache
@@ -84,7 +84,7 @@ _Avoid_: filesystem watcher guarantee
 
 **Hardened Localhost Server**:
 The HTTP server that serves the viewer and API while enforcing localhost host
-allowlisting, body limits, codemap validation, and path containment.
+allowlisting, body limits, map validation, and path containment.
 _Avoid_: production multi-user server
 
 **CodeCharter Init**:

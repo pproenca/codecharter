@@ -204,7 +204,7 @@ export function geohashForBoundsCenter(
 }
 
 /**
- * Self-describing projection metadata embedded in the codemap so external
+ * Self-describing projection metadata embedded in the map so external
  * consumers can reproduce addresses without importing this module. The
  * `transform` strings document the exact formulas used above.
  */

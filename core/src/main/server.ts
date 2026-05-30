@@ -1,10 +1,10 @@
 /**
- * Local HTTP server lifecycle over a generated codemap: it resolves the
+ * Local HTTP server lifecycle over a generated map: it resolves the
  * configured paths, owns port search and shutdown, and wires the hardened
  * request pipeline (Host allowlist → API dispatch → static serving).
  *
  * The JSON API is organized under `api/`: `router` (route table + dispatch),
- * `handlers/*` (map, named-places, activity), `codemap-cache`, `hardening`,
+ * `handlers/*` (map, named-places, activity), `map-cache`, `hardening`,
  * `http`, `parse`, and the shared `context` types. Hardening controls (each
  * marked `// HARDENING`, e.g. the Host allowlist here and CWE-22 static-path
  * containment in `serveStatic`) live next to the code they protect.

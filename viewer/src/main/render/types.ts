@@ -1,5 +1,5 @@
 /**
- * Shared geometry, codemap, activity, and source-panel types for the viewer's
+ * Shared geometry, map, activity, and source-panel types for the viewer's
  * render model.
  */
 
@@ -40,7 +40,7 @@ export type MapFolder = MapBaseTarget & {
 export type MapTarget = MapFile | MapFolder;
 export type MapTargetRecord<T extends MapTarget = MapTarget> = Record<string, T>;
 
-export type CodecharterCodemap = {
+export type CodecharterMap = {
   files?: MapTargetRecord<MapFile>;
   folders?: MapTargetRecord<MapFolder>;
   codePlane?: { bounds?: Bounds };
@@ -93,7 +93,7 @@ export type MapAnnotationPlace = {
 export type NamedPlace = MapAnnotationPlace;
 
 export type SearchContext = {
-  codemap: CodecharterCodemap;
+  map: CodecharterMap;
   namedPlaces: NamedPlace[];
   query: string;
 };

@@ -10,8 +10,8 @@ import assert from "node:assert/strict";
  * rules (shape, clamping, slice direction, deep-link scheme).
  */
 import test from "node:test";
-import { isCodecharterCodemap, normalizePathForMap, resolveAddress } from "../main/resolver.ts";
-import type { CodecharterCodemap, MapFileTarget, MapFolderTarget } from "../main/resolver.ts";
+import { isCodecharterMap, normalizePathForMap, resolveAddress } from "../main/resolver.ts";
+import type { CodecharterMap, MapFileTarget, MapFolderTarget } from "../main/resolver.ts";
 
 const file: MapFileTarget = {
   path: "src/app.ts",
@@ -25,7 +25,7 @@ const folder: MapFolderTarget = {
   bounds: { x: 0, y: 0, width: 1, height: 1 },
   geo: { lat: 0, lon: 0, geohash: "s00000000000" },
 };
-const codemap: CodecharterCodemap = {
+const map: CodecharterMap = {
   files: { "src/app.ts": file },
   folders: { src: folder },
 };
@@ -60,7 +60,7 @@ test("BR-RESOLVER-001 leaves an already-normalized path unchanged", () => {
 // ---------------------------------------------------------------------------
 
 test("BR-RESOLVER-002 resolves a file path to a file address", () => {
-  const address = resolveAddress(codemap, { path: "src/app.ts" });
+  const address = resolveAddress(map, { path: "src/app.ts" });
   assert.equal(address.targetType, "file");
   assert.equal(address.level, "file");
   assert.equal(address.path, "src/app.ts");
@@ -70,7 +70,7 @@ test("BR-RESOLVER-002 resolves a file path to a file address", () => {
 });
 
 test("BR-RESOLVER-002 resolves a folder path to a folder address", () => {
-  const address = resolveAddress(codemap, { path: "src" });
+  const address = resolveAddress(map, { path: "src" });
   assert.equal(address.targetType, "folder");
   assert.equal(address.level, "folder");
   assert.equal(address.geohash, "s000"); // folder precision = 4
@@ -78,12 +78,12 @@ test("BR-RESOLVER-002 resolves a folder path to a folder address", () => {
 });
 
 test("BR-RESOLVER-002 normalizes the request path before lookup", () => {
-  const address = resolveAddress(codemap, { path: "./src/app.ts/" });
+  const address = resolveAddress(map, { path: "./src/app.ts/" });
   assert.equal(address.path, "src/app.ts");
 });
 
 test("BR-RESOLVER-002 throws when the path is not on the map", () => {
-  assert.throws(() => resolveAddress(codemap, { path: "does/not/exist.ts" }), {
+  assert.throws(() => resolveAddress(map, { path: "does/not/exist.ts" }), {
     message: "No map target found for path: does/not/exist.ts",
   });
 });
@@ -93,7 +93,7 @@ test("BR-RESOLVER-002 throws when the path is not on the map", () => {
 // ---------------------------------------------------------------------------
 
 test("BR-RESOLVER-003 a line range yields a lineRange target spanning the full file width", () => {
-  const address = resolveAddress(codemap, { path: "src/app.ts", lineStart: 10, lineEnd: 20 });
+  const address = resolveAddress(map, { path: "src/app.ts", lineStart: 10, lineEnd: 20 });
   assert.equal(address.targetType, "lineRange");
   assert.deepEqual(address.lineRange, { start: 10, end: 20 });
   // vertical slice: same x + width as the file box, reduced height
@@ -103,12 +103,12 @@ test("BR-RESOLVER-003 a line range yields a lineRange target spanning the full f
 });
 
 test("BR-RESOLVER-003 clamps lines to [1, lineCount]", () => {
-  const address = resolveAddress(codemap, { path: "src/app.ts", lineStart: 0, lineEnd: 500 });
+  const address = resolveAddress(map, { path: "src/app.ts", lineStart: 0, lineEnd: 500 });
   assert.deepEqual(address.lineRange, { start: 1, end: 100 });
 });
 
 test("BR-RESOLVER-003 a single line still produces a non-zero (min 1 line) height", () => {
-  const address = resolveAddress(codemap, { path: "src/app.ts", lineStart: 5, lineEnd: 5 });
+  const address = resolveAddress(map, { path: "src/app.ts", lineStart: 5, lineEnd: 5 });
   assert.deepEqual(address.lineRange, { start: 5, end: 5 });
   assert.ok(address.bounds.height > 0);
 });
@@ -118,7 +118,7 @@ test("BR-RESOLVER-003 a single line still produces a non-zero (min 1 line) heigh
 // ---------------------------------------------------------------------------
 
 test("BR-RESOLVER-004 a column range yields a tokenRange target narrower than the file", () => {
-  const address = resolveAddress(codemap, {
+  const address = resolveAddress(map, {
     path: "src/app.ts",
     lineStart: 10,
     lineEnd: 10,
@@ -132,7 +132,7 @@ test("BR-RESOLVER-004 a column range yields a tokenRange target narrower than th
 });
 
 test("BR-RESOLVER-004 clamps columns to [1, maxLineLength]", () => {
-  const address = resolveAddress(codemap, {
+  const address = resolveAddress(map, {
     path: "src/app.ts",
     lineStart: 1,
     lineEnd: 1,
@@ -147,7 +147,7 @@ test("BR-RESOLVER-004 clamps columns to [1, maxLineLength]", () => {
 // ---------------------------------------------------------------------------
 
 test("BR-RESOLVER-005 fragments produce a sorted, de-duplicated covering set", () => {
-  const address = resolveAddress(codemap, {
+  const address = resolveAddress(map, {
     path: "src/app.ts",
     lineStart: 1,
     lineEnd: 60,
@@ -165,18 +165,18 @@ test("BR-RESOLVER-005 fragments produce a sorted, de-duplicated covering set", (
 });
 
 // ---------------------------------------------------------------------------
-// BR-RESOLVER-007 — codemap structural guard
+// BR-RESOLVER-007 — map structural guard
 // ---------------------------------------------------------------------------
 
-test("BR-RESOLVER-007 accepts a well-formed codemap", () => {
-  assert.equal(isCodecharterCodemap({ files: {}, folders: {} }), true);
+test("BR-RESOLVER-007 accepts a well-formed map", () => {
+  assert.equal(isCodecharterMap({ files: {}, folders: {} }), true);
 });
 
 test("BR-RESOLVER-007 rejects non-objects, arrays, null, and missing sections", () => {
-  assert.equal(isCodecharterCodemap(null), false);
-  assert.equal(isCodecharterCodemap([]), false);
-  assert.equal(isCodecharterCodemap("nope"), false);
-  assert.equal(isCodecharterCodemap({ files: {} }), false);
-  assert.equal(isCodecharterCodemap({ folders: {} }), false);
-  assert.equal(isCodecharterCodemap({ files: [], folders: {} }), false);
+  assert.equal(isCodecharterMap(null), false);
+  assert.equal(isCodecharterMap([]), false);
+  assert.equal(isCodecharterMap("nope"), false);
+  assert.equal(isCodecharterMap({ files: {} }), false);
+  assert.equal(isCodecharterMap({ folders: {} }), false);
+  assert.equal(isCodecharterMap({ files: [], folders: {} }), false);
 });

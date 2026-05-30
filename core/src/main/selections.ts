@@ -10,7 +10,7 @@
 
 import { randomUUID } from "node:crypto";
 import { objectRecord, objectValues, sortIfNeeded, sortedUniqueStrings } from "./collections.ts";
-import { createAnnotationHashRoute, createCodemapDeepLink } from "./deep-links.ts";
+import { createAnnotationHashRoute, createMapDeepLink } from "./deep-links.ts";
 import { codePointToGeo, encodeGeohash } from "./geohash.ts";
 import { clampBounds, intersects, normalizeRect } from "./geometry.ts";
 import type { Bounds, Point } from "./geometry.ts";
@@ -21,7 +21,7 @@ import type { NormalizedRange } from "./line-coordinate.ts";
 import { resolveAddress } from "./resolver.ts";
 import type {
   AddressTargetType,
-  CodecharterCodemap,
+  CodecharterMap,
   MapFileTarget,
   MapFolderTarget,
   ResolvedAddress,
@@ -54,7 +54,7 @@ export type ResolvedSelectionTarget = {
 };
 
 type SelectionResolver = (
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   geometry: SelectionGeometry,
   level: MapLevel,
 ) => ResolvedSelectionTarget[];
@@ -118,31 +118,25 @@ const CORNER_NAMES: readonly CornerName[] = ["northWest", "northEast", "southWes
 const SELECTION_RESOLVERS: Map<MapLevel, SelectionResolver> = new Map([
   [
     "world",
-    (codemap, geometry, level) =>
-      resolveFolderTargets(codemap, geometry, level, { includeRoot: true, rootOnly: true }),
+    (map, geometry, level) =>
+      resolveFolderTargets(map, geometry, level, { includeRoot: true, rootOnly: true }),
   ],
   ["region", resolveFolderTargets],
   ["folder", resolveFolderTargets],
   ["file", resolveFileTargets],
-  ["code", (codemap, geometry, level) => resolveCodeTargets(codemap, geometry, level, "lineRange")],
-  [
-    "lineRange",
-    (codemap, geometry, level) => resolveCodeTargets(codemap, geometry, level, "lineRange"),
-  ],
-  [
-    "tokenRange",
-    (codemap, geometry, level) => resolveCodeTargets(codemap, geometry, level, "tokenRange"),
-  ],
+  ["code", (map, geometry, level) => resolveCodeTargets(map, geometry, level, "lineRange")],
+  ["lineRange", (map, geometry, level) => resolveCodeTargets(map, geometry, level, "lineRange")],
+  ["tokenRange", (map, geometry, level) => resolveCodeTargets(map, geometry, level, "tokenRange")],
 ]);
 
 /** Resolve a selection's geometry to its covered targets + spatial frame (deterministic). */
 export function resolveSelection(
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   selection: SelectionInput,
 ): ResolvedSelection {
   const level = selection.level ?? "file";
   const geometry = normalizeSelectionGeometry(selection.geometry);
-  const targets = selectionResolverForLevel(level)(codemap, geometry, level);
+  const targets = selectionResolverForLevel(level)(map, geometry, level);
 
   return {
     geometry,
@@ -152,11 +146,8 @@ export function resolveSelection(
   };
 }
 
-export function createNamedSelection(
-  codemap: CodecharterCodemap,
-  input: SelectionInput,
-): NamedSelection {
-  const resolved = resolveSelection(codemap, input);
+export function createNamedSelection(map: CodecharterMap, input: SelectionInput): NamedSelection {
+  const resolved = resolveSelection(map, input);
   const now = new Date().toISOString();
   return {
     id: input.id ?? randomUUID(),
@@ -169,11 +160,8 @@ export function createNamedSelection(
   };
 }
 
-export function createMapAnnotation(
-  codemap: CodecharterCodemap,
-  input: SelectionInput,
-): MapAnnotation {
-  const resolved = resolveSelection(codemap, input);
+export function createMapAnnotation(map: CodecharterMap, input: SelectionInput): MapAnnotation {
+  const resolved = resolveSelection(map, input);
   const now = new Date().toISOString();
   return withAnnotationPrompt({
     id: input.id ?? randomUUID(),
@@ -203,20 +191,14 @@ export function createNamedAddress(input: {
   };
 }
 
-export function refreshPlaceResolution(
-  codemap: CodecharterCodemap,
-  place: MapAnnotation,
-): MapAnnotation;
-export function refreshPlaceResolution(
-  codemap: CodecharterCodemap,
-  place: NamedSelection,
-): NamedSelection;
+export function refreshPlaceResolution(map: CodecharterMap, place: MapAnnotation): MapAnnotation;
+export function refreshPlaceResolution(map: CodecharterMap, place: NamedSelection): NamedSelection;
 export function refreshPlaceResolution<T>(
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   place: T,
 ): T | NamedSelection | MapAnnotation;
 export function refreshPlaceResolution<T>(
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   place: T,
 ): T | NamedSelection | MapAnnotation {
   if (!isResolvablePlace(place)) {
@@ -224,7 +206,7 @@ export function refreshPlaceResolution<T>(
   }
   const refreshed = {
     ...place,
-    ...resolveSelection(codemap, {
+    ...resolveSelection(map, {
       level: place.level,
       geometry: place.geometry,
     }),
@@ -270,13 +252,13 @@ function resolvedTarget(
 }
 
 function resolvedCodeTarget(
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   file: MapFileTarget,
   selectionBounds: Bounds,
   level: MapLevel,
   targetMode: "lineRange" | "tokenRange",
 ): ResolvedSelectionTarget {
-  const address = resolveAddress(codemap, {
+  const address = resolveAddress(map, {
     path: file.path,
     ...codeRangeRequestForSelection(file, selectionBounds, targetMode),
   });
@@ -301,12 +283,12 @@ function selectionResolverForLevel(level: MapLevel): SelectionResolver {
 }
 
 function resolveFolderTargets(
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   geometry: SelectionGeometry,
   level: MapLevel,
   { includeRoot = false, rootOnly = false }: { includeRoot?: boolean; rootOnly?: boolean } = {},
 ): ResolvedSelectionTarget[] {
-  return intersectingTargets(codemap.folders, geometry.bounds, (folder) => {
+  return intersectingTargets(map.folders, geometry.bounds, (folder) => {
     if (!includeRoot && folder.path === "") {
       return null;
     }
@@ -318,23 +300,23 @@ function resolveFolderTargets(
 }
 
 function resolveFileTargets(
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   geometry: SelectionGeometry,
   level: MapLevel,
 ): ResolvedSelectionTarget[] {
-  return intersectingTargets(codemap.files, geometry.bounds, (file) =>
+  return intersectingTargets(map.files, geometry.bounds, (file) =>
     resolvedTarget(file, "file", level),
   );
 }
 
 function resolveCodeTargets(
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   geometry: SelectionGeometry,
   level: MapLevel,
   targetMode: "lineRange" | "tokenRange",
 ): ResolvedSelectionTarget[] {
-  return intersectingTargets(codemap.files, geometry.bounds, (file) =>
-    resolvedCodeTarget(codemap, file, geometry.bounds, level, targetMode),
+  return intersectingTargets(map.files, geometry.bounds, (file) =>
+    resolvedCodeTarget(map, file, geometry.bounds, level, targetMode),
   );
 }
 
@@ -402,7 +384,7 @@ function withAnnotationPrompt(
 ): MapAnnotation {
   const linked = {
     ...annotation,
-    deepLink: createCodemapDeepLink("annotation", annotation.id),
+    deepLink: createMapDeepLink("annotation", annotation.id),
     browserHash: createAnnotationHashRoute(annotation.id),
   };
   return {

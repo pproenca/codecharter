@@ -75,7 +75,7 @@ export type InitializeCodecharterOptions = {
   installCodex?: boolean;
   installGitHooks?: boolean;
   fresh?: boolean;
-  writeCodemap?: (options: { root: string; out: string; fresh: boolean }) => Promise<unknown>;
+  writeMap?: (options: { root: string; out: string; fresh: boolean }) => Promise<unknown>;
 };
 
 class CodexHooksMerger {
@@ -205,15 +205,13 @@ export async function initializeCodecharter({
   installCodex = true,
   installGitHooks = true,
   fresh = false,
-  writeCodemap,
+  writeMap,
 }: InitializeCodecharterOptions) {
   const resolvedMapPath = mapPath ?? join(root, DEFAULT_MAP_PATH);
   await mkdir(join(root, CODECHARTER_DIR), { recursive: true });
   await ensureCodecharterConfig(root, resolvedMapPath);
 
-  const codemap = writeCodemap
-    ? await writeCodemap({ root, out: resolvedMapPath, fresh })
-    : undefined;
+  const map = writeMap ? await writeMap({ root, out: resolvedMapPath, fresh }) : undefined;
   await ensurePackageDevDependency(root);
   if (installCodex) {
     await ensureCodecharterSkill(root);
@@ -229,7 +227,7 @@ export async function initializeCodecharter({
     codexAdapterInstalled: installCodex,
     codexSkillPath: installCodex ? join(root, CODECHARTER_SKILL_DIR, "SKILL.md") : undefined,
     gitHooksInstalled: installGitHooks,
-    codemap,
+    map,
   };
 }
 
@@ -422,7 +420,7 @@ const gitRoot = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "
 const root = gitRoot.status === 0 ? gitRoot.stdout.trim() : process.cwd();
 const localBin = join(root, "node_modules", ".bin", process.platform === "win32" ? "codecharter.cmd" : "codecharter");
 const localTsx = join(root, "node_modules", ".bin", process.platform === "win32" ? "tsx.cmd" : "tsx");
-const localCli = join(root, "core", "bin", "codemap.mts");
+const localCli = join(root, "core", "bin", "codecharter.mts");
 const localSourceCli = existsSync(localTsx) && existsSync(localCli)
   ? [{ command: localTsx, args: [localCli, "codex-hook"] }]
   : [];
@@ -447,7 +445,7 @@ process.exit(0);
 function codecharterSkillMarkdown(version = "latest"): string {
   const npxCommand = `npx --yes codecharter@${version}`;
   const localBinCommand = "./node_modules/.bin/codecharter";
-  const localSourceCommand = "./node_modules/.bin/tsx core/bin/codemap.mts";
+  const localSourceCommand = "./node_modules/.bin/tsx core/bin/codecharter.mts";
   return `---
 name: codecharter
 description: Use when a prompt asks Codex to inspect a CodeCharter map annotation, includes a codecharter:// deep link, includes a CodeCharter resolve command, or asks for code context from a CodeCharter selection.
@@ -501,7 +499,7 @@ CodeCharter prompts may include:
 \`\`\`sh
 codecharter --json resolve "codecharter://annotation/<id>"
 ./node_modules/.bin/codecharter --json resolve "codecharter://annotation/<id>"
-./node_modules/.bin/tsx core/bin/codemap.mts --json resolve "codecharter://annotation/<id>"
+./node_modules/.bin/tsx core/bin/codecharter.mts --json resolve "codecharter://annotation/<id>"
 npx --yes codecharter@${version} --json resolve "codecharter://annotation/<id>"
 \`\`\`
 `;

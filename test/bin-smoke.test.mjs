@@ -16,7 +16,7 @@ function parsePackOutput(stdout) {
   return JSON.parse(stdout.slice(jsonStart));
 }
 
-test("published codemap bin is packed and runnable", { timeout: 120_000 }, async () => {
+test("published codecharter bin is packed and runnable", { timeout: 120_000 }, async () => {
   const tempDir = await mkdtemp(join(tmpdir(), "codecharter-bin-"));
 
   try {
@@ -24,8 +24,7 @@ test("published codemap bin is packed and runnable", { timeout: 120_000 }, async
     const manifest = JSON.parse(
       await readFile(new URL("../package.json", import.meta.url), "utf8"),
     );
-    assert.equal(manifest.bin?.codemap, "dist/bin/codemap.mjs");
-    assert.equal(manifest.bin?.codecharter, "dist/bin/codemap.mjs");
+    assert.equal(manifest.bin?.codecharter, "dist/bin/codecharter.mjs");
 
     const { stdout: packStdout } = await execFileAsync(
       pnpm,
@@ -39,7 +38,7 @@ test("published codemap bin is packed and runnable", { timeout: 120_000 }, async
     const pack = parsePackOutput(packStdout);
     assert.ok(pack, "pnpm pack should report a packed package");
     assert.ok(
-      pack.files.some((file) => file.path === "dist/bin/codemap.mjs"),
+      pack.files.some((file) => file.path === "dist/bin/codecharter.mjs"),
       "dist CLI bin should be packed",
     );
 
@@ -51,7 +50,7 @@ test("published codemap bin is packed and runnable", { timeout: 120_000 }, async
       maxBuffer: 1024 * 1024 * 10,
     });
 
-    for (const command of ["codemap", "codecharter"]) {
+    for (const command of ["codecharter"]) {
       const bin = join(
         consumerDir,
         "node_modules",

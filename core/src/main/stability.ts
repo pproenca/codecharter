@@ -35,7 +35,7 @@ type PreviousFileTarget = {
   geo?: GeohashedCoordinate;
 };
 
-export type PreviousCodemapLayout = {
+export type PreviousMapLayout = {
   folders?: Record<string, PreviousFolderTarget>;
   files?: Record<string, PreviousFileTarget>;
 };
@@ -47,7 +47,7 @@ type StableMapNode = MapNode & LayoutTarget;
 /** Reconcile a freshly-built tree against a previous layout to keep addresses stable. */
 export function stabilizeTreeLayout(
   root: StableFolderNode,
-  previous: PreviousCodemapLayout | null | undefined,
+  previous: PreviousMapLayout | null | undefined,
 ): StableFolderNode {
   if (!previous) {
     return root;
@@ -58,7 +58,7 @@ export function stabilizeTreeLayout(
 
 function stabilizeFolder(
   folder: StableFolderNode,
-  previous: PreviousCodemapLayout,
+  previous: PreviousMapLayout,
   fallbackBounds: Bounds | undefined,
 ): void {
   const previousFolder = previous.folders?.[folder.path];

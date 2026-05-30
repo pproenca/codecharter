@@ -26,7 +26,7 @@ import type {
   ActivityFogState,
   Bounds,
   BoxSize,
-  CodecharterCodemap,
+  CodecharterMap,
   FogState,
   MapFile,
   MapFolder,
@@ -54,12 +54,12 @@ export type FogTrailStyle = { alpha: number; lineWidth: number };
 export type DiscoveryFogVeilStyle = ReturnType<typeof discoveryFogVeilStyle>;
 
 export function buildActivityFogState(
-  codemap: CodecharterCodemap | null | undefined,
+  map: CodecharterMap | null | undefined,
   events: ActivityEvent[] | null | undefined,
   options: ActivityFogOptions = {},
 ): ActivityFogState {
-  const files = codemap?.files ?? {};
-  const folders = codemap?.folders ?? {};
+  const files = map?.files ?? {};
+  const folders = map?.folders ?? {};
   const fileStates = new Map<string, FogState>();
   const folderStates = new Map<string, FogState>();
   const visitedFiles = new Set<string>();
@@ -593,7 +593,7 @@ function expandedFogBox(box: Bounds, padding: number): Bounds {
 export type FogDrawerDeps = {
   getActivityFog: () => ActivityFogState | null;
   getActivity: () => ActivityEvent[];
-  getMap: () => CodecharterCodemap | null;
+  getMap: () => CodecharterMap | null;
   getViewScale: () => number;
   ctx: CanvasRenderingContext2D;
   canvas: HTMLCanvasElement;

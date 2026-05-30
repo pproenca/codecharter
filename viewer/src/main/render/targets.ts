@@ -17,7 +17,7 @@ import type {
   ActivityAddress,
   ActivityEvent,
   ActivityStateInput,
-  CodecharterCodemap,
+  CodecharterMap,
   GeoAddress,
   MapActionOf,
   MapFile,
@@ -61,12 +61,12 @@ type HashRouteFocusIntent =
   | { type: "selection"; params: URLSearchParams }
   | { type: "map"; route: MapHashRoute };
 
-export function mapRouteTarget(codemap: CodecharterCodemap, route: MapHashRoute): TargetHit | null {
+export function mapRouteTarget(map: CodecharterMap, route: MapHashRoute): TargetHit | null {
   const path = route.params.get("path");
   if (path) {
-    return mapTargetForPath(codemap, path);
+    return mapTargetForPath(map, path);
   }
-  return mapTargetForGeohash(codemap, route.locator, route.kind);
+  return mapTargetForGeohash(map, route.locator, route.kind);
 }
 
 export function hashRouteFocusIntent(
@@ -98,7 +98,7 @@ export function mapRouteFocusAction(
 }
 
 export function mapSearchMatch(
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   namedPlaces: NamedPlace[],
   query: string,
 ): SearchMatch | null {
@@ -110,7 +110,7 @@ export function mapSearchMatch(
   }
 
   for (const matcher of MAP_SEARCH_MATCHERS) {
-    const match = matcher({ codemap, namedPlaces, query: normalized });
+    const match = matcher({ map, namedPlaces, query: normalized });
     if (match) {
       return match;
     }
@@ -154,32 +154,30 @@ export function mapSelectionPanel(target: TargetHit | null | undefined) {
 }
 
 export function reconciledSelectedTarget(
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   target: TargetHit | null | undefined,
 ): TargetHit | null;
 export function reconciledSelectedTarget<T extends ActionHit>(
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   target: T | null | undefined,
 ): T | TargetHit | null;
 export function reconciledSelectedTarget(
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   target: NamedPlace | ActivityEvent | null | undefined,
 ): NamedPlace | ActivityEvent | null;
 export function reconciledSelectedTarget(
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   target: TargetHit | NamedPlace | ActivityEvent | null | undefined,
 ) {
   if (!target) {
     return null;
   }
   if (target.targetType === "file") {
-    return codemap.files?.[target.path]
-      ? { ...codemap.files[target.path], targetType: "file" }
-      : null;
+    return map.files?.[target.path] ? { ...map.files[target.path], targetType: "file" } : null;
   }
   if (target.targetType === "folder") {
-    return codemap.folders?.[target.path]
-      ? { ...codemap.folders[target.path], targetType: "folder" }
+    return map.folders?.[target.path]
+      ? { ...map.folders[target.path], targetType: "folder" }
       : null;
   }
   return target;
@@ -219,12 +217,12 @@ export function folderDisplayName(folder: Pick<MapFolder, "path">): string {
 }
 
 export function hitTestTargets(
-  codemap: CodecharterCodemap | null | undefined,
+  map: CodecharterMap | null | undefined,
   point: Point,
 ): TargetHit | null {
   return hitTestTargetLists(
-    objectValues(codemap?.files ?? {}),
-    objectValues(codemap?.folders ?? {}),
+    objectValues(map?.files ?? {}),
+    objectValues(map?.folders ?? {}),
     point,
   );
 }
@@ -305,13 +303,13 @@ function namedPlaceSearchMatch({ namedPlaces, query }: SearchContext): SearchMat
   };
 }
 
-function fileSearchMatch({ codemap, query }: SearchContext): SearchMatch | null {
-  const file = firstSearchTarget(codemap.files ?? {}, query);
+function fileSearchMatch({ map, query }: SearchContext): SearchMatch | null {
+  const file = firstSearchTarget(map.files ?? {}, query);
   return file ? { type: "file", label: `File: ${file.path}`, file } : null;
 }
 
-function folderSearchMatch({ codemap, query }: SearchContext): SearchMatch | null {
-  const folder = firstSearchTarget(codemap.folders ?? {}, query);
+function folderSearchMatch({ map, query }: SearchContext): SearchMatch | null {
+  const folder = firstSearchTarget(map.folders ?? {}, query);
   return folder ? { type: "folder", label: `Folder: ${folder.path || "."}`, folder } : null;
 }
 
@@ -336,13 +334,13 @@ function firstSearchTarget<T extends MapTarget>(
   return null;
 }
 
-function mapTargetForPath(codemap: CodecharterCodemap, path: string): TargetHit | null {
+function mapTargetForPath(map: CodecharterMap, path: string): TargetHit | null {
   const normalized = normalizeMapPath(path);
-  const file = codemap.files?.[normalized];
+  const file = map.files?.[normalized];
   if (file) {
     return { ...file, targetType: "file" };
   }
-  const folder = codemap.folders?.[normalized];
+  const folder = map.folders?.[normalized];
   if (folder) {
     return { ...folder, targetType: "folder" };
   }
@@ -350,7 +348,7 @@ function mapTargetForPath(codemap: CodecharterCodemap, path: string): TargetHit 
 }
 
 function mapTargetForGeohash(
-  codemap: CodecharterCodemap,
+  map: CodecharterMap,
   geohash: string | undefined,
   kind: MapHashRoute["kind"] | undefined,
 ): TargetHit | null {
@@ -359,13 +357,13 @@ function mapTargetForGeohash(
   }
   if (kind === "folder") {
     const folder = firstGeohashTarget(
-      objectValues(codemap.folders ?? {}),
+      objectValues(map.folders ?? {}),
       geohash,
       (target) => target.path !== "",
     );
     return folder ? { ...folder, targetType: "folder" } : null;
   }
-  const file = firstGeohashTarget(objectValues(codemap.files ?? {}), geohash);
+  const file = firstGeohashTarget(objectValues(map.files ?? {}), geohash);
   return file ? { ...file, targetType: "file" } : null;
 }
 

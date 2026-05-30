@@ -7,7 +7,7 @@
  */
 
 import { objectRecord, sortedUniqueStrings } from "./collections.ts";
-import { createCodemapDeepLink } from "./deep-links.ts";
+import { createMapDeepLink } from "./deep-links.ts";
 import type { GeohashedCoordinate } from "./geo-types.ts";
 import { geohashForBoundsCenter } from "./geohash.ts";
 import type { Bounds } from "./geometry.ts";
@@ -31,7 +31,7 @@ export type MapFileTarget = MapFolderTarget & {
   maxLineLength?: number;
 };
 
-export type CodecharterCodemap = {
+export type CodecharterMap = {
   folders: Record<string, MapFolderTarget>;
   files: Record<string, MapFileTarget>;
 };
@@ -73,16 +73,13 @@ type FragmentCoverage = {
 };
 
 /** Resolve a path (+ optional code range) to its address. @throws if the path is not on the map. */
-export function resolveAddress(
-  codemap: CodecharterCodemap,
-  request: AddressRequest,
-): ResolvedAddress {
+export function resolveAddress(map: CodecharterMap, request: AddressRequest): ResolvedAddress {
   const path = normalizePathForMap(request.path);
   // HARDENING (CWE-1321): require own properties so an untrusted key like
   // "__proto__" or "constructor" resolves to "not found" rather than the object
   // prototype (which would later throw an opaque 500).
-  const file = Object.hasOwn(codemap.files, path) ? codemap.files[path] : undefined;
-  const folder = Object.hasOwn(codemap.folders, path) ? codemap.folders[path] : undefined;
+  const file = Object.hasOwn(map.files, path) ? map.files[path] : undefined;
+  const folder = Object.hasOwn(map.folders, path) ? map.folders[path] : undefined;
 
   if (file) {
     return resolveFileAddress(file, request);
@@ -94,10 +91,10 @@ export function resolveAddress(
 }
 
 /**
- * Structural guard for a codemap (**BR-037**) — a non-array object with object
+ * Structural guard for a map (**BR-037**) — a non-array object with object
  * `files` and `folders`. Used to reject a corrupt/untrusted map before serving.
  */
-export function isCodecharterCodemap(value: unknown): value is CodecharterCodemap {
+export function isCodecharterMap(value: unknown): value is CodecharterMap {
   const record = objectRecord(value);
   if (!record) {
     return false;
@@ -105,7 +102,7 @@ export function isCodecharterCodemap(value: unknown): value is CodecharterCodema
   return objectRecord(record.files) !== null && objectRecord(record.folders) !== null;
 }
 
-/** Normalize a path to its codemap key form (slashes, `./` prefix, trailing slash, `.` → ""). */
+/** Normalize a path to its map key form (slashes, `./` prefix, trailing slash, `.` → ""). */
 export function normalizePathForMap(path: string): string {
   const normalized = path.replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+$/, "");
   return normalized === "." ? "" : normalized;
@@ -220,5 +217,5 @@ function deepLink(
   geohash: string,
   metadata: Record<string, string | undefined>,
 ): string {
-  return createCodemapDeepLink(level, geohash, metadata);
+  return createMapDeepLink(level, geohash, metadata);
 }

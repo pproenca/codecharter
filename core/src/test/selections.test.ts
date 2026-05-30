@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { CodecharterCodemap } from "../main/resolver.ts";
+import type { CodecharterMap } from "../main/resolver.ts";
 import { createMapAnnotation } from "../main/selections.ts";
 
 test("map annotation codex prompt is compact and uses one resolve command", () => {
-  const annotation = createMapAnnotation(fixtureCodemap(), {
+  const annotation = createMapAnnotation(fixtureMap(), {
     id: "annotation-1",
     comment: "go explore here",
     level: "file",
@@ -24,7 +24,7 @@ test("map annotation codex prompt is compact and uses one resolve command", () =
 });
 
 test("map annotation codex prompt shell-quotes command substitutions", () => {
-  const annotation = createMapAnnotation(fixtureCodemap(), {
+  const annotation = createMapAnnotation(fixtureMap(), {
     id: "$(printf PWNED)",
     comment: "go explore here",
     level: "file",
@@ -37,7 +37,7 @@ test("map annotation codex prompt shell-quotes command substitutions", () => {
   );
 });
 
-function fixtureCodemap(): CodecharterCodemap {
+function fixtureMap(): CodecharterMap {
   return {
     folders: {},
     files: {

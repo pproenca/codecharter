@@ -16,7 +16,7 @@ test("generated CodeCharter skill resolves compact prompts through local CLIs be
 
   assert.match(skill, /codecharter --json resolve/);
   assert.match(skill, /\.\/node_modules\/\.bin\/codecharter/);
-  assert.match(skill, /\.\/node_modules\/\.bin\/tsx core\/bin\/codemap\.mts/);
+  assert.match(skill, /\.\/node_modules\/\.bin\/tsx core\/bin\/codecharter\.mts/);
   assert.match(
     skill,
     new RegExp(`npx --yes codecharter@${escapeRegExp(await rootPackageVersion())} --json resolve`),

@@ -18,7 +18,7 @@ you are changing.
 - Always read `CONTEXT.md` before using domain terms in issues, plans, reviews,
   or code comments.
 - Read `core/CONTEXT.md` before changing `core/src/main/**`,
-  `core/bin/codemap.mts`, or core tests.
+  `core/bin/codecharter.mts`, or core tests.
 - Read `viewer/CONTEXT.md` before changing `viewer/src/main/**`,
   `viewer/web/**`, or viewer build output.
 - Read `docs/PRINCIPLES.md` before any design, review, or refactor decision —

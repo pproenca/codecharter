@@ -49,17 +49,13 @@ export { MAP_LEVELS, FULL_GEOHASH_PRECISION, precisionForLevel } from "./levels.
 export type { MapLevel } from "./levels.ts";
 
 export {
-  createCodemapDeepLink,
-  parseCodemapDeepLink,
+  createMapDeepLink,
+  parseMapDeepLink,
   createBrowserHashRoute,
   createAnnotationHashRoute,
   createSelectionHashRoute,
 } from "./deep-links.ts";
-export type {
-  DeepLinkMetadata,
-  ParsedCodemapDeepLink,
-  SelectionHashRouteInput,
-} from "./deep-links.ts";
+export type { DeepLinkMetadata, ParsedMapDeepLink, SelectionHashRouteInput } from "./deep-links.ts";
 
 export { findNamedPlaceOverlaps } from "./overlaps.ts";
 export type { NamedPlaceOverlap } from "./overlaps.ts";
@@ -67,7 +63,7 @@ export type { NamedPlaceOverlap } from "./overlaps.ts";
 export { tilePrefixForTarget, buildTileIndex, getTile, visiblePrefixes } from "./tiles.ts";
 export type {
   Tile,
-  TileCodemap,
+  TileMap,
   TileMapTarget,
   TileSerializedTarget,
   TileTargetType,
@@ -83,9 +79,9 @@ export type {
   CodeRangeGeometry,
 } from "./line-coordinate.ts";
 
-export { resolveAddress, normalizePathForMap, isCodecharterCodemap } from "./resolver.ts";
+export { resolveAddress, normalizePathForMap, isCodecharterMap } from "./resolver.ts";
 export type {
-  CodecharterCodemap,
+  CodecharterMap,
   MapFolderTarget,
   MapFileTarget,
   AddressRequest,
@@ -141,7 +137,7 @@ export type { LayoutTarget, LayoutOptions, GrowthLayoutResult } from "./district
 
 export { layoutTree } from "./treemap.ts";
 export { stabilizeTreeLayout } from "./stability.ts";
-export type { PreviousCodemapLayout } from "./stability.ts";
+export type { PreviousMapLayout } from "./stability.ts";
 
 // --- I/O pipeline (scan + generate) ---------------------------------------
 export { CODE_EXTENSIONS, isCodeFile } from "./extensions.ts";
@@ -149,11 +145,11 @@ export { execFileText } from "./exec-file.ts";
 export type { ExecFileTextOptions } from "./exec-file.ts";
 export { listIncludedFiles, scanCodeFiles } from "./scan.ts";
 export type { ScanOptions } from "./scan.ts";
-export { generateCodemap } from "./generator.ts";
+export { generateMap } from "./generator.ts";
 export type {
-  GenerateCodemapOptions,
-  GeneratedCodemap,
-  CodemapProjection,
+  GenerateMapOptions,
+  GeneratedMap,
+  MapProjection,
   SerializedFolder,
   SerializedFile,
 } from "./generator.ts";

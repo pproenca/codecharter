@@ -1,5 +1,5 @@
 /**
- * Parsed-codemap cache + map version for the localhost API.
+ * Parsed-map cache + map version for the localhost API.
  *
  * HARDENING (BR-037): the map file may be untrusted, so every
  * read validates the schema and is keyed by an `mtimeNs:size` signature — a
@@ -7,16 +7,16 @@
  */
 
 import { readFile, stat } from "node:fs/promises";
-import { isCodecharterCodemap } from "../resolver.ts";
-import type { CodecharterCodemap } from "../resolver.ts";
+import { isCodecharterMap } from "../resolver.ts";
+import type { CodecharterMap } from "../resolver.ts";
 import type { ServerState } from "./context.ts";
 import { httpError } from "./http.ts";
 
-export async function loadCodemap(state: ServerState): Promise<CodecharterCodemap> {
+export async function loadMap(state: ServerState): Promise<CodecharterMap> {
   const stats = await stat(state.mapPath, { bigint: true });
   const signature = `${stats.mtimeNs}:${stats.size}`;
-  if (state.codemapCache?.signature === signature) {
-    return state.codemapCache.codemap;
+  if (state.mapCache?.signature === signature) {
+    return state.mapCache.map;
   }
 
   let parsed: unknown;
@@ -28,10 +28,10 @@ export async function loadCodemap(state: ServerState): Promise<CodecharterCodema
     }
     throw error;
   }
-  if (!isCodecharterCodemap(parsed)) {
+  if (!isCodecharterMap(parsed)) {
     throw httpError(500, "Map file is missing files/folders; run `codecharter generate`");
   }
-  state.codemapCache = { signature, codemap: parsed };
+  state.mapCache = { signature, map: parsed };
   return parsed;
 }
 

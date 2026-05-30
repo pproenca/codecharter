@@ -1,10 +1,9 @@
 {
   "name": "codecharter",
   "version": "0.2.1",
-  "description": "Deterministic geohash-addressed code map with an agent-activity overlay. A pnpm monorepo: @codecharter/core (codemap engine + hardened localhost server + CLI) and @codecharter/viewer (canvas SPA).",
+  "description": "Deterministic geohash-addressed code map with an agent-activity overlay. A pnpm monorepo: @codecharter/core (map engine + hardened localhost server + CLI) and @codecharter/viewer (canvas SPA).",
   "bin": {
-    "codecharter": "dist/bin/codemap.mjs",
-    "codemap": "dist/bin/codemap.mjs"
+    "codecharter": "dist/bin/codecharter.mjs"
   },
   "workspaces": [
     "core",
@@ -29,9 +28,9 @@
     "format:check": "oxfmt --check --threads=1",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "test": "node --test test/*.test.mjs && pnpm -r --if-present test",
-    "codecharter": "tsx core/bin/codemap.mts",
-    "generate": "tsx core/bin/codemap.mts generate",
-    "serve": "tsx core/bin/codemap.mts serve"
+    "codecharter": "tsx core/bin/codecharter.mts",
+    "generate": "tsx core/bin/codecharter.mts generate",
+    "serve": "tsx core/bin/codecharter.mts serve"
   },
   "devDependencies": {
     "@types/node": "25.9.1",

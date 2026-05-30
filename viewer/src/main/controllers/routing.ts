@@ -21,7 +21,7 @@ import {
 } from "../render/index.ts";
 import type {
   Bounds,
-  CodecharterCodemap,
+  CodecharterMap,
   MapActionOf,
   MapAnnotationPlace,
   MapFile,
@@ -59,7 +59,7 @@ function hasBounds<T extends { bounds?: Bounds }>(
 
 export type RoutingControllerDeps = {
   // State accessors (the shared semantic state stays in app.ts).
-  getMap: () => CodecharterCodemap | null;
+  getMap: () => CodecharterMap | null;
   getNamedPlacesById: () => Map<string, NamedPlace>;
   setDrawing: (value: boolean) => void;
   setSelectedTarget: (target: TargetHit | null) => void;

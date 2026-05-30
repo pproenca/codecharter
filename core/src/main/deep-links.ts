@@ -10,7 +10,7 @@ import type { MapLevel } from "./levels.ts";
 export type DeepLinkMetadata = Record<string, string | number | boolean | null | undefined>;
 export type DeepLinkKind = MapLevel | "annotation";
 
-export type ParsedCodemapDeepLink = {
+export type ParsedMapDeepLink = {
   kind: DeepLinkKind;
   locator: string;
   metadata: Record<string, string>;
@@ -22,7 +22,7 @@ export type SelectionHashRouteInput = {
 };
 
 /** Build a `codecharter://kind/locator?meta` deep link. @throws on empty kind/locator. */
-export function createCodemapDeepLink(
+export function createMapDeepLink(
   kind: DeepLinkKind,
   locator: string,
   metadata: DeepLinkMetadata = {},
@@ -38,7 +38,7 @@ export function createCodemapDeepLink(
 }
 
 /** Parse a `codecharter:`/`codemap:` deep link. @throws on an unsupported scheme. */
-export function parseCodemapDeepLink(value: string): ParsedCodemapDeepLink {
+export function parseMapDeepLink(value: string): ParsedMapDeepLink {
   const url = new URL(value);
   if (url.protocol !== "codecharter:" && url.protocol !== "codemap:") {
     throw new Error(`Unsupported deep link protocol: ${url.protocol}`);

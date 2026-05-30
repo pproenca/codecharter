@@ -2,7 +2,7 @@
   "name": "@codecharter/core",
   "version": "0.0.0",
   "private": true,
-  "description": "Core engine for codecharter — codemap generation, geohash addressing, resolver, tiles, selections, activity, and the hardened localhost HTTP server + CLI.",
+  "description": "Core engine for codecharter — map generation, geohash addressing, resolver, tiles, selections, activity, and the hardened localhost HTTP server + CLI.",
   "type": "module",
   "exports": {
     ".": "./src/main/index.ts",

@@ -11,7 +11,7 @@ Always reuse existing code before adding a new helper.
 - Lint/format: Oxlint and Oxfmt.
 - Typecheck: tsgo.
 - Tests: Node test runner for root smoke tests and workspace package tests.
-- CLI: `core/bin/codemap.mts`, exposed as `codecharter` and legacy `codemap`.
+- CLI: `core/bin/codecharter.mts`, exposed as `codecharter` and legacy `map`.
 
 ## Source Of Truth
 

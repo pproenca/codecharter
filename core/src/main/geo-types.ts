@@ -26,7 +26,7 @@ export type GeohashedCoordinate = GeoCoordinate & {
 
 /**
  * Self-describing metadata for the code-plane → lat/lon projection, embedded in
- * the generated codemap so consumers can reproduce addresses without this code.
+ * the generated map so consumers can reproduce addresses without this code.
  */
 export type CodePlaneDescriptor = {
   bounds: Bounds;

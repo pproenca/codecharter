@@ -1,0 +1,6 @@
+interface:
+  display_name: "CodeCharter"
+  short_description: "Resolve CodeCharter map targets via CLI"
+  default_prompt: "Use $codecharter to resolve mapped CodeCharter targets through the CLI."
+policy:
+  allow_implicit_invocation: true

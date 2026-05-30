@@ -47,8 +47,8 @@ errors, prints Core Web Vitals, and tears everything down. Exits non-zero on a
 console error.
 
 ```sh
-.claude/skills/run-browser/smoke.sh            # port 4173, output -> .scratch/run-browser/
-.claude/skills/run-browser/smoke.sh 4180 /tmp/shots
+.agents/skills/run-browser/smoke.sh            # port 4173, output -> .scratch/run-browser/
+.agents/skills/run-browser/smoke.sh 4180 /tmp/shots
 ```
 
 Verified output: `screenshot -> .scratch/run-browser/initial.png`,

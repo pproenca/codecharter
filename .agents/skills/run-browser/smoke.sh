@@ -3,7 +3,7 @@
 # console-error check, and Core Web Vitals. Exits non-zero if the page logs a
 # console error. This is the end-to-end harness the run-browser skill points at.
 #
-# Usage:  .claude/skills/run-browser/smoke.sh [PORT] [OUT_DIR]
+# Usage:  .agents/skills/run-browser/smoke.sh [PORT] [OUT_DIR]
 #   PORT     viewer port (default 4173)
 #   OUT_DIR  where screenshots land (default .scratch/run-browser)
 set -uo pipefail

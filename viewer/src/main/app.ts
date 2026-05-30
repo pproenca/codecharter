@@ -728,6 +728,7 @@ const draw = createDrawController({
   getOrganicRegionFolders: () => state.organicRegionFolders,
   getActivityFog: () => state.activityFog,
   getNamedPlaces: () => state.namedPlaces,
+  getOverlaps: () => state.overlaps,
   getSelectedTarget: () => state.selectedTarget,
   getSourceCache: () => state.sourceCache,
   getPendingSourceRequests: () => state.pendingSourceRequests,
@@ -941,7 +942,7 @@ function render() {
       draw.drawNamedPlaces();
     }
     if (layerEnabled("showNames")) {
-      drawOverlaps();
+      draw.drawOverlaps();
     }
     if (state.draftSelection) {
       drawSelection(state.draftSelection.bounds, "rgba(245, 158, 11, 0.18)", "#f59e0b", [6, 4]);
@@ -985,25 +986,6 @@ function activityDiscoveryEnabled() {
 
 // Discovery-fog drawing (veil/mask/reveal/mycelium orchestration) lives in
 // `render/fog.ts`; the render loop calls into `fogDrawer` (wired below).
-
-function drawOverlaps() {
-  for (const overlap of state.overlaps) {
-    const box = screenBounds(overlap.bounds);
-    if (!visible(box)) {
-      continue;
-    }
-    ctx.save();
-    ctx.fillStyle = "rgba(225, 29, 72, 0.18)";
-    ctx.strokeStyle = "#e11d48";
-    ctx.lineWidth = 2;
-    ctx.setLineDash([3, 3]);
-    drawRect(box);
-    ctx.restore();
-    if (box.width > 44 && box.height > 16) {
-      drawLabel("Overlap", box.x + 6, box.y + 16, "#9f1239");
-    }
-  }
-}
 
 // Activity drawing (membranes/cells/trails/tissue markers) + the activity feed
 // live in `render/activity.ts`; the render loop calls into `activityDrawer`

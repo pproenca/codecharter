@@ -62,6 +62,7 @@ function smokeDeps(ctx: CanvasRenderingContext2D): DrawControllerDeps {
     getOrganicRegionFolders: () => [],
     getActivityFog: () => null,
     getNamedPlaces: () => [],
+    getOverlaps: () => [],
     getSelectedTarget: () => null,
     getSourceCache: () => new Map(),
     getPendingSourceRequests: () => new Set(),
@@ -86,11 +87,48 @@ test("createDrawController exposes the wiring surface app.ts consumes", () => {
     "drawOrganicRegions",
     "drawFiles",
     "drawNamedPlaces",
+    "drawOverlaps",
   ] as const) {
     assert.equal(typeof draw[name], "function", `expected draw.${name} to be a function`);
   }
   // clearCaches must be callable without throwing (called from applyMap).
   assert.doesNotThrow(() => draw.clearCaches());
+});
+
+test("drawOverlaps strokes + labels a visible overlap, balancing save/restore", () => {
+  const calls: string[] = [];
+  const rects: Bounds[] = [];
+  const labels: string[] = [];
+  const draw = createDrawController({
+    ...smokeDeps(recordingContext(calls)),
+    // World coords are unit-space (0..1); ×viewport => screen box {200,150,200,150}.
+    getOverlaps: () => [{ bounds: { x: 0.25, y: 0.25, width: 0.25, height: 0.25 } }],
+    drawRect: (box: Bounds) => rects.push(box),
+    drawLabel: (text: string) => labels.push(text),
+  });
+  draw.drawOverlaps();
+  assert.equal(rects.length, 1, "expected one overlap rect drawn");
+  assert.deepEqual(labels, ["Overlap"], "expected the Overlap label on a large box");
+  assert.equal(calls.filter((c) => c === "save").length, 1);
+  assert.equal(calls.filter((c) => c === "restore").length, 1);
+});
+
+test("drawOverlaps skips offscreen overlaps and draws nothing for none", () => {
+  const rects: Bounds[] = [];
+  const offscreen = createDrawController({
+    ...smokeDeps(recordingContext([])),
+    getOverlaps: () => [{ bounds: { x: -10000, y: -10000, width: 5, height: 5 } }],
+    drawRect: (box: Bounds) => rects.push(box),
+  });
+  offscreen.drawOverlaps();
+  assert.equal(rects.length, 0, "offscreen overlap must be culled");
+
+  const empty = createDrawController({
+    ...smokeDeps(recordingContext([])),
+    drawRect: (box: Bounds) => rects.push(box),
+  });
+  empty.drawOverlaps();
+  assert.equal(rects.length, 0, "no overlaps => no draw");
 });
 
 test("drawCompassRose and drawGrid balance save/restore on the context", () => {

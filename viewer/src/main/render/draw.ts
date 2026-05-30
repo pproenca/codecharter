@@ -86,6 +86,8 @@ export type DrawControllerDeps = {
   getOrganicRegionFolders: () => Array<{ folder: MapFolder; depth: number }>;
   getActivityFog: () => ActivityFogState | null;
   getNamedPlaces: () => NamedPlace[];
+  /** Reads state.overlaps — projection-overlap rectangles drawn as a warning layer. */
+  getOverlaps: () => Array<{ bounds: Bounds }>;
   /** Opaque — only targetType / path / id fields are read. */
   getSelectedTarget: () => { targetType: string; path?: string; id?: string } | null;
   getSourceCache: () => SourceCache;
@@ -605,6 +607,25 @@ export function createDrawController(deps: DrawControllerDeps) {
     ctx.restore();
   }
 
+  function drawOverlaps(): void {
+    for (const overlap of deps.getOverlaps()) {
+      const box = screenBounds(overlap.bounds);
+      if (!visible(box)) {
+        continue;
+      }
+      ctx.save();
+      ctx.fillStyle = "rgba(225, 29, 72, 0.18)";
+      ctx.strokeStyle = "#e11d48";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 3]);
+      deps.drawRect(box);
+      ctx.restore();
+      if (box.width > 44 && box.height > 16) {
+        deps.drawLabel("Overlap", box.x + 6, box.y + 16, "#9f1239");
+      }
+    }
+  }
+
   return {
     clearCaches,
     drawGrid,
@@ -613,5 +634,6 @@ export function createDrawController(deps: DrawControllerDeps) {
     drawOrganicRegions,
     drawFiles,
     drawNamedPlaces,
+    drawOverlaps,
   };
 }

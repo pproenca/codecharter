@@ -1,8 +1,8 @@
 /**
  * Code-plane geometry primitives for `@codecharter/core`.
  *
- * Owns `Point`/`Bounds` (seeded earlier by the geohash slice in `geo-types.ts`,
- * now their true home) and the rectangle math used across layout and resolution.
+ * Owns `Point`/`Bounds` and the rectangle math used across layout and
+ * resolution.
  * `roundBounds` applies the BR-004 12-decimal rounding to every coordinate.
  *
  * Note: this `roundBounds` does NOT floor width/height at 0 — that variant lives

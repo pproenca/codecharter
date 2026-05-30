@@ -5,9 +5,9 @@
  * Implements **BR-006** (token/line/max-line metrics), **BR-021** (extension
  * allowlist via `extensions`), **BR-022** (lockfile exclusion), **BR-023/024**
  * (`git ls-files` gitignore-aware inclusion; no size cap / no binary detection —
- * preserved as the documented BR-024 gap).
+ * a documented BR-024 gap).
  *
- * The internal `normalizeRepoPath` is module-private (it had no external caller).
+ * The internal `normalizeRepoPath` is module-private.
  */
 
 import { readFile } from "node:fs/promises";

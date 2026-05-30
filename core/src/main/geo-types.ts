@@ -1,9 +1,8 @@
 /**
  * Geocoding value types for `@codecharter/core`.
  *
- * `Point`/`Bounds` were seeded here by the first (geohash) slice and have since
- * moved to their true home in `geometry.ts`; this module now owns only the
- * `Geo*` types that form the geohash module's public surface.
+ * Owns the `Geo*` types that form the geohash module's public surface;
+ * `Point`/`Bounds` live in `geometry.ts`.
  */
 
 import type { Bounds } from "./geometry.ts";

@@ -3,7 +3,6 @@
  *
  * The precision each zoom level resolves to. `lineRange` and `tokenRange` are
  * both 12 — column granularity is therefore NOT encoded in the address string.
- * Preserved as-is.
  */
 
 export const MAP_LEVELS = Object.freeze({

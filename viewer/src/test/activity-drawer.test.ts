@@ -4,6 +4,7 @@ import {
   type ActivityDrawerDeps,
   activityFillColor,
   activityHaloColor,
+  activityPathLabel,
   activityStateStyle,
   activityVisualEncoding,
   createActivityDrawer,
@@ -73,6 +74,36 @@ test("activityFillColor/HaloColor use the state style when active or selected, e
   assert.equal(activityHaloColor(style, dormantSelected), style.stroke);
 });
 
+test("activityPathLabel renders path with line and token ranges from the address", () => {
+  // Path comes from the deep link's `?path=` metadata; line and token ranges
+  // append when present (pathFromDeepLink reads searchParams, not the locator).
+  assert.equal(
+    activityPathLabel({
+      address: {
+        deepLink: "codecharter://file/abc123?path=src/app.ts",
+        lineRange: { start: 10, end: 20 },
+        tokenRange: { start: 3, end: 8 },
+      },
+    } as ActivityEvent),
+    "src/app.ts:10-20@3-8",
+  );
+  // No ranges -> bare path.
+  assert.equal(
+    activityPathLabel({
+      address: { deepLink: "codecharter://file/abc123?path=src/app.ts" },
+    } as ActivityEvent),
+    "src/app.ts",
+  );
+  // No resolvable `?path=` -> falls back to the raw deep link, then empty string.
+  assert.equal(
+    activityPathLabel({
+      address: { deepLink: "codecharter://file/abc123" },
+    } as ActivityEvent),
+    "codecharter://file/abc123",
+  );
+  assert.equal(activityPathLabel({} as ActivityEvent), "");
+});
+
 // --- Construction smoke test ----------------------------------------------
 
 // A recording stand-in for the 2D context: the drawer only issues drawing
@@ -113,7 +144,6 @@ function smokeDeps(ctx: CanvasRenderingContext2D): ActivityDrawerDeps {
     isDiscoveryEnabled: () => false,
     drawLabel: () => {},
     onActivityFeedItemClick: () => {},
-    activityPathLabel: () => "",
   };
 }
 

@@ -9,7 +9,13 @@ import {
   ACTIVITY_TRAIL_TENSION,
 } from "./constants.ts";
 import { drawMyceliumPathForContext } from "./fog.ts";
-import { boundsCenter, clamp, pointDistance, sortIfNeeded } from "./primitives.ts";
+import {
+  boundsCenter,
+  clamp,
+  pathFromDeepLink,
+  pointDistance,
+  sortIfNeeded,
+} from "./primitives.ts";
 /**
  * Agent-activity visual model (BR-018): age-based decay/dormancy/vitality, marker
  * encoding, trail simplification + curve generation, live-window filtering, and
@@ -69,6 +75,16 @@ export function activityActorLabel(event: ActivityEvent): string {
 
 export function activityActorKey(event: ActivityEvent): string {
   return `${event.agentId ?? "agent"}:${event.threadId ?? event.sessionId ?? "manual"}`;
+}
+
+export function activityPathLabel(event: ActivityEvent): string {
+  const path = pathFromDeepLink(event.address?.deepLink);
+  const address = event.address;
+  const lines = address?.lineRange ? `:${address.lineRange.start}-${address.lineRange.end}` : "";
+  const columns = address?.tokenRange
+    ? `@${address.tokenRange.start}-${address.tokenRange.end}`
+    : "";
+  return `${path || (address?.deepLink ?? "")}${lines}${columns}`;
 }
 
 export function shortActivityId(value: string): string {
@@ -742,8 +758,6 @@ export type ActivityDrawerDeps = {
   ) => void;
   /** Routes a feed click to the app-owned selectActivityEvent. */
   onActivityFeedItemClick: (event: ActivityEvent) => void;
-  /** Formats the path/line/column summary shown in the feed (wraps pathFromDeepLink). */
-  activityPathLabel: (event: ActivityEvent) => string;
 };
 
 export type ActivityDrawer = ReturnType<typeof createActivityDrawer>;
@@ -1036,7 +1050,7 @@ export function createActivityDrawer(deps: ActivityDrawerDeps) {
         ? `${activityActorLabel(event)}: ${normalizeActivityState(event.activityState)}`
         : `${activityActorLabel(event)}: last seen ${formatActivityAge(encoding.ageMinutes)}`;
       const detail = document.createElement("span");
-      detail.textContent = deps.activityPathLabel(event);
+      detail.textContent = activityPathLabel(event);
       item.append(title, detail);
       activityFeedEl.append(item);
     }

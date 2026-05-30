@@ -37,6 +37,40 @@
  *                                  sequence token and in-apply latch are private
  *                                  to that factory; the shell still wires
  *                                  hashchange → applyHashRoute.
+ *   - `controllers/search.ts`    — map search query → match → focus: feed the
+ *                                  search form's query through the pure
+ *                                  `mapSearchMatch`/`mapSearchAction` helpers and
+ *                                  focus the matching place/file/folder (extracted;
+ *                                  DI over the shared map/named-places state +
+ *                                  app-owned camera/selection callbacks + the
+ *                                  editing controller). It owns no identity; the
+ *                                  shell wires searchForm submit → handleSubmit.
+ *   - `controllers/activity-submit.ts` — activity write lifecycle: the form-submit
+ *                                  path (addActivity reads #activityForm FormData,
+ *                                  POSTs, then schedules refreshActivity) and the
+ *                                  destructive clearActivityHistory (DELETE + reset
+ *                                  of activity/signature/version/detail, fog rebuild,
+ *                                  conditional selected-target null-out). The
+ *                                  semantic activity state stays here in `state` and
+ *                                  is reached through injected setters; activity-
+ *                                  gesture's clearActivityHistory callback points at
+ *                                  this controller. The shell wires activityForm
+ *                                  submit → activitySubmit.addActivity.
+ *   - `controllers/inspection.ts` — target inspection + source panel: selecting/
+ *                                  inspecting a map target (folder/file/activity)
+ *                                  and driving the inspector + source panel
+ *                                  (handleMapTargetSelectionAction, clearMapSelection,
+ *                                  inspectMapTarget/Folder/File, selectActivityEvent,
+ *                                  fetchSourceContext, sourcePanelLineRange).
+ *                                  Extracted; DI over the selected-target/map state +
+ *                                  app-owned UI callbacks + the editing controller. It
+ *                                  owns no identity; the selected target stays here in
+ *                                  `state`. `routing` and `input` call into this
+ *                                  controller (fetchSourceContext / the select-and-
+ *                                  inspect dispatch) instead of app.ts shims. The pure
+ *                                  `activityPathLabel` helper now lives in
+ *                                  `render/activity.ts` and is imported directly by
+ *                                  both this controller and the activity feed.
  *   - `render/fog.ts`            — discovery-fog drawing: the veil/mask/reveal/
  *                                  mycelium orchestration plus the fog colouring
  *                                  helpers (`folderFogStyle`, `fileFogStyle`,
@@ -54,60 +88,47 @@
  *                                  feed dedup key are private to that factory.
  *                                  `render()` calls `activityDrawer.drawActivity`
  *                                  and `activityDrawer.renderActivityFeed`.
+ *   - `controllers/input.ts`     — all DOM pointer + keyboard event handling plus
+ *                                  the hit-test dispatch (wheel/keydown/keyup,
+ *                                  pointer down/move/up/cancel, double-click, and
+ *                                  hitTest → selectMapTarget). Wired LAST so it
+ *                                  injects and calls the camera / interaction /
+ *                                  selection / editing / inspection controllers
+ *                                  rather than re-implementing them. The semantic
+ *                                  drag/selection/target state stays here in
+ *                                  `state`, reached through injected accessors;
+ *                                  only the pending touch-space-pan timer is
+ *                                  private to that factory. The shell wires
+ *                                  document/canvas/mapArea events → `input.*` in
+ *                                  `bindEvents`.
  */
 
 import { createActivityGestureController } from "./controllers/activity-gesture.ts";
+import { createActivitySubmitController } from "./controllers/activity-submit.ts";
 import { createCameraController } from "./controllers/camera.ts";
 import { createEditingController } from "./controllers/editing.ts";
+import { createInputController } from "./controllers/input.ts";
+import { createInspectionController } from "./controllers/inspection.ts";
 import { createInteractionController } from "./controllers/interaction.ts";
 import { activitySignature, createPollingController } from "./controllers/polling.ts";
 import { createRoutingController } from "./controllers/routing.ts";
+import { createSearchController } from "./controllers/search.ts";
 import { createSelectionOverlayController } from "./controllers/selection-overlay.ts";
 import { createSelectionController } from "./controllers/selection.ts";
-import {
-  createAnnotationHashRoute,
-  createMapHashRoute,
-  createSelectionHashRoute,
-  parseHashRoute,
-} from "./deep-links.ts";
+import { createAnnotationHashRoute, createSelectionHashRoute } from "./deep-links.ts";
 // Edit this source, then run `pnpm build:public` to regenerate public/app.js.
 import {
-  activityActorLabel,
   buildActivityFogState,
-  boundsCenter as modelBoundsCenter,
-  canvasKeyboardAction,
-  canRenderSourceText,
   createActivityDrawer,
   createDrawController,
   createFogDrawer,
-  documentKeyboardAction,
-  doubleClickMapAction,
-  folderDisplayName,
   hashString,
-  hitTestActivityEvents,
-  hitTestAnnotations,
-  hitTestTargetLists,
-  isSpaceKeyEvent,
   isScreenBoxVisible,
-  KEYBOARD_ZOOM_FACTOR,
   labelBoxesOverlap,
-  lineAtWorldPoint,
-  mapHoverLabel,
-  mapSearchAction,
-  mapSearchMatch,
-  mapSelectionPanel,
-  mapTargetSelectionAction,
-  normalizeActivityState,
   organicRegionFolders,
-  pathFromDeepLink,
-  panViewForDrag,
-  panViewByScreenDelta,
   reconciledSelectedTarget,
   screenBoundsForView,
   screenToWorldPoint,
-  sourceContextRequest,
-  sourcePanelLineRangeForBox,
-  sourcePanelState,
   viewForBounds,
   viewForReadableFile,
   worldToScreenPoint,
@@ -119,11 +140,8 @@ import type {
   CodecharterCodemap,
   MapFile,
   MapFolder,
-  MapActionOf,
-  MapRouteKind,
   NamedPlace,
   Point,
-  SearchMatch,
   SourceRange,
   TargetHit,
   View,
@@ -187,22 +205,10 @@ const LAYER_TOGGLE_CONTROLS = [
 type BrowserControls = Record<BrowserControlName, BrowserControl | null> & {
   layerToggles: () => BrowserControl[];
 };
-type CanvasAction = NonNullable<ReturnType<typeof canvasKeyboardAction>>;
-type DocumentAction = NonNullable<ReturnType<typeof documentKeyboardAction>>;
 type TimerHandle = number | ReturnType<typeof setTimeout> | null;
 type AnnotationHit = NamedPlace & { targetType: "annotation" };
 type ActivityHit = ActivityEvent & { targetType: "activity" };
 type HitTarget = TargetHit | AnnotationHit | ActivityHit;
-type PlaceSearchMatch = Extract<SearchMatch, { type: "annotation" | "namedPlace" }>;
-type FileSearchMatch = Extract<SearchMatch, { type: "file" }>;
-type FolderSearchMatch = Extract<SearchMatch, { type: "folder" }>;
-type DoubleClickAction = MapActionOf<
-  "focusAnnotation" | "selectFolder" | "selectFile" | "selectActivity"
->;
-type TargetSelectionAction = MapActionOf<
-  "clearSelection" | "focusAnnotation" | "selectActivity" | "inspectFolder" | "inspectFile"
->;
-type SearchAction = MapActionOf<"noMatch" | "focusPlace" | "focusFile" | "focusFolder">;
 type ParsedLineRange = { start: number; end: number };
 type ResolvedSelection = {
   level?: string;
@@ -234,7 +240,6 @@ type ActivityDetail = "summary" | "full";
 type MapVersionResponse = { version?: string };
 type NamedPlacesResponse = { places: NamedPlace[]; overlaps?: Array<{ bounds: Bounds }> };
 type ActivityResponse = { events?: ActivityEvent[]; version?: string; unchanged?: true };
-type ResolvedAddressResponse = { targetType: MapRouteKind; geohash: string; deepLink: string };
 type MapApplicationState = {
   map: CodecharterCodemap | null;
   mapFolders: MapFolder[];
@@ -286,9 +291,6 @@ const COPY_PROMPT_LABEL = "Copy Prompt";
 const DELETE_ANNOTATION_LABEL = "Delete";
 const CONFIRM_DELETE_ANNOTATION_LABEL = "Confirm Delete";
 const CAMERA_ANIMATION_MS = 280;
-const DOUBLE_CLICK_ZOOM_FACTOR = 2;
-const CLICK_SELECT_DELAY_MS = 220;
-const TOUCH_SPACE_PAN_HOLD_MS = 220;
 const DELETE_ANNOTATION_CONFIRM_MS = 4000;
 const FOG_MASK_SCALE = 0.5;
 
@@ -352,7 +354,6 @@ let frameLabels: PlacedFrameLabel[] = [];
 let frameViewport: Viewport | null = null;
 let fogVeilCacheKey = "";
 let pendingRenderFrame = 0;
-let pendingTouchSpacePan: TimerHandle = null;
 let copyPromptLabelTimer: TimerHandle = null;
 const hashUnitCache = new Map<string, number>();
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -483,6 +484,23 @@ const editing = createEditingController({
   syncHashRoute: (hash) => routing.syncHashRoute(hash),
   createAnnotationHashRoute,
 });
+const search = createSearchController({
+  getMap: () => state.map,
+  getNamedPlaces: () => state.namedPlaces,
+  setSelectedTarget: (target) => {
+    state.selectedTarget = target;
+  },
+  controls,
+  zoomToBounds,
+  zoomToReadableFile: (file) => zoomToReadableFile(file),
+  selectMapTarget: (point) => input.selectMapTarget(point),
+  render,
+  setText,
+  editing: {
+    selectedAnnotation: () => editing.selectedAnnotation(),
+    selectAnnotation: (annotation) => editing.selectAnnotation(annotation),
+  },
+});
 const routing = createRoutingController({
   getMap: () => state.map,
   getNamedPlacesById: () => state.namedPlacesById,
@@ -505,7 +523,7 @@ const routing = createRoutingController({
   lineRatioForLine,
   parseLineRange,
   applySourcePanel,
-  fetchSourceContext,
+  fetchSourceContext: (sourceContext) => inspection.fetchSourceContext(sourceContext),
   fetchJson,
   setText,
   render,
@@ -519,6 +537,104 @@ const routing = createRoutingController({
   },
 });
 const applyHashRoute = routing.applyHashRoute;
+const inspection = createInspectionController({
+  getMap: () => state.map,
+  setSelectedTarget: (target) => {
+    state.selectedTarget = target;
+  },
+  controls,
+  setText,
+  render,
+  applySourcePanel,
+  fetchJson,
+  viewportSize,
+  canvasClientHeight: () => canvas.clientHeight,
+  screenBounds,
+  zoomToBounds,
+  zoomToReadableFile,
+  lineRatioForLine,
+  updateSelectionPopover,
+  syncHashRoute: (hash) => routing.syncHashRoute(hash),
+  editing: {
+    clearPendingDelete: () => editing.clearPendingDelete(),
+    clearAnnotationForm: () => editing.clearAnnotationForm(),
+    selectAnnotation: (annotation) => editing.selectAnnotation(annotation),
+  },
+});
+const input = createInputController({
+  getDrawing: () => state.drawing,
+  getPanning: () => state.panning,
+  getSpacePanning: () => state.spacePanning,
+  getDragging: () => state.dragging,
+  setDragging: (drag) => {
+    state.dragging = drag;
+  },
+  getSelectedTarget: () => state.selectedTarget,
+  setSelectedTarget: (target) => {
+    state.selectedTarget = target;
+  },
+  getEditingAnnotation: () => state.editingAnnotation,
+  setEditingAnnotation: (annotation) => {
+    state.editingAnnotation = annotation;
+  },
+  getDraftSelection: () => state.draftSelection,
+  setDraftSelection: (draft) => {
+    state.draftSelection = draft;
+  },
+  getResolvedSelection: () => state.resolvedSelection,
+  getView: () => state.view,
+  setView: (view) => {
+    state.view = view;
+  },
+  getLastPointerDown: () => state.lastPointerDown,
+  setLastPointerDown: (value) => {
+    state.lastPointerDown = value;
+  },
+  setLastPointerType: (value) => {
+    state.lastPointerType = value;
+  },
+  getPendingClickSelection: () => state.pendingClickSelection,
+  setPendingClickSelection: (value) => {
+    state.pendingClickSelection = value;
+  },
+  getMapFiles: () => state.mapFiles,
+  getMapFolders: () => state.mapFolders,
+  getNamedPlaces: () => state.namedPlaces,
+  getActivity: () => state.activity,
+  canvas,
+  controls,
+  cancelCameraAnimation,
+  animateViewTo,
+  fitCodebaseView,
+  zoomToBounds,
+  requestRender,
+  render,
+  resetSelectionOverlay,
+  clearDraftSelection,
+  updateSelectionPopover,
+  setSelectionStatus,
+  setText,
+  screenPoint,
+  screenToWorld,
+  viewportSize,
+  activityDiscoveryEnabled,
+  camera,
+  interaction,
+  selection,
+  editing: {
+    selectAnnotation: (annotation) => editing.selectAnnotation(annotation),
+    saveSelection: () => editing.saveSelection(),
+    copySelectedAnnotationPrompt: () => editing.copySelectedAnnotationPrompt(),
+    deleteSelectedAnnotation: () => editing.deleteSelectedAnnotation(),
+  },
+  inspection: {
+    handleMapTargetSelectionAction: (action, hit, worldPoint) =>
+      inspection.handleMapTargetSelectionAction(action, hit, worldPoint),
+    inspectFileTarget: (hit, worldPoint, options) =>
+      inspection.inspectFileTarget(hit, worldPoint, options),
+    selectActivityEvent: (event, options) => inspection.selectActivityEvent(event, options),
+  },
+});
 const polling = createPollingController({
   getActivityDetail: () => state.activityDetail,
   setActivityDetail: (detail) => {
@@ -547,10 +663,36 @@ const polling = createPollingController({
   render,
   setHoverText: (message) => setText(controls.hover, message),
 });
+const activitySubmit = createActivitySubmitController({
+  activityForm: controls.activityForm instanceof HTMLFormElement ? controls.activityForm : null,
+  clearActivityTool: controls.clearActivityTool,
+  setActivity: (events) => {
+    state.activity = events;
+  },
+  setActivitySignature: (sig) => {
+    state.activitySignature = sig;
+  },
+  setActivityVersion: (version) => {
+    state.activityVersion = version;
+  },
+  setActivityDetail: (detail) => {
+    state.activityDetail = detail;
+  },
+  getSelectedTarget: () => state.selectedTarget,
+  setSelectedTarget: (target) => {
+    state.selectedTarget = target;
+  },
+  rebuildActivityFog,
+  setHoverText: (text) => setText(controls.hover, text),
+  render,
+  postJson,
+  deleteJson,
+  refreshActivity: polling.refreshActivity,
+});
 const activityGesture = createActivityGestureController({
   clearActivityTool: controls.clearActivityTool,
   setHoverText: (text) => setText(controls.hover, text),
-  clearActivityHistory,
+  clearActivityHistory: activitySubmit.clearActivityHistory,
 });
 const fogDrawer = createFogDrawer({
   getActivityFog: () => state.activityFog,
@@ -610,9 +752,8 @@ const activityDrawer = createActivityDrawer({
   isDiscoveryEnabled: activityDiscoveryEnabled,
   drawLabel,
   onActivityFeedItemClick: (event) => {
-    void selectActivityEvent(event);
+    void inspection.selectActivityEvent(event);
   },
-  activityPathLabel,
 });
 
 async function boot() {
@@ -690,8 +831,8 @@ function bindEvents() {
   window.addEventListener("hashchange", () => {
     void applyHashRoute();
   });
-  document.addEventListener("keydown", onDocumentKeyDown);
-  document.addEventListener("keyup", onDocumentKeyUp);
+  document.addEventListener("keydown", input.onDocumentKeyDown);
+  document.addEventListener("keyup", input.onDocumentKeyUp);
   window.addEventListener("blur", () => interaction.setSpacePanMode(false));
 
   for (const control of controls.layerToggles()) {
@@ -718,7 +859,7 @@ function bindEvents() {
   });
   controls.resetViewTool?.addEventListener("click", () => fitCodebaseView({ animate: true }));
 
-  controls.searchForm?.addEventListener("submit", searchMap);
+  controls.searchForm?.addEventListener("submit", (event) => search.handleSubmit(event));
   controls.saveSelection?.addEventListener("click", () => editing.saveSelection());
   controls.deleteAnnotation?.addEventListener("click", () => editing.deleteSelectedAnnotation());
   controls.copyAnnotationPrompt?.addEventListener("click", () =>
@@ -728,17 +869,17 @@ function bindEvents() {
   controls.deleteAnnotationAction?.addEventListener("click", () =>
     editing.deleteSelectedAnnotation(),
   );
-  controls.activityForm?.addEventListener("submit", addActivity);
+  controls.activityForm?.addEventListener("submit", activitySubmit.addActivity);
   activityGesture.bindClearActivityHold();
 
-  mapArea.addEventListener("wheel", onWheel, { passive: false });
-  canvas.addEventListener("pointerdown", onPointerDown);
-  canvas.addEventListener("pointermove", onPointerMove);
-  canvas.addEventListener("pointerup", onPointerUp);
-  canvas.addEventListener("pointerleave", onPointerUp);
-  canvas.addEventListener("lostpointercapture", onPointerUp);
-  canvas.addEventListener("pointercancel", onPointerCancel);
-  canvas.addEventListener("dblclick", onCanvasDoubleClick);
+  mapArea.addEventListener("wheel", input.onWheel, { passive: false });
+  canvas.addEventListener("pointerdown", input.onPointerDown);
+  canvas.addEventListener("pointermove", input.onPointerMove);
+  canvas.addEventListener("pointerup", input.onPointerUp);
+  canvas.addEventListener("pointerleave", input.onPointerUp);
+  canvas.addEventListener("lostpointercapture", input.onPointerUp);
+  canvas.addEventListener("pointercancel", input.onPointerCancel);
+  canvas.addEventListener("dblclick", input.onCanvasDoubleClick);
   canvas.addEventListener("blur", () => canvas.classList.remove("pointer-focused"));
   canvas.tabIndex = 0;
   canvas.setAttribute("role", "application");
@@ -746,7 +887,7 @@ function bindEvents() {
     "aria-label",
     "CodeCharter map canvas. Use the pointer tool to select items, the hand tool or Space drag to pan, arrow keys to pan, plus and minus to zoom, double click to zoom in, 0 to fit the codebase, Enter to select the center, and Escape to cancel the current action.",
   );
-  canvas.addEventListener("keydown", onCanvasKeyDown);
+  canvas.addEventListener("keydown", input.onCanvasKeyDown);
   interaction.updateInteractionModeUi();
 }
 
@@ -1030,622 +1171,14 @@ function labelPlacement(
   };
 }
 
-function onWheel(event: WheelEvent) {
-  event.preventDefault();
-  cancelCameraAnimation();
-  const mouse = screenPoint(event);
-  if (event.ctrlKey || event.metaKey) {
-    camera.zoomAt(mouse, camera.wheelZoomFactor(event));
-  } else {
-    camera.panByWheel(event);
-  }
-  requestRender();
-}
-
-function onCanvasKeyDown(event: KeyboardEvent) {
-  canvas.classList.remove("pointer-focused");
-  const action = canvasKeyboardAction(event);
-  if (!action) {
-    return;
-  }
-  event.preventDefault();
-  void handleCanvasKeyboardAction(action);
-}
-
-function onDocumentKeyDown(event: KeyboardEvent) {
-  const action = documentKeyboardAction(event, {
-    textEntry: isTextEntryTarget(event.target),
-    buttonTarget: isButtonTarget(event.target),
-    hasResolvedSelection: state.resolvedSelection !== null,
-    hasSelectedAnnotation: state.selectedTarget?.targetType === "annotation",
-  });
-  if (!action) {
-    return;
-  }
-  event.preventDefault();
-  void handleDocumentKeyboardAction(action);
-}
-
-async function handleCanvasKeyboardAction(action: CanvasAction): Promise<void> {
-  switch (action.type) {
-    case "pan":
-      animateViewTo(panViewByScreenDelta(state.view, action.delta, viewportSize()));
-      return;
-    case "zoomIn":
-      camera.zoomAt(camera.viewportCenter(), KEYBOARD_ZOOM_FACTOR, { animate: true });
-      return;
-    case "zoomOut":
-      camera.zoomAt(camera.viewportCenter(), 1 / KEYBOARD_ZOOM_FACTOR, { animate: true });
-      return;
-    case "fitCodebase":
-      fitCodebaseView({ animate: true });
-      return;
-    case "selectCenter":
-      await selectMapTarget(screenToWorld(camera.viewportCenter()));
-  }
-}
-
-async function handleDocumentKeyboardAction(action: DocumentAction): Promise<void> {
-  switch (action.type) {
-    case "startSpacePan":
-      interaction.setSpacePanMode(true);
-      return;
-    case "cancelInteraction":
-      cancelCurrentInteraction();
-      return;
-    case "saveSelection":
-      await editing.saveSelection();
-      return;
-    case "copyAnnotationPrompt":
-      await editing.copySelectedAnnotationPrompt();
-      return;
-    case "deleteAnnotation":
-      await editing.deleteSelectedAnnotation();
-  }
-}
-
-function onDocumentKeyUp(event: KeyboardEvent) {
-  if (isSpaceKeyEvent(event) && state.spacePanning) {
-    event.preventDefault();
-    interaction.setSpacePanMode(false);
-  }
-}
-
-function isTextEntryTarget(target: EventTarget | null) {
-  return (
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement ||
-    (target instanceof HTMLElement && target.isContentEditable)
-  );
-}
-
-function isButtonTarget(target: EventTarget | null) {
-  return (
-    target instanceof HTMLButtonElement ||
-    (target instanceof Element && target.closest("button") !== null)
-  );
-}
-
-function cancelCurrentInteraction() {
-  cancelPendingTouchSpacePan();
-  cancelPendingClickSelection();
-  if (state.editingAnnotation) {
-    state.editingAnnotation = null;
-    if (controls.selectionComment) {
-      controls.selectionComment.value = "";
-    }
-    updateSelectionPopover();
-    setSelectionStatus("Edit cancelled.");
-    render();
-    canvas.focus({ preventScroll: true });
-    return;
-  }
-
-  if (state.dragging || state.draftSelection || state.resolvedSelection || state.drawing) {
-    resetSelectionOverlay();
-    clearSelectionHashRoute();
-    setSelectionStatus("Selection cancelled.");
-    render();
-    canvas.focus({ preventScroll: true });
-    return;
-  }
-
-  if (state.selectedTarget) {
-    state.selectedTarget = null;
-    if (controls.selectionComment) {
-      controls.selectionComment.value = "";
-    }
-    updateSelectionPopover();
-    clearSelectionHashRoute();
-    setSelectionStatus("Selection cleared.");
-    render();
-    canvas.focus({ preventScroll: true });
-  }
-}
-
-function clearSelectionHashRoute() {
-  if (parseHashRoute(window.location.hash)?.type === "selection") {
-    window.history.replaceState(null, "", "#");
-  }
-}
-
-function onPointerDown(event: PointerEvent) {
-  cancelCameraAnimation();
-  cancelPendingTouchSpacePan();
-  if (state.dragging?.type !== "select") {
-    cancelPendingClickSelection();
-  }
-  canvas.classList.add("pointer-focused");
-  try {
-    canvas.setPointerCapture(event.pointerId);
-  } catch {
-    // Synthetic pointer events and some interrupted touch streams have no active pointer to capture.
-  }
-  canvas.focus({ preventScroll: true });
-  const screen = screenPoint(event);
-  const point = screenToWorld(screen);
-  const spacePan = isSpacePanPointerEvent(event);
-  state.lastPointerDown = { screen, world: point };
-  state.lastPointerType = event.pointerType;
-  if (state.drawing && !spacePan) {
-    state.selectedTarget = null;
-    state.dragging = { type: "draw", start: point, current: point };
-    state.draftSelection = {
-      type: "rect",
-      bounds: { x: point.x, y: point.y, width: 0, height: 0 },
-    };
-    render();
-  } else if (state.panning || spacePan) {
-    state.dragging = {
-      type: "pan",
-      start: screenPoint(event),
-      view: { ...state.view },
-      transient: spacePan,
-    };
-  } else {
-    state.dragging = { type: "select", start: screen, world: point };
-    scheduleTouchSpacePan(event);
-  }
-  interaction.updateInteractionModeUi();
-}
-
-function isSpacePanPointerEvent(event: PointerEvent) {
-  return state.spacePanning || event.getModifierState?.("Space") === true;
-}
-
-function scheduleTouchSpacePan(event: PointerEvent) {
-  if (event.pointerType !== "touch") {
-    return;
-  }
-  pendingTouchSpacePan = window.setTimeout(() => {
-    pendingTouchSpacePan = null;
-    if (state.dragging?.type !== "select" || !state.lastPointerDown) {
-      return;
-    }
-    interaction.setSpacePanMode(true);
-    state.dragging = {
-      type: "pan",
-      start: state.lastPointerDown.screen,
-      view: { ...state.view },
-      transient: true,
-    };
-    interaction.updateInteractionModeUi();
-  }, TOUCH_SPACE_PAN_HOLD_MS);
-}
-
-function cancelPendingTouchSpacePan() {
-  if (!pendingTouchSpacePan) {
-    return;
-  }
-  window.clearTimeout(pendingTouchSpacePan);
-  pendingTouchSpacePan = null;
-}
-
-function onPointerMove(event: PointerEvent) {
-  const screen = screenPoint(event);
-  const world = screenToWorld(screen);
-  if (state.dragging?.type === "select" && state.lastPointerDown) {
-    const moved = Math.hypot(
-      screen.x - state.lastPointerDown.screen.x,
-      screen.y - state.lastPointerDown.screen.y,
-    );
-    if (moved > 4) {
-      cancelPendingTouchSpacePan();
-    }
-  }
-  const hit = hitTest(world);
-  setText(
-    controls.hover,
-    hit ? mapHoverLabel(hit) : `x ${world.x.toFixed(4)}, y ${world.y.toFixed(4)}`,
-  );
-
-  if (!state.dragging) {
-    return;
-  }
-  if (state.dragging.type === "select") {
-    return;
-  }
-  if (state.dragging.type === "pan") {
-    state.view = panViewForDrag(state.dragging, screen, viewportSize());
-  } else {
-    selection.updateDraft(world);
-  }
-  requestRender();
-}
-
-async function onPointerUp(event: PointerEvent) {
-  cancelPendingTouchSpacePan();
-  const endTouchSpacePan =
-    state.dragging?.type === "pan" && state.dragging.transient && event.pointerType === "touch";
-  if (state.dragging?.type === "draw" && state.draftSelection) {
-    if (event.type !== "lostpointercapture") {
-      selection.updateDraft(screenToWorld(screenPoint(event)));
-    }
-    if (!selection.hasUsableDraft()) {
-      clearDraftSelection();
-      render();
-      return;
-    }
-    state.dragging = null;
-    interaction.updateInteractionModeUi();
-    await selection.preview();
-    return;
-  }
-
-  if (state.dragging?.type === "select" && state.lastPointerDown) {
-    const current = screenPoint(event);
-    const moved = Math.hypot(
-      current.x - state.lastPointerDown.screen.x,
-      current.y - state.lastPointerDown.screen.y,
-    );
-    if (moved < 4) {
-      scheduleClickSelection(state.lastPointerDown.world);
-    }
-  }
-  state.dragging = null;
-  if (endTouchSpacePan) {
-    interaction.setSpacePanMode(false);
-  }
-  interaction.updateInteractionModeUi();
-}
-
-function onPointerCancel(event?: PointerEvent) {
-  cancelPendingTouchSpacePan();
-  const endTouchSpacePan =
-    state.dragging?.type === "pan" && state.dragging.transient && event?.pointerType === "touch";
-  state.dragging = null;
-  if (endTouchSpacePan) {
-    interaction.setSpacePanMode(false);
-  }
-  interaction.updateInteractionModeUi();
-}
-
-function onCanvasDoubleClick(event: MouseEvent) {
-  if (state.drawing) {
-    return;
-  }
-  event.preventDefault();
-  cancelPendingClickSelection();
-  const screen = screenPoint(event);
-  const world = screenToWorld(screen);
-  const hit = hitTestDrillTarget(world) ?? hitTestAnnotation(world);
-  const action = doubleClickMapAction(hit);
-
-  if (action && hit) {
-    void handleDoubleClickAction(action, hit, world);
-    return;
-  }
-
-  camera.zoomAt(screen, DOUBLE_CLICK_ZOOM_FACTOR, { animate: true });
-}
-
-function scheduleClickSelection(worldPoint: Point) {
-  cancelPendingClickSelection();
-  state.pendingClickSelection = window.setTimeout(() => {
-    state.pendingClickSelection = null;
-    void selectMapTarget(worldPoint);
-  }, CLICK_SELECT_DELAY_MS);
-}
-
-function cancelPendingClickSelection() {
-  if (!state.pendingClickSelection) {
-    return;
-  }
-  window.clearTimeout(state.pendingClickSelection);
-  state.pendingClickSelection = null;
-}
-
-function hitTestDrillTarget(world: Point) {
-  return hitTestActivity(world) ?? hitTestMapTargets(world);
-}
-
-async function selectMapTarget(worldPoint: Point) {
-  const hit = hitTest(worldPoint);
-  const action = mapTargetSelectionAction(hit);
-  await handleMapTargetSelectionAction(action, hit, worldPoint);
-}
-
-async function handleDoubleClickAction(action: DoubleClickAction, hit: HitTarget, world: Point) {
-  switch (action.type) {
-    case "focusAnnotation":
-      if (hit.targetType !== "annotation" || !hasGeometryBounds(hit)) {
-        return;
-      }
-      zoomToBounds(hit.geometry.bounds, 1.28);
-      editing.selectAnnotation(hit);
-      return;
-    case "selectFolder":
-      void selectMapTarget(world);
-      if (hit.targetType !== "folder" || !hasBounds(hit)) {
-        return;
-      }
-      zoomToBounds(hit.bounds, 1.35);
-      return;
-    case "selectFile":
-      if (hit.targetType === "file") {
-        await inspectFileTarget(hit, world, { zoomReadable: true });
-      }
-      return;
-    case "selectActivity":
-      if (hit.targetType === "activity") {
-        await selectActivityEvent(hit, { zoomReadable: true });
-      }
-  }
-}
-
-async function handleMapTargetSelectionAction(
-  action: TargetSelectionAction,
-  hit: HitTarget | null,
-  worldPoint: Point,
-) {
-  switch (action.type) {
-    case "clearSelection":
-      clearMapSelection();
-      return;
-    case "focusAnnotation":
-      if (hit?.targetType !== "annotation" || !hasGeometryBounds(hit)) {
-        return;
-      }
-      zoomToBounds(hit.geometry.bounds, 1.35);
-      editing.selectAnnotation(hit);
-      return;
-    case "selectActivity":
-      if (hit?.targetType === "activity") {
-        await selectActivityEvent(hit);
-      }
-      return;
-    case "inspectFolder":
-      if (hit?.targetType === "folder") {
-        inspectFolderTarget(hit);
-      }
-      return;
-    case "inspectFile":
-      if (hit?.targetType === "file") {
-        await inspectFileTarget(hit, worldPoint);
-      }
-  }
-}
-
-function clearMapSelection() {
-  editing.clearPendingDelete();
-  const panel = mapSelectionPanel(null);
-  state.selectedTarget = null;
-  setText(controls.inspectorTitle, panel.inspectorTitle ?? "");
-  setText(controls.inspectorSubtitle, panel.inspectorSubtitle);
-  setText(controls.sourceTitle, panel.sourceTitle ?? "");
-  setText(controls.sourceOutput, panel.sourceOutput ?? "");
-  updateSelectionPopover();
-  render();
-}
-
-function inspectMapTarget(hit: TargetHit) {
-  editing.clearPendingDelete();
-  editing.clearAnnotationForm();
-  state.selectedTarget = hit;
-
-  const panel = mapSelectionPanel(hit);
-  setText(controls.inspectorTitle, panel.inspectorTitle ?? "");
-  setText(controls.inspectorSubtitle, panel.inspectorSubtitle ?? "");
-  routing.syncHashRoute(
-    createMapHashRoute(hit.targetType, hit.geo?.geohash ?? "", { path: hit.path }),
-  );
-  return panel;
-}
-
-function inspectFolderTarget(hit: TargetHit) {
-  const panel = inspectMapTarget(hit);
-  setText(controls.sourceTitle, panel.sourceTitle ?? "");
-  setText(controls.sourceOutput, panel.sourceOutput ?? "");
-  render();
-}
-
-async function inspectFileTarget(
-  hit: MapFile & { targetType: "file" },
-  worldPoint: Point,
-  { zoomReadable = false } = {},
-) {
-  if (!hasBounds(hit)) {
-    return;
-  }
-  inspectMapTarget(hit);
-  const line = lineAtPoint(hit, worldPoint);
-  const lineRatio = lineRatioForLine(hit, line);
-  let box = screenBounds(hit.bounds);
-  if (zoomReadable && !canRenderSourceText(hit, box)) {
-    const readableView = zoomToReadableFile(hit, lineRatio);
-    box = screenBoundsForView(hit.bounds, readableView, viewportSize());
-  }
-  const lineRange = sourcePanelLineRange(hit, line, box);
-  const sourceContext = sourceContextRequest(hit.path, lineRange);
-  const [address, source] = await fetchSourceContext(sourceContext);
-  routing.syncHashRoute(
-    createMapHashRoute(address.targetType, address.geohash, {
-      path: hit.path,
-      lines: sourceContext.lines,
-    }),
-  );
-
-  applySourcePanel(sourcePanelState({ path: hit.path, deepLink: address.deepLink, source }));
-  render();
-}
-
-async function selectActivityEvent(event: ActivityEvent, { zoomReadable = false } = {}) {
-  state.selectedTarget = { ...event, targetType: "activity" };
-  editing.clearAnnotationForm();
-  setText(
-    controls.inspectorTitle,
-    `${activityActorLabel(event)}: ${normalizeActivityState(event.activityState)}`,
-  );
-  setText(
-    controls.inspectorSubtitle,
-    `activity: ${activityPathLabel(event)} | ${event.address?.geohash ?? "unresolved"}`,
-  );
-
-  const path = pathFromActivity(event);
-  if (!path) {
-    applySourcePanel(
-      sourcePanelState({
-        fallbackOutput: event.note || "Activity selected.",
-        ...(event.address?.deepLink === undefined ? {} : { deepLink: event.address.deepLink }),
-      }),
-    );
-    render();
-    return;
-  }
-
-  const lineRange = event.address?.lineRange ?? { start: 1 };
-  if (zoomReadable) {
-    const file = state.map?.files?.[path];
-    if (file) {
-      zoomToReadableFile(file, lineRatioForLine(file, lineRange.start));
-    }
-  }
-  const sourceContext = sourceContextRequest(path, lineRange);
-  const [address, source] = await fetchSourceContext(sourceContext);
-  routing.syncHashRoute(
-    createMapHashRoute(address.targetType, address.geohash, { path, lines: sourceContext.lines }),
-  );
-  applySourcePanel(sourcePanelState({ path, deepLink: address.deepLink, source }));
-  render();
-}
-
-function fetchSourceContext(
-  sourceContext: ReturnType<typeof sourceContextRequest>,
-): Promise<[ResolvedAddressResponse, SourceRange]> {
-  return Promise.all([
-    fetchJson<ResolvedAddressResponse>(sourceContext.resolveUrl),
-    fetchJson<SourceRange>(sourceContext.sourceUrl),
-  ]);
-}
-
-function lineAtPoint(file: MapFile, worldPoint: Point) {
-  return lineAtWorldPoint(file, worldPoint);
-}
-
 function lineRatioForLine(file: MapFile, line: number) {
   return (line - 0.5) / Math.max(1, file.lineCount ?? 0);
-}
-
-function sourcePanelLineRange(file: MapFile, focusLine: number, box: Bounds) {
-  return sourcePanelLineRangeForBox(file, focusLine, box, canvas.clientHeight);
-}
-
-async function searchMap(event: Event) {
-  event.preventDefault();
-  const query = controls.searchInput?.value;
-  const searchQuery = query ?? "";
-  if (!state.map || !searchQuery.trim()) {
-    return;
-  }
-  const match = mapSearchMatch(state.map, state.namedPlaces, searchQuery);
-  const action = mapSearchAction(match);
-  await handleMapSearchAction(action, match);
-}
-
-async function handleMapSearchAction(action: SearchAction, match: SearchMatch | null) {
-  switch (action.type) {
-    case "noMatch":
-      setSearchResult("No matching place found.");
-      return;
-    case "focusPlace":
-      if (!match || (match.type !== "annotation" && match.type !== "namedPlace")) {
-        return;
-      }
-      focusPlaceSearchMatch(match);
-      return;
-    case "focusFile":
-      if (match?.type === "file") {
-        await focusFileSearchMatch(match);
-      }
-      return;
-    case "focusFolder":
-      if (match?.type === "folder") {
-        focusFolderSearchMatch(match);
-      }
-  }
-}
-
-function focusPlaceSearchMatch(match: PlaceSearchMatch) {
-  if (!hasGeometryBounds(match.place)) {
-    return;
-  }
-  zoomToBounds(match.place.geometry.bounds, 1.35);
-  setSearchResult(match.label ?? "");
-  state.selectedTarget = match.target;
-  const annotation = editing.selectedAnnotation();
-  if (annotation) {
-    editing.selectAnnotation(annotation);
-  }
-  render();
-}
-
-async function focusFileSearchMatch(match: FileSearchMatch) {
-  if (!hasBounds(match.file)) {
-    return;
-  }
-  zoomToReadableFile(match.file);
-  await selectMapTarget(boundsCenter(match.file.bounds));
-  setSearchResult(match.label ?? "");
-}
-
-function focusFolderSearchMatch(match: FolderSearchMatch) {
-  if (!hasBounds(match.folder)) {
-    return;
-  }
-  zoomToBounds(match.folder.bounds, 1.6);
-  state.selectedTarget = { ...match.folder, targetType: "folder" };
-  setText(controls.inspectorTitle, folderDisplayName(match.folder));
-  setText(
-    controls.inspectorSubtitle,
-    `folder: ${match.folder.path || "."} | ${match.folder.geo?.geohash ?? "unresolved"}`,
-  );
-  setSearchResult(match.label ?? "");
-  render();
-}
-
-function setSearchResult(message: string) {
-  if (controls.searchResult) {
-    controls.searchResult.textContent = message;
-  }
 }
 
 function setText(element: HTMLElement | null, value: string) {
   if (element) {
     element.textContent = value;
   }
-}
-
-function hasBounds<T extends { bounds?: Bounds }>(
-  target: T | null | undefined,
-): target is T & { bounds: Bounds } {
-  return target?.bounds !== undefined;
-}
-
-function hasGeometryBounds<T extends { geometry?: { bounds?: Bounds } }>(
-  target: T | null | undefined,
-): target is T & { geometry: { bounds: Bounds } } {
-  return target?.geometry?.bounds !== undefined;
 }
 
 function applySourcePanel(panel: SourcePanel) {
@@ -1704,81 +1237,6 @@ function setCopyButtonLabel(label = COPY_PROMPT_LABEL, { reset = false } = {}) {
       setCopyButtonLabel();
     }, 1600);
   }
-}
-
-async function addActivity(event: SubmitEvent) {
-  event.preventDefault();
-  if (!(controls.activityForm instanceof HTMLFormElement)) {
-    return;
-  }
-  const data = formDataObject(new FormData(controls.activityForm));
-  await postJson("/api/activity", {
-    agentId: data.agentId,
-    activityState: data.activityState,
-    path: data.path,
-    lineStart: Number(data.lineStart),
-    lineEnd: Number(data.lineEnd),
-  });
-  setTimeout(polling.refreshActivity, 250);
-}
-
-function formDataObject(formData: FormData): Record<string, FormDataEntryValue> {
-  return Object.fromEntries(formData);
-}
-
-async function clearActivityHistory() {
-  if (controls.clearActivityTool) {
-    controls.clearActivityTool.disabled = true;
-  }
-  try {
-    await deleteJson("/api/activity");
-    state.activity = [];
-    state.activitySignature = activitySignature(state.activity);
-    state.activityVersion = "";
-    state.activityDetail = "summary";
-    rebuildActivityFog();
-    if (state.selectedTarget?.targetType === "activity") {
-      state.selectedTarget = null;
-    }
-    setText(controls.hover, "Activity cleared");
-    render();
-  } finally {
-    if (controls.clearActivityTool) {
-      controls.clearActivityTool.disabled = false;
-      controls.clearActivityTool.classList.remove("is-holding");
-    }
-  }
-}
-
-function hitTest(point: Point): HitTarget | null {
-  const annotation = hitTestAnnotation(point);
-  if (annotation) {
-    return annotation;
-  }
-  const activity = hitTestActivity(point);
-  if (activity) {
-    return activity;
-  }
-  return hitTestMapTargets(point);
-}
-
-function hitTestMapTargets(point: Point) {
-  return hitTestTargetLists(state.mapFiles, state.mapFolders, point);
-}
-
-function hitTestAnnotation(point: Point) {
-  const radiusX = 15 / (canvas.clientWidth * state.view.scale);
-  const radiusY = 15 / (canvas.clientHeight * state.view.scale);
-  return hitTestAnnotations(state.namedPlaces, point, { radiusX, radiusY });
-}
-
-function hitTestActivity(point: Point) {
-  if (!activityDiscoveryEnabled()) {
-    return null;
-  }
-  const radiusX = 13 / (canvas.clientWidth * state.view.scale);
-  const radiusY = 13 / (canvas.clientHeight * state.view.scale);
-  return hitTestActivityEvents(state.activity, point, { radiusX, radiusY });
 }
 
 function zoomToBounds(bounds: Bounds, paddingFactor = 1.2) {
@@ -1859,20 +1317,6 @@ function easeCamera(t: number) {
   return 1 - (1 - t) ** 3;
 }
 
-function activityPathLabel(event: ActivityEvent) {
-  const path = pathFromActivity(event);
-  const address = event.address;
-  const lines = address?.lineRange ? `:${address.lineRange.start}-${address.lineRange.end}` : "";
-  const columns = address?.tokenRange
-    ? `@${address.tokenRange.start}-${address.tokenRange.end}`
-    : "";
-  return `${path || (address?.deepLink ?? "")}${lines}${columns}`;
-}
-
-function pathFromActivity(event: ActivityEvent) {
-  return pathFromDeepLink(event.address?.deepLink);
-}
-
 function worldToScreen(point: Point) {
   return worldToScreenPoint(point, state.view, viewportSize());
 }
@@ -1906,10 +1350,6 @@ function screenIntersection(box: Bounds): Bounds | null {
     return null;
   }
   return { x: x1, y: y1, width: x2 - x1, height: y2 - y1 };
-}
-
-function boundsCenter(bounds: Bounds) {
-  return modelBoundsCenter(bounds);
 }
 
 function viewportSize() {
